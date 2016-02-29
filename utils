@@ -1,0 +1,1673 @@
+S %I=$I R B X B U 0 C %I D ^%C K ^$R("%C") W !,"Done",! Q
+F  R R Q:R=""  U 0 W R,! U %I K A F I=1:1 R A(I) I A(I)="" M ^$R(R)=A Q
+%BLKDMP
+%BLKDMP ;Dump a block to $IO formatted
+ W:$X ! F  R "Block No: ",BLK,! Q:'BLK  D INT(BLK)
+ Q
+INT(BLK,XX,%,F,I,G,LI,D,BUF,CCC,UCC,K,KET,DATA,ZR) N $ET
+;NOTE: If DO INT^%BLKDMP(0,"^GLOB") will set content to ^GLOB
+ S ZR="INT^%BLKDMP",BUF="",$ET="D EXIT^%BLKDMP"
+ I BLK V -1:BLK ;Note: BLK=0 means BLK is already in View Buffer
+ S %=$V(-1,0) I '% W "Block not in use",! V -1:0 G EXIT
+ I '$D(XX) W "Block: ",$S(BLK:BLK,1:"")," belongs to UCI# ",%#64," "
+ S F=^$S("VOL",1,"UCI",%#64) I '$D(XX) W:$L(F) "(",F,") "
+ S D=%\64,G=$&E($V(-1,12,8),"C") I $D(XX),'D G EXIT
+ I '$D(XX) W $S(D:"data",1:"pointer")," block",!
+ S:G="$GLOBAL" D=0
+ I '$D(XX) W "Right: ",$V(-1,4,4)," Global: ",G,! W "Index Contains",!
+ S LI=$V(-1,8,2)*2,I=20
+ F  D  S I=I+2 Q:I>LI
+ .S F=$V(-1,I,2)*4 I 'F W $J(I,5)_" ..." Q
+ .S CCC=$V(-1,F+2),UCC=$V(-1,F+3),%=UCC S:%=1!(%=2) %=3 S:%=4 %=5
+ .S:UCC $E(BUF,CCC+1,999)=$E($V(-1,F+4,%),1,UCC) S K=BUF,F=F+UCC+4
+ .S KEY="" S:$L(BUF) KEY="(" F  S KEY=KEY_$$UNKEY() Q:'$L(K)  S KEY=KEY_","
+ .S:$L(BUF) KEY=KEY_")"
+ .I '$D(XX) W $J(I,5)_" "_KEY_"="
+ .I 'D S:F#4 F=F\4+1*4 W:'$D(XX) $V(-1,F,4),! Q
+ .S K=$V(-1,F,2),F=F+2 I 'K S DATA=""""""
+ .E  D
+ ..I K<5,K'=3 S DA="" F %=1:1:K S DA=DA_$C($V(-1,F+%-1))
+ ..E  S DA=$V(-1,F,K)
+ ..S DATA=$$DISP^%U(DA)
+ .I '$D(XX) W """",DATA,"""",! Q
+ .S @(XX_KEY_"=DATA")
+;---
+EXIT I BLK V -1:0 ;Free the GBD if we allocated it
+ Q
+;
+UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
+;Get string from key - check null
+ I $A(K)=128 S C=""""_$P($E(K,2,999),$C(0))_"""",K=$P(K,$C(0),2,999) Q C
+;Check for a string
+ S C=$A(K),K=$E(K,2,999)
+;Get count
+ I C=64&'K S K=$E(K,2,999) Q "0"
+;Check for "0"
+ I C<64 S C=63-C,T=$TR($P(K,$C(255)),"0123456789","9876543210"),K=$P(K,$C(255),2,999)
+;If it's negative, do the complementing
+ E  S T=$P(K,$C(0)),K=$P(K,$C(0),2,999)
+;Extract this (positive) subscript
+ Q $S(C<64:"-",1:"")_$E(T,1,C#64)_$S($L(T)>(C#64):"."_$E(T,C#64+1,999),1:"")
+;Quit with the number
+
+%C
+%C ;^%C contents
+ S ^%C="MCL Version 0.9"
+ S ^%C("CD")="D CD^%U(CCL)"
+ S ^%C("CD",1)="Change directory (UCI)"
+ S ^%C("CLEAR")="W $C(27)_""[H""_$C(27)_""[J"""
+ S ^%C("CLEAR",1)="Clear the screen."
+ S ^%C("COPY")="M ^$R($P(CCL,"" "",2))=^$R($P(CCL,"" ""))"
+ S ^%C("COPY",1)="Copy fromrou torou"
+ S ^%C("DCHANGE")="D INT^%DED(CCL)"
+ S ^%C("DCHANGE",1)="Edit a document using your favourite editor."
+ S ^%C("DDIRECT")="D INT^%DD(CCL)"
+ S ^%C("DDIRECT",1)="Obtain a Document Directory"
+ S ^%C("DELETE")="D DEL^%RD(CCL,SW)"
+ S ^%C("DELETE",1)="Delete [/NOQuery] routine spec"
+ S ^%C("DIRECTORY")="X ^%C(""RDIRECTORY"")"
+ S ^%C("DIRECTORY",1)="Obtain a list of routines - same as RDIRECTORY."
+ S ^%C("DSCAN")="D INT^%DED(CCL,1)"
+ S ^%C("DSCAN",1)="Scan a document - read only"
+ S ^%C("DUMP")="D INT^%BLKDMP(CCL)"
+ S ^%C("DUMP",1)="Dump a block (formatted)"
+ S ^%C("EDIT")="D INT^%ED(CCL)"
+ S ^%C("EDIT",1)="Edit a routine using your favourite editor."
+ S ^%C("ERROR")="D ^%ETDISP"
+ S ^%C("ERROR",1)="Display logged errors."
+ S ^%C("EXIT")="internal %M command"
+ S ^%C("EXIT",1)="Exit from MCL to either M> or shell."
+ S ^%C("GDIRECTORY")="D INT^%GD(0,CCL)"
+ S ^%C("GDIRECTORY",1)="Global Directory spec"
+ S ^%C("GEFFICIENCY")="D INT^%GE(CCL)"
+ S ^%C("GEFFICIENCY",1)="Display storage efficiency of a global."
+ S ^%C("GRESTORE")="D INT^%GR(CCL)"
+ S ^%C("GRESTORE",1)="Global restore filename"
+ S ^%C("GSAVE")="D INT^%GS($P(CCL,"" ""),$P(CCL,"" "",2),$P(CCL,"" "",3,99))"
+ S ^%C("GSAVE",1)="Global Save spec filename header text"
+ S ^%C("HELP")="internal %M command"
+ S ^%C("HELP",1)="This text is displayed."
+ S ^%C("LIST")="D INT^%GL(CCL,SW)"
+ S ^%C("LIST",1)="List global /D=data only, /L=max level, /M=max lines"
+ S ^%C("OS")="S:CCL="""" CCL=""exec $SHELL"" S %=$&%SPAWN(""stty onlcr""_$C(59)_CCL_$C(59)_""stty -onlcr"")"
+ S ^%C("OS",1)="Execute O/S (unix) command - shell"
+ S ^%C("RDIRECTORY")="D INT^%RD($S(SW[""L"":1,SW[""U"":2,1:0),CCL)"
+ S ^%C("RDIRECTORY",1)="Routine Directory /FL (first line) or /FU (full) spec"
+ S ^%C("ROUCHECK")="D RC^%RD(CCL)"
+ S ^%C("ROUCHECK",1)="Check the compile syntax on routine_spec."
+ S ^%C("RRESTORE")="D INT^%RR(CCL)"
+ S ^%C("RRESTORE",1)="Routine restore filename"
+ S ^%C("RSAVE")="D INT^%RS($P(CCL,"" ""),$P(CCL,"" "",2),$P(CCL,"" "",3,99))"
+ S ^%C("RSAVE",1)="Routine Save spec filename header text"
+ S ^%C("SCAN")="D INT^%ED(CCL,1)"
+ S ^%C("SCAN",1)="Scan a routine - read only"
+ S ^%C("SHOW")="D INT^%SS(CCL)"
+ S ^%C("SHOW",1)="Show LOCKS, SYS or job#"
+ S ^%C("STATUS")="D INT^%STA(CCL)"
+ S ^%C("STATUS",1)="Show system statistics, specify interval, eg. STA 15"
+ S ^%C("SYSTAT")="D ^%SS"
+ S ^%C("SYSTAT",1)="Obtain a system status."
+ S ^%C("TYPE")="D 0^%TYP(CCL)"
+ S ^%C("TYPE",1)="Type out a routine (like more)."
+
+%D
+%D ;Convert %D to printable date
+ S:$D(%D)#2=0 %D=+$H S %D=$$D(%D) Q
+D(D,M,Y,ZR) S ZR="D^%D" I D<1!(D>423316) Q ""
+ S:D>21608 D=D+1 S M=1,Y=D\1461*4+1841,D=D#1461
+ S:'D D=1461,Y=Y-4 F %=1:1:3 Q:D<366  S Y=Y+1,D=D-365
+ F %=31,28+(Y#4=0),31,30,31,30,31,31,30,31,30,31 Q:D'>%  S M=M+1,D=D-%
+ S M=$P("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",",",M)
+ Q $TR($J(D,2)," ",0)_" "_M_" "_Y
+
+%DD
+%DD ;Do a document directory
+ D INT(".E") Q
+INT(PAT,ST,END,G,%,%D,%V,F,R,ZR) S ZR="INT^%DD"
+ S FL=$G(FL),PAT=$G(PAT,".E")
+ S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
+ W "Document Directory matching '"_PAT_"'.",!! S R=" "
+ F ST=0:1 S R=$O(^%D(R)) Q:R=""  I R?@PAT D
+ .W R,?30 S END="" S:R["." END=$&E($P(R,".",$L(R,".")))
+ .S %D=^%D(R),%V=0 F  Q:'$O(^%D(%D,%V))  S %V=$O(^(%V))
+ .S F=0,%=0 I END="JPG"!(END="GIF")!(END="CLASS") D  Q
+ ..F  S %=$O(^%D(%D,%V,%)) Q:'%  S F=F+$L(^(%))
+ ..W $J(F,10)," bytes",!
+ .F F=0:1 S %=$O(^%D(%D,%V,%)) Q:'%
+ .W $J(F,10)," lines",!
+ Q
+
+%DED
+%DED ;Edit a document using $EDITOR
+ R !,"Document: ",DOC,! Q:DOC=""  D INT(DOC) Q
+INT(DOC,RO,FILE,F,UI,%D,%V,%L,%,ZR) S ZR="^%DED",RO=$G(RO) I $G(DOC)="" Q
+ S %D=$G(^%D(DOC)) G CONT:%D
+;Get the index, continue if OK
+ S %D=$O(^%D(" "),-1)+1,^(%D,0)=DOC,^(1,1)="",^%D(DOC)=%D
+;Create if it doesn't exist
+CONT S %=$O(^%D(%D,0)),%V=$O(^(%)) I '%V S %V=%+1 D
+;Look for a version
+ .S %1=0 F %L=1:1 S %1=$O(^%D(%D,%,%1)) Q:'%1  S ^%D(%D,%V,%L)=^%D(%D,%,%1)
+;.Create a new version
+ I 'RO L +^%D(%D):1 E  W !,"?Can't lock document "_DOC,! Q
+;Attempt to lock if reqd
+ S UI=$$UI^%U(),FILE=DOC_"."_UI O 1:(FILE:"W")
+;Setup the file name
+ I 'RO U 1 W "Editing "_DOC,!,"Remove above to NOT save document.",! U 0
+ S %=0 U 1 F  S %=$O(^%D(%D,%V,%)) Q:'%  W ^(%),!
+ U 0 C 1
+ S F=$&%GETENV("EDITOR") S:F="" F="vi" S F=F_" "_FILE
+ I $E(F)="x",RO S F=F_"&"
+ I $P(F," ")="vi" S F="stty onlcr;"_F_";stty -onlcr"
+ S %=$&%SPAWN(F)
+ I RO H 4 O 1:(FILE:"W") C 1 Q
+ W !,"Saving edit...",!
+ O 1:(FILE:"R") U 1 R F,% U 0
+ I "Editing "_DOC'=F W "Edit NOT saved!",! G EXIT
+ U 1 S %V=%V+1 F %L=1:1 R F Q:$A($K)=255  S ^%D(%D,%V,%L)=F
+;Save the data
+ S %V=$O(^%D(%D,""),-1),%V=$O(^(%V),-1) I %V S %=$O(^(%V),-1) I % K ^(%)
+;Remove an old version - done
+EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^%D(%D) Q
+
+%ED
+%ED ;Edit a routine using $EDITOR
+ R !,"Routine: ",ROU,! Q:ROU=""  D INT(ROU) Q
+INT(ROU,RO,UI,FILE,F,%,ZR) S ZR="^%ED",RO=$G(RO) I $G(ROU)="" Q
+ G CONT:ROU?1A.7AN,CONT:ROU?1"%".7AN&(^$J($J,"ROUTINE")=1) Q
+CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
+ I RO,'$D(^$R(ROU)) W !,"?No such routine "_ROU,! Q
+ S UI=$$UI^%U(),FILE=ROU_"."_UI O 1:(FILE:"W")
+ I 'RO U 1 W "Editing "_ROU,!,"Remove above to NOT save routine.",!,ROU,! U 0
+ I '$D(^$R(ROU)) W !,"Creating routine "_ROU,! U 1 W ROU_" ;New routine",!
+ E  S %=0 U 1 F  S %=$O(^$R(ROU,%)) Q:'%  W ^$R(ROU,%),!
+ W !! U 0 C 1
+ S F=$&%GETENV("EDITOR") S:F="" F="vi" S F=F_" "_FILE
+ I $E(F)="x",RO S F=F_"&"
+ I $P(F," ")="vi" S F="stty onlcr;"_F_";stty -onlcr"
+ S %=$&%SPAWN(F)
+ I RO H 4 O 1:(FILE:"W") C 1 Q
+ W !,"Saving edit...",!
+ O 1:(FILE:"R") K ^UTILITY(UI) U 1 R F,%,% U 0
+ I "Editing "_ROU'=F W "Edit NOT saved!",! G EXIT
+ U 1 F %=1:1 R ^UTILITY(UI,%) Q:^UTILITY(UI,%)=""  Q:$A($K)=255
+ M ^$R(ROU)=^UTILITY(UI) K ^UTILITY(UI)
+EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^$R(ROU) Q
+
+%ET
+%ET ;MUMPS V1 Error Trapper
+ N $ET S $ET=""
+;Don't error trap in here
+ K ZZ S ZZ("$T")=$T,ZZ("$ECODE")=$E($EC,1,255) I '$D(ZF(1)) D
+;Save $Truth and $EC - If we don't have a file, get it
+ .S ZZ("$H")=$H,ZZ("$I")=$I,ZZ("$J")=$J,ZZ("$P")=$P,ZZ("$X")=$X,ZZ("$Y")=$Y,ZZ("$R")=$R
+;.Store permanent junk
+ .L +^ERT S ZF(1)=$G(^ERT)+1,^ERT=ZF(1) L -^ERT
+;.Get next number
+ .S ZF(1)="^ERT("_ZF(1)_",",ZZ=$P(ZZ("$ECODE"),",",2)
+;.Setup the global ref
+ .I $L(ZZ) S ZZ("$ZE")=$&%ERRMSG(ZZ)
+;.Set '$ZE' as reason
+ S ZZ("$STACK")=$ST-1,ZZ("$STACK(-1)")=$ST(-1),ZZ("$ESTACK")=$ES-1
+;Command stack. Store current context and maximum (or current) context level
+ S ZF(2)=ZZ("$STACK")
+;Save here too
+ S ZZ("$STACK("_ZF(2)_")")=$ST(ZF(2))
+;Store $STACK($STACK)
+ S ZF(1)=$P(ZF(1),",")_","_ZZ("$ESTACK")_")" M @ZF(1)=ZZ K ZZ S ZF=$&%ZWRITE(ZF(1))
+;Save where we are up to
+ F ZZ="PLACE","MCODE","ECODE" S ZZ("$"_ZZ_"()")=$ST(ZF(2),ZZ)
+;Store remaining information
+ S ZZ=$P($P($ST(ZF(2),"PLACE"),"^",2)," ") D
+;Get the routine name
+ .I $L(ZZ) S ZZ="+1^"_ZZ,ZZ("$ROUTINE")=$T(@ZZ)
+;.Try to get the first line
+ .I '$L($QS(ZZ("$R"),$QL(ZZ("$R")))) Q
+;.Quit if last subscript null
+ .S ZZ("$D(@$R)")=$D(@ZZ("$R")) I ZZ("$D(@$R)")#2 S ZZ("@$R")=@ZZ("$R")
+;.Get extra $R information
+ I $E(ZF(1))="^" M @ZF(1)=ZZ K ZZ
+;If MUMPS, save some more of this
+ Q
+;Quit leaving $EC set
+ZT S $EC="" Q
+;The final Trap entry point - clear $ECODE and exit
+
+%ETDISP
+%ETDISP ;MUMPS V1 Error Display
+ N CS,QV,G,ZR,TER,$ET S ZR="^%ETDISP",$ET="D Z^%ET"
+;Save Command Stack, locks etc - set errortrap to do nothing
+ S EG="^ERT"
+ W !,?10,"MUMPS Version 1 - Error display utility",!!
+ I '$G(@EG) S %=$O(@EG@("Z"),-1) I % S @EG=%
+;Check for transfered errors
+ I '$G(@EG) K @EG W ?20,"No errors recorded.",! Q
+;Check for any errors
+ S %="" F N=0:1 S ER=%,%=$O(@EG@(%)) Q:'%
+ I 'N K @EG W ?20,"No errors recorded.",! Q
+ G D1:N=1 W N_" error"_$S(N>1:"s",1:0)_" recorded.",!
+ER R "Err#: ",ER W ! Q:ER?1A.E
+ I ER="?"!(ER="HELP") D  G ER
+ .W ! S ER="" F  S ER=$O(@EG@(ER)) Q:'ER  D S1
+ .W ?4,"Enter error number, <Return> for last error, E to EXIT.",!
+ .W ?4,"/D to delete the entire error trap global and exit.",!!
+ I $&E(ER)="/D" K @EG W !,"deleted...",! Q
+;Check for a global /D
+ I ER="" S ER=$O(@EG@("z"),-1) S:ER="" ER=" "
+ I '$D(@EG@(ER)) W "?No such error number.",! G ER
+;------------------------------------------------------------------------------
+D1 W ! D S1
+;Display 1 error passed in ER
+ W $G(@EG@(ER,TER,"$ROUTINE")),!,$G(@EG@(ER,TER,"$MCODE()")),!
+;Say what
+DV W:$X ! R "Variable: ",V W !
+ S V=$&E(V) I $E(V,1,2)="/D" D  S V="/D"
+ .S ERR=$G(@EG@(ER,TER,"$EC"))_": "_$P($G(^("$ZE")),",",1,2)
+;.Fetch the current $ZE for the /A switch
+ .K @EG@(ER) I V["/A" S %=0 F  S %=$O(@EG@(%)) Q:'%  D
+ ..S %1=$O(@EG@(%,"z"),-1) I '%1 K @EG@(%) Q
+;..Get Top ERror - just dong if no such
+ ..I $G(@EG@(%,%1,"$EC"))_": "_$P($G(^("$ZE")),",",1,2)=ERR K @EG@(%)
+;.Dong it - then dong all the same if /A specified
+ .K:'$O(@EG@(0)) @EG Q
+;.If there are no errors left, dong the whole thing - unlock and quit
+ I V="/D" S ER=$O(@EG@(ER),-1) S:'ER ER=$O(^(0)) Q:'ER  G D1
+;See if there are more errors
+ Q:ER="EXIT"  G ER:V=""
+ I V="HELP" W ! D  G DV
+ .W ?5,"Enter variable to display. Wild card characters ? and * may be used.",!
+ .W ?5,"/D to delete error, /D/A to delete all of this type.",!
+ .W ?5,"Press <Return> for 'Err#:' prompt.",!
+ .W ?5,"*$R* will display all information about the last global reference.",!
+ .W ?5,"$ST* will display the call stack.",!
+ .W ?5,"<Help> or HELP for help.  EXIT to exit.",!
+ .W ?5,"To examine variables HELP and EXIT, use HEL? and EXI? respectively.",!!
+ S PAT="" I V'["?",V'["*" D V1 G DV
+ F %=1:1:$L(V) S F=$E(V,%),PAT=PAT_$S(F="*":".E",F="?":"1E",F="""":"1""""""""",1:"1"""_F_"""")
+;go through supplied Pattern char by char and treat ?*" specially
+ S V="" F  S V=$O(@EG@(ER,TER,V)) G DV:V=""  I V?@PAT D V1
+;Scan all variables at Top ERror
+V1 W V,?9," = ",$S($D(@EG@(ER,TER,V)):$$CC(^(V)),1:"<UNDEF>"),!
+;Write out this level
+ F %=TER-1:-1:0 I $D(@EG@(ER,%,V)) W " @ lev-",%,?9," = ",$$CC(@EG@(ER,%,V)),!
+;Display at other levels
+ Q
+D0 W !?10,"No "_$S(%=89:"previous",1:"next")_" error - select by number.",!
+ G ER
+;------------------------------------------------------------------------------
+CC(D,F,%,X) I D?.E1C.E S D=$$DISP^%U(D)
+ Q """"_D_""""
+;------------------------------------------------------------------------------
+S1 S TER=$O(@EG@(ER,"z"),-1),%DT=$G(@EG@(ER,TER,"$H"))
+;Summarise the error in ER
+ W $J(ER,3),?4,$$D^%D(+%DT)_" "_$$T^%T($P(%DT,",",2)),?25
+ S %=$G(@EG@(ER,TER,"$ECODE"))_": "_$G(^("$ZE")) W $E(%,1,55),! Q
+
+%GD
+%GD ;Do a global directory for current uci
+ D INT(0,".E") Q
+INT(FL,PAT,UCI,ST,END,G,%,F,L,ZR) S ZR="INT^%GD"
+ S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"GLOBAL"))
+ S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
+ S ST=$G(ST),END=$G(END,"z"),L=ST I UCI S UCI=^$S("VOL",1,"UCI",UCI)
+ I FL=3,'$D(G) S G="SEL"
+ I FL-3 W "Global Directory of ["_UCI_"] matching '"_PAT_"'.",!!
+ F  S L=$O(^[UCI]$G(L)) Q:L=""!($E(L)]END)  I L?@PAT D
+ .I 'FL W:$X>70 ! W L,?$X\10+1*10 Q
+ .I FL=3,$E(L)'="$" S @G@(L)=""
+ Q
+
+%GE
+%GE ;Global efficiency
+ R !,"Global: ^",G,! Q:G=""  D INT(G) Q
+INT(G,%,UCI,B,NB,ALL,FRE,L,TA,TU,SIZ,ISD,ZR) S ZR="INT^%GE"
+ S G=$TR(G,"^"),UCI="",A=0,SIZ=^$S("VOL",1,"BLOCK")
+ I G["]" S UCI=$P(G,"]")_"]",G=$P(G,"]",2)
+ S %="^"_UCI_"$GLOBAL("""_G_""")",TA=0,TU=0
+ I '$D(@%) W "Global ^",UCI,G," does not exist",! Q
+ S B=@% W "Global efficiency for ^",UCI,G," (",B,")",!
+ F L=1:1 V -1:B S ISD=$V(-1,0)>64 D  Q:ISD  S B=NB
+;Get all levels
+ .I 'ISD S %=$V(-1,20,2)*4+2,%=$V(-1,%+1)+2+% S:%#4 %=%\4+1*4 S NB=$V(-1,%,4)
+ .W "Level",$J(L,3),": " S FRE=0
+ .F ALL=0:1 Q:'B  V -1:B S B=$V(-1,4,4),FRE=$V(-1,10,2)*2+1-$V(-1,8,2)*2+FRE
+ .S ALL=ALL*SIZ,FRE=ALL-FRE W $J(FRE,8)," bytes used of ",$J(ALL,8)
+ .W $J(FRE/ALL*100,7,2),"%",! S TA=TA+ALL,TU=TU+FRE
+ W "Total:    ",$J(TU,8)," bytes used of ",$J(TA,8),$J(TU/TA*100,7,2),"%",!
+ Q
+
+%GL
+%GL ;List global
+ R "Global: ",CCL,! Q:CCL=""  D INT(CCL,"/M") Q
+INT(CCL,SW) S GL=CCL I CCL["/" S Q=0 D
+ .F %=1:1:$L(CCL) S:$E(CCL,%)="""" Q='Q I 'Q,$E(CCL,%)="/" S SW=$G(SW)_$E(CCL,%,999),GL=$E(CCL,1,%-1)
+ I $E(GL)'="^" S GL="^"_GL
+ I $P(GL,"(")["$" W "?Can't list an SSVN",! Q
+ S STOP=$E(GL,$L(GL))=")" S:STOP GL=$E(GL,1,$L(GL)-1)
+ S F=$P(GL,"(",2,999),GL=$P(GL,"(")_$S(GL["(":"(",1:""),Q=0 G NA:F=""
+ I $E(F)'="""" S GL=GL_""""
+ F %=1:1:$L(F) D
+ .I $E(F,%)="""" S Q='Q,GL=GL_"""" Q
+ .I $E(F,%)'=","!Q S GL=GL_$E(F,%) Q
+ .S GL=GL_$S($E(F,%-1)="""":"",1:"""")_","_$S($E(F,%+1)="""":"",1:"""")
+ S:$E(GL,$L(GL))'="""" GL=GL_"""" S GL=GL_")"
+NA S GL=$NA(@GL,999)
+ S NS=$QL(GL),LS=$QS(GL,NS),L1="" S:NS L1=$NA(@GL,NS-1)
+ S MAX=100,LEV=999,DO=0,NC=0
+ I SW["/D" S DO=1
+ I SW["/L" S LEV=+$E($P(SW,"/L",2),2,99)
+ I SW["/N" S NC=1
+ I SW["/M" S MAX=+$E($P(SW,"/M",2),2,99)
+ S CNT=0 I $D(@GL)#10 W GL,"=",@GL,! S CNT=1
+ ;
+ F  S GL=$Q(@GL) Q:GL=""  D  Q:STOP>1
+ .I STOP,$NA(@GL,NS-1)'=L1!($QS(GL,NS)]]LS) S STOP=2 Q
+ .Q:$QL(GL)>LEV
+ .S F=@GL S:F?.E1C.E&'NC F=$$DISP^%U(F) W:'DO GL,"=" W F,!
+ .S CNT=CNT+1 I CNT=MAX S STOP=2
+ W:CNT=MAX "** "_MAX_" nodes printed **",! Q
+
+%GR
+%GR ;Global Restore from file
+ R "Restore from file: ",FILE,! Q:FILE=""
+ D INT(FILE,0) Q
+INT(FILE,NOSAY,%,G,S,ZR) N $ET S ZR="INT^%GR",NOSAY=$G(NOSAY),$ET="D EX^%GR"
+ O 1:(FILE:"R") U 1 R G,% U 0 S G=$TR(G,$C(13)),%=$TR(%,$C(13))
+ I NOSAY<2 W !,G,!,%,!
+ I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
+ U 1 F  R G,% S G=$TR(G,$C(13)),%=$TR(%,$C(13)) Q:$E(G)="*"  D  Q:$A($K)=255
+ .S @G=% I NOSAY<2 U 0 W:$X>70 ! W G,?$X\10+1*10 U 1
+ .F  R S,% S S=$TR(S,$C(13)),%=$TR(%,$C(13)) Q:$E(S)="*"  S:$E(S)="^" G="" S @(G_S)=%
+EX U 0 W:NOSAY<2 ! C 1 Q
+
+%GS
+%GS ;Global Save
+ R !,"Global(s):  ",GLO Q:GLO=""
+ R !,"Filename:   ",FILE G %RS:FILE=""
+ R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=GLO
+ D INT(GLO,FILE,HEAD) Q
+INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
+ S HEAD=$G(HEAD,GLO)
+ S UI=$$UI^%U() K ^UTILITY(UI) S GLO=$$PAT^%U(GLO)
+ D INT^%GD(3,GLO,^$J($J,"GLOBAL"),"","z","^UTILITY("_UI_")")
+ I $O(^UTILITY(UI,""))="" W !,"?No globals selected.",! Q
+ S %=^$J($J,"GLOBAL_VOL"),VOL=^$S("VOL",%,"NAME")
+ S UCI=^$S("VOL",%,"UCI",^$J($J,"GLOBAL"))
+ O 1:(FILE:"W") U 1 W "Saved by %GS from ["_UCI_","_VOL_"] on "
+ W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
+ S GLO="" F  S GLO=$O(^UTILITY(UI,GLO)) Q:GLO=""  S G="^"_GLO D
+ .U 0 W:$X>70 ! W GLO,?$X\10+1*10 U 1
+ .W G,!,$G(@G),! F  S G=$Q(@G) Q:G=""  W "("_$P(G,"(",2,999),!,@G,!
+ .W "*",!,"*",!
+ W "**",!,"**",! U 0
+EX C 1 W ! Q
+
+%M
+%M ;The MUMPS Command Language
+ S $EC="",$ET="" K CS
+ S WID="TERMINATOR="_$C(1,2,4,5,6,7,9,10,11,12,13,14,15,16,18,20)
+ S WID=WID_$C(21,22,23,24,25,26,28,29,30,31)
+ U 0:("CONTROLC":"DELETE=BOTH":"ESCAPE":"ECHO":WID)
+ W $&V(99,1),!,$C(27)_"[6n" R A S BL=+$E($K,3,9) ;Work out Bottom Line
+START U 0 N $ET S $ET="D ERROR^%M" D READ I $G(CMD)'="EXIT" G START
+ S $EC="" Q
+READ S PMT="MCL> ",WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
+ N $ES W $&V(BL,1),!,PMT
+ S CST=$G(CS)+1 R CMD S KEY=$K,P=$L(CMD)+%PMT+1 D KEY G K
+AD W $&V(BL+($L(CMD)+%PMT\WID-(P\WID)),P-1#80+1)
+RS R *A S KEY=$K I A=127!(A=8) S KEY=127,A=0
+ I A,A<32 S KEY=$C(A),A=0
+ I 'A D KEY G K
+ I P>($L(CMD)+%PMT) W $C(A) S CMD=CMD_$C(A),P=P+1 G RS
+ S CMD=$E(CMD,1,P-%PMT-1)_$C(A)_$E(CMD,P-%PMT,9999),KEY=55,P=P+1
+K I KEY=42!(KEY=45) G DOIT
+ I KEY=33 S P=%PMT+1 G AD ;<Ctrl><A>
+ I KEY=81,CST>1 S CST=CST-1,CMD=CS(CST),KEY=55,P=%PMT+1+$L(CMD) ;<Up>
+ I KEY=82,CST<$G(CS) S CST=CST+1,CMD=CS(CST),KEY=55,P=%PMT+1+$L(CMD) ;<Down>
+ I KEY=36 S CMD=$E(CMD,1,P-%PMT-1),KEY=55,P=$L(CMD)+%PMT+1 ;<Ctrl><D>
+ I KEY=37 S P=$L(CMD)+%PMT+1 G AD ;<Ctrl><E>
+ I KEY=53 S CMD=$E(CMD,P-%PMT,9999),KEY=55,P=%PMT+1 ;<Ctrl><U>
+ I KEY=55 W $&V(BL,1),PMT,CMD,E_"[K" G AD ;<Ctrl><W>
+ I KEY=58 S CMD="EXIT" G DOIT ;<Ctrl><Z>
+ I KEY=83,P'>($L(CMD)+%PMT) S P=P+1 G AD ;<Right>
+ I KEY=84,P>(%PMT+1) S P=P-1 G AD ;<Left>
+ I KEY=112 S CMD="HELP" G DOIT
+ I KEY'=127 W $C(7) G RS
+ I P'>(%PMT+1) W $C(7) G RS
+ W E_"[D"_E_"[K" S CMD=$E(CMD,1,P-%PMT-2)_$E(CMD,P-%PMT,9999),P=P-1
+ W $E(CMD,P-%PMT,9999) G AD
+DOIT W:P'>($L(CMD)+%PMT) $&V($L(CMD)+%PMT\WID+1+BL,1) W !
+INT S CMD=$&E(CMD,"B"),CCL=$P(CMD," ",2,999),C=$&E($P(CMD," ")) Q:C=""
+ I $G(CS(+$G(CS)))'=CMD S CS=$G(CS)+1,CS(CS)=CMD
+ I C?1U D:C="K"  X CMD Q
+ .Q:CMD["("!($E(CCL)'="^")  I $&E(CCL)="^$J" W "Use ^SSD please.",! S CMD="Q" Q
+ .W "KILL entire global: N> "
+ .R %,! I $E($&E(%))'="Y" S CMD="Q"
+ I C=$E("EXIT",1,$L(C)) S CMD="EXIT" Q
+ I C=$E("HELP",1,$L(C)) G ^%MH
+ S SW=$P(C,"/",2,9),C=$P(C,"/") S:$L(SW) SW="/"_SW
+ S %=C S:'$D(^%C(C)) %=$O(^%C(C)) I $E(%,1,$L(C))=C N $ET,BL X ^(%) Q
+ W "?No such MCL command - try HELP",! Q
+KEY I KEY=127 Q
+ I $L(KEY)=1 S KEY=$A(KEY)+32 Q
+ I $L(KEY)=3 S KEY=$A(KEY,3)+16 Q
+ S KEY=$E(KEY,3,4)+84 Q
+ERROR U 0 I $ES<2 S $EC="" G %M
+ Q:$ST-$ST(-1)  S S=$ST-1 I $EC[",Z51," W:$X ! W "^C",! Q
+ S ER=$P($EC,",",2) W:$X ! I $L(ER) W "Error: ",ER," ",$&%ERRMSG(ER),!
+ W "$ST=",S,?10,$ST(S),?20,$ST(S,"PLACE"),!
+ W "Code:",?10,$ST(S,"MCODE"),! Q
+
+%MH
+%MH ;Help on MCL
+ W "Enter any MUMPS command (initial only) or one of:",!
+ S %="@" F  S %=$O(^%C(%)) Q:%'?1U.E  W %,?12,^%C(%,1),!
+ W "Key usage is: <Help> this message.",!
+ W "              <Up> and <Down> move through entered lines.",!
+ W "              <Left> and <Right> move in current command.",!
+ W "              <Ctrl><A> move to begining of line.",!
+ W "              <Ctrl><D> delete to end of line.",!
+ W "              <Ctrl><E> move to end of line.",!
+ W "              <Ctrl><U> delete to begining of line.",!
+ W "              <Ctrl><W> referesh screen.",!
+ W "              <Ctrl><Z> exit MCL.",!
+ Q
+
+%RD
+%RD ;Do a routine directory for current uci or MGR %
+ D INT(0,".E") Q
+LIB D INT(0,"1""%"".E",1,"%","%") Q
+INT(FL,PAT,UCI,ST,END,G,%,F,R,ZR) S ZR="INT^%RD"
+ S WEB=$P($D,",",2)=2
+ S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"ROUTINE"))
+ S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
+ S ST=$G(ST),END=$G(END,"z"),R=ST I UCI S UCI=^$S("VOL",1,"UCI",UCI)
+ I FL=3,'$D(G) S G="SEL"
+ I FL-3 W "Routine Directory of ["_UCI_"] matching '"_PAT_"'.",!!
+ I FL=2 W "Routine",?10," Size",?20,"Owner",?30,"Compiled",!!
+ F  S R=$O(^[UCI]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
+ .I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
+ .I FL=1 W R,?10,^[UCI]$R(R,1),! Q
+ .I FL=2 S F=^[UCI]$R(R,0),%=R D  Q
+ ..I $E(R)="%" S %="%25"_$E(R,2,9)
+ ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
+ ..E  W R
+ ..W ?10,$J($L(F),5),?20,$A(F,4)*256+$A(F,3),?30
+ ..S %=$A(F,8)*256+$A(F,7)*256+$A(F,6)*256+$A(F,5) W $$D^%D(%)," at "
+ ..S %=$A(F,12)*256+$A(F,11)*256+$A(F,10)*256+$A(F,9) W $$T^%T(%),!
+ .I FL=3 S @G@(R)=""
+ Q
+DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
+ D INT(3,CCL) S R="",OK=1
+ F  S R=$O(SEL(R)) Q:R=""  D:'SW  I OK K ^$R(R) I SW W:$X>70 ! W R,?$X\10+1*10
+ .W "Delete "_R R " OK: N> ",%,! S OK=$E($&E(%))="Y"
+ W ! Q
+RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
+ D INT(3,CCL) S R=""
+ F  S R=$O(SEL(R)) Q:R=""  W:$X ! W R,! S %=$&%ROUCHK(R)
+ Q
+
+%RECOMP
+%RECOMP ;Recompile ALL routines
+ W !,"Recompiling ALL routines in the current environment (UCI)",!
+ S R="" F  S R=$O(^$R(R)) Q:R=""  W:$X>70 ! W R,?$X\10+1*10 M ^$R(R)=^$R(R)
+ W !,"Done",! Q
+
+%RR
+%RR ;Routine Restore from file
+ R "Restore from file: ",FILE,! Q:FILE=""
+ D INT(FILE,0) Q
+INT(FILE,NOSAY,%,A,R,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
+ O 1:(FILE:"R") U 1 R A,R U 0 S A=$TR(A,$C(13)),R=$TR(R,$C(13))
+ I NOSAY<2 W !,A,!,R,!
+ I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
+ U 1 F  R R S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
+ .I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
+ .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)) Q:A(%)=""  Q:$A($K)=255
+ .M ^$R(R)=A
+EX U 0 W:NOSAY<2 ! C 1 Q
+
+%RS
+%RS ;Routine Save
+ R !,"Routine(s): ",ROU Q:ROU=""
+ R !,"Filename:   ",FILE G %RS:FILE=""
+ R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=ROU
+ D INT(ROU,FILE,HEAD) Q
+INT(ROU,FILE,HEAD,%,VOL,UCI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
+ S HEAD=$G(HEAD,ROU)
+ S UI=$$UI^%U() K ^UTILITY(UI) S ROU=$$PAT^%U(ROU)
+ D INT^%RD(3,ROU,^$J($J,"ROUTINE"),"","z","^UTILITY("_UI_")")
+ I $O(^UTILITY(UI,""))="" W !,"?No routines selected.",! Q
+ S %=^$J($J,"ROUTINE_VOL"),VOL=^$S("VOL",%,"NAME")
+ S UCI=^$S("VOL",%,"UCI",^$J($J,"ROUTINE"))
+ O 1:(FILE:"W") U 1 W "Saved by %RS from ["_UCI_","_VOL_"] on "
+ W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
+ S R="" F  S R=$O(^UTILITY(UI,R)) Q:R=""  D
+ .U 0 W:$X>70 ! W R,?$X\10+1*10 U 1 W R,!
+ .S %=0 F  S %=$O(^$R(R,%)) Q:%=""  W ^$R(R,%),!
+ .W !
+EX W ! U 0 C 1 W ! Q
+
+%SS
+%SS ;System Status
+ W "Job",?5,"Pid",?15,"User",?25,"Pri",?30,"Routine",?40,"Commands",?50
+ W "GlobRefs",?60,"Where",!
+ S J=0 F  S J=$O(^$J(J)) Q:'J  D  W !
+ .N $ET S $ET="S $EC="""""
+ .W J,?5,^$J(J,"PID"),?15,^$J(J,"OWNER"),?25,$J(^$J(J,"PRIORITY"),3)
+ .W ?30,^$J(J,"ROUTINE_NAME"),?40,$J(^$J(J,"COMMANDS"),8),?50
+ .W $J(^$J(J,"GREFS"),8),?60,$E(^$J(J,"$IO",0),1,20)
+ W ! Q
+INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
+ .W "Job Count Reference",! S J=""
+ .F  S J=$O(^$L(J)) Q:J=""  S %=^$L(J) W $J(+%,3),$J($P(%,",",2),6)," ",J,!
+;End of SHOW LOCKS
+ I $E("SYSTEM",1,$L(J))=J D  Q
+ .W "$SYSTEM=",$SY,!,"UCI# Name",!
+ .F %=1:1:64 S J=^$S("VOL",1,"UCI",%) I $L(J) W $J(%,3),"  ",J,!
+;.Dump the UCIs
+ .W "Max: ",^$J," jobs",!
+ .W "Vol: ",^$S("VOL",1,"NAME")," in file ",^$S("VOL",1,"FILE"),!
+ .W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")," kb Blocks, "
+ .W ^$S("VOL",1,"FREE")," Free.",!
+ .S J=^$S("VOL",1,"LOGRD"),%=^$S("VOL",1,"PHYRD")
+ .W "Database reads - Logical: ",J,"  Physical: ",%
+ .W:J "  Cache hits: ",$J((J-%)/J*100,0,2),"%" W !
+;End of SHOW SYSTEM
+ W "       Job: "_J I '$D(^$J(J)) W " No such job",! Q
+ W "   PID: "_^$J(J,"PID")_"   User: "_^$J(J,"OWNER")
+ W "   Priority: "_^$J(J,"PRIORITY"),! S %=^$J(J,"PROCESS_START")
+ W "Started at: "_$$T^%T($P(%,",",2))," on ",$$D^%D(%)
+ W "  UCI Global: "_^$J(J,"GLOBAL")_"  Lock: "_^$J(J,"LOCK")
+ W "  Routine: "_^$J(J,"ROUTINE"),!
+ W "   Routine: "_^$J(J,"ROUTINE_NAME"),"  Commands: ",^$J(J,"COMMANDS")
+ W " Grefs: ",^$J(J,"GREFS"),!
+ S %=^$J(J,"$REFERENCE") I $L(%) W "    Global: ",%,!
+ S %=^$J(J,"$STACK",^$J(J,"$STACK"),"MCODE") I $L(%) W "      Code: ",%,!
+ W "     Stack: ",^$J(J,"$STACK",^$J(J,"$STACK"),"PLACE")," (Current)",!
+ F %=^$J(J,"$STACK")-1:-1:1 W $J(%,10),": ",^$J(J,"$STACK",%,"PLACE"),!
+ Q
+
+%STA
+%STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
+ R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
+INT(INT,%,O,N,EX,I,LS,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lasttry,lastok,logrd,phyrd,logwt,phywt"
+ W $&V(1,1),$C(27)_"[J" S:'INT INT=1
+ D GET Q:EX  M O=N F  D GET Q:EX  D PRT M O=N Q:EX  R *%:INT
+ W $&V(23,1),! Q
+ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
+GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",1,$P(LS,",",I))
+ S N=$H Q
+PRT W $&V(1,1),"System Statistics - ",$$T^%T($P($H,",",2))
+ W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
+ W "Volume: ",^$S("VOL",1,"NAME")
+ W " in file: ",^$S("VOL",1,"FILE"),!
+ W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")/1024,"kb blocks - "
+ W ^$S("VOL",1,"FREE")," available ("
+ W $J(^$S("VOL",1,"FREE")/^$S("VOL",1,"SIZE")*100,0,2),"%)",!!
+ W ?15,$J("Total",10),?30,$J("Increment",10),!
+ F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),!
+ W "cache",?15,$J(N("logrd")-N("phyrd")/N("logrd")*100,10,2),"%",?30
+ S %=N("logrd")-O("logrd") I '% W $J("",11),!
+ E  W $J(%-(N("phyrd")-O("phyrd"))/%*100,10,2),"%",!
+ Q
+
+%T
+%T ;Convert %T to printable time
+ S:$D(%T)#2=0 %T=$P($H,",",2) S %T=$$T(%T) Q
+T(H,M,S,%,ZR) S ZR="T^%T" I H<0!(H>86399) Q ""
+ I 'H Q "12:00:00 PM"
+ S S=H#60,H=H\60,M=H#60,H=H\60
+ S %=$S(H<12:"AM",M!S:"PM",1:"M ")
+ Q $TR($J(H,2)," ",0)_":"_$TR($J(M,2)," ",0)_":"_$TR($J(S,2)," ",0)_" "_%
+
+%TYP
+%TYP ;Type a routine
+0(ROU,%,%1,F,L,W,S,STOP,ZR) S STOP=0,E=$C(27)
+;Type routine ROU
+ I '$D(^$R(ROU)) W "?No such routine as "_ROU,! Q
+;Check it
+ S S=$O(^$R(ROU,""),-1)
+;Get the size
+ S L=99999,W=999,$Y=1 I $P($D,",",2)=4 S L=24,W=80
+;Get term setup - clear $Y (there needs to be a better way)
+ F %=1:1 Q:'$D(^$R(ROU,%))  S F=^$R(ROU,%) D  Q:STOP
+;Get each line in turn
+ .S:$E(F)'=";" %1=$P($P(F," "),"("),F=%1_$J("",9-$L(%1))_$P(F,$S($L(%1):%1,1:" "),2,9999)
+;.Format it
+ .F  Q:$E(F,2,99)?." "  D:$Y'<L  Q:STOP  W $E(F,1,W),! S F="_"_$E(F,W+1,9999)
+;.For each bit
+ ..N $ET S $ET="S $EC="""",STOP=1"
+;..See if we need a continue - setup for a ^C
+ ..W E_"[7m"_ROU_" ("_$J(%/S*100,0,0)_"%)"_E_"[0m" R *%1
+;..Do a fancy prompt and get a response
+ ..W *13,E,"[K" I %1=13!(%1=10) Q
+;..Check for a return
+ ..I %1=81!(%1=113)!(%1=26) S STOP=1 Q
+;..Check for a Quit (or ^Z)
+ ..S $Y=1
+;..All else is another page
+ Q
+
+%U
+%U ;General Utilities
+UI(%,ZR) S ZR="UI^%U"
+ L +^%AUTH("ui") S %=$G(^%AUTH("ui"))+1,^("ui")=% L -^%AUTH("ui") Q %
+DISP(S,%,C,F,ZR) S ZR="DISP^%U",F=""
+;Return S (which contains control characters) as displayable string
+ F %=1:1:$L(S) S C=$A(S,%) D  I $L(F)>500 S F=F_"..." Q
+;Process each character in the input string
+ .I C>31,C<127 S F=F_$C(C) Q
+;.If it's a normal printable character, add to F and quit
+ .I C<32 S F=F_"<"_$S('C:"Nul",C=8:"Tab",C=10:"LF",C=12:"FF",C=13:"CR",1:"^"_$C(C+64))_">" Q
+;.Look after the normal controls
+ .I C=127 S F=F_"<Del>" Q
+;.and delete - all below 128 now done
+ .I C<140 S F=F_$C(171)_"^"_$C(C+64)_$C(187) Q
+;.For control characters 128 to 139, enclose in << >>
+ .S F=F_$C(C)
+;.Assume a "normal" eight bit character
+ Q F
+;Quit with result
+PAT(STR,S,N,C,P,ZR) S ZR="PAT^%U"
+;Create a pattern match from wildcards
+ S P="" F  Q:STR=""  S S=$P(STR,","),STR=$P(STR,",",2,99) I $L(S) S P=P_"," D
+ .F N=1:1:$L(S) S C=$E(S,N),P=P_$S(C="*":".E",C="?":"1E",C="""":"1""""""""",1:"1"""_C_"""")
+ S P=$E(P,2,999) S:P["," P="1("_P_")" Q P
+CD(UCI,%,ZR) S ZR="CD^%U"
+ I 'UCI F %=1:1:64 I ^$S("VOL",1,"UCI",%)=UCI S UCI=% Q
+;Make it into a number if possible
+ G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",1,"UCI",UCI))
+;Validate it
+ F %="GLOBAL","LOCK","ROUTINE" S ^$J($J,%)=UCI
+;Set all the bits
+ Q
+CDE W "?Invalid uci specified",! Q
+
+%WWW
+%WWW ;WWW Stuf
+ S $ET="D ^%ET",MJN=$J O 10:(80:"S=5")
+;Open the server port - allow for 5 jobs
+READ D RECV^%WWW1(.AA)
+;Get a message
+ F %=1:1 G ERR:'$D(AA(%)) I $E(AA(%),1,5)="GET /" Q
+;Look for a GET
+ S FILE=$P($E(AA(%),6,99999)," HTTP/1.") S:FILE="" FILE="index.html"
+;Extract file specification
+ S %=$G(^WWWLOG) I % S %=%+1,^WWWLOG=%,^WWWLOG(%)=$H_","_$P(DEVICE,",",3)_","_FILE
+;Log it if applicable
+ I $E(FILE)="?" G EXT
+;Look after extrinsics elsewhere
+FILE I FILE["%" S FILE=$$REMP(FILE)
+;Check for % characters
+ S F=$P(FILE,"/",$L(FILE,"/")),EXT="" S:F["." EXT=$&E($P(F,".",$L(F,".")))
+;Extract just the file name, also get the extension (in upper case)
+ S REF=$$GETFILE(F) I REF="" D ERR^%WWW1() H:MJN-$J  G READ
+;Get the reference, if nosuch, give error and exit
+ D SEND^%WWW1(REF,EXT) H:MJN-$J  G READ
+;Send it
+;---
+EXT S FUN=$P($E(FILE,2,999),"&"),FUN=$$REMP(FUN),FILE=$P(FILE,"&",2,9999)
+;Extrinsic functions - extract the function name
+ K BB F  Q:FILE=""  S F=$P(FILE,"&"),FILE=$P(FILE,"&",2,9999) D
+;Extract the fields
+ .S I=$P(F,"="),F=$P(F,"=",2,999),I=$$REMP(I) S:$L(I) BB(I)=$$REMP(F)
+;.Store one field
+ S FUN="RET="_FUN_"(.AA,.BB)" D  I $L(RET) D ERR^%WWW1(RET) H
+;Setup the extrinsic and execute it
+ .N $ET S $ET="D %ET^%WWW",@FUN
+;.Saving the error trap
+ I $G(AA)'="" S FILE=AA G FILE
+;Display a file if required
+ H:MJN-$J  G READ
+;Done
+;---
+%ET S F=$P($EC,",",2),F="MUMPS Error: "_F_" "_$&%ERRMSG(F) D ERR^%WWW1(F)
+;Extrinsic error trap
+ G ^%ET
+;---
+ERR D ERR^%WWW1("Invalid http message received") U 10:("DISCONNECT") H:MJN-$J  G READ
+;Give error and halt
+;---
+GETFILE(F,%,V,ZR) S ZR="GETFILE^%WWW"
+;Lookup a file in %D
+ S %=$G(^%D(FILE)) Q:'% ""
+;Lookup the file
+ S V=$O(^%D(%,""),-1) Q:'V ""
+;Get the version
+ Q "^%D("_%_","_V_")"
+;Quit with the ref
+;---
+REMP(F,%,X,ZR) S ZR="REMP^%WWW",X=""
+;Remove %nn stuff from a string
+ F  S %=$F(F,"%") Q:'%  S X=X_$E(F,1,%-2)_$$CC($E(F,%,%+1)),F=$E(F,%+2,99999)
+;Doit
+ Q X_F
+;and quit
+CC(H,%,ZR) S ZR="CC^%WWW",H=$&E(H)
+;Convert Hex to Character
+ F %=0:1:15 S %(%)=% S:%>9 %($C(55+%))=%
+;Setup the 'HEX' array 0 -> F
+ Q $C(%($E(H))*16+%($E(H,2)))
+;Quit with decimal value
+
+%WWW1
+%WWW1 ;WWW Stuf - subroutines
+RECV(D,%,N,TO,ZR) S ZR="RECV^%WWW1" K D S TO=10,D=1 U 10
+;Get into D which must be passed by ref, number of lines returned in D
+ R D(1) S DEVICE=$D I D(1)'="" F D=2:1 R D(D):TO Q:D(D)=""
+;Read first (no timeout) then the rest
+ S N=$G(^WWW) I N F %=1:1 Q:'$D(D(%))  S ^WWW(%+N)=D(%)
+ I N S ^WWW=N+%
+ Q
+;and exit
+;---
+SEND(REF,TYP,%,L,ZR) N $ET S ZR="SEND^%WWW1",$ET="D X^%WWW1",TYP=$G(TYP),L=0
+; REF -> Global ref to send, sends @REF@(n)
+; TYP -> TXT = text/html        (default)
+;        JPG = image/jpeg
+;        GIF = image/gif
+;        CLASS = class
+; HTTP/1.0 200 Document follows
+; Content-type: (as above)
+; Content-Length: (omit for text/html)
+; <blank line>
+; file
+ U 10 S TYP=$S(TYP="JPG":"image/jpeg",TYP="GIF":"image/gif",TYP="CLASS":"class",1:"text/html")
+;Get TYP into browser format
+ W "HTTP/1.0 200 Document follows",!,"Server: MUMPS",!,"Content-type: "_TYP,!
+ I $E(TYP)'="t" D  W "Content-Length: "_L,!
+;Not a text file - get the size
+ .S %=0 F  S %=$O(@REF@(%)) Q:'%  S L=L+$L(^(%))
+;Calculate the total length
+ W ! S %=0 F  S %=$O(@REF@(%)) Q:'%  W @REF@(%) W:'L !
+;Terminate header, output file (terminate text lines with CrLf)
+ Q
+;and exit
+X I $G(MJN)=$J S $EC="" Q
+ H:$EC["Z47"  G ^%ET
+;---
+ERR(ERR,%,MSG,ZR) S ZR="ERR^%WWW",ERR=$G(ERR,"File not found")
+;Send an error message - ensure there is a message
+ S MSG(1)="<HTML><BODY onLoad=""alert('"_ERR_"'); history.back(); return false"">"
+;Setup the error message
+ D SEND("MSG") Q
+;Send it and quit
+
+%WWWU
+%WWWU ;Web Utilities
+ N %D,%L,BS,CH,EXT,F,N,S,OPT,$ET S $ET="D ^%ET",U="|"
+ S OPT(1)="Edit a document|^%DED",OPT(2)="List documents|^%DD"
+ S OPT(3)="Delete a document|DEL",OPT(4)="Import a document|IMP"
+START W !,"MUMPS Web Utilities",!
+ F %=1:1 Q:'$D(OPT(%))  W %,". ",$P(OPT(%),U),!
+ R "Option: ",F,! S F=$E($&E(F)) Q:F=""
+ I 'F F %=1:1 Q:'$D(OPT(%))  I $E(OPT(%))=F S F=% Q
+ I 'F W "?Invalid option",$C(7),! G START
+ D @$P(OPT(F),U,2) G START
+;---
+DEL R "Enter Name of document to delete: ",F,! Q:F=""!F
+;Delete a documment
+ I '$D(^%D(F)) W "?No such document",$C(7),! G DEL
+ S %=^%D(F) K ^%D(F),^%D(%) W "Deleted.",! Q
+;---
+IMP R "Enter Name of document to import: ",F,! Q:F=""!F
+;Import a document
+ S N=$P(F,"/",$L(F,"/")) I $D(^%D(N)) W "?Document "_N_" exists"_$C(7),! G IMP
+;Get Name, ensure doesn't exist
+ S BS=^$S("VOL",1,"BLOCK")-40,EXT="" I N["." S EXT=$&E($P(N,".",$L(N,".")))
+;Get block size and the extension
+ S CH=0 D  I 'CH W "?File "_F_" does not exist"_$C(7),! G IMP
+;Open the file
+ .N $ET S $ET="S $EC=""""" C 1 O 1:(F:"R") S CH=1
+;.Ignore errors
+ S S=$&%FILE(F,"SIZE") I 'S W "?File "_F_" is empty"_$C(7),! G IMP
+;Get size
+ S %D=$O(^%D(" "),-1)+1,^%D(%D,0)=N,^(1,1)="",^%D(N)=%D
+;Create the document
+ I EXT="JPG"!(EXT="GIF")!(EXT="CLASS") U 1:("TERMINATOR=") S F=S D  Q
+;Check for a binary type
+ .F %L=1:1 S %=F S:%>BS %=BS S F=F-% R ^%D(%D,1,%L)#% Q:'F
+;.Read in each chunk
+ .C 1 U 0 W S," bytes in ",%L," record",$S(%L>1:"s",1:"")," read.",!
+;.Finish up
+ U 1 F %L=1:1 R ^%D(%D,1,%L) I $A($K)=255 K:'$L(^%D(%D,1,%L)) ^%D(%D,1,%L) Q
+;Read in a text file
+ U 0 C 1 W %L," lines read.",! Q
+
+%X364
+%X364 ;Namespace - ANSI X3.64-1979
+ ;Kindly donated by Colin Richardson
+ ;MUMPS V1 - this is a subset of the ANSI X3.64 control codes
+ ;Usage: USE $I::"%X364" W /CUP(LINE,COL)    ;this will position the cursor
+ ;$X and $Y are preserved or set as appropriate.
+ ;
+BEL() w *7 q  ;Ring the Bell (non-standard but in common use)
+CHA(n) s n=$g(n,1) w $c(27,91)_n_"G" s $x=n-1 q  ; Cursor Horizontal Absolute
+CHT(n) s n=$g(n,1) w $c(27,91)_n_"I" s $x=$x\8*8+(n*8) q  ; Cursor Horiz Tab
+CNL(n) s n=$g(n,1) w $c(27,91)_n_"E" s $y=$y+n q  ; Cursor Next Line
+CPL(n) s n=$g(n,1) w $c(27,91)_n_"F" s $y=$y-n q  ; Cursor Preceding Line
+CUB(n) s n=$g(n,1) w $c(27,91)_n_"D" s $x=$x-n q  ; Cursor Backward
+CUD(n) s n=$g(n,1) w $c(27,91)_n_"B" s $y=$y+n q  ; Cursor Down
+CUF(n) s n=$g(n,1) w $c(27,91)_n_"C" s $x=$x+n q  ; Cursor Forward
+CUP(x,n) s n=$g(n,1),x=$g(x,1) w $c(27,91)_x_";"_n_"H" ;Cursor Position
+ s $x=n-1,$y=x-1 q
+CUU(n) s n=$g(n,1) w $c(27,91)_n_"A" s $y=$y-n q  ; Cursor Up
+CVT(n) w $c(27,91)_$g(n,1)_"Y" q  ; Cursor Vertical Tab
+DCH(n,x) s x=$x w $c(27,91)_$g(n,1)_"P" s $x=x q  ; Delete Characters
+DCS(x) s x=$x w $c(27)_"P" s $x=x q  ; Device Control String
+DL(n,x) s x=$x w $c(27,91)_$g(n,1)_"M" s $x=x q  ; Delete Lines
+EA(n,x) s x=$x w $c(27,91)_+$g(n)_"O" s $x=x q  ; Erase in Area
+ECH(n,x) s x=$x w $c(27,91)_+$g(n,1)_"X" s $x=x q  ; Erase Characters
+ED(n,x) s x=$x w $c(27,91)_+$g(n)_"J" s $x=x q  ; Erase Display
+;n=0: cursor to end of screen, n=1: start of screen to cursor, n=2: all screen
+EF(n,x) s x=$x w $c(27,91)_+$g(n)_"N" s $x=x q  ; Erase Field
+EL(n,x) s x=$x w $c(27,91)_+$g(n)_"K" s $x=x q  ; Erase in line
+;n=0: cursor to end, n=1: start of line to cursor, n=2: whole line
+EPA(x) s x=$x w $c(27)_"W" s $x=x q  ; End Protected Area
+ESA(x) s x=$x w $c(27)_"G" s $x=x q  ; End Selected Area
+HPA(n) s n=$g(n,1) w $c(27,91)_n_"`" s $x=n-1 q  ; Horizontal Position Absolute
+HPR(n) s n=$g(n,1) w $c(27,91)_n_"a" s $x=$x+n q  ; Horizontal Position Rel
+HTJ(x) s x=$x w $c(27)_"I" s $x=x q  ; Horizontal Tab w/Justify
+HTS(x) s x=$x w $c(27)_"H" s $x=x q  ; Horizontal Tab Set
+HVP(x,n) s n=$g(n,1),x=$g(x,1) w $c(27,91)_x_";"_n_"f"  ; HVP
+ s $x=n-1,$y=x-1 q
+ICH(n,x) s x=$x,n=$g(n,1) w $c(27,91)_n_"@" s $x=x+n q  ; Insert CHaracters
+IL(n,x) s x=$x w $c(27,91)_$g(n,1)_"L" s $x=x q  ; Insert Lines
+NEL w $c(27)_"E" s $x=0,$y=$y+1 q  ; Next Line
+NP(n,x) s x=$x w $c(27,91)_$g(n,1)_"U" s $x=x q  ; Next Page
+PLD(x) s x=$x w $c(27)_"K" s $x=x q  ; Partial Line Down
+PLU(x) s x=$x w $c(27)_"L" s $x=x q  ; Partial Line Up
+PM(x) s x=$x w $c(27)_"^" s $x=x q  ; Privacy Message
+PP(n,x) s x=$x w $c(27,91)_$g(n,1)_"V" s $x=x q  ; Preceding page
+PU1(x) s x=$x w $c(27)_"Q" s $x=x q  ; Private Use 1
+PU2(x) s x=$x w $c(27)_"R" s $x=x q  ; Private Use 2
+REP(x) s x=$x w $c(27,91)_"b" s $x=x q  ; Repeat Character
+RI w $c(27)_"M" s $y=$y-1 q  ; Reverse Index
+RIS w $c(27)_"c" s $x=0,$y=0 q  ; Reset to Initial State
+RM(n,x) s x=$x w $c(27,91)_$g(n)_"l" s $x=x q  ; Reset mode
+SGR(n,x) s x=$x w $c(27,91)_$g(n,0)_"m" S $x=x q  ; Set Graphic Rendition
+SPA(x) s x=$x w $c(27)_"V" s $x=x q  ; Start Protected Area
+SS2(x) s x=$x w $c(27)_"N" s $x=x q  ; Single Shift 3
+SS3(x) s x=$x w $c(27)_"O" s $x=x q  ; Single Shift 3
+SSA(x) s x=$x w $c(27)_"F" s $x=x q  ; Start Selected Area
+ST(x) s x=$x w $c(27)_"\" s $x=x q  ; String Terminator
+STS(x) s x=$x w $c(27)_"S" s $x=x q  ; Set Transmit State
+SU(x) s x=$x w $c(27,91)_"S" s $x=x q  ; Scroll Up
+TBC(n,x) s x=$x w $c(27,91)_$g(n,0)_"g" s $x=x q  ; Tab Clear
+VPA(n) s n=$g(n,1) w $c(27,91)_n_"d" s $y=n-1 q  ; Vertical Position Absolute
+VPR(n) s n=$g(n,1) w $c(27,91)_n_"e" s $y=$y+n q  ; Vertical Position Relative
+VTS(x) s x=$x w $c(27)_"J" s $x=x q  ; Vertical Tabulation Set
+
+COMPRESS
+COMPRESS ;Compress a specific global on-line
+ R !,"Compress which Global: ^",G,! Q:G=""
+ W "Priority being lowered to 20 (the lowest)",! S ^$J($J,"PRIORITY")=20
+ D INT(G) Q
+INT(G,%,LEV,ZR) N $ET S ZR="INT^COMPRESS",$ET="D ^%ET",LEV=15
+ S G="^"_$TR(G,"^") I '$D(@G) W "Global ^",G," does not exist",! Q
+ F  S LEV=$&%COMPRESS(G,LEV) Q:G["("  S LEV=LEV-1 Q:LEV<2
+ I LEV>-1 W "Done",! Q
+ S LEV="M"_-LEV  W *7,$&%ERRMSG(LEV),! Q
+
+IC
+IC ;Check Database
+ N $ET S $ET="ERR^IC"
+ S ^$S("VOL",1,"WRITELOCK")=1 W !,"Writelocking the database"
+ F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ W !,"Checking Database",! S ER=$&%IC(1,0)
+ W ! W:ER ER W $S(ER=0:"NO Errors",ER>1:" errors",1:" error")," found.",!
+ERR S ^$S("VOL",1,"WRITELOCK")=0 Q
+
+FIX
+FIX ;FIX Database
+ N DTYP,D,K,BLK,CMD,LCMD,BSIZ,I,VV,$ES,$ET S $ET="D ERR^FIX",VV=-1
+;New a few things, setup error trap - Valid Volume always -1 for now
+ S ^$S("VOL",1,"WRITELOCK")=1 W !,"Writelocking the database"
+ F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ASK W:$X ! W "FIX> " R CMD,! S LCMD=CMD,CMD=$&E(CMD) S:CMD="" CMD="?"
+;Get some input
+ I CMD?1.N S BLK=CMD D BLK G ASK
+;Check for a block number
+ I CMD="C" D  G ASK
+;Look for Check
+ .I '$G(BLK) W "?No current block"_$C(7) Q
+;.Ensure we have a block
+ .S %=$&%IC(-VV,BLK) W !,$S(%>1:%_" Errors",%:"1 Error",1:"No errors"),!
+;.Do it
+ I $E(CMD)="D" D  W ! G ASK
+;Check for Dump
+ .W "Write enabling disk... " S ^$S("VOL",1,"WRITELOCK")=0
+;.Enable writes
+ .D INT^%BLKDMP(0,"^%DUMP") W "dumped to ^%DUMP()",!
+;.Do it
+ .S ^$S("VOL",1,"WRITELOCK")=1 W "Writelocking the database"
+ .F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ I $E(CMD)="E" D  G ASK
+;Check for Environment (UCI)
+ .F %=2:1:$L(CMD) I $E(CMD,%)?1N S:+$E(CMD,%,9)<64&$E(CMD,%,9) D(0)=+$E(CMD,%,9) Q
+;.Do it
+ I $E(CMD)="F"!(CMD=".") D SAVE^FIX2 G ASK
+;Check for F or .
+ I $E(CMD)="G" S LCMD=$E(LCMD,2,99) D  G ASK
+;Check for Global name change
+ .I LCMD?1"%"1.7AN!(LCMD?1A1.7AN) S K=LCMD Q
+;.Do it if OK
+ .W "?Invalid global name '",LCMD,"'",$C(7),!
+;.Complain
+ I $E(CMD)="I" D INSERT^FIX1 G ASK
+;Insert
+ I $E(CMD)="K" D  G ASK
+;Check for KILL
+ .S I=0 F %=2:1:$L(CMD) I $E(CMD,%)?1N S I=+$E(CMD,%,99) Q
+;.Get the index
+ .I '$D(K(I)) W "?No such index as ",I,$C(7),! Q
+;.Complain on error
+ .I '$O(K(I)) K K(I)
+;.Check for last
+ .E  F %=I:1 Q:'$D(K(%+1))  S K(%)=K(%+1),D(%)=D(%+1) K K(%+1),D(%+1)
+;.Else shuffle down
+ .W "Killed.",!
+;.and say
+ I $E(CMD)="L" D LIST G ASK
+;Check for List
+ I $E(CMD)="Q" V:$G(BLK) VV:0 S ^$S("VOL",1,"WRITELOCK")=0 Q
+;Check for a quit
+ I $E(CMD)="R" D  G ASK
+;Check for RL change
+ .F %=2:1:$L(CMD) I $E(CMD,%)?1N S D=+$E(CMD,%,99) Q
+;.Store it here
+ I $E(CMD)="U" D UP^FIX2 G ASK
+;Check for UP
+ I $E(CMD)="Z" D  G ASK
+;Check for Zot
+ .S BSIZ=^$S("VOL",1,"BLOCK") F I=0:4:BSIZ-1 S %=$V(VV,I,4,0)
+;.Zot the block
+ .V VV:-BLK K BLK
+;.Write it back
+ I $E(CMD)="^" D LOCATE^FIX1 G ASK
+;Locate
+ D HELP^FIX2 G ASK
+;Else give help
+;---
+BLK V VV:BLK S RL=$V(VV,4,4) I RL D
+;Get the block and right link (if any)
+ .V VV:RL S R=$V(VV,20,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
+;.Get the block, addr of first record and size of same - adj for view
+ .S RL1="^"_$P($V(VV,12,8),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
+;.Get the key into RL1
+ .V VV:BLK
+;.Re-get the original block
+ D LOADA^FIX1
+;Load the arrays
+ W "Block Numb: ",BLK,"  Typ: ",$S('D(0):"Unused",DTYP:"Data",1:"Pointer")
+ I 'D(0) W ! Q
+ W "  Last idx: ",$V(VV,8,2),"  Last free: ",$V(VV,10,2),"  free: ",$V(VV,10,2)*2-$V(VV,8,2)*2+2,!
+ W ", UCI# ",$V(VV,0,1)#64,".  Right ->",RL,! S %=$O(K(""),-1)
+ W "First Node: ^",K,$S($L($G(K(10))):"("_$$FULLUNK^FIX1(K(10))_")",1:""),!
+ W:$G(%) "Last  Node: ^",K,"(",$$FULLUNK^FIX1(K(%)),")",!
+ I RL W "Right Link: "_RL1,!
+ Q
+;---
+LIST I '$G(BLK) W "?No current block",$C(7),! Q
+;Check for a current block
+ S SRCH=$E(CMD,2,999)
+ W $S($L(SRCH):"Search ",1:"Listing of block "),BLK," (local copy) Global: ",K
+ W:$L(SRCH) " [",SRCH,"]" W "  UCI# ",D(0),"  Right: ",D,!
+ W "Index Contains",! F I=10:1 Q:'$D(K(I))  D
+ .S %=D(I) S:$L(%)>500 %=$E(%,1,500)_"..." S:%?.E1C.E %=$$DISP^%U(%)
+;.Get something we can display
+ .I $L(SRCH),%'[SRCH Q
+ .W $J(I,5)," ","(",$$FULLUNK^FIX1(K(I)),")=",% W:$D(DGD(I)) ?30,$J(DGD(I),10) W !
+ Q
+;---
+ERR I $ES<2 S $EC="" V:$G(BLK) VV:0 Q
+;Quit when done
+ S ^$S("VOL",1,"WRITELOCK")=0 W !,"**ERROR BEING LOGGED**",! G ^%ET
+
+FIX1
+FIX1 ;FIX subroutine ; V 3.0 05 Jan 2000 01:45 PM
+ Q
+LOADA K D,K,DGD N KEY,%,I,R,UCC,CCC,DBC S KEY=""
+;Load Arrays D and K and set DTYP from the current block
+ S K=$P($V(VV,12,8),$C(0)),D=$V(VV,4,4),D(0)=$V(VV,0,1)#64
+;Store global name in K and RL in D
+ S DTYP=$V(VV,0,1)>64&(K'="$GLOBAL")
+;Set DTYP true for a data block
+ F I=10:1:$V(VV,8,2) D
+;Scan all indexes
+ .S R=$V(VV,I*2,2)*4,CCC=$V(VV,R+2,1),UCC=$V(VV,R+3,1)
+;.Get the Record address, CCC and UCC
+ .S %=UCC,K(I)="" S:%=1!(%=2) %=3 S:%=4 %=5
+;.Ensure we get a string return for the next $V()
+ .I UCC D
+;.If there is a key
+ ..S $E(KEY,CCC+1,CCC+UCC)=$E($V(VV,R+4,%),1,UCC)
+;..Copy uncommon key characters to the key buffer
+ ..S K(I)=$E(KEY,1,CCC+UCC)
+;..Copy the key into the array
+ .S R=R+UCC+4 I DTYP D
+;.Point at data - If it's a data block
+ ..S DBC=$V(VV,R,2),D(I)=""
+;..Get the DBC, clear the data
+ ..I DBC<5 F %=1:1:DBC S D(I)=D(I)_$C($V(VV,R+1+%,1))
+;..Do it this way if it would have been an int
+ ..E  S D(I)=$V(VV,R+2,DBC)
+;..This way to get a string
+ .E  S:R#4 R=R\4+1*4 S D(I)=$V(VV,R,4)
+;.Else it's a pointer (or directory), round up (if reqd) and get blk#
+ .I K="$GLOBAL" S DGD(I)=$V(VV,R+4,4)
+;.If Global directory get DGD
+ Q
+;---
+LOCATE N UCI,GLO,TB,IK,I S UCI="MGR",LCMD=$E(LCMD,2,999)
+;Locate a block
+ I $E(LCMD)="[" S UCI=$P($E(LCMD,2,999),"]"),UCI=$TR(UCI,""""),LCMD=$P(LCMD,"]",2,999)
+;Check for a specified UCI
+ S GLO=$P(LCMD,"("),LCMD=$P(LCMD,"(",2,999),LCMD=$E(LCMD,1,$L(LCMD)-1)
+;Setup the global and LCMD as the subscripts
+ S TB=$G(^[UCI]$G(GLO))
+;Attempt to get the top block
+ I 'TB W "?No such global as ^",GLO," in UCI: ",UCI,$C(7),! Q
+;Complain if no such
+ S IK=$$DOKEY(LCMD),BLK=TB
+;Make a key from it
+LOC1 V VV:BLK D LOADA I DTYP G BLK^FIX
+;Get the block - done if it's data
+ F I=10:1 Q:'$D(K(I))  I IK']K(I) Q
+;Look for it
+ I $G(K(I))'=IK S I=I-1
+;Backup if required
+ S BLK=D(I) G LOC1
+;Loop again
+;---
+INSERT N F,GLO,Q,%,S,I S LCMD=$E(LCMD,2,999)
+;Remove the I from LCMD
+ S Q=0 F %=1:1:$L(LCMD)+1 D  Q:Q<0
+;Scan looking for the =
+ .I $E(LCMD,%)="""" S Q='Q Q
+;.Check for a quote
+ .Q:Q  I $E(LCMD,%)="=" S Q=-1
+;.Check for the =
+ S GLO=$E(LCMD,1,%-1),LCMD=$E(LCMD,%+1,999)
+;Separate the source and destination
+ I 'DTYP,LCMD'?1.N W "?Must specify a block# in a pointer block",$C(7) Q
+;Check for a block#
+ I $E(LCMD)="""" S @("LCMD="_LCMD)
+;Remove any quotes
+ S:$E(GLO)="^" GLO=$E(GLO,2,99)
+ S S=$P(GLO,"(",2,999),GLO=$P(GLO,"(")
+;Get subs into S
+ I $L(GLO),GLO'=K W "?This block is ^",K," not ^",GLO,$C(7) Q
+;Check the global name (if any)
+ I $E(S,$L(S))'=")" W "?Junk subscript provided",$C(7) Q
+;Check for a trailing )
+ S S=$E(S,1,$L(S)-1),S=$$DOKEY(S)
+;Get the KEY
+ I S']K(10) W "WARNING: Specified key is before first key",!
+;Check if before first
+ F I=10:1 Q:'$D(K(I))  I S']K(I) Q
+;Look for insert point
+ I '$D(K(I)) W "WARNING: Specified key is after last key",!
+;Check for end
+ E  I K(I)=S W "?That key exists",$C(7) Q
+;See if it's already there
+ S F=$O(K(""),-1) F %=F:-1:I S K(%+1)=K(%),D(%+1)=D(%)S:$D(DGD(%)) DGD(%+1)=DGD(%)
+;Get last entry - copy down
+ S K(I)=S,D(I)=LCMD W "Inserted." Q
+;Store the new values and quit
+;---
+BLDKEY(K) Q:K="" "" I +K'=K Q $C(128)_K_$C(0)
+;Build a key for K - check for null then a string
+ Q:K=0 $C(64,0)  I K>0 Q $C($L($P(K,"."))+64)_$TR(K,".")_$C(0)
+;Check 0 - then positive numbers
+ Q $C(63-($L($P(K,"."))-1))_$TR(K,"0123456789.-","9876543210")_$C(255)
+;Finally the negative numbers
+;
+DOKEY(K,%,Q,F) S F="" F  Q:K=""  D
+;Build a full key
+ .S Q=0 F %=1:1:$L(K)+1 D  Q:Q<0
+;.Scan looking for first subscript
+ ..I $E(K,%)="""" S Q='Q Q
+;..Check for a quote
+ ..Q:Q  I $E(K,%)="," S Q=-1
+;..Check for a comma
+ .S Q=$E(K,1,%-1),K=$E(K,%+1,999) I $E(Q)="""" S @("Q="_Q)
+;.Get this subs into Q, rest into K - remove quotes if reqd
+ .S F=F_$$BLDKEY(Q)
+;.Add to the key
+ Q F
+;Quit with the key
+;
+UNKEY(K,%,X,C) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q ""
+;Get string from key - check null
+ I K="" Q ""
+;Special case for top node
+ I $A(K)=128 S %=$P($E(K,2,999),$C(0)),K=$P(K,$C(0),2,999) Q %
+;Check for a string
+ S C=$A(K),X=$P($P($E(K,2,999),$C(0)),$C(255)),K=$E(K,$L(X)+3,999)
+;Get count - Remove terminator and trailing rubish from K, reset K
+ I C=64&'X Q "0"
+;Check for "0"
+ I C<64 S C=63-C,X=$TR(X,"0123456789","9876543210")
+;If it's negative, do the complementing
+ Q $S(C<64:"-",1:"")_$E(X,1,C#64)_$S($L(X)>(C#64):"."_$E(X,C#64+1,999),1:"")
+;Quit with the number
+;
+FULLUNK(K,A,%,F) S A="" F  S %=$$UNKEY(.K) D:+%'=%  S A=A_","_% Q:K=""
+;Do a full unkey
+ .I %'["""" S %=""""_%_"""" Q
+;.Simple (no embeded ")
+ .S F="""" F  Q:%=""  S F=F_$S($E(%)="""":"""""",1:$E(%)),%=$E(%,2,999)
+;.Double the quotes
+ .S %=F_""""
+;.Terminate it
+ Q $E(A,2,999)
+
+FIX2
+FIX2 ;FIX subroutines ; V 3.0 05 Jan 2000 04:22 PM
+ Q
+HELP W "Enter the number of the block to examine or one of:",!
+ W ?8,"C to check the current block and its descendants",!
+ W ?8,"D to Dump the content of the current block to ^%DUMP()",!
+ W ?8,"En to change the Environment (UCI) number for this block to n",!
+ W ?8,"F or . to File (save) the current block",!
+ W ?8,"Gname to change the global name",!
+ W ?8,"H or ? for help",!
+ W ?8,"I^node=value to insert node with value or block number",!
+ W ?8,"Kn to Kill (remove) index n",!
+ W ?8,"L[search string] to List the Local copy of the current block",!
+ W ?8,"Q to Quit",!
+ W ?8,"Rn to change the right pointer to n",!
+ W ?8,"U to go Up a level in the current global",!
+ W ?8,"Z to Zot the block (mark unused) F or . are NOT required",!
+ W ?8,"^spec to locate the block containing spec",!
+ Q
+;---
+UP N KEY,GLO,TB,F,I,% S F=$V(VV,0,1)#64,F=^$S("VOL",1,"UCI",F)
+;Move up from current block
+ S KEY=K(10),GLO=K,TB=BLK,BLK=^[F]$G(GLO)
+;Save a few required values - get top of current global
+ I BLK=TB S BLK=^[F]$G("$GLOBAL") G BLK^FIX
+;If already at top, select the directory and use that
+UP1 V VV:BLK D LOADA^FIX1
+;Get the data into the arrays
+ I K'=GLO W "?Found incorrect global in UP",$C(7),! G BLK^FIX
+;Check that we got the correct one
+ I DTYP W "?Got back to data level in UP",$C(7),! G BLK^FIX
+;Ensure still a pointer
+ F I=10:1 Q:'$D(K(I))  I KEY']K(I) Q
+;Look for it
+ I $G(K(I))'=KEY S I=I-1
+;Backup if required
+ I TB=D(I) G BLK^FIX
+;If there, exit
+ S BLK=D(I) G UP1
+;Loop again
+;---
+SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
+;Save current data
+ N BSIZ,CCC,UCC,I,R,%,F,CS,SZ S BSIZ=^$S("VOL",1,"BLOCK"),SZ=0
+;Get block size
+ F I=10:1 Q:'$D(K(I))  D
+;Loop thru all keys
+ .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
+;.Locate common character count
+ .S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
+;.Get UCC and Chunk Size - round up if reqd
+ .S SZ=SZ+CS+2
+;.Add required space
+ S SZ=(BSIZ-22)-SZ I SZ<0 W "?Doesn't fit by ",$TR(SZ,"-")," bytes",$C(7),! Q
+;Complain if it won't fit
+ F I=4:4:BSIZ-1 S %=$V(VV,I,4,0)
+;Zot the block (except first 4 bytes)
+ S %=$V(VV,0,1,K="$GLOBAL"!DTYP*64+D(0))
+;Reset block type
+ S %=$V(VV,4,4,D),%=$V(VV,8,2,9),%=$V(VV,10,2,BSIZ/4-1)
+;Reset RL, last index, last free
+ S I=K_$TR($J("",8-$L(K))," ",$C(0)),%=$V(VV,12,8,I)
+;Store the global name
+ F I=10:1 Q:'$D(K(I))  D
+;Loop thru all keys
+ .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
+;.Locate common character count
+ .S UCC=$L(K(I))-CCC,CS=4+UCC+$S(DTYP:$L(D(I))+2,1:4) S:CS#4 CS=CS\4+1*4
+;.Get UCC and Chunk Size - round up if reqd
+ .I K="$GLOBAL" S CS=CS+4
+;.Allow for flags word
+ .S R=$V(VV,10,2)-(CS/4),%=$V(VV,10,2,R),R=R+1,%=$V(VV,I*2,2,R),R=R*4
+;.Set last free and this index - make R = address
+ .S %=$V(VV,8,2,I),%=$V(VV,R,2,CS),%=$V(VV,R+2,1,CCC),%=$V(VV,R+3,1,UCC)
+;.and last index, setup chunk size, CCC and UCC
+ .I UCC<5 F F=1:1:UCC S %=$V(VV,R+3+F,1,$A(K(I),CCC+F))
+;.Store it this way for a small size
+ .E  S %=$V(VV,R+4,UCC,$E(K(I),CCC+1,CCC+UCC))
+;.or this way for a longer string
+ .S R=R+UCC+4
+;.Point at the DBC
+ .I K="$GLOBAL",$P($SY,"V",2)<1.32 S DGD(I)=DGD(I)#3
+;.For version 1.31 (or earlier), trim flags word
+ .I 'DTYP S:R#4 R=R\4+1*4 S %=$V(VV,R,4,D(I)) S:K="$GLOBAL" %=$V(VV,R+4,4,DGD(I)) Q
+;.Do a pointer or Global Directory this way
+ .S %=$V(VV,R,2,$L(D(I)))
+;.Store the length
+ .I $L(D(I))<5 F F=1:1:$L(D(I)) S %=$V(VV,R+1+F,1,$A(D(I),F))
+;.Store it this way for a small size
+ .E  S %=$V(VV,R+2,$L(D(I)),D(I))
+;.or this way for a longer string
+ V VV:-BLK W "Filed.",! K BLK Q
+;Do it and exit
+
+JOURNLST
+JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
+;Allow for 64 bit time_t in the file - rdn
+JOURNLST ;List journal file
+;typedef struct JRNREC                                   // journal record
+;{ u_short size;                                         // size of following
+;  u_char action;                                        // what it is
+;  u_char uci;                                           // uci number
+;  time_t time;                                          // now
+;  var_u name;                                           // global name
+;  u_char slen;                                          // subs length
+;  u_char key[256];                                      // the key to 256 char
+;//short dbc;                                            // data byte count
+;//u_char data[32767];                                   // bytes to 32767
+;} jrnrec;                                               // end jrnrec struct
+;
+;#define JRN_CREATE      0                               // create file
+;#define JRN_START       1                               // start/mount environ
+;#define JRN_STOP        2                               // stop journaling
+;#define JRN_ESTOP       3                               // stop/dism environ
+;#define JRN_SET         4                               // Set global
+;#define JRN_KILL        5                               // Kill global
+;
+ N $ET S $ET="D ^%ET"
+ASK R "Enter file: ",FILE,! Q:FILE=""
+ I '$&%FILE(FILE,"EXISTS") W "NO SUCH FILE",! G ASK
+ C 1 O 1:(FILE:"R") U 1:("TERMINATOR=")
+ R MAGIC#4,OFFSET#8 U 0
+ S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
+ I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 G ASK
+ W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
+ S OFF=12 F  D  Q:OFF'<OFFSET
+;Scan the file
+ .U 1 R TIME#8 U 0 S SIZE=$$CVT($E(TIME,1,2)),UCI=$A(TIME,4),ACTION=$A(TIME,3)
+;.Get the fixed fields
+ .S TIME=$$CVT($E(TIME,5,8)),TIME=(TIME\86400+47117)_","_(TIME#86400)
+;.Convert time
+ .S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
+;.Setup ACTION
+ .W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
+;.Write the first bit
+ .I SIZE=8 S OFF=OFF+SIZE W ! Q
+;.If a "small" one, that's all
+ .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-8) U 0
+;.Get the rest of the record
+ .I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
+;.Check for a 64 bit time_t here
+ .S NAME=$TR($E(DATA,1,8),$C(0)),SLEN=$A(DATA,9),DATA=$E(DATA,10,99999)
+;.Extract the name and key length
+ .S KEY=$$FULLUNK^FIX1($E(DATA,1,SLEN)),DATA=$E(DATA,SLEN+1,99999)
+;.Get the key
+ .S REF="^"_NAME_$S(SLEN:"("_KEY_")",1:"") W ?35,REF I ACTION'="SET" W ! Q
+;.Write the key - quit if not SET
+ .S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2))
+;.Extract the data
+ .W "=",DATA,!
+;.Finally the data (if any)
+ C 1 Q
+;---
+CVT(BIN,I) S I=0 F  S I=I*256+$A(BIN,$L(BIN)),BIN=$E(BIN,1,$L(BIN)-1) Q:'$L(BIN)
+;Convert binary string to number
+ Q I
+
+SSD
+SSD ;Shutdown ; V 3.0 10 Oct 1999 06:23 PM
+ S ^$S("VOL",1,"WRITELOCK")=1 W !,"Writelocking the database"
+ F  W "." Q:^$S("VOL",1,"WRITELOCK")>0  H 1
+ W !,"Shutting Down.",! K ^$J H
+
+%LPC
+%LPC ;WAA-Longitudinal Parity Check ; 15-June-2000
+ ;;%LPC Version 1.0
+LRC(DATA) ; Main Entry point
+ N I,X,CHAR,COUNT,ARRAY,LONGSUM,BITE,LBITE
+ S X=0
+ F I=1:1:$L(DATA) S CHAR=$E(DATA,I),CHAR=$A(CHAR),CHAR=$$CKBYTE(CHAR),ARRAY(I)=CHAR
+ F I=8:-1:1 D  
+ . N J,CNT
+ . S J=0,CNT=0
+ . F  S J=$O(ARRAY(J)) Q:J<1  D
+ .. S CNT=CNT+$E(ARRAY(J),I)
+ .. Q
+ . S COUNT(I)=(CNT#2)
+ . Q
+ F I=1:1:7 I COUNT(I) S X=X+$S(I=1:64,I=2:32,I=3:16,I=4:8,I=5:4,I=6:2,I=7:1,1:0)
+ Q X
+CKBYTE(X) ; convert to byte and checkbit
+ N Y,I,CK
+ S Y="",CK=0
+ S Y=$$BYTE(X)
+ F I=7:-1:1 I $E(Y,I) S CK=CK+1
+ S Y=Y_('(CK#2))
+ Q Y
+BYTE(Y) ; convert to byte
+ N BYTE
+ S BYTE=""
+ D LOOP
+ Q BYTE
+LOOP ; main loop to convert to bit
+ N BIT
+ I Y=0 Q
+ S BIT=Y#2
+ S BYTE=BIT_BYTE
+ I BIT=0 S Y=Y/2
+ I BIT=1 S Y=Y\2
+ G LOOP
+
+%ZRCHG
+%ZRCHG ;WAA Routine change utility
+ N REPLACE,WITH,LINE,CASE,LN,CNT
+ S CNT=0
+ D ^%ZRSEL
+ I '$D(^%UTILITY($J,"ROUTINE")) G EXIT
+ R !,"Replace String: ",REPLACE G:REPLACE="" EXIT
+ R !,"With String: ",WITH G:WITH="" EXIT
+ S ROUTINE=""
+ F  S ROUTINE=$O(^%UTILITY($J,"ROUTINE",ROUTINE)) Q:ROUTINE=""  D
+ . N LN,LINE
+ . S LN=0
+ . F  S LN=$O(^$ROUTINE(ROUTINE,LN)) Q:LN<1  D
+ . . S (LINE,LINE(ROUTINE,LN))=^$ROUTINE(ROUTINE,LN)
+ . . I LINE[REPLACE D
+ . . . N CON,TOTAL
+ . . . W !,"    Routine: ",ROUTINE,"  LINE# ",LN
+ . . . W !,"Old: ",LINE S CNT=CNT+1
+ . . . S TOTAL=$L(LINE,REPLACE)
+ . . . F CON=1:1:TOTAL S $P(NLINE,WITH,CON)=$P(LINE,REPLACE,CON)
+ . . . S LINE(ROUTINE,LN)=NLINE
+ . . . W !,"New: ",NLINE
+ . . . Q
+ . . Q
+ . M ^$ROUTINE(ROUTINE)=LINE(ROUTINE)
+ . Q
+ W !,CNT," Changes made."
+ Q
+EXIT ; Clean up
+ K ^UTILITY($J,"ROUTINE")
+ D ^%RCOMP
+ Q
+
+%ZRS
+%ZRS ;Routine Save
+ N FILE,HEAD,%,VOL,UCI,R,ZR
+ D ^%ZRSEL 
+ I '$D(^%UTILITY($J,"ROUTINE")) W !,"?No routines selected.",! Q
+ R !,"Filename:   ",FILE G %ZRS:FILE=""
+ R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD="No Heading"
+ D INT(FILE,HEAD) Q
+INT(FILE,HEAD,%,VOL,UCI,R,ZR) N $ET S ZR="INT^%RS",$ET="D EX^%RS"
+ S UI=$$UI^%U()
+ M ^UTILITY(UI)=^%UTILITY($J,"ROUTINE")
+ S %=^$J($J,"ROUTINE_VOL"),VOL=^$S("VOL",%,"NAME")
+ S UCI=^$S("VOL",%,"UCI",^$J($J,"ROUTINE"))
+ O 1:(FILE:"W") U 1 W "Saved by %ZRS(MODIFIED %RS) from ["_UCI_","_VOL_"] on "
+ W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
+ S R="" F  S R=$O(^UTILITY(UI,R)) Q:R=""  D
+ .U 0 W:$X>70 ! W R,?$X\10+1*10 U 1 W R,!
+ .S %=0 F  S %=$O(^$R(R,%)) Q:%=""  W ^$R(R,%),!
+ .W !
+EX W ! U 0 C 1 W !
+ K ^UTILITY(UI),^%UTILITY($J,"ROUTINE")
+ Q
+
+%ZRSE
+%ZRSE ;WAA Routine search utility
+ N STRING,LINE,CASE,LN,CNT
+ S CNT=0
+ D ^%ZRSEL
+ I '$D(^%UTILITY($J,"ROUTINE")) G EXIT
+ R !,"Search for: ",STRING G:STRING="" EXIT
+CASE R !,"Case sensitive? (NO) :",CASE I CASE="" S CASE="NO"
+ S X=CASE X ^%ZOSF("UPPERCASE")
+ I '("YN"[$E(CASE,1)) G EXIT
+ I $E(CASE,1)="Y" S CASE=1
+ I $E(CASE,1)="N" S CASE=0,X=STRING X ^%ZOSF("UPPERCASE") S Y=STRING
+ S ROUTINE=""
+ F  S ROUTINE=$O(^%UTILITY($J,"ROUTINE",ROUTINE)) Q:ROUTINE=""  D
+ . N LN
+ . S LN=0
+ . F  S LN=$O(^$ROUTINE(ROUTINE,LN)) Q:LN<1  D
+ . . S LINE=^$ROUTINE(ROUTINE,LN)
+ . . I 'CASE S X=LINE X ^%ZOSF("UPPERCASE") S LINE=Y
+ . . I LINE[STRING W !,"    Routine: ",ROUTINE,"  LINE# ",LN,!,LINE S CNT=CNT+1
+ . . Q
+ . Q
+ W !,CNT," Matches found."
+ Q
+EXIT ; Clean up
+ K ^UTILITY($J,"ROUTINE")
+ Q
+
+%ZRSEL
+%ZRSEL ;WAA-This routine is to select routines using wild cards 6/16/00
+ ;;General Utility version 1.0
+ ; *=all routines
+ ;nsp*=routinestarting with the listed namespace
+ ;^D(Up-arrow "D")= Display list of select routines
+ ;^L(Up-arrow "L")= Display list of all the routines in the current UCI
+ ;
+ ;List of routines will be stored in the global ^%UTILITY($J,"ROUTINE")
+EN1 ;Main Entry point
+ N X,J
+ K ^%UTILITY($J,"ROUTINE")
+LOOP ;	Main Read loop
+ R !,"Select Routine(s): ",X Q:X=""
+ I X="^D" D LIST G LOOP
+ I X="^L" D ^%RD G LOOP
+ S J=$E(X,1) I J="-" S X=$E(X,2,$L(X)),J=$E(X,1) D DEL G LOOP
+ I X="*" D AWILD G LOOP
+ I $L(X)>8 W !,"NAME TO LONG" G LOOP
+ I J'?1A,(J'?1"%") W !,"INVALID NAME" G LOOP
+ I X["*" D AWILD G LOOP
+ I '$D(^$ROUTINE(X)) W !,"INVALID ROUTINE NAME" G LOOP
+ S ^%UTILITY($J,"ROUTINE",X)=""
+ G LOOP
+DEL ; DELETE ROUTINE FROM LIST
+ I X="*" K ^%UTILITY($J,"ROUTINE") Q
+ I X["*" S Y=$P(X,*) D
+ .F  S Y=$O(^%UTILITY($J,"ROUTINE",Y)) Q:Y=""  Q:Y'[X  D
+ ..K ^%UTILITY($J,"ROUTINE",Y)
+ ..Q
+ .Q
+ E  K ^%UTILITY($J,"ROUTINE",X)
+ Q
+AWILD ;SELECT ALL ROUTINES AS WILDCARDS
+ N Y
+ S Y=$P(X,"*")
+ F  S Y=$O(^$ROUTINE(Y)) Q:Y=""  Q:Y'[$P(X,"*")  S ^%UTILITY($J,"ROUTINE",Y)=""
+ Q
+LIST ;lIST SELECTED ROUTINES
+ N Y
+ S Y=""
+ W !
+ I '$D(^%UTILITY($J,"ROUTINE")) W !,"NO ROUTINES HAVE BEEN SELECTED" Q
+ F  S Y=$O(^%UTILITY($J,"ROUTINE",Y)) Q:Y=""  D
+ . W:$X>72 !
+ . W Y,?($X+(10-($X#10)))
+ . Q
+ Q
+
+%ZUCI
+%ZUCI ;WAA-Change UCI;6/19/00
+ ;; ZUCI 1.0
+ N X
+EN1 ; Main Entry Point.
+ R !,"What UCI: ",X
+ I X="?" D LIST G EN1
+ D CD(X)
+ W !,$$UCI
+ Q
+CD(UCI) ;
+ I 'UCI F %=1:1:64 I ^$S("VOL",1,"UCI",%)=UCI S UCI=% Q
+ ;Make it into a number if possible
+ G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",1,"UCI",UCI))
+ ;Validate it
+ F %="GLOBAL","LOCK","ROUTINE" S ^$J($J,%)=UCI
+ ;Set all the bits
+ Q
+LIST ; List all UCI's within a Volume set
+ N VOL,UCI,X
+ S VOL=1,UCI=""
+ W !,"User Class Identifier's within the Volume set: ",^$S("VOL",VOL,"NAME")
+ W !,?10,"UCI#",?40,"UCI"
+ W !,?10,"----",?40,"---"
+ D GET(VOL,.UCI)
+ F X=1:1:UCI W !,?10,X,?40,UCI(X)
+ Q
+GET(VOL,UCI) ; Build an array if all the UCI with in the VOLUME Set.
+ N X
+ S UCI=0
+ Q:VOL'>0  S X=0
+ F  S X=$O(^$S("VOL",VOL,"UCI",X)) Q:X<1  S UCI=X,UCI(X)=^$S("VOL",VOL,"UCI",X)
+ Q
+UCI() ; Return the current UCI and volume set
+ N UCI,Y,VOL,JN,UCIN,VOLN
+ S Y=""
+ S JN=$J
+ S UCI=^$J(JN,"ROUTINE"),VOL=^$J(JN,"ROUTINE_VOL")
+ S VOLN=^$S("VOL",VOL,"NAME"),UCIN=^$S("VOL",VOL,"UCI",UCI)
+ S Y=UCIN_","_VOLN
+ Q Y
+
+UCI
+UCI ;WAA-This routine will be for UCI management. 5/30/00
+ ; it will allow the developer
+ ; to create, edit, and delete UCI's.  It will also display existiing
+ ; UCI's
+ ;;
+ N ENTER,MENU,OPT
+ENT D MNUDSP
+ R !,?10,"Enter Option: ",ENTER Q:ENTER=""
+ I ENTER'?1N W !,"ENTER THE NUMBER OF THE MENU OPTION...",*7 G ENT
+ I '$D(MENU(ENTER)) W !,"INVALID OPTION...",*7 G ENT
+ S OPT=$P(MENU(ENTER),";",4) X OPT G ENT
+ Q
+MNUDSP ; Display menu
+ N X
+ S X=1
+ W !,"UCI Management...",!
+ F  S MENU=$T(MENU+X) Q:$P(MENU,";",3)=""  S MENU(X)=MENU,X=X+1 D
+ . W !,?20,$P(MENU,";",3)
+ . Q
+ Q
+CREAT ; Create a UCI but not MGR
+ N NUCI,X,FLG,VOL,UCI
+ S VOL=1,UCI=""
+ D DISP("Create a UCI...",.VOL,.UCI)
+CR1 ; Prompt
+ R !!,"Enter new UCI name: ",NUCI Q:NUCI=""
+ I NUCI'?3U W !,"INVALID UCI NAME??",*7 G CR1
+ S FLG=0
+ F X=1:1:UCI I UCI(X)=NUCI W !,"CAN NOT NAME UCI THE SAME AS EXISTING UCI.",*7 S FLG=1 Q
+ I FLG G CR1
+ S UCI=UCI+1,^$S("VOL",VOL,"UCI",UCI)=NUCI W !,NUCI," has been created..."
+ D LIST^UCI
+ Q
+EDIT ; Edit an existing UCI But not MGR
+ N HEAD,OUCI,NUCI,VOL,UCI,X,Y
+ S VOL=1,UCI=""
+ D DISP("Rename a UCI...",.VOL,.UCI)
+ED1 ; Edit prompt
+ R !,"Select UCI to Edit: ",OUCI Q:OUCI=""
+ I '$D(UCI(OUCI)) W !,"INVALID UCI??",*7 G ED1
+ I +OUCI=0 S UCI=UCI(OUCI)
+ I UCI(UCI)="MGR" W !,"CANNOT EDIT MGR UCI",*7 G ED1
+ED2 ; Edit Prompt
+ R !,"Enter New UCI Name: ",NUCI
+ I NUCI'?3U W !,"BAD UCI NAME??",*7 G ED2
+ I $D(UCI(NUCI)) W !,"CANNOT USE NAME UCI ",NUCI," ALREADY EXISTS??",*7 G ED2
+ S ^$S("VOL",VOL,"UCI",UCI)=NUCI W !,OUCI," has been renamed to ",NUCI,"..."
+ D LIST
+ Q
+DELETE ; Delete an existing UCI but not MGR
+ N DUCI,VOL,UCI
+ S VOL=1,UCI=""
+ D DISP("Delete a UCI...",.VOL,.UCI)
+DE1 ; Select Prompt
+ R !,"Select UCI to DELETE: ",DUCI Q:DUCI=""
+ I '$D(UCI(DUCI)) W !,"INVALID UCI??",*7 G DE1
+ I +DUCI=0 S DUCI=UCI(DUCI)
+ I UCI(DUCI)="MGR" W !,"CANNOT DELETE MGR UCI",*7 G DE1
+ K ^$S("VOL",VOL,"UCI",DUCI)
+ D LIST
+ Q
+DISP(HEAD,VOL,UCI) ; Generic display of UCI
+ N X
+ I HEAD="" Q
+ I VOL="" S VOL=1
+ S UCI=""
+ W !,HEAD
+ D LIST
+ D GET(VOL,.UCI)
+ F X=1:1:UCI S Z=UCI(X),UCI(Z)=X
+ Q
+LIST ; List all UCI's within a Volume set
+ N VOL,UCI,X
+ S VOL=1,UCI=""
+ W !,"User Class Identifier's within the Volume set: ",^$S("VOL",VOL,"NAME")
+ W !,?10,"UCI#",?40,"UCI"
+ W !,?10,"----",?40,"---"
+ D GET(VOL,.UCI)
+ F X=1:1:UCI W !,?10,X,?40,UCI(X)
+ Q
+GET(VOL,UCI) ; Build an array if all the UCI with in the VOLUME Set.
+ N X
+ S UCI=0
+ Q:VOL'>0  S X=0
+ F  S X=$O(^$S("VOL",VOL,"UCI",X)) Q:X<1  S UCI=X,UCI(X)=^$S("VOL",VOL,"UCI",X)
+ Q
+MENU ; Menu List
+ ;;1) List UCI;D LIST
+ ;;2) Create UCI;D CREAT
+ ;;3) Edit UCI;D EDIT
+ ;;4) Delete UCI;D DELETE
+ ;;
+
+
+
+
+/* Copyright (c) 1999 - 2014
+ *      Raymond Douglas Newman.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of Raymond Douglas Newman nor the names of the
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+
+
+
