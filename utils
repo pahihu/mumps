@@ -103,6 +103,8 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
  S ^%C("SCAN",1)="Scan a routine - read only"
  S ^%C("SHOW")="D INT^%SS(CCL)"
  S ^%C("SHOW",1)="Show LOCKS, SYS or job#"
+ S ^%C("SHUTDOWN")="D ^SSD"
+ S ^%C("SHUTDOWN",1)="System shutdown"
  S ^%C("STATUS")="D INT^%STA(CCL)"
  S ^%C("STATUS",1)="Show system statistics, specify interval, eg. STA 15"
  S ^%C("SYSTAT")="D ^%SS"
@@ -174,7 +176,7 @@ EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^%D(%D) Q
 %ED ;Edit a routine using $EDITOR
  R !,"Routine: ",ROU,! Q:ROU=""  D INT(ROU) Q
 INT(ROU,RO,UI,FILE,F,%,ZR) S ZR="^%ED",RO=$G(RO) I $G(ROU)="" Q
- G CONT:ROU?1A.7AN,CONT:ROU?1"%".7AN&(^$J($J,"ROUTINE")=1) Q
+ G CONT:ROU?1A.31AN,CONT:ROU?1"%".31AN&(^$J($J,"ROUTINE")=1) Q
 CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
  I RO,'$D(^$R(ROU)) W !,"?No such routine "_ROU,! Q
  S UI=$$UI^%U(),FILE=ROU_"."_UI O 1:(FILE:"W")
@@ -411,7 +413,7 @@ EX C 1 W ! Q
  W $&V(99,1),!,$C(27)_"[6n" R A S BL=+$E($K,3,9) ;Work out Bottom Line
 START U 0 N $ET S $ET="D ERROR^%M" D READ I $G(CMD)'="EXIT" G START
  S $EC="" Q
-READ S PMT="MCL> ",WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
+READ S PMT="["_$$UCI^%ZUCI_"]> ",WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
  N $ES W $&V(BL,1),!,PMT
  S CST=$G(CS)+1 R CMD S KEY=$K,P=$L(CMD)+%PMT+1 D KEY G K
 AD W $&V(BL+($L(CMD)+%PMT\WID-(P\WID)),P-1#80+1)
