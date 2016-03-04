@@ -954,7 +954,7 @@ ASK W:$X ! W "FIX> " R CMD,! S LCMD=CMD,CMD=$&E(CMD) S:CMD="" CMD="?"
 ;Check for F or .
  I $E(CMD)="G" S LCMD=$E(LCMD,2,99) D  G ASK
 ;Check for Global name change
- .I LCMD?1"%"1.7AN!(LCMD?1A1.7AN) S K=LCMD Q
+ .I LCMD?1"%"1.31AN!(LCMD?1A1.31AN) S K=LCMD Q
 ;.Do it if OK
  .W "?Invalid global name '",LCMD,"'",$C(7),!
 ;.Complain
