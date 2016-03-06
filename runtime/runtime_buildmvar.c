@@ -135,8 +135,9 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     }
   }
   else
-  { bcopy( mumpspc, &var->name, sizeof(var_u));	// get the variable name
-    mumpspc += sizeof(var_u);
+  { mumpspc += X_take( mumpspc, &var->name.var_xu );   // XXX
+    // bcopy( mumpspc, &var->name, sizeof(var_u));	// get the variable name
+    // mumpspc += sizeof(var_u);
   }
 
   for (i = 0; i < subs; i++)			// for each subscript

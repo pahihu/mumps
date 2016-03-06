@@ -38,6 +38,7 @@
 #include <string.h>				// for memcpy/memcmp
 #include <strings.h>
 #include <sys/types.h>				// for u_char def
+#include <assert.h>
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // errors
@@ -540,4 +541,32 @@ void X_set(const void *src, void *dst, size_t len)
 {
   bzero(dst, MAX_NAME_BYTES);
   bcopy(src, dst, len);
+}
+
+int X_put(const chr_x *a, u_char *b)
+{
+  int len;
+
+  for(len = 0; (len < MAX_NAME_BYTES) && a->buf[len]; len++);
+  if (len == 0) fprintf(stderr,"zero\n");
+  *b++ = (u_char)len;
+  bcopy(a->buf, b, len);
+  return 1 + len;
+}
+
+int X_take(u_char *a, chr_x *b)
+{
+  int i,len;
+
+  len = (int)(*a++);
+  /*
+  fprintf(stderr,"len = %d [",len);
+  for (i = 0;(i < len) && (i < MAX_NAME_BYTES); i++) {
+    fprintf(stderr,"%c",a[i]);
+  }
+  fprintf(stderr,"]\n");
+  */
+  assert(0 <= len && len <= MAX_NAME_BYTES); 
+  X_set(a, b->buf, len);
+  return 1 + len;
 }

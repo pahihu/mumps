@@ -1001,7 +1001,7 @@ short run(int savasp, int savssp)		// run compiled code
         if (s < 0) ERROR(s)			// complain on error
 	//if (rou != 0)				// if a routine was sepcified
 	//{ partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu = rou;
-	if (!X_Empty(rou))				// if a routine was sepcified
+	if (!X_Empty(rou))			// if a routine was sepcified
 	{ partab.jobtab->seqio[partab.jobtab->io].namespace.var_xu = rou;
 	}
         break;
@@ -1837,8 +1837,9 @@ short run(int savasp, int savssp)		// run compiled code
 						// default to current routine
 	  if ((opc == CMDOROU ) || (opc == CMDORT) || (opc == CMDORTO))
       	  { assert(sizeof(rou) == MAX_NAME_BYTES);
-	    bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
-            mumpspc += sizeof(rou);
+	    mumpspc += X_take(mumpspc, &rou);   // XXX
+	    // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
+            // mumpspc += sizeof(rou);
 	    //rou = *((chr_q *)mumpspc)++;
           }
 	  //if ((opc == CMDORTO) && (rou == 0))	// could be zero from this op
@@ -1850,8 +1851,9 @@ short run(int savasp, int savssp)		// run compiled code
 	if ((opc == CMDOTAG ) || (opc == CMDORT)
 	   || (opc == CMDORTO) || (opc == CMDOWRT))
 	{  assert(sizeof(tag) == MAX_NAME_BYTES);
-      	   bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
-      	   mumpspc += sizeof(tag);
+      	   mumpspc += X_take(mumpspc, &tag);    // XXX
+      	   // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
+      	   // mumpspc += sizeof(tag);
       	   //tag = *((chr_q *)mumpspc)++;
 	}
 	if (opc == CMDORTO)			// if there is one
@@ -2084,8 +2086,9 @@ short run(int savasp, int savssp)		// run compiled code
 	X_Clear(tag);				// clear tag
 	if ((opc == CMJOBROU ) || (opc == CMJOBRT) || (opc == CMJOBRTO))
      	{ assert(sizeof(rou) == MAX_NAME_BYTES);
-      	  bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
-      	  mumpspc += sizeof(rou);
+      	  mumpspc += X_take(mumpspc, &rou);	// XXX
+      	  // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
+      	  // mumpspc += sizeof(rou);
 	  //rou = *((chr_q *)mumpspc)++;
     	}
 	//if ((opc == CMJOBRTO) && (rou == 0))	// could be zero from this op
@@ -2095,8 +2098,9 @@ short run(int savasp, int savssp)		// run compiled code
 	}					// reset to current
 	if ((opc == CMJOBTAG ) || (opc == CMJOBRT) || (opc == CMJOBRTO))
     	{ assert(sizeof(tag) == MAX_NAME_BYTES);
-    	  bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
-    	  mumpspc += sizeof(tag);
+    	  mumpspc += X_take(mumpspc, &tag);	// XXX
+    	  // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
+    	  // mumpspc += sizeof(tag);
 	  //tag = *((chr_q *)mumpspc)++;
     	}
 	j = -1;					// timeout (if any)
@@ -2171,8 +2175,9 @@ short run(int savasp, int savssp)		// run compiled code
 	X_Clear(tag);				// clear tag
 	if ((opc == CMGOROU ) || (opc == CMGORT) || (opc == CMGORTO))
     	{ assert(sizeof(rou) == MAX_NAME_BYTES);
-    	  bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
-    	  mumpspc += sizeof(rou);
+    	  mumpspc += X_take(mumpspc, &rou);	// XXX
+    	  // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
+    	  // mumpspc += sizeof(rou);
 	  //rou = *((chr_q *)mumpspc)++;
     	}
 	//if ((opc == CMGORTO) && (rou == 0))	// could be zero from this op
@@ -2182,8 +2187,9 @@ short run(int savasp, int savssp)		// run compiled code
 	}					// reset to current
 	if ((opc == CMGOTAG ) || (opc == CMGORT) || (opc == CMGORTO))
     	{ assert(sizeof(tag) == MAX_NAME_BYTES);
-    	  bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
-    	  mumpspc += sizeof(tag);
+    	  mumpspc += X_take(mumpspc, &tag);	// XXX
+    	  // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
+    	  // mumpspc += sizeof(tag);
 	  //tag = *((chr_q *)mumpspc)++;
     	}
 	if (opc == CMGORTO)			// if there is one

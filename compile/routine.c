@@ -139,7 +139,7 @@ short routine(int runtime)			// parse routine ref
   // The following is for a numeric offset -->
 
   if (c == '+')					// bloody offset
-  { gotplus = 1;                // flag it
+  { gotplus = 1;                                // flag it
     if (!runtime)				// if just compiling
     //{ if ((!isinder) && (tag.var_qu != 0))
     { if ((!isinder) && (!X_Empty(tag.var_xu)))
@@ -307,13 +307,15 @@ exit:
     { ntag = 2;					// say both
       //*((chr_q *)comp_ptr) = rou.var_qu;	// save the routine
       //comp_ptr += sizeof(chr_q);
-      bcopy(&rou.var_xu, comp_ptr, sizeof(chr_x)); // save the routine
-      comp_ptr += sizeof(chr_x);
+      comp_ptr += X_put(&rou.var_xu, comp_ptr); // XXX
+      // bcopy(&rou.var_xu, comp_ptr, sizeof(chr_x)); // save the routine
+      // comp_ptr += sizeof(chr_x);
     }
     //*((chr_q *)comp_ptr) = tag.var_qu;        // save the tag
     //comp_ptr += sizeof(chr_q);
-    bcopy(&tag.var_xu, comp_ptr, sizeof(chr_x));// save the tag
-    comp_ptr += sizeof(chr_x);
+    comp_ptr += X_put(&tag.var_xu, comp_ptr);   // XXX
+    // bcopy(&tag.var_xu, comp_ptr, sizeof(chr_x));// save the tag
+    // comp_ptr += sizeof(chr_x);
     if (offset)					// if we have an offset
     { //*((short *)comp_ptr) = (short) offset;	// compile it in
       s = (short) offset;                       // compile it in
@@ -325,8 +327,9 @@ exit:
   }
   //*((chr_q *)comp_ptr) = rou.var_qu;		// save the routine
   //comp_ptr += sizeof(chr_q);
-  bcopy(&rou.var_xu, comp_ptr, sizeof(chr_x));  // save the routine
-  comp_ptr += sizeof(chr_x);
+  comp_ptr += X_put(&rou.var_xu, comp_ptr);     // XXX
+  // bcopy(&rou.var_xu, comp_ptr, sizeof(chr_x));  // save the routine
+  // comp_ptr += sizeof(chr_x);
   return -3;					// say just the routine
 }
 

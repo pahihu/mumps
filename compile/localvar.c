@@ -188,8 +188,11 @@ subs:
        (type >= TYPVARGBL)) &&			// a 'normal' global
       (type != TYPVARNAKED) &&			// and not naked
       (type != TYPVARIND))			// or indirect
-    for (i = 0; i<MAX_NAME_BYTES; i++)          // scan the name
-      *comp_ptr++ = var.var_cu[i];              // copy into compiled code
+  {
+    comp_ptr += X_put(&var.var_xu, comp_ptr);   // XXX
+    // for (i = 0; i<MAX_NAME_BYTES; i++)          // scan the name
+    //   *comp_ptr++ = var.var_cu[i];              // copy into compiled code
+  }
   return ret;					// say what we did
 }                                               // end variable parse
 

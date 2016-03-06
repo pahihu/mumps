@@ -45,6 +45,8 @@ int   _X_EQ(chr_x *a, chr_x *b);
 int   _X_NE(chr_x *a, chr_x *b);
 int   _X_Empty(chr_x *a);
 void  X_set(const void *src, void *dst, size_t n);
+int   X_put(const chr_x *a, u_char *b);
+int   X_take(u_char *a, chr_x *b);
 
 #define X_Clear(x)    _X_Clear(&(x))
 #define X_EQ(x,y)     _X_EQ(&(x),&(y))
