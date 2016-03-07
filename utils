@@ -1,5 +1,18 @@
 S %I=$I R B X B U 0 C %I D ^%C K ^$R("%C") W !,"Done",! Q
 F  R R Q:R=""  U 0 W R,! U %I K A F I=1:1 R A(I) I A(I)="" M ^$R(R)=A Q
+%MV1
+%MV1 ;Low-level implementation constants
+GLOSIZE() ; global name size
+  Q $S($$R2:32,1:8)
+HDRSIZE() ; db block header size
+  Q 12+$$GLOSIZE
+LOWIDX()  ; low index
+  Q $$HDRSIZE/2
+R2() ; true if MV1R2
+  Q 1
+BIGEND() ; true if big-endian
+  Q 0
+
 %BLKDMP
 %BLKDMP ;Dump a block to $IO formatted
  W:$X ! F  R "Block No: ",BLK,! Q:'BLK  D INT(BLK)
@@ -11,7 +24,7 @@ INT(BLK,XX,%,F,I,G,LI,D,BUF,CCC,UCC,K,KET,DATA,ZR) N $ET
  S %=$V(-1,0) I '% W "Block not in use",! V -1:0 G EXIT
  I '$D(XX) W "Block: ",$S(BLK:BLK,1:"")," belongs to UCI# ",%#64," "
  S F=^$S("VOL",1,"UCI",%#64) I '$D(XX) W:$L(F) "(",F,") "
- S D=%\64,G=$&E($V(-1,12,8),"C") I $D(XX),'D G EXIT
+ S D=%\64,G=$&E($V(-1,12,$$GLOSIZE^%MV1),"C") I $D(XX),'D G EXIT
  I '$D(XX) W $S(D:"data",1:"pointer")," block",!
  S:G="$GLOBAL" D=0
  I '$D(XX) W "Right: ",$V(-1,4,4)," Global: ",G,! W "Index Contains",!
@@ -494,9 +507,9 @@ INT(FL,PAT,UCI,ST,END,G,%,F,R,ZR) S ZR="INT^%RD"
  ..I $E(R)="%" S %="%25"_$E(R,2,9)
  ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
  ..E  W R
- ..W ?10,$J($L(F),5),?20,$A(F,4)*256+$A(F,3),?30
- ..S %=$A(F,8)*256+$A(F,7)*256+$A(F,6)*256+$A(F,5) W $$D^%D(%)," at "
- ..S %=$A(F,12)*256+$A(F,11)*256+$A(F,10)*256+$A(F,9) W $$T^%T(%),!
+ ..W ?10,$J($L(F),5),?20,$$CVT^JOURNLST($E(F,3,4)),?30
+ ..S %=$$CVT^JOURNLST($E(F,5,8)) W $$D^%D(%)," at "
+ ..S %=$$CVT^JOURNLST($E(F,9,12)) W $$T^%T(%),!
  .I FL=3 S @G@(R)=""
  Q
 DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
@@ -997,7 +1010,7 @@ BLK V VV:BLK S RL=$V(VV,4,4) I RL D
 ;Get the block and right link (if any)
  .V VV:RL S R=$V(VV,20,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
 ;.Get the block, addr of first record and size of same - adj for view
- .S RL1="^"_$P($V(VV,12,8),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
+ .S RL1="^"_$P($V(VV,12,$$GLOSIZE^%MV1),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
 ;.Get the key into RL1
  .V VV:BLK
 ;.Re-get the original block
@@ -1007,7 +1020,7 @@ BLK V VV:BLK S RL=$V(VV,4,4) I RL D
  I 'D(0) W ! Q
  W "  Last idx: ",$V(VV,8,2),"  Last free: ",$V(VV,10,2),"  free: ",$V(VV,10,2)*2-$V(VV,8,2)*2+2,!
  W ", UCI# ",$V(VV,0,1)#64,".  Right ->",RL,! S %=$O(K(""),-1)
- W "First Node: ^",K,$S($L($G(K(10))):"("_$$FULLUNK^FIX1(K(10))_")",1:""),!
+ W "First Node: ^",K,$S($L($G(K($$LOWIDX^%MV1))):"("_$$FULLUNK^FIX1(K($$LOWIDX^%MV1))_")",1:""),!
  W:$G(%) "Last  Node: ^",K,"(",$$FULLUNK^FIX1(K(%)),")",!
  I RL W "Right Link: "_RL1,!
  Q
@@ -1017,7 +1030,7 @@ LIST I '$G(BLK) W "?No current block",$C(7),! Q
  S SRCH=$E(CMD,2,999)
  W $S($L(SRCH):"Search ",1:"Listing of block "),BLK," (local copy) Global: ",K
  W:$L(SRCH) " [",SRCH,"]" W "  UCI# ",D(0),"  Right: ",D,!
- W "Index Contains",! F I=10:1 Q:'$D(K(I))  D
+ W "Index Contains",! F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  D
  .S %=D(I) S:$L(%)>500 %=$E(%,1,500)_"..." S:%?.E1C.E %=$$DISP^%U(%)
 ;.Get something we can display
  .I $L(SRCH),%'[SRCH Q
@@ -1033,11 +1046,11 @@ FIX1 ;FIX subroutine ; V 3.0 05 Jan 2000 01:45 PM
  Q
 LOADA K D,K,DGD N KEY,%,I,R,UCC,CCC,DBC S KEY=""
 ;Load Arrays D and K and set DTYP from the current block
- S K=$P($V(VV,12,8),$C(0)),D=$V(VV,4,4),D(0)=$V(VV,0,1)#64
+ S K=$P($V(VV,12,$$GLOSIZE^%MV1),$C(0)),D=$V(VV,4,4),D(0)=$V(VV,0,1)#64
 ;Store global name in K and RL in D
  S DTYP=$V(VV,0,1)>64&(K'="$GLOBAL")
 ;Set DTYP true for a data block
- F I=10:1:$V(VV,8,2) D
+ F I=$$LOWIDX^%MV1:1:$V(VV,8,2) D
 ;Scan all indexes
  .S R=$V(VV,I*2,2)*4,CCC=$V(VV,R+2,1),UCC=$V(VV,R+3,1)
 ;.Get the Record address, CCC and UCC
@@ -1077,7 +1090,7 @@ LOCATE N UCI,GLO,TB,IK,I S UCI="MGR",LCMD=$E(LCMD,2,999)
 ;Make a key from it
 LOC1 V VV:BLK D LOADA I DTYP G BLK^FIX
 ;Get the block - done if it's data
- F I=10:1 Q:'$D(K(I))  I IK']K(I) Q
+ F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  I IK']K(I) Q
 ;Look for it
  I $G(K(I))'=IK S I=I-1
 ;Backup if required
@@ -1107,9 +1120,9 @@ INSERT N F,GLO,Q,%,S,I S LCMD=$E(LCMD,2,999)
 ;Check for a trailing )
  S S=$E(S,1,$L(S)-1),S=$$DOKEY(S)
 ;Get the KEY
- I S']K(10) W "WARNING: Specified key is before first key",!
+ I S']K($$LOWIDX^%MV1) W "WARNING: Specified key is before first key",!
 ;Check if before first
- F I=10:1 Q:'$D(K(I))  I S']K(I) Q
+ F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  I S']K(I) Q
 ;Look for insert point
  I '$D(K(I)) W "WARNING: Specified key is after last key",!
 ;Check for end
@@ -1189,7 +1202,7 @@ HELP W "Enter the number of the block to examine or one of:",!
 ;---
 UP N KEY,GLO,TB,F,I,% S F=$V(VV,0,1)#64,F=^$S("VOL",1,"UCI",F)
 ;Move up from current block
- S KEY=K(10),GLO=K,TB=BLK,BLK=^[F]$G(GLO)
+ S KEY=K($$LOWIDX^%MV1),GLO=K,TB=BLK,BLK=^[F]$G(GLO)
 ;Save a few required values - get top of current global
  I BLK=TB S BLK=^[F]$G("$GLOBAL") G BLK^FIX
 ;If already at top, select the directory and use that
@@ -1199,7 +1212,7 @@ UP1 V VV:BLK D LOADA^FIX1
 ;Check that we got the correct one
  I DTYP W "?Got back to data level in UP",$C(7),! G BLK^FIX
 ;Ensure still a pointer
- F I=10:1 Q:'$D(K(I))  I KEY']K(I) Q
+ F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  I KEY']K(I) Q
 ;Look for it
  I $G(K(I))'=KEY S I=I-1
 ;Backup if required
@@ -1212,7 +1225,7 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 ;Save current data
  N BSIZ,CCC,UCC,I,R,%,F,CS,SZ S BSIZ=^$S("VOL",1,"BLOCK"),SZ=0
 ;Get block size
- F I=10:1 Q:'$D(K(I))  D
+ F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  D
 ;Loop thru all keys
  .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
 ;.Locate common character count
@@ -1226,11 +1239,11 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 ;Zot the block (except first 4 bytes)
  S %=$V(VV,0,1,K="$GLOBAL"!DTYP*64+D(0))
 ;Reset block type
- S %=$V(VV,4,4,D),%=$V(VV,8,2,9),%=$V(VV,10,2,BSIZ/4-1)
+ S %=$V(VV,4,4,D),%=$V(VV,8,2,$$LOWIDX^%MV1-1),%=$V(VV,10,2,BSIZ/4-1)
 ;Reset RL, last index, last free
- S I=K_$TR($J("",8-$L(K))," ",$C(0)),%=$V(VV,12,8,I)
+ S I=K_$TR($J("",$$GLOSIZE^%MV1-$L(K))," ",$C(0)),%=$V(VV,12,$$GLOSIZE^%MV1,I)
 ;Store the global name
- F I=10:1 Q:'$D(K(I))  D
+ F I=$$LOWIDX^%MV1:1 Q:'$D(K(I))  D
 ;Loop thru all keys
  .F CCC=0:1:$L($G(K(I-1))) Q:$E($G(K(I-1)),CCC+1)'=$E(K(I),CCC+1)
 ;.Locate common character count
@@ -1308,7 +1321,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
 ;.Get the rest of the record
  .I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
 ;.Check for a 64 bit time_t here
- .S NAME=$TR($E(DATA,1,8),$C(0)),SLEN=$A(DATA,9),DATA=$E(DATA,10,99999)
+ .S NAME=$TR($E(DATA,1,$$GLOSIZE^%MV1),$C(0)),SLEN=$A(DATA,1+$$GLOSIZE^%MV1),DATA=$E(DATA,2+$$GLOSIZE^%MV1,99999)
 ;.Extract the name and key length
  .S KEY=$$FULLUNK^FIX1($E(DATA,1,SLEN)),DATA=$E(DATA,SLEN+1,99999)
 ;.Get the key
@@ -1320,8 +1333,10 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
 ;.Finally the data (if any)
  C 1 Q
 ;---
-CVT(BIN,I) S I=0 F  S I=I*256+$A(BIN,$L(BIN)),BIN=$E(BIN,1,$L(BIN)-1) Q:'$L(BIN)
-;Convert binary string to number
+CVT(BIN,I,N) ;Convert binary string to number
+ S I=0
+ I $$BIGEND^%MV1 F N=1:1:$L(BIN) S I=I*256+$A(BIN,N)
+ E  F N=$L(BIN):-1:1  S I=I*256+$A(BIN,N)
  Q I
 
 SSD
