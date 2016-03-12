@@ -2592,7 +2592,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  var->volset = 0;			// clear the index
 	}
 	//s = ST_Create(var->name.var_qu);	// get its index
-	s = ST_Create(var->name.var_xu);	// get its index
+	s = ST_Create(&var->name.var_xu);	// get its index
 	if (s < 0) ERROR(s)			// die on error
 	if (symtab[s].data == ST_DATA_NULL)	// if data block undef
 	{ symtab[s].data = malloc(DTMINSIZ); 	// allocate some mem
@@ -2791,7 +2791,7 @@ short run(int savasp, int savssp)		// run compiled code
 	    //vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
 	    vt = (chr_x *) (((u_char *) rouadd) + rouadd->var_tbl);
 	    tag = vt[i];			// get the var name
-	    s = ST_SymAtt(tag);			// attach to var
+	    s = ST_SymAtt(&tag);		// attach to var
 	    if (s < 0) ERROR(s)			// die on error
 	    partab.jobtab->dostk[partab.jobtab->cur_do].symbol[i] = s;
 	  }

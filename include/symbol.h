@@ -103,10 +103,10 @@ typedef struct __attribute__ ((__packed__)) KEY_STRUCT // start struct KEY
 } key_s;                                        // have 256 chars
 
 //short ST_Locate(chr_q var);                     // locate a var name
-short ST_Locate(chr_x var);                     // locate a var name
+short ST_Locate(chr_x *var);                    // locate a var name
 short ST_LocateIdx(int idx);			// locate in symtab by index
 //short ST_Create(chr_q var);                     // create and/or locate a var
-short ST_Create(chr_x var);                     // create and/or locate a var
+short ST_Create(chr_x *var);                    // create and/or locate a var
 
 void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr);
 

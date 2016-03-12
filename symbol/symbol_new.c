@@ -67,7 +67,7 @@ short ST_New(int count, var_u *list)
 						// point at next free address
   for (i = (count - 1); i >= 0; i--)		// for all vars in list
   { //s = ST_SymAtt(list[i].var_qu);		// attach to variable
-    s = ST_SymAtt(list[i].var_xu);		// attach to variable
+    s = ST_SymAtt(&list[i].var_xu);		// attach to variable
     if (s < 0) return (s);			// check for error
     newtab->locdata[i].stindex = s;		// save the index
     newtab->locdata[i].data = symtab[s].data;	// and the data address
@@ -93,7 +93,7 @@ short ST_NewAll(int count, var_u *list)
 
   for (k = 0; k < count; k++)			// for all supplied vars
     //(void)ST_Create(list[k].var_qu);		// Create if not existent
-    (void)ST_Create(list[k].var_xu);		// Create if not existent
+    (void)ST_Create(&list[k].var_xu);		// Create if not existent
 
   for (i = 0; i <= ST_MAX-1; i++)               // for each entry in ST
   { if (symtab[i].varnam.var_cu[0] == '$') continue; // ignore $ vars

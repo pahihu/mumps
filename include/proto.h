@@ -216,7 +216,7 @@ short ST_QueryD(mvar *var, u_char *buf);	// get next key and data
 short ST_Dump();				// dump the symbol table
 short ST_DumpV(mvar *global);			// dump symtab vars as subs
 
-short ST_SymAtt(chr_x var);			// attach to variable
+short ST_SymAtt(chr_x *var);			// attach to variable
 void  ST_SymDet(int count, short *list);	// detach from variables
 short ST_SymGet(short syment, u_char *buf);	// get using syment
 short ST_SymSet(short syment, cstring *data);	// set using syment

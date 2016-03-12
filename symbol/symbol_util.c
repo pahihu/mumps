@@ -51,7 +51,7 @@ symtab_struct symtab[ST_MAX+1];                 // and symbol table
 //****************************************************************************
 //**  Function: ST_Hash - Create a hash from a variable name     ***
 //**  returns hash number                                        ***
-short ST_Hash(var_u var)                        // var name in a quad
+short ST_Hash(var_u *var)                       // var name in a quad
 { int i;                                        // for the loop
   int ret = 0;                                  // return value
   //int p[8] = {3,5,7,11,13,17,19,23};          // primes
@@ -61,7 +61,7 @@ short ST_Hash(var_u var)                        // var name in a quad
      61, 67, 71, 73, 79, 83, 89, 97,
     101,103,107,109,113,127,131,137 };
   for (i = 0; i < MAX_NAME_BYTES; i++)          // for each character
-  { ret = ((var.var_cu[i] * p[i]) + ret);
+  { ret = ((var->var_cu[i] * p[i]) + ret);
   }
   return (short)(ret % ST_HASH);                // return mod hash value
 }						// end of ST_Hash
@@ -88,15 +88,15 @@ void ST_Init()                                  // no arguments
 //**  Function: ST_Locate - locate varname in symbol table       ***
 //**  returns short pointer or -1 on fail                        ***
 //short ST_Locate(chr_q var)                      // var name in a quad
-short ST_Locate(chr_x var)                      // var name in a quad
+short ST_Locate(chr_x *var)                     // var name in a quad
 { int hash;					// hash value
   short fwd;                                    // fwd link pointer
 
-  hash = ST_Hash((var_u)var);                   // get hash value
+  hash = ST_Hash((var_u*)var);                  // get hash value
   fwd = st_hash[hash];                          // get pointer (if any)
   while (fwd != -1)                             // while there are links
   //{ if (symtab[fwd].var_q == var)		// if var names match
-  { if (X_EQ(symtab[fwd].var_x, var))		// if var names match
+  { if (_X_EQ(&symtab[fwd].var_x, var))		// if var names match
     { return (fwd);  				// return if we found it
     }
     fwd = symtab[fwd].fwd_link;                 // get next pointer (if any)
@@ -120,7 +120,7 @@ short ST_LocateIdx(int idx)                     // var index
   //vt = (chr_q *) (((u_char *) p) + p->var_tbl); // point at var table
   vt = (chr_x *) (((u_char *) p) + p->var_tbl); // point at var table
   var = vt[idx];                 		// get the var name
-  fwd = ST_SymAtt(var);				// attach and get  index
+  fwd = ST_SymAtt(&var);			// attach and get  index
   partab.jobtab->dostk[partab.jobtab->cur_do].symbol[idx] = fwd; // save idx
   return fwd;					// return index
 }                                               // end of ST_LocateIdx()
@@ -128,17 +128,17 @@ short ST_LocateIdx(int idx)                     // var index
 //**  Function: ST_Free - free varname entry in symbol table     ***
 //**  returns nothing - only called when var exists              ***
 //void ST_Free(chr_q var)                         // var name in a quad
-void ST_Free(chr_x var)                         // var name in a quad
+void ST_Free(chr_x *var)                        // var name in a quad
 { short hash;                                   // hash value
   short fwd;                                    // fwd link pointer
   short last;                                   // last entry encountered
 
-  hash = ST_Hash((var_u)var);                   // get hash value
+  hash = ST_Hash((var_u*)var);                  // get hash value
   last = -(hash);                               // save last value
   fwd = st_hash[hash];                          // get pointer (if any)
   while (fwd != -1)                             // while there are links
   //{ if (symtab[fwd].var_q == var) break;      // quit if we found it
-  { if (X_EQ(symtab[fwd].var_x, var)) break;    // quit if we found it
+  { if (_X_EQ(&symtab[fwd].var_x, var)) break;  // quit if we found it
     last = fwd;                                 // save last address
     fwd = symtab[fwd].fwd_link;                 // get next pointer (if any)
   }                                             // end search loop
@@ -157,15 +157,15 @@ void ST_Free(chr_x var)                         // var name in a quad
 //**  Function: ST_Create - create/locate varname in symtab      ***
 //**  returns short pointer or -1 on error                       ***
 //short ST_Create(chr_q var)                      // var name in a quad
-short ST_Create(chr_x var)                      // var name in a quad
+short ST_Create(chr_x *var)                     // var name in a quad
 { int hash;                                     // hash value
   short fwd;                                    // fwd link pointer
 
-  hash = ST_Hash((var_u)var);                          // get hash value
+  hash = ST_Hash((var_u*)var);                  // get hash value
   fwd = st_hash[hash];                          // get pointer (if any)  
   while (fwd != -1)                             // while there are links
   //{ if (symtab[fwd].var_q == var)		// return if we found it
-  { if (X_EQ(symtab[fwd].var_x, var))		// return if we found it
+  { if (_X_EQ(&symtab[fwd].var_x, var))		// return if we found it
     { return (fwd);
     }
     fwd = symtab[fwd].fwd_link;                 // get next pointer (if any)
@@ -177,7 +177,7 @@ short ST_Create(chr_x var)                      // var name in a quad
   st_hash[hash] = fwd;                          // link this first
   symtab[fwd].usage = 0;                        // no NEWs or routine att*
   //symtab[fwd].var_q = var;                    // copy in variable name
-  symtab[fwd].var_x = var;                      // copy in variable name
+  symtab[fwd].var_x = *var;                     // copy in variable name
   symtab[fwd].data = NULL;			// no data just yet
   return (fwd);                                 // return the pointer
 }                                               // end of ST_Create()
@@ -195,7 +195,7 @@ short ST_Kill(mvar *var)                        // var name in a quad
   }
   else						// else locate by name
   //{ ptr = ST_Locate(var->name.var_qu);        // locate the variable
-  { ptr = ST_Locate(var->name.var_xu);          // locate the variable
+  { ptr = ST_Locate(&var->name.var_xu);         // locate the variable
   }
   if (ptr < 0) return 0;			// just return if no such
   data = symtab[ptr].data;                      // get pointer to the data
@@ -233,7 +233,7 @@ short ST_Kill(mvar *var)                        // var name in a quad
   if ((symtab[ptr].data == ST_DATA_NULL) &&     // if no data block
       (symtab[ptr].usage == 0))                 // and no attaches or NEWs
   //{ ST_Free(symtab[ptr].varnam.var_qu);       // free this entry in symtab
-  { ST_Free(symtab[ptr].varnam.var_xu);         // free this entry in symtab
+  { ST_Free(&symtab[ptr].varnam.var_xu);        // free this entry in symtab
   }
   return 0;					// all done
 }                                               // end of ST_Kill()
@@ -338,7 +338,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
     fwd = ST_LocateIdx(var->volset - 1);	// locate var by volset
   else						// if no volset or volset zero
     //fwd = ST_Create(var->name.var_qu);	// attempt to create new ST ent
-    fwd = ST_Create(var->name.var_xu);		// attempt to create new ST ent
+    fwd = ST_Create(&var->name.var_xu);		// attempt to create new ST ent
   if (symtab[fwd].data == ST_DATA_NULL)		// if not already exists
   { i = DTBLKSIZE + data->len;			// reqd memory
     if ((var->slen != 0) || (i < DTMINSIZ))	// not reqd or too small
@@ -471,7 +471,7 @@ short ST_Data(mvar *var, u_char *buf)		// put var type in buf
   }
   else						// if no volset, use name
   //{ ptr1 = ST_Locate(var->name.var_qu);       // locate the variable by name
-  { ptr1 = ST_Locate(var->name.var_xu);         // locate the variable by name
+  { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   if (ptr1 == -1)				// not found
   { bcopy("0\0", buf, 2);
@@ -594,7 +594,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   }
   else                                          // no volset, so use var name
   //{ ptr1 = ST_Locate(var->name.var_qu);       // locate the variable by name
-  { ptr1 = ST_Locate(var->name.var_xu);         // locate the variable by name
+  { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   buf[0] = '\0';                                // JIC
   if (ptr1 < 0)
@@ -699,7 +699,7 @@ short ST_Query(mvar *var, u_char *buf, int dir)
   }
   else						// no volset, use var name
   //{ ptr1 = ST_Locate(var->name.var_qu);       // locate the variable by name
-  { ptr1 = ST_Locate(var->name.var_xu);         // locate the variable by name
+  { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   buf[0] = '\0';				// JIC
   if (ptr1 < 0)
@@ -761,7 +761,7 @@ short ST_GetAdd(mvar *var, cstring **add)	// get local data address
   }
   else						// no volset, use var name
   //{ ptr1 = ST_Locate(var->name.var_qu);       // locate the variable by name
-  { ptr1 = ST_Locate(var->name.var_xu);         // locate the variable by name
+  { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   if ((ptr1 >= ST_MAX) || (ptr1 < -1))
   { panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
@@ -874,7 +874,7 @@ short ST_QueryD(mvar *var, u_char *buf)		// get next key and data
   }
   else						// no volset, use name
   //{ ptr1 = ST_Locate(var->name.var_qu);       // locate the variable by name
-  { ptr1 = ST_Locate(var->name.var_xu);         // locate the variable by name
+  { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   buf[0] = '\0';				// JIC
   if (ptr1 < 0)
@@ -1004,7 +1004,7 @@ short ST_KillAll(int count, var_u *keep)
 
 //***************************************************************************
 //short ST_SymAtt(chr_q var)
-short ST_SymAtt(chr_x var)
+short ST_SymAtt(chr_x *var)
 // Locate variable 'var' - create the symtab entry if it doesn't exist.
 // Increment usage.
 // If ST_data block does not exits, create it.
@@ -1038,7 +1038,7 @@ void ST_SymDet(int count, short *list)
       }
       if (symtab[list[i]].data == NULL)		// no data?
       //{ ST_Free(symtab[list[i]].var_q);	// not in use - free it
-      { ST_Free(symtab[list[i]].var_x);		// not in use - free it
+      { ST_Free(&symtab[list[i]].var_x);	// not in use - free it
       }
     }
   }
@@ -1112,7 +1112,7 @@ short ST_SymKill(short pos)
   }
   if (symtab[pos].usage < 1)			// any NEWs etc?
   //{ ST_Free(symtab[pos].var_q);		// no - dong it
-  { ST_Free(symtab[pos].var_x);			// no - dong it
+  { ST_Free(&symtab[pos].var_x);		// no - dong it
   }
   return 0;					// and exit
 }
