@@ -190,9 +190,11 @@ int ForkIt(int cft)				// Copy File Table True/False
   if (cft < 0)
   {
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
-    (void)freopen("/dev/null", "w", stdin);	// redirect stdin
-    (void)freopen("/dev/null", "w", stdout);	// redirect stdout
-    (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+    if (!i)
+    { (void)freopen("/dev/null", "w", stdin);	// redirect stdin
+      (void)freopen("/dev/null", "w", stdout);	// redirect stdout
+      (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+    }
 #endif
     return i;
   }
