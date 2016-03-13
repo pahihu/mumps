@@ -1018,17 +1018,17 @@ short run(int savasp, int savssp)		// run compiled code
         if (s < 0) ERROR(s)			// complain on error
 	if ((cptr->len) && (strncasecmp((const char *) cptr->buf, "namespace=", 10) == 0))
 	{ p = &cptr->buf[10];			// point past the =
-	  for (j = 0; j < MAX_NAME_BYTES; j++)	// scan the remainder
-	  { if (!p[j]) break;			// quit when done
-	    if ((!j) && (p[j] != '%') && (!isalpha(p[j])))
-	      ERROR(-ERRM36)			// complain if invalid
-	    if ((j) && (!isalnum(p[j])))
-	      ERROR(-ERRM36)			// complain if invalid
-	    ((u_char *)&rou)[j] = p[j];		// copy one char
-	  }	  
+          for (i = 0; i < MAX_NAME_BYTES; i++)  // scan the remainder
+          { if (!p[i]) break;                   // quit when done
+            if ((!i) && (p[i] != '%') && (!isalpha(p[i])))
+              ERROR(-ERRM36)                    // complain if invalid
+            if ((i) && (!isalnum(p[i])))
+              ERROR(-ERRM36)                    // complain if invalid
+            ((u_char *)&rou)[i] = p[i];         // copy one char
+          }
 	}
 	//partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu = rou;
-	partab.jobtab->seqio[partab.jobtab->io].namespace.var_xu = rou;
+        partab.jobtab->seqio[j].namespace.var_xu = rou;
 	break;					// done
       case CMCLOSE:				// close chanel
 	partab.jobtab->commands++;		// count a command
