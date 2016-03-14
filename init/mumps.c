@@ -158,7 +158,7 @@ runit:
   if (c != 0) fprintf( stderr,
                        "Error occured in process - %s\n", // complain
                        strerror(c));            // what was returned
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__linux__)
 	if (c == ENOENT)
 		fprintf( stderr, "\tMumps database not loaded\n");
 	else if (c == ENOMEM)
