@@ -28,7 +28,7 @@ INT(BLK,XX,%,F,I,G,LI,D,BUF,CCC,UCC,K,KET,DATA,ZR) N $ET
  I '$D(XX) W $S(D:"data",1:"pointer")," block",!
  S:G="$GLOBAL" D=0
  I '$D(XX) W "Right: ",$V(-1,4,4)," Global: ",G,! W "Index Contains",!
- S LI=$V(-1,8,2)*2,I=20
+ S LI=$V(-1,8,2)*2,I=$$HDRSIZE^%MV1
  F  D  S I=I+2 Q:I>LI
  .S F=$V(-1,I,2)*4 I 'F W $J(I,5)_" ..." Q
  .S CCC=$V(-1,F+2),UCC=$V(-1,F+3),%=UCC S:%=1!(%=2) %=3 S:%=4 %=5
@@ -343,7 +343,7 @@ INT(G,%,UCI,B,NB,ALL,FRE,L,TA,TU,SIZ,ISD,ZR) S ZR="INT^%GE"
  S B=@% W "Global efficiency for ^",UCI,G," (",B,")",!
  F L=1:1 V -1:B S ISD=$V(-1,0)>64 D  Q:ISD  S B=NB
 ;Get all levels
- .I 'ISD S %=$V(-1,20,2)*4+2,%=$V(-1,%+1)+2+% S:%#4 %=%\4+1*4 S NB=$V(-1,%,4)
+ .I 'ISD S %=$V(-1,$$HDRSIZE^%MV1,2)*4+2,%=$V(-1,%+1)+2+% S:%#4 %=%\4+1*4 S NB=$V(-1,%,4)
  .W "Level",$J(L,3),": " S FRE=0
  .F ALL=0:1 Q:'B  V -1:B S B=$V(-1,4,4),FRE=$V(-1,10,2)*2+1-$V(-1,8,2)*2+FRE
  .S ALL=ALL*SIZ,FRE=ALL-FRE W $J(FRE,8)," bytes used of ",$J(ALL,8)
@@ -1008,7 +1008,7 @@ ASK W:$X ! W "FIX> " R CMD,! S LCMD=CMD,CMD=$&E(CMD) S:CMD="" CMD="?"
 ;---
 BLK V VV:BLK S RL=$V(VV,4,4) I RL D
 ;Get the block and right link (if any)
- .V VV:RL S R=$V(VV,20,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
+ .V VV:RL S R=$V(VV,$$HDRSIZE^%MV1,2)*4,UCC=$V(VV,R+3,1),%=UCC S:%<3 %=3 S:%=4 %=5
 ;.Get the block, addr of first record and size of same - adj for view
  .S RL1="^"_$P($V(VV,12,$$GLOSIZE^%MV1),$C(0))_"("_$$FULLUNK^FIX1($E($V(VV,R+4,%),1,UCC))_")"
 ;.Get the key into RL1
