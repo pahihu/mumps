@@ -4,6 +4,8 @@ F  R R Q:R=""  U 0 W R,! U %I K A F I=1:1 R A(I) I A(I)="" M ^$R(R)=A Q
 %MV1 ;Low-level implementation constants
 GLOSIZE() ; global name size
   Q $S($$R2:32,1:8)
+LBLKSIZE() ;label block size
+  Q $S($$R2:3072,1:1024)
 HDRSIZE() ; db block header size
   Q 12+$$GLOSIZE
 LOWIDX()  ; low index
@@ -426,7 +428,8 @@ EX C 1 W ! Q
  W $&V(99,1),!,$C(27)_"[6n" R A S BL=+$E($K,3,9) ;Work out Bottom Line
 START U 0 N $ET S $ET="D ERROR^%M" D READ I $G(CMD)'="EXIT" G START
  S $EC="" Q
-READ S PMT="["_$$UCI^%ZUCI_"]> ",WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
+READ S PMT="["_$S(1=^$J:"*",1=^$J($J,"PRIV"):"+",1:"")_$$UCI^%ZUCI_"]> "
+ S WID=80,%PMT=$L(PMT),E=$C(27),K=E_"[K"
  N $ES W $&V(BL,1),!,PMT
  S CST=$G(CS)+1 R CMD S KEY=$K,P=$L(CMD)+%PMT+1 D KEY G K
 AD W $&V(BL+($L(CMD)+%PMT\WID-(P\WID)),P-1#80+1)
