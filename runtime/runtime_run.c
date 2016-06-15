@@ -2005,7 +2005,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
-	    s = -ERRM61;			// complain: too many params
+	    s = -ERRM58;		        // complain: too many params
 	    if (*--mumpspc == OPERROR)		// if an error there
 	    { mumpspc++;			// point back at error
 	      s = (*(short *)mumpspc);		// get it
