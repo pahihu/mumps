@@ -566,7 +566,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	  comperror(cnt);			// compile error
 	  continue;				// ignore rest of line
 	}
-	*p = (u_char) cnt;			// save the count
+        *p = (u_char) cnt;                      // save the count
       }
     }						// end tag processing
     lino++;					// count a line

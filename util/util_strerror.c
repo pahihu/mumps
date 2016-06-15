@@ -102,6 +102,7 @@ static struct
   {ERRM58,  "Too few formal parameters"},
   {ERRM59,  "Environment reference not permitted for this ssvn"},
   {ERRM60,  "Undefined ssvn"},
+  {ERRM61,  "Too many formal parameters"},
   {ERRM75,  "String length exceeds implementation's limit"},
   {ERRM92,  "Mathematical overflow"},
   {ERRM93,  "Mathematical underflow"},

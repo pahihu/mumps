@@ -88,6 +88,7 @@ short run(int savasp, int savssp)		// run compiled code
   //chr_q *vt;					// pointer for var tab
   chr_x *vt;					// pointer for var tab
   struct ST_DATA *data;				// for direct symbol access
+  int symbol_malloced;                          // symbol was malloc()-ed
 
   asp = savasp;
   ssp = savssp;
@@ -1825,6 +1826,7 @@ short run(int savasp, int savssp)		// run compiled code
       case CMDON:				// DO - no arguments
 	partab.jobtab->commands++;		// count a command
 	offset = 0;				// clear offset
+        symbol_malloced = 0;                    // clear malloc flag
 	//tag = 0;				// clear tag
 	X_Clear(tag);				// clear tag
 	if (opc == CMDOWRT)
@@ -1989,20 +1991,21 @@ short run(int savasp, int savssp)		// run compiled code
 	    (rouadd->num_vars))			// any vars?
 	{ curframe->symbol = 
 	    malloc(rouadd->num_vars * sizeof(short)); // symbol index space
-	// SHOULD FREE() THIS IN THE ERRORS THAT FOLLOW !!!
+	  // SHOULD FREE() THIS IN THE ERRORS THAT FOLLOW !!!
+          symbol_malloced = 1;
 	  for (i = 0; i < rouadd->num_vars; i++) // for each one
 	    curframe->symbol[i] = -1;		// mark not setup
 	}
 	mumpspc = curframe->pc;			// get the new pc
 	args &= 127;				// clear $$ bit of count
-	if (args > 0)				// check for args
+	if (args > 0)		                // check for args
 	{ if (*mumpspc++ != LOADARG)		// any there?
-	  { if (curframe->symbol != NULL)
+	  { if (symbol_malloced)
 	    { free(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
-	    s = -ERRM58;			// default error
+	    s = -ERRM61;			// complain: too many params
 	    if (*--mumpspc == OPERROR)		// if an error there
 	    { mumpspc++;			// point back at error
 	      s = (*(short *)mumpspc);		// get it
@@ -2011,12 +2014,12 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	  j = *mumpspc++;			// number of them
 	  if ((args - 1) > j)			// too many supplied?
-	  { if (curframe->symbol != NULL)
+	  { if (symbol_malloced)
 	    { free(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
-	    ERROR(-ERRM58)			// complain
+	    ERROR(-ERRM58)			// complain: too few params
 	  }
 	  list = (var_u *) &sstk[ssp];		// where we put this
 	  for (i = 0; i < j; i++)		// for each arg
@@ -2026,7 +2029,14 @@ short run(int savasp, int savssp)		// run compiled code
 	    list[i].var_xu = vt[mumpspc[i]];    // get the var name
 	  }
 	  s = ST_New(j, list); 			// new them
-	  if (s < 0)  ERROR(s)			// complain on error
+	  if (s < 0)
+	  { if (symbol_malloced)
+	    { free(curframe->symbol);
+	      curframe->symbol = NULL;
+	    }
+	    partab.jobtab->cur_do--;		// point back
+            ERROR(s)			        // complain on error
+          }
 	  var = (mvar *) &sstk[ssp];		// get some space
 	  //var->name.var_qu = 0;		// clear the name
 	  X_Clear(var->name.var_xu);		// clear the name
@@ -2039,7 +2049,14 @@ short run(int savasp, int savssp)		// run compiled code
 	    if (cptr != NULL)			// normal data type?
 	    { if (cptr->len != VAR_UNDEFINED)
 	      { s = ST_Set(var, cptr); 		// set it
-	        if (s < 0) break;		// exit on error
+	        if (s < 0)
+	        { if (symbol_malloced)
+	          { free(curframe->symbol);
+	            curframe->symbol = NULL;
+	          }
+	          partab.jobtab->cur_do--;	// point back
+                  break;		        // exit on error
+                }
 	      }
 	    }
 	    else				// must be by reference
@@ -2047,12 +2064,26 @@ short run(int savasp, int savssp)		// run compiled code
 	      cptr = (cstring *) astk[--asp];	// get real data ptr
 	      var->name = ((mvar *) cptr)->name; // copy the name
 	      s = ST_ConData(var, p);		// connect them
-	      if (s < 0) break;			// exit on error
+	      if (s < 0) 
+	      { if (symbol_malloced)
+	        { free(curframe->symbol);
+	          curframe->symbol = NULL;
+	        }
+	        partab.jobtab->cur_do--;	// point back
+                break;			        // exit on error
+              }
 	      //var->name.var_qu = 0;		// clear the name for more
 	      X_Clear(var->name.var_xu);	// clear the name for more
 	    }
 	  }
-	  if (s < 0) ERROR(s)			// exit on error
+	  if (s < 0)
+          { if (symbol_malloced)
+	    { free(curframe->symbol);
+	      curframe->symbol = NULL;
+	    }
+	    partab.jobtab->cur_do--;	        // point back
+            ERROR(s)			        // exit on error
+          }
 	  mumpspc = mumpspc + j;		// skip args
 	}
 	if ((curframe->type & TYPE_EXTRINSIC) || // if it's extrinsic

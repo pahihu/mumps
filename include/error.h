@@ -97,6 +97,7 @@
 #define ERRM59       59      // Environment reference not permitted for this
                              // ssvn
 #define ERRM60       60      // Undefined ssvn
+#define ERRM61       61      // Too many formal parameters
 #define ERRM75       75      // String length exceeds implementation's limit
 #define ERRM92       92      // Mathematical overflow
 #define ERRM93       93      // Mathematical underflow
