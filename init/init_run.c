@@ -130,6 +130,7 @@ start:
   partab.jobtab = (jobtab *) NULL;		// clear jobtab pointer
   dbfd = open(file, O_RDONLY);                  // open the database for read
   if (dbfd < 0) return (errno);                 // if that failed
+  // i = fcntl(dbfd, F_NOCACHE, 1);
   if (start_type == TYPE_RUN)			// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
@@ -253,6 +254,9 @@ start:
 		systab->vol[0]->vollab->journal_file, errno);
       ret = -1;
       if (cmd != NULL) goto exit;
+    }
+    else
+    { // i = fcntl(dbfd, F_NOCACHE, 1);
     }
   }
 

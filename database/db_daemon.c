@@ -112,6 +112,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     fflush( stderr );                                   // flush to the file
     return(errno);					// check for error
   }
+  // i = fcntl(dbfd, F_NOCACHE, 1);
   t = time(0);						// for ctime()
   fprintf(stderr,"Daemon %d started successfully at %s\n",
 	         myslot, ctime(&t));			// log success

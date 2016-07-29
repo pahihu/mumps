@@ -116,6 +116,7 @@ int INIT_Start( char *file,                     // database
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
+  // i = fcntl(dbfd, F_NOCACHE, 1);
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of label block failed\n - %s\n", // complain
@@ -204,12 +205,15 @@ int INIT_Start( char *file,                     // database
   if (sem_id < 0)
   { fprintf( stderr, "Unable to create semaphore set - %s\n",
             strerror(errno));                   // give an error
+    i = shmctl(shar_mem_id, (IPC_RMID), &sbuf); // remove the share
     return(errno);                              // and return with error
   }
   i = semctl(sem_id, 0, SETALL, semvals);	// clear the values
   if (i < 0)					// check for error
   { fprintf( stderr, "Unable to clear semaphores - %s\n",
             strerror(errno));                   // give an error
+    i = shmctl(shar_mem_id, (IPC_RMID), &sbuf); // remove the share
+    i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
     return(errno);                              // and return with error
   }
   
@@ -217,6 +221,8 @@ int INIT_Start( char *file,                     // database
   if (systab == (void *)-1) 	                // die on error
   { fprintf( stderr, "Unable to attach to systab correctly\n"); // give error
     fprintf( stderr, "error may be: %s\n", strerror(errno)); // give error
+    i = shmctl(shar_mem_id, (IPC_RMID), &sbuf); // remove the share
+    i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
     return(1);                                  // and return with error
   }
 
@@ -321,7 +327,9 @@ int INIT_Start( char *file,                     // database
     if (i != 0)                                 // in case of error
     { fprintf( stderr, "**** Died on error - %s ***\n\n", // complain
               strerror(errno));                 // what was returned
-      i = shmdt(systab);                   // detach the shared mem
+      i = shmdt(systab);                        // detach the shared mem
+      i = shmctl(shar_mem_id, (IPC_RMID), &sbuf);// remove the share
+      i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
       return(errno);                            // exit with error
     }
   }                                             // all daemons started
@@ -354,6 +362,7 @@ int INIT_Start( char *file,                     // database
       else					// if open OK
       { u_char tmp[12];
 
+        // i = fcntl(jfd, F_NOCACHE, 1);
 	lseek(jfd, 0, SEEK_SET);
 	errno = 0;
 	i = read(jfd, tmp, 4);			// read the magic
