@@ -42,32 +42,32 @@
 #include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
 #include <errno.h>					// errno
-#include <sys/types.h>              // for semaphores
-#include <sys/ipc.h>				// for semaphores
-#include <sys/sem.h>				// for semaphores
+#include <sys/types.h>                                  // for semaphores
+#include <sys/ipc.h>				        // for semaphores
+#include <sys/sem.h>				        // for semaphores
 #include "mumps.h"					// standard includes
-#include "database.h"				// database protos
+#include "database.h"				        // database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
 
 
 int curr_lock;						// lock on globals
 mvar db_var;						// local copy of var
-int volnum;                         // current volume
+int volnum;                                             // current volume
 
-gbd *blk[MAXTREEDEPTH];				// current tree
-int level;                          // level in above
-                                    // 0 = global dir
-u_int rekey_blk[MAXREKEY];			// to be re-keyed
-int   rekey_lvl[MAXREKEY];			// from level
+gbd *blk[MAXTREEDEPTH];				        // current tree
+int level;                                              // level in above
+                                                        // 0 = global dir
+u_int rekey_blk[MAXREKEY];			        // to be re-keyed
+int   rekey_lvl[MAXREKEY];			        // from level
 
-int Index;                          // Index # into above
+int Index;                                              // Index # into above
 cstring *chunk;						// chunk at Index
 cstring *record;					// record at Index
-                                    // points at dbc
+                                                        // points at dbc
 u_char keybuf[260];					// for storing keys
 u_short *idx;						// for Indexes
-int *iidx;                          // int ver of Index
+int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 
