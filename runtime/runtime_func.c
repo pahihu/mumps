@@ -452,6 +452,7 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
   int ru = -2;					// round up flag
   int dp = -2;					// decimal point
   int cop;
+  int neg;
 
   if (round < 0)
   { return -(ERRM28);				// that's an error
@@ -519,7 +520,13 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
   if (ru != -2)
   { ru += (zer + spc);				// adjust round up
     while (TRUE)
-    { ret_buffer[ru]++;				// increment it
+    { neg = ret_buffer[ru] == '-';              // check leading '-'
+      if (neg)
+      { ret_buffer[ru] = '0';                   // rewrite as '0'
+        if (ru - 1 >= 0)                        // propagate sign
+          ret_buffer[ru - 1] = '-';
+      }
+      ret_buffer[ru]++;				// increment it
       if (ret_buffer[ru] <= '9')
       { break;					// stop when done
       }
