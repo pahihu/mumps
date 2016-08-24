@@ -135,11 +135,13 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 	         myslot, ctime(&t));			// log success
   fflush( stderr );                                     // flush to the file
 
+#if 0
   if (!myslot)
   { systab->Mtime = time(0);
     signal(SIGALRM, AlarmHandler);
     alarm(1);
   }
+#endif
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
   { ic_map(-3);						// doit

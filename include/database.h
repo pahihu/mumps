@@ -68,7 +68,8 @@
 #define DOING_DISMOUNT	4				// dismounting
 
 // MUMPS time
-#define MTIME(x)        systab->Mtime                   // updated by daemon 0
+//#define MTIME(x)        systab->Mtime                   // updated by daemon 0
+#define MTIME(x)        time(0)                   // updated by daemon 0
 
 // **** Structures ***********************************************************
 
