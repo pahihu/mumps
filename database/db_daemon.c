@@ -64,20 +64,20 @@ void do_free(u_int gb);					// free from map et al
 void ic_map(int flag);					// check the map
 void daemon_check();					// ensure all running
 
-//-----------------------------------------------------------------------------
-// Function: AlarmHandler
-// Descript: keeps MUMPS time
+//------------------------------------------------------------------------------
+// Function: MSLEEP
+// Descript: sleep given seconds, if daemon 0 update Mtime
+// Input(s): seconds to wait
+// Return:   return value of sleep() system call
 //
 
 static
-void AlarmHandler(int sig)
+u_int MSLEEP(u_int seconds)
 {
-  signal(SIGALRM, SIG_IGN);
+  if (!myslot)
+    systab->Mtime = time(0);
 
-  systab->Mtime = time(0);
-
-  alarm(1);
-  signal(SIGALRM, AlarmHandler);
+  return sleep(seconds);
 }
 
 //-----------------------------------------------------------------------------
@@ -135,24 +135,18 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 	         myslot, ctime(&t));			// log success
   fflush( stderr );                                     // flush to the file
 
-#if 0
   if (!myslot)
-  { systab->Mtime = time(0);
-    signal(SIGALRM, AlarmHandler);
-    alarm(1);
-  }
-#endif
+    systab->Mtime = time(0);
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
   { ic_map(-3);						// doit
   }
 
-  i = sleep(2);						// wait a bit
+  i = MSLEEP(1);					// wait a bit
 
   while (TRUE)						// forever
-  { do_daemon();					// do something
-    i = sleep(1);					// rest
-//    i = sleep(systab->vol[volnum - 1]->num_of_daemons); // rest
+  { i = MSLEEP(1);					// rest
+    do_daemon();					// do something
   }
   return 0;						// never gets here
 }
@@ -203,9 +197,9 @@ start:
 	{ break;					// leave loop
 	}
 	daemon_check();					// ensure all running
-	i = sleep(1);					// wait a bit
+	i = MSLEEP(1);					// wait a bit
       }							// end while (TRUE)
-      i = sleep(1);					// just a bit more
+      i = MSLEEP(1);					// just a bit more
       systab->vol[volnum-1]->writelock = abs(systab->vol[volnum-1]->writelock);
       // Set the writelock to a positive value when all quiet
     }							// end wrtlock
@@ -317,7 +311,7 @@ void do_dismount()					// dismount volnum
     }
     SemOp( SEM_WD, -WRITE );				// unlock daemon table
     if (i)						// if pids still around
-    { sleep(1);						// wait a second...
+    { MSLEEP(1);					// wait a second...
     }
   }							// end wait for daemons
   fprintf(stderr,"Writing out clean flag as clean\n");  // operation
@@ -586,7 +580,7 @@ void do_free(u_int gb)					// free from map et al
       ;
     { break;						// it worked
     }
-    sleep(1);						// wait a bit
+    MSLEEP(1);						// wait a bit
   }
   
   Free_block(gb);					// free the block

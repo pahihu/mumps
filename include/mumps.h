@@ -452,9 +452,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   locktab *lockfree;                            // head of lock free space
   long addoff;                                  // off from systab to add buff
   long addsize;                                 // add buff size
+  time_t Mtime;                                 // Mtime, updated by daemon 0
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
-  time_t Mtime;                                 // Mtime, updated by daemon 0
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256
