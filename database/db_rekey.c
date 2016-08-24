@@ -117,7 +117,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     chunk->buf[1] = 0;					// ucc
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// setup record ptr
 
-    //Allign_record(); // XXX
+    // Allign_record(); // XXX
     *( (u_int *) record) = tgb;				// first entry
     s = Insert(&db_var.slen, ptr);			// insert this one
     if (s < 0)						// failed?

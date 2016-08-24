@@ -76,6 +76,7 @@
 #define KEQUAL           0                      // outputs for..
 #define K2_LESSER        1                      // .. KeyCmp function
 #define K2_GREATER      -1                      // ***
+#define KNOTEQUAL        2
 
 #define MAX_DO_FRAMES   128                     // maximum permitted do_frame
 #define STM1_FRAME	MAX_DO_FRAMES-1             // where $ST(-1) data goes
@@ -453,6 +454,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   long addsize;                                 // add buff size
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
+  time_t Mtime;                                 // Mtime, updated by daemon 0
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

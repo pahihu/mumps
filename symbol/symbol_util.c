@@ -412,7 +412,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
           if (ptr1 == ST_DEPEND_NULL) break;	// gone beyond last
         }  					// end while-compare keys
         if ((ptr1 != ST_DEPEND_NULL) &&		// replace data
-           (UTIL_Key_KeyCmp(ptr1->bytes, var->key, // if var keys equal it means
+           (UTIL_Key_KeyEqu(ptr1->bytes, var->key, // if var keys equal it means
                       ptr1->keylen, var->slen) == 0)) // replace data
         { if (prevPtr == ST_DEPEND_NULL)	// if no prev pointer
           { newPtrDp->deplnk = ptr1->deplnk;	// link to previous first dep
@@ -651,7 +651,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     { return 0;                                 // return length of zero
     }                                           // end if current is now NULL
 
-    if (UTIL_Key_KeyCmp(var->key, current->bytes, // compare keys. If compare
+    if (UTIL_Key_KeyEqu(var->key, current->bytes, // compare keys. If compare
                     var->slen, current->keylen) != 0) // fails to match exact
     { crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
                                        pieces-1, &subs, (char *)&crud[1]);
@@ -726,7 +726,7 @@ short ST_Query(mvar *var, u_char *buf, int dir)
     }						// end if reverse order
     else					// forward order
     { if ((current != ST_DEPEND_NULL) &&	// not going past non exist last
-          (UTIL_Key_KeyCmp(var->key, current->bytes,  // and keys are
+          (UTIL_Key_KeyEqu(var->key, current->bytes,  // and keys are
            var->slen, current->keylen) == 0))	// equal
       { current = current->deplnk;		// go to next
       }						// end if exact match
@@ -895,7 +895,7 @@ short ST_QueryD(mvar *var, u_char *buf)		// get next key and data
   }						// end while-compare keys
 
   if ((current != ST_DEPEND_NULL) &&		// while more deps exist
-      (UTIL_Key_KeyCmp(var->key, current->bytes, // and keys match exactly
+      (UTIL_Key_KeyEqu(var->key, current->bytes, // and keys match exactly
        var->slen, current->keylen) == 0))	// equal
   { current = current->deplnk;			// go to next
   }						// end if keys equal

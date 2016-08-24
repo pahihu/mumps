@@ -63,6 +63,23 @@ int do_zot(u_int gb);					// zot block and lower
 void do_free(u_int gb);					// free from map et al
 void ic_map(int flag);					// check the map
 void daemon_check();					// ensure all running
+
+//-----------------------------------------------------------------------------
+// Function: AlarmHandler
+// Descript: keeps MUMPS time
+//
+
+static
+void AlarmHandler(int sig)
+{
+  signal(SIGALRM, SIG_IGN);
+
+  systab->Mtime = time(0);
+
+  alarm(1);
+  signal(SIGALRM, AlarmHandler);
+}
+
 //-----------------------------------------------------------------------------
 // Function: DB_Daemon
 // Descript: Start daemon for passed in slot and vol#
@@ -117,6 +134,12 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   fprintf(stderr,"Daemon %d started successfully at %s\n",
 	         myslot, ctime(&t));			// log success
   fflush( stderr );                                     // flush to the file
+
+  if (!myslot)
+  { systab->Mtime = time(0);
+    signal(SIGALRM, AlarmHandler);
+    alarm(1);
+  }
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
   { ic_map(-3);						// doit
@@ -557,7 +580,8 @@ void do_free(u_int gb)					// free from map et al
 
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
-    if (!SemOp( SEM_GLOBAL, WRITE));			// gain write lock
+    if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
+      ;
     { break;						// it worked
     }
     sleep(1);						// wait a bit

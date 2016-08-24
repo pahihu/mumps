@@ -274,7 +274,7 @@ short DB_Mount( char *file,                     // database
 	    }
 	    else
 	    { jj.action = JRN_START;
-	      jj.time = time(0);
+	      jj.time = MTIME(0);
 	      jj.uci = 0;
 	      jj.size = 8;
 	      i = write(jfd, &jj, 8);		// write the create record

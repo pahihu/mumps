@@ -500,7 +500,7 @@ short Compress1()
       }
 	// Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;				// pretend it's data
-      blk[1]->last_accessed = time(0);			// clear last access
+      blk[1]->last_accessed = MTIME(0);			// clear last access
       Garbit(blk[1]->block);				// que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));	// clear last ref
@@ -548,7 +548,7 @@ short Compress1()
   Tidy_block();						// ensure it's tidy
   if (blk[level]->mem->last_idx < LOW_INDEX)		// if it's empty
   { blk[level]->mem->type = 65;				// pretend it's data
-    blk[level]->last_accessed = time(0);		// clear last access
+    blk[level]->last_accessed = MTIME(0);		// clear last access
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);				// que for freeing
     blk[level] = NULL;					// ignore
@@ -621,7 +621,7 @@ void ClearJournal(int vol)				// clear journal
     (*(off_t *) &tmp[4]) = 20;				// next free byte
     (void)write(jfd, tmp, 12);
     jj.action = JRN_CREATE;
-    jj.time = time(0);
+    jj.time = MTIME(0);
     jj.uci = 0;
     jj.size = 8;
     (void)write(jfd, &jj, 8);				// write the create rec
@@ -652,7 +652,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jptr != systab->vol[volnum  - 1]->jrn_next)	// if failed
   { goto fail;
   }
-  jj->time = time(0);					// store the time
+  jj->time = MTIME(0);					// store the time
   jj->size = 3 + sizeof(u_short) + sizeof(time_t) + sizeof(var_u) + jj->slen;
   if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) // not SET of KILL
   { jj->size = 8;					// size is 8

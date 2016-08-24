@@ -67,6 +67,9 @@
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
 
+// MUMPS time
+#define MTIME(x)        systab->Mtime                   // updated by daemon 0
+
 // **** Structures ***********************************************************
 
 typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout

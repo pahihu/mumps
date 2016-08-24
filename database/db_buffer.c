@@ -170,7 +170,7 @@ short Get_block(u_int blknum)                           // Get block
   }
 
 exit:
-  blk[level]->last_accessed = time(0);			// set access time
+  blk[level]->last_accessed = MTIME(0);			// set access time
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
@@ -221,7 +221,7 @@ short New_block()					// get new block
 	 = blk[level];					// link it in
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
 	blk[level]->dirty = (gbd *) 1;			// reserve it
-	blk[level]->last_accessed = time(0);		// accessed
+	blk[level]->last_accessed = MTIME(0);		// accessed
 	systab->vol[volnum-1]->first_free = c;		// save this
 	return 0;					// return success
       }
@@ -260,7 +260,7 @@ start:
     }
     ptr = ptr->next;					// point at next
   }							// end while
-  now = time(0) + 1;					// get current time +
+  now = MTIME(0) + 1;					// get current time +
 
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
   while (TRUE)						// loop
@@ -347,7 +347,7 @@ start:
     goto exit;						// common exit code
   }
 
-  now = time(0);					// get current time
+  now = MTIME(0);					// get current time
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
 

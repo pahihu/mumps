@@ -461,6 +461,19 @@ short UTIL_MvarFromCStr( cstring *src,		// the string
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Function:		UTIL_Key_KeyEqu
+// Description: 	Compares the keys
+// Return Values:	KNOTEQUAL, KEQUAL.
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+int UTIL_Key_KeyEqu(u_char *key1, u_char *key2, int kleng1, int kleng2)
+{ int cmpvar;					// comparison variable
+
+  if (kleng1 != kleng2) return KNOTEQUAL;
+  cmpvar = memcmp(key1, key2, kleng1);          // compare keys
+  return cmpvar ? KNOTEQUAL : KEQUAL;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Function:		UTIL_Key_KeyCmp
 // Description: 	Compares the keys
 // Return Values:	K2_LESSER, K2_GREATER, KEQUAL.
@@ -529,18 +542,33 @@ int _X_Empty(chr_x *a)
 
 int _X_EQ(chr_x *a, chr_x *b)
 {
+#if MAX_NAME_BYTES == 32
+  u_int64 *qa = (u_int64*)a, *qb = (u_int64*)b;
+  if (  qa[0] != qb[0])  return 0;
+  if (!(qa[1] |  qb[1])) return 1;
+  if (  qa[1] != qb[1])  return 0;
+  if (!(qa[2] |  qb[2])) return 1;
+  if (  qa[2] != qb[2])  return 0;
+  if (!(qa[3] |  qb[3])) return 1;
+  return qa[3] == qb[3];
+#else
   return 0 == bcmp(a->buf, b->buf, MAX_NAME_BYTES);
+#endif
 }
 
 int _X_NE(chr_x *a, chr_x *b)
 {
-  return 0 != bcmp(a->buf, b->buf, MAX_NAME_BYTES);
+  return 0 == _X_EQ(a, b);
 }
 
 void X_set(const void *src, void *dst, size_t len)
 {
-  bzero(dst, MAX_NAME_BYTES);
+  int n;
+
+  // bzero(dst, MAX_NAME_BYTES);
   bcopy(src, dst, len);
+  n = MAX_NAME_BYTES - len;
+  if (n) bzero(dst + len, n);
 }
 
 int X_put(const chr_x *a, u_char *b)

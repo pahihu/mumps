@@ -245,6 +245,7 @@ short UTIL_String_Mvar( mvar *var,
 int UTIL_Key_Last( mvar *var);			// point at last subs in mvar
 short UTIL_MvarFromCStr( cstring *src, mvar *var); // cvt cstring to mvar
 int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
+int UTIL_Key_KeyEqu(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_Chars_In_Subs( char *Key, int keylen,
 	int maxsubs, int *subs, char *KeyBuffer );
 
