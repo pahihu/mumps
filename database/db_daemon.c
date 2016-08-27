@@ -61,7 +61,7 @@ void do_write();					// write GBDs
 void do_garb();						// garbage collect
 int do_zot(u_int gb);					// zot block and lower
 void do_free(u_int gb);					// free from map et al
-void ic_map(int flag);					// check the map
+void ic_map(int flag, int dbfd);			// check the map
 void daemon_check();					// ensure all running
 
 //------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     systab->Mtime = time(0);
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
-  { ic_map(-3);						// doit
+  { ic_map(-3, dbfd);					// doit
   }
 
   i = MSLEEP(1);					// wait a bit

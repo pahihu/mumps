@@ -63,9 +63,9 @@ void ic_full();						// full check
 void ic_bits(u_int block, int flag, u_int points_at);	// check bits
 u_int ic_block(u_int block, u_int points_at,
 	      u_char *kin, chr_x *global);		// check block
-void ic_map(int flag);					// check the map
+void ic_map(int flag, int dbfd);			// check the map
 
-extern int dbfd;					// global db file desc
+// extern int dbfd;					// global db file desc
 
 //-----------------------------------------------------------------------------
 // Function: DB_ic
@@ -107,8 +107,8 @@ int DB_ic(int vol, int block)                  		// integrity checker
     gbd_expired = GBD_EXPIRED;
     return icerr;					// and return
   }
-  dbfd = partab.vol_fds[volnum - 1];			// set this up
-  ic_map(block);					// map check
+  // dbfd = partab.vol_fds[volnum - 1];			// set this up
+  ic_map(block, partab.vol_fds[volnum - 1]);		// map check
   return icerr;						// and return
 }
 
@@ -527,10 +527,11 @@ u_int ic_block(u_int block, u_int points_at,
 // Function: ic_map
 // Descript: check map block
 // Input(s): flag, -1 = Check only, -2 = Check and fix, -3 as -2 + track upto
+//           dbfd - database file descriptor
 // Return:   none
 //
 
-void ic_map(int flag)					// check the map
+void ic_map(int flag, int dbfd)				// check the map
 { int i;						// a handy int
   u_int block;						// current block
   u_int base;						// current block base
