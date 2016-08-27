@@ -22,13 +22,13 @@ EXTRA += -mmacosx-version-min=10.5 -Wno-deprecated-declarations
 
 endif
 
-SUBDIRS=compile database init runtime seqio symbol util xcall
+SUBDIRS=compile connect database init runtime seqio symbol util xcall
 
 RM=rm -f
 
 PROG    = mumps
 
-LIBOBJS	= 	compile/dollar.o \
+COMOBJS	= 	compile/dollar.o \
 		compile/eval.o \
 		compile/localvar.o \
 		compile/parse.o \
@@ -76,17 +76,24 @@ LIBOBJS	= 	compile/dollar.o \
 		util/util_strerror.o \
 		xcall/xcall.o
 
-OBJS =          ${LIBOBJS} \
+LIBOBJS =       ${COMOBJS} \
+		connect/init_connect.o \
+		connect/mv1conn.o \
+		connect/mv1var.o
+
+OBJS =          ${COMOBJS} \
 		init/mumps.o
 
 .c.o:
 	${CC} ${EXTRA} -c $< -o $@
 
-all: ${OBJS}
+all: ${PROG} xtest
+
+${PROG}: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
-libmv1conn.a: init/init_connect.o ${LIBOBJS}
-	${AR} cru $@ init/init_connect.o ${LIBOBJS}
+libmv1conn.a: ${LIBOBJS}
+	${AR} cru $@ ${LIBOBJS}
 
 test: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
@@ -95,4 +102,4 @@ xtest: xtest.o libmv1conn.a
 	${CC} ${EXTRA} -o $@ xtest.o libmv1conn.a ${LIBS}
 
 clean:
-	rm -f ${OBJS} ${PROG} ${PROG}.core libmv1conn.a
+	rm -f ${LIBOBJS} ${OBJS} ${PROG} ${PROG}.core libmv1conn.a

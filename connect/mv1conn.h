@@ -59,11 +59,12 @@ int MV1_Rundown(MV1CONN *hnd);
 
 typedef struct _MV1VAR
 {
-  char   volset[MAX_NAME_BYTES];
-  char   env[MAX_NAME_BYTES];
+  chr_x  volset;
+  chr_x  env;
   u_char nsubs;                 // max. 63
-  u_char subsidx[64];  
-  mvar   mvar;                  // contains keys, keylen, varname
+  u_char spos[64];              // subscript positions
+  u_char slen[64];              // subscript lengths
+  mvar   var_m;                 // contains keys, keylen, varname
 } MV1VAR;
 
 int MV1VAR_Init(MV1VAR *var);
@@ -76,30 +77,31 @@ int MV1VAR_Count(MV1VAR *var, int *cnt);
 
 int MV1VAR_ExtractDouble(MV1VAR *var, int pos, double *val);
 int MV1VAR_ExtractLong(MV1VAR *var, int pos, long *val);
-int MV1VAR_ExtractString(MV1VAR *var, int pos, char *val, int *len);
+int MV1VAR_ExtractString(MV1VAR *var, int pos, unsigned char *val, int *len);
 
 int MV1VAR_InsertDouble(MV1VAR *var, int pos, double val);
 int MV1VAR_InsertLong(MV1VAR *var, int pos, long val);
-int MV1VAR_InsertString(MV1VAR *var, int pos, char *val, int len);
+int MV1VAR_InsertString(MV1VAR *var, int pos, unsigned char *val, int len);
 int MV1VAR_InsertNull(MV1VAR *var, int pos);
 
 int MV1VAR_AppendDouble(MV1VAR *var, double val);
 int MV1VAR_AppendLong(MV1VAR *var, long val);
-int MV1VAR_AppendString(MV1VAR *var, char *val, int len);
+int MV1VAR_AppendString(MV1VAR *var, unsigned char *val, int len);
+int MV1VAR_AppendNull(MV1VAR *var);
 
 int MV1_GetDouble(MV1CONN *conn, MV1VAR *var, double *val);
 int MV1_GetLong(MV1CONN *conn, MV1VAR *var, long *val);
-int MV1_GetString(MV1CONN *conn, MV1VAR *var, char *val, int *len);
+int MV1_GetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int *len);
 
 int MV1_SetDouble(MV1CONN *conn, MV1VAR *var, double val);
 int MV1_SetLong(MV1CONN *conn, MV1VAR *var, long val);
-int MV1_SetString(MV1CONN *conn, MV1VAR *var, char *val, int len);
+int MV1_SetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int len);
 int MV1_SetNull(MV1CONN *conn, MV1VAR *var);
  
 int MV1_Kill(MV1CONN *conn, MV1VAR *var);
 
 int MV1_Data(MV1CONN *conn, MV1VAR *var, int *dval);
-int MV1_Order(MV1CONN *conn, MV1VAR *var, int dir, char *sibling, int *len);
+int MV1_Order(MV1CONN *conn, MV1VAR *var, int dir, unsigned char *sibling, int *len);
 int MV1_Query(MV1CONN *conn, MV1VAR *var, int dir, MV1VAR *next);
 
 int MV1_Lock(MV1CONN *conn, MV1VAR *var, int incr);
