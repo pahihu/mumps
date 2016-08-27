@@ -91,8 +91,7 @@ int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
       return -(ERRMLAST+ERRZ12);
   }
 
-  if (volset || env)
-    var->resolved_uci_volset = 0;
+  var->resolved_uci_volset = 0;
 
   // --- volset
   if (volset)
@@ -192,11 +191,11 @@ int mv1_subs_insert_null(MV1VAR *var, int pos)
 
 int mv1_subs_append(MV1VAR *var, unsigned char *val, int len)
 {
-  return mv1_subs_insert(var, 1 + var->nsubs, val, len);
+  return mv1_subs_insert(var, var->nsubs, val, len);
 }
 
 int mv1_subs_append_null(MV1VAR *var)
 {
-  return mv1_subs_insert_null(var, 1 + var->nsubs);
+  return mv1_subs_insert_null(var, var->nsubs);
 }
 

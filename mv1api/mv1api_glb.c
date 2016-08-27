@@ -50,23 +50,31 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
   if (var->resolved_uci_volset)
     return 0;
 
+  var->var_m.volset = 0;
+  var->var_m.uci = 0;
+
   // TODO: if empty, then defaults from MV1DB
-  for (i = 0; i < MAX_VOL; i++)
-    if (systab->vol[i] != NULL)
-      if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, var->volset))
-        break;
-  if (i == MAX_VOL) return -ERRM26;
-  var->var_m.volset = i + 1;
-   
+  if (!X_Empty(var->volset))
+  { for (i = 0; i < MAX_VOL; i++)
+      if (systab->vol[i] != NULL)
+        if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, var->volset))
+          break;
+    if (i == MAX_VOL) return -ERRM26;
+    var->var_m.volset = i + 1;
+  }
   if (0 == var->var_m.volset)
     var->var_m.volset = partab.jobtab->vol;
 
-  for (i = 0; i < UCIS; i++)
-    if (X_EQ(systab->vol[var->var_m.volset-1]->vollab->uci[i].name.var_xu,
-             var->env))
-      break;
-  if (i == UCIS) return -ERRM26;
-  var->var_m.uci = i + 1;
+  if (!X_Empty(var->env))
+  { for (i = 0; i < UCIS; i++)
+      if (X_EQ(systab->vol[var->var_m.volset-1]->vollab->uci[i].name.var_xu,
+               var->env))
+        break;
+    if (i == UCIS) return -ERRM26;
+    var->var_m.uci = i + 1;
+  }
+  if (0 == var->var_m.uci)
+    var->var_m.uci = hnd->env_num;
 
   var->resolved_uci_volset = 1;
 
@@ -159,17 +167,42 @@ int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
                 u_char *sibling, int *len)
 {
   short s;
+  int i;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
     return 0;
 
+#if 0
+  fprintf(stderr,"var_m.name   = %s\r\n", &var->var_m.name.var_xu);
+  fprintf(stderr,"var_m.uci    = %d\r\n", var->var_m.uci);
+  fprintf(stderr,"var_m.volset = %d\r\n", var->var_m.volset);
+  fprintf(stderr,"var_m.slen   = %d\r\n", var->var_m.slen);
+  fprintf(stderr,"var_m.key    = [");
+  for (i = 0; i < var->var_m.slen; i++)
+    fprintf(stderr," %02x", var->var_m.key[i]);
+  fprintf(stderr, "]\r\n");
+#endif
+
+  i = -1;                                               // fix for backwards
+  if (-1 == dir)
+  { i = var->var_m.slen;
+    if ((var->var_m.key[i-1] == '\0') &&
+        (var->var_m.key[i-2] == '\0'))
+    { i -= 2;
+      var->var_m.key[i] = '\377';
+    }
+  }
   s = DB_Order(&var->var_m, sibling, dir);
   if (s < 0)
-    return s;
+    goto exit;
 
   *len = s;
-  return 0;
+  s = 0;
+exit:
+  if (-1 != i)                                          // unfix
+    var->var_m.key[i] = '\0';
+  return s;
 }
 
 int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next)
