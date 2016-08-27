@@ -2,7 +2,11 @@
 //
 // module database - Locate Database Functions
 
-/*      Copyright (c) 1999 - 2014
+/*      Copyright (c) 2016
+ *      Andras Pahi.  All rights reserved.
+ *      Locate() rewrite.
+ *
+ *      Copyright (c) 1999 - 2014
  *      Raymond Douglas Newman.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

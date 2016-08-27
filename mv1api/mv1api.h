@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <termios.h>
+#include "error.h"
 #include "mumps.h"
 
 typedef struct _MV1DB
@@ -50,49 +51,47 @@ typedef struct _MV1DB
   int asp;					// address stack ptr
 } MV1DB;
 
-int mv1_initialize(MV1DB *db, char *file, char *env);
-int mv1_xecute(MV1DB *db, char *cmd);
-int mv1_rundown(MV1DB *db);
 
 typedef struct _MV1VAR
 {
   chr_x  volset;
   chr_x  env;
+  u_char resolved_uci_volset;   // UCI,VOLSET resolved ie. put in var_m
   u_char nsubs;                 // max. 63
   u_char spos[64];              // subscript positions
   u_char slen[64];              // subscript lengths
   mvar   var_m;                 // contains keys, keylen, varname
 } MV1VAR;
 
-/* global variable reference functions */
+/* init/rundown functions */
+int mv1_initialize(MV1DB *hnd, char *file, char *env);
+int mv1_xecute(MV1DB *hnd, char *cmd);
+int mv1_rundown(MV1DB *hnd);
+
+/* glbref functions */
 int mv1_var_init(MV1VAR *var);
 int mv1_var_clear(MV1VAR *var);
 int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset);
 int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset);
-
 int mv1_subs_clear(MV1VAR *var);
 int mv1_subs_count(MV1VAR *var, int *cnt);
-
 int mv1_subs_extract(MV1VAR *var, int pos, u_char *val, int *len);
 int mv1_subs_insert(MV1VAR *var, int pos, u_char *val, int len);
 int mv1_subs_insert_null(MV1VAR *var, int pos);
-
 int mv1_subs_append(MV1VAR *var, u_char *val, int len);
 int mv1_subs_append_null(MV1VAR *var);
 
 /* global functions */
-int mv1_global_get(MV1DB *db, MV1VAR *var, u_char *val, int *len);
-
-int mv1_global_set(MV1DB *db, MV1VAR *var, u_char *val, int len);
-int mv1_global_set_null(MV1DB *db, MV1VAR *var);
- 
-int mv1_global_kill(MV1DB *db, MV1VAR *var);
-
-int mv1_global_data(MV1DB *db, MV1VAR *var, int *dval);
-int mv1_global_order(MV1DB *db, MV1VAR *var, int dir, u_char *subs, int *len);
-int mv1_global_query(MV1DB *db, MV1VAR *var, int dir, MV1VAR *next);
-
-int mv1_global_lock(MV1DB *db, MV1VAR *var, int incr);
-int mv1_global_unlock(MV1DB *db, MV1VAR *var, int decr);
+int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len);
+int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len);
+int mv1_global_set_null(MV1DB *hnd, MV1VAR *var);
+int mv1_global_kill(MV1DB *hnd, MV1VAR *var);
+int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval);
+int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
+                     u_char *sibling, int *len);
+int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next);
+int mv1_global_next(MV1DB *hnd, MV1VAR *var, u_char *data, int *dlen);
+int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout);
+int mv1_global_unlock(MV1DB *hnd, MV1VAR *var);
 
 #endif                                          // _MUMPS_MV1API_H_

@@ -46,6 +46,7 @@ typedef struct _MV1VAR
 {
   chr_x  volset[MAX_NAME_BYTES];
   chr_x  env[MAX_NAME_BYTES];
+  u_char resolved_uci_volset;
   u_char nsubs;                 // max. 63
   u_char subsidx[64];  
   mvar   mvar;                  // contains keys, keylen, varname
@@ -68,12 +69,52 @@ int mv1_var_clear(MV1VAR *var)
 
 int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset)
 {
-  return -1;
+  int i;
+
+  for (i = 0; (*glb++ = var->var_m.name.var_cu[i]); i++);
+  for (i = 0; (*env++ = var->env.buf[i]); i++);
+  for (i = 0; (*volset++ = var->volset.buf[i]); i++);
+  return 0;
 }
 
 int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 {
-  return -1;
+  int i, c;
+
+  // --- glb name
+  if (glb)
+  { for (i = 0; i < MAX_NAME_BYTES; i++)
+    { var->var_m.name.var_cu[i] = c = *glb++;
+      if (0 == c) break;
+    }
+    if (c)
+      return -(ERRMLAST+ERRZ12);
+  }
+
+  if (volset || env)
+    var->resolved_uci_volset = 0;
+
+  // --- volset
+  if (volset)
+  { for (i = 0; i < MAX_NAME_BYTES; i++)
+    { var->volset.buf[i] = c = *volset++;
+      if (0 == c) break;
+    }
+    if (c)
+      return -(ERRMLAST+ERRZ12);
+  }
+
+  // --- environment(uci)
+  if (env)
+  { for (i = 0; i < MAX_NAME_BYTES; i++)
+    { var->env.buf[i] = c = *env++;
+      if (0 == c) break;
+    }
+    if (c)
+      return -(ERRMLAST+ERRZ12);
+  }
+
+  return 0;
 }
 
 int mv1_subs_clear(MV1VAR *var)
@@ -91,7 +132,17 @@ int mv1_subs_count(MV1VAR *var, int *cnt)
 
 int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
 {
-  return -1;
+  short s;
+
+  if ((pos < 0) || (pos > var->nsubs))
+    return EINVAL;
+
+  *len = 0;
+  s = UTIL_Key_Extract(&var->var_m.key[var->spos[pos]], val, len);
+  if (s < 0)
+    return s;
+
+  return 0;
 }
 
 static
