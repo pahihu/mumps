@@ -6,9 +6,9 @@
 CC	= gcc
 LIBS	= -lm -lcrypt
 
-EXTRA   = -O -fsigned-char -Wall -Iinclude -D_FILE_OFFSET_BITS=64
+EXTRA   = -O -fsigned-char -Wall -Iinclude -Iconnect -D_FILE_OFFSET_BITS=64
 ifeq ($(MAKECMDGOALS),test)
-EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -D_FILE_OFFSET_BITS=64
+EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Iconnect -D_FILE_OFFSET_BITS=64
 endif
 
 ifeq ($(findstring solaris,$(OSTYPE)),solaris)
@@ -28,7 +28,7 @@ RM=rm -f
 
 PROG    = mumps
 
-OBJS	= 	compile/dollar.o \
+LIBOBJS	= 	compile/dollar.o \
 		compile/eval.o \
 		compile/localvar.o \
 		compile/parse.o \
@@ -48,7 +48,6 @@ OBJS	= 	compile/dollar.o \
 		init/init_create.o \
 		init/init_run.o \
 		init/init_start.o \
-		init/mumps.o \
 		runtime/runtime_attn.o \
 		runtime/runtime_buildmvar.o \
 		runtime/runtime_debug.o \
@@ -77,14 +76,23 @@ OBJS	= 	compile/dollar.o \
 		util/util_strerror.o \
 		xcall/xcall.o
 
+OBJS =          ${LIBOBJS} \
+		init/mumps.o
+
 .c.o:
 	${CC} ${EXTRA} -c $< -o $@
 
 all: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
+libmv1conn.a: init/init_connect.o ${LIBOBJS}
+	${AR} cru $@ init/init_connect.o ${LIBOBJS}
+
 test: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
+xtest: xtest.o libmv1conn.a
+	${CC} ${EXTRA} -o $@ xtest.o libmv1conn.a ${LIBS}
+
 clean:
-	rm -f ${OBJS} ${PROG} ${PROG}.core
+	rm -f ${OBJS} ${PROG} ${PROG}.core libmv1conn.a
