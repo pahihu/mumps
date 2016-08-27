@@ -1,6 +1,6 @@
-// File: mumps/connect/mv1conn.c
+// File: mumps/mv1api/mv1api_glb.c
 //
-// MV1 connection library
+// MV1 Connection API library
 
 /*      Copyright (c) 2016
  *      Andras Pahi.  All rights reserved.
@@ -38,39 +38,9 @@
 #include <sys/types.h>
 #include "mumps.h"
 #include "proto.h"
-#include "mv1conn.h"
+#include "mv1api.h"
 
-int MV1_GetDouble(MV1CONN *conn, MV1VAR *var, double *val)
-{
-  int res, len;
-  cstring cstr;
-
-  len = sizeof(cstr.buf);
-
-  res = MV1_GetString(conn, var, &cstr.buf[0], &len);
-  if (res)
-    return res;
-
-  *val = atof((char*) &cstr.buf[0]);
-  return 0;
-}
-
-int MV1_GetLong(MV1CONN *conn, MV1VAR *var, long *val)
-{
-  int res, len;
-  cstring cstr;
-
-  len = sizeof(cstr.buf);
-
-  res = MV1_GetString(conn, var, &cstr.buf[0], &len);
-  if (res)
-    return res;
-
-  *val = atol((char*) &cstr.buf[0]);
-  return 0;
-}
-
-int MV1_GetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int *len)
+int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len)
 {
   short s;
 
@@ -82,37 +52,7 @@ int MV1_GetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int *len)
   return 0;
 }
 
-int MV1_SetDouble(MV1CONN *conn, MV1VAR *var, double val)
-{
-  short s;
-  cstring cstr;
-
-  sprintf((char*) &cstr.buf[0], "%f", val);
-  cstr.len = strlen((char *) &cstr.buf[0]);
-
-  s = DB_Set(&var->var_m, &cstr);
-  if (s < 0)
-    return s;
-
-  return 0;
-}
-
-int MV1_SetLong(MV1CONN *conn, MV1VAR *var, long val)
-{
-  short s;
-  cstring cstr;
-
-  sprintf((char*) &cstr.buf[0], "%ld", val);
-  cstr.len = strlen((char*) &cstr.buf[0]);
-
-  s = DB_Set(&var->var_m, &cstr);
-  if (s < 0)
-    return s;
-
-  return 0;
-}
-
-int MV1_SetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int len)
+int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len)
 {
   short s;
   cstring cstr;
@@ -129,7 +69,7 @@ int MV1_SetString(MV1CONN *conn, MV1VAR *var, unsigned char *val, int len)
   return 0;
 }
 
-int MV1_SetNull(MV1CONN *conn, MV1VAR *var)
+int mv1_global_set_null(MV1DB *hnd, MV1VAR *var)
 {
   short s;
   cstring cstr;
@@ -142,33 +82,33 @@ int MV1_SetNull(MV1CONN *conn, MV1VAR *var)
   return 0;
 }
 
-int MV1_Kill(MV1CONN *conn, MV1VAR *var)
+int mv1_global_kill(MV1DB *hnd, MV1VAR *var)
 {
   return -1;
 }
 
-int MV1_Data(MV1CONN *conn, MV1VAR *var, int *dval)
+int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval)
 {
   return -1;
 }
 
-int MV1_Order(MV1CONN *conn, MV1VAR *var, int dir,
-                unsigned char *sibling, int *len)
+int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
+                u_char *sibling, int *len)
 {
   return -1;
 }
 
-int MV1_Query(MV1CONN *conn, MV1VAR *var, int dir, MV1VAR *next)
+int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next)
 {
   return -1;
 }
 
-int MV1_Lock(MV1CONN *conn, MV1VAR *var, int incr)
+int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr)
 {
   return -1;
 }
 
-int MV1_Unlock(MV1CONN *conn, MV1VAR *var, int decr)
+int mv1_global_unlock(MV1DB *hnd, MV1VAR *var, int decr)
 {
   return -1;
 }

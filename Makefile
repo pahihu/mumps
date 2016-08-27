@@ -6,9 +6,9 @@
 CC	= gcc
 LIBS	= -lm -lcrypt
 
-EXTRA   = -O -fsigned-char -Wall -Iinclude -Iconnect -D_FILE_OFFSET_BITS=64
+EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
 ifeq ($(MAKECMDGOALS),test)
-EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Iconnect -D_FILE_OFFSET_BITS=64
+EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
 endif
 
 ifeq ($(findstring solaris,$(OSTYPE)),solaris)
@@ -22,7 +22,7 @@ EXTRA += -mmacosx-version-min=10.5 -Wno-deprecated-declarations
 
 endif
 
-SUBDIRS=compile connect database init runtime seqio symbol util xcall
+SUBDIRS=compile database init mv1api runtime seqio symbol util xcall
 
 RM=rm -f
 
@@ -76,10 +76,9 @@ COMOBJS	= 	compile/dollar.o \
 		util/util_strerror.o \
 		xcall/xcall.o
 
-LIBOBJS =       ${COMOBJS} \
-		connect/init_connect.o \
-		connect/mv1conn.o \
-		connect/mv1var.o
+LIBOBJS =       mv1api/mv1api_connect.o \
+		mv1api/mv1api_glb.o \
+		mv1api/mv1api_var.o
 
 OBJS =          ${COMOBJS} \
 		init/mumps.o
@@ -87,19 +86,20 @@ OBJS =          ${COMOBJS} \
 .c.o:
 	${CC} ${EXTRA} -c $< -o $@
 
-all: ${PROG} xtest
+all: ${PROG} api_test
 
 ${PROG}: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
-libmv1conn.a: ${LIBOBJS}
-	${AR} cru $@ ${LIBOBJS}
+libmv1api.a: ${COMOBJS} ${LIBOBJS}
+	${AR} cru $@ ${COMOBJS} ${LIBOBJS}
 
 test: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
-xtest: xtest.o libmv1conn.a
-	${CC} ${EXTRA} -o $@ xtest.o libmv1conn.a ${LIBS}
+api_test: api_test.o libmv1api.a
+	${CC} ${EXTRA} -o $@ api_test.o libmv1api.a ${LIBS}
 
 clean:
-	rm -f ${LIBOBJS} ${OBJS} ${PROG} ${PROG}.core libmv1conn.a
+	rm -f ${OBJS} ${PROG} ${PROG}.core
+	rm -f ${LIBOBJS} libmv1api.a api_test.o api_test

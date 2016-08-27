@@ -1,17 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "mv1conn.h"
+#include "mv1api.h"
 
 int main(int argc,char **argv)
 {
-  MV1CONN conn;
+  MV1DB hnd;
   int res;
 
-  res = MV1_Initialize(&conn, "testdb", "MGR");
+  res = mv1_initialize(&hnd, "testdb", "MGR");
   printf("connect: %d\n", res);
-  res = MV1_Xecute(&conn, "s ^conn=42");
+  res = mv1_xecute(&hnd, "s ^conn=42");
   printf("xecute: %d\n", res);
-  res = MV1_Rundown(&conn);
+  res = mv1_rundown(&hnd);
   printf("disconnect: %d\n", res);
   return 0;
 }

@@ -1,4 +1,4 @@
-// File: mumps/init/init_run.c
+// File: mumps/mv1api/mv1api_connect.c
 //
 // module MUMPS - startup (main) code
 
@@ -53,7 +53,7 @@
 #include "compile.h"
 #include "opcodes.h"
 #include "database.h"
-#include "mv1conn.h"
+#include "mv1api.h"
 
 extern partab_struct partab;                    // setup partab
 extern systab_struct *systab;
@@ -70,7 +70,7 @@ extern u_char *mumpspc;				// mumps prog pointer
 extern void ser(short s);                       // display errors
 extern void controlc();				// say ^C
 
-int MV1_Rundown(MV1CONN *hnd)
+int mv1_rundown(MV1DB *hnd)
 {
   int i;
 
@@ -89,7 +89,7 @@ int MV1_Rundown(MV1CONN *hnd)
 }
 
 static
-int MV1_InitializeP(MV1CONN *hnd,               // connection handle
+int mv1_initialize_p(MV1DB *hnd,                // connection handle
               char *file,                       // database file
               char *env)                        // environment (UCI)
 
@@ -251,15 +251,15 @@ int MV1_InitializeP(MV1CONN *hnd,               // connection handle
   return 0;
 
 exit:						// general exit code
-  return MV1_Rundown(hnd);
+  return mv1_rundown(hnd);
 }
 
 //****************************************************************************
 // Connect to an environment - switches are:
 //                            e = environment (UCI)             Opt
-int MV1_Initialize(MV1CONN *hnd, char *file, char *env)
+int mv1_initialize(MV1DB *hnd, char *file, char *env)
 {
-  bzero(hnd, sizeof(MV1CONN));
+  bzero(hnd, sizeof(MV1DB));
 
   hnd->start_type = TYPE_RUN;		        // how we started
   hnd->ret = 0;					// return value
@@ -267,10 +267,10 @@ int MV1_Initialize(MV1CONN *hnd, char *file, char *env)
   hnd->ssp = 0;					// string stack ptr
   hnd->asp = 0;					// address stack ptr
 
-  return MV1_InitializeP(hnd, file, env);
+  return mv1_initialize_p(hnd, file, env);
 }
 
-int MV1_Xecute(MV1CONN *hnd, char *cmd)
+int mv1_xecute(MV1DB *hnd, char *cmd)
 { int i;                                        // an int
   // int dbfd = 0;                              // database file descriptor
   int ret = 0;				// return value
@@ -286,7 +286,7 @@ int MV1_Xecute(MV1CONN *hnd, char *cmd)
   short s;					// for functions
   // short start_type = TYPE_RUN;			// how we started
   // gid_t gidset[MAX_GROUPS];			// for getgroups()
-  MV1CONN jobhnd;                               // JOB handle
+  MV1DB jobhnd;                               // JOB handle
 
   if (!cmd || !strlen(cmd))
     return 0;
@@ -358,7 +358,7 @@ exit:
   return ret;
 
 jobit:						// code for JOB
-  bzero(&jobhnd, sizeof(MV1CONN));
+  bzero(&jobhnd, sizeof(MV1DB));
   jobhnd.start_type = TYPE_JOB;		        // what we are doing
   jobhnd.env_num = partab.jobtab->ruci;	        // remember (current) rou uci
   cmd = (char *) &sstk[0];		        // where the command is
@@ -366,131 +366,8 @@ jobit:						// code for JOB
   isp = 0;					// clear all these
   jobhnd.asp = 0;
   jobhnd.ret = 0;
-  ret = MV1_InitializeP(&jobhnd, jobhnd.file, NULL); // do it
+  ret = mv1_initialize_p(&jobhnd, jobhnd.file, NULL); // do it
   if (ret)
     return ret;
-  return MV1_Xecute(&jobhnd, cmd); 
+  return mv1_xecute(&jobhnd, cmd); 
 }
-
-#if 0
-  while (TRUE)					// forever
-  { sptr = (cstring *) &sstk[0];		// front of string stack
-    asp = 0;					// zot address stack
-    ssp = 0;					// and the string stack
-    bcopy("M> ", sptr->buf, 3);			// copy in the prompt
-    sptr->buf[3] = '\0';			// null terminate
-    sptr->len = 3;				// and the length
-    partab.jobtab->io = 0;			// force chan 0
-    if (partab.jobtab->seqio[0].dx)		// if not at right margin
-    { s = SQ_WriteFormat(SQ_LF);		// new line
-      if (s < 0) ser(s);			// check for error
-    }
-    s = SQ_Write(sptr);				// write the prompt
-    if (s < 0) ser(s);				// check for error
-    s = SQ_Read(sptr->buf, -1, -1);		// get a string
-    i = attention();				// check signals
-    if (i == OPHALT) break;			// exit on halt
-    if (i == -(ERRZ51+ERRMLAST))		// control c
-      controlc();				// say
-    if (s < 0)
-    { ser(s);					// complain on error
-      s = 0;
-    }
-    sptr->len = s;				// save the length
-    if (s == 0) continue;			// ignore null
-    astk[asp++] = (u_char *) sptr;		// save address of string
-    ssp = ssp + s + sizeof(short) + 1;		// point past it
-    s = SQ_WriteFormat(SQ_LF);			// new line
-    if (s < 0) ser(s);				// check for error
-    source_ptr = sptr->buf;			// where the code is
-    cptr = (cstring *) &sstk[ssp];		// where the compiled goes
-    comp_ptr = cptr->buf;			// the data bit
-    parse();
-    *comp_ptr++ = CMQUIT;			// add the quit
-    *comp_ptr++ = ENDLIN;			// JIC
-    *comp_ptr++ = ENDLIN;			// JIC
-    i = &comp_ptr[0] - &cptr->buf[0];		// get number of bytes
-    cptr->len = i;				// save for ron
-    ssp = ssp + i + sizeof(short) + 1;		// point past it
-
-    mumpspc = &cptr->buf[0];			// setup the mumpspc
-    partab.jobtab->dostk[0].routine = sptr->buf; // where we started
-    partab.jobtab->dostk[0].pc = mumpspc;	// where we started
-    partab.jobtab->dostk[0].symbol = NULL;	// nowhere
-    partab.jobtab->dostk[0].newtab = NULL;	// nowhere
-    partab.jobtab->dostk[0].endlin = mumpspc + i - 4; // ENDLIN
-    //partab.jobtab->dostk[0].rounam.var_qu = 0;// zero the routine name
-    X_Clear(partab.jobtab->dostk[0].rounam.var_xu);// zero the routine name
-    partab.jobtab->dostk[0].vol = partab.jobtab->vol; // current volume
-    partab.jobtab->dostk[0].uci = partab.jobtab->uci; // current uci
-    partab.jobtab->dostk[0].line_num = 0;	// no line number
-    partab.jobtab->dostk[0].type = TYPE_RUN;	// how we started
-    partab.jobtab->dostk[0].estack = 0;		// estack offset
-    partab.jobtab->dostk[0].level = 0;		// where we started
-    partab.jobtab->dostk[0].flags = 0;		// no flags
-    partab.jobtab->dostk[0].savasp = asp;	// address stack ptr
-    partab.jobtab->dostk[0].savssp = ssp;	// string stack
-    partab.jobtab->dostk[0].asp = asp;		// address stack ptr
-    partab.jobtab->dostk[0].ssp = ssp;		// string stack
-
-    partab.jobtab->attention = 0;
-    partab.jobtab->trap = 0;
-    partab.jobtab->async_error = 0;
-    isp = 0;					// clear indirect pointer
-    s = run(asp, ssp);
-    if (s == JOBIT) goto jobit;			// look after JOB
-    if (s == OPHALT) break;			// exit on halt
-    partab.jobtab->io = 0;			// force chan 0
-    if (s == -(ERRZ51+ERRMLAST))		// control c
-      controlc();				// say
-    else if (s < 0) ser(s);
-    partab.jobtab->error_frame = 0;		// and that one
-    var = (mvar *) &sstk[0];			// space to setup a var
-    X_set("$ECODE\0\0", &var->name.var_cu[0], 8);
-    var->volset = 0;
-    var->uci = UCI_IS_LOCALVAR;
-    var->slen = 0;				// setup for $EC
-    cptr = (cstring *) &sstk[sizeof(mvar)];	// for result
-    bcopy("$ECODE=", cptr->buf, 7);
-    s = ST_Get(var, &cptr->buf[7]);
-    if (s < 1) continue;			// ignore if nothing there
-    cptr->len = s + 7;
-    s = SQ_Write(cptr);				// write the prompt
-    if (s < 0) ser(s);				// check for error
-    s = SQ_WriteFormat(SQ_LF);			// new line
-    if (s < 0) ser(s);				// check for error
-    s = ST_Kill(var);				// dong $EC
-    cptr = (cstring *) (((u_char *) cptr) + 8);
-    if (cptr->buf[0] != 'U')
-    { cptr->len = 4;				// max error size
-      cptr->len = Xcall_errmsg((char *) cptr->buf, cptr, cptr); // cvt to str
-      s = SQ_Write(cptr);			// write the error
-      if (s < 0) ser(s);			// check for error
-      s = SQ_WriteFormat(SQ_LF);		// new line
-    }
-  }						// end command level loop
-
-exit:						// general exit code
-  if (partab.jobtab != NULL)			// if we have a jobtab
-    CleanJob(0);				// remove all locks etc
-  i = shmdt(systab);                            // detach the shared mem
-  if (dbfd)
-    i = close(dbfd);                            // close the database
-  if (!failed_tty)				// reset terminal if possible
-  { failed_tty = tcsetattr ( 0, TCSANOW, &tty_settings );
-  }
-  if (start_type == TYPE_JOB) return 0;		// no error from JOB
-  return ret;                                  	// and exit
-
-jobit:						// code for JOB
-  start_type = TYPE_JOB;			// what we are doing
-  env_num = partab.jobtab->ruci;		// remember (current) rou uci
-  cmd = (char *) &sstk[0];			// where the command is
-  ssp = strlen((const char *) sstk);		// protect original command
-  isp = 0;					// clear all these
-  asp = 0;
-  ret = 0;
-  env = NULL;
-  goto start;					// go do it
-}
-#endif

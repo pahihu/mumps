@@ -1,6 +1,6 @@
-// File: mumps/connect/mv1var.c
+// File: mumps/mv1api/mv1api_var.c
 //
-// MV1 connection library
+// MV1 Connection API library
 
 /*      Copyright (c) 2016
  *      Andras Pahi.  All rights reserved.
@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include "mumps.h"
 #include "proto.h"
-#include "mv1conn.h"
+#include "mv1api.h"
 
 #if 0
 typedef struct _MV1VAR
@@ -52,13 +52,13 @@ typedef struct _MV1VAR
 } MV1VAR;
 #endif
 
-int MV1VAR_Init(MV1VAR *var)
+int mv1_var_init(MV1VAR *var)
 {
   bzero(var, sizeof(MV1VAR));
   return 0;
 }
 
-int MV1VAR_ClearVar(MV1VAR *var)
+int mv1_var_clear(MV1VAR *var)
 {
   X_Clear(var->volset);
   X_Clear(var->env);
@@ -66,46 +66,36 @@ int MV1VAR_ClearVar(MV1VAR *var)
   return 0;
 }
 
-int MV1VAR_ExtractVar(MV1VAR *var, char *glb, char *env, char *volset)
+int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset)
 {
   return -1;
 }
 
-int MV1VAR_InsertVar(MV1VAR *var, char *glb, char *env, char *volset)
+int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 {
   return -1;
 }
 
-int MV1VAR_ClearSubs(MV1VAR *var)
+int mv1_subs_clear(MV1VAR *var)
 {
   var->nsubs = 0;
   var->var_m.slen = 0;
   return 0;
 }
 
-int MV1VAR_Count(MV1VAR *var, int *cnt)
+int mv1_subs_count(MV1VAR *var, int *cnt)
 {
   *cnt = var->nsubs;
   return 0;
 }
 
-int MV1VAR_ExtractDouble(MV1VAR *var, int pos, double *val)
-{
-  return -1;
-}
-
-int MV1VAR_ExtractLong(MV1VAR *var, int pos, long *val)
-{
-  return -1;
-}
-
-int MV1VAR_ExtractString(MV1VAR *var, int pos, unsigned char *val, int *len)
+int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
 {
   return -1;
 }
 
 static
-int InsertCString(MV1VAR *var, int pos, cstring *cstr)
+int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
 {
   u_char *dst;
   short s;
@@ -130,25 +120,7 @@ int InsertCString(MV1VAR *var, int pos, cstring *cstr)
   return 0;
 }
 
-int MV1VAR_InsertDouble(MV1VAR *var, int pos, double val)
-{
-  cstring cstr;
-
-  sprintf((char*) &cstr.buf[0], "%f", val);
-  cstr.len = strlen((char*) &cstr.buf[0]);
-  return InsertCString(var, pos, &cstr);
-}
-
-int MV1VAR_InsertLong(MV1VAR *var, int pos, long val)
-{
-  cstring cstr;
-
-  sprintf((char*) &cstr.buf[0], "%ld", val);
-  cstr.len = strlen((char*) &cstr.buf[0]);
-  return InsertCString(var, pos, &cstr);
-}
-
-int MV1VAR_InsertString(MV1VAR *var, int pos, unsigned char *val, int len)
+int mv1_subs_insert(MV1VAR *var, int pos, unsigned char *val, int len)
 {
    cstring cstr;
 
@@ -156,34 +128,24 @@ int MV1VAR_InsertString(MV1VAR *var, int pos, unsigned char *val, int len)
      len = strlen((char*) val);
    bcopy(val, &cstr.buf[0], len);
    cstr.len = len;
-   return InsertCString(var, pos, &cstr);
+   return insert_cstring(var, pos, &cstr);
 }
 
-int MV1VAR_InsertNull(MV1VAR *var, int pos)
+int mv1_subs_insert_null(MV1VAR *var, int pos)
 {
   cstring cstr;
 
   cstr.len = 0;
-  return InsertCString(var, pos, &cstr);
+  return insert_cstring(var, pos, &cstr);
 }
 
-int MV1VAR_AppendDouble(MV1VAR *var, double val)
+int mv1_subs_append(MV1VAR *var, unsigned char *val, int len)
 {
-  return MV1VAR_InsertDouble(var, 1 + var->nsubs, val);
+  return mv1_subs_insert(var, 1 + var->nsubs, val, len);
 }
 
-int MV1VAR_AppendLong(MV1VAR *var, long val)
+int mv1_subs_append_null(MV1VAR *var)
 {
-  return MV1VAR_InsertLong(var, 1 + var->nsubs, val);
-}
-
-int MV1VAR_AppendString(MV1VAR *var, unsigned char *val, int len)
-{
-  return MV1VAR_InsertString(var, 1 + var->nsubs, val, len);
-}
-
-int MV1VAR_AppendNull(MV1VAR *var)
-{
-  return MV1VAR_InsertNull(var, 1 + var->nsubs);
+  return mv1_subs_insert_null(var, 1 + var->nsubs);
 }
 
