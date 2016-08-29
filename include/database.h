@@ -170,6 +170,7 @@ short Kill_data();					// remove tree
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
+short LocateEx(u_char *key, int frominsert);		//   used in Insert()
 short Locate_next();					// point at next key
 
 // File: database/db_rekey.c
