@@ -731,7 +731,7 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
     return (-ERRM38);				// no such
   bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
   if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-  return DB_Query(var, ret_buffer, dir);	// else it's global
+  return DB_Query(var, ret_buffer, dir, 1);	// else it's global
 }
 
 //***********************************************************************

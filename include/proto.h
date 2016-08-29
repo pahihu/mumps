@@ -64,7 +64,7 @@ short DB_Data(mvar *var, u_char *buf);           // get $DATA()
 short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
-short DB_Query(mvar *var, u_char *buf, int dir); // get next key
+short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
 short DB_QueryD(mvar *var, u_char *buf);	     // get next key and data
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
 short DB_Compress(mvar *var, int flags);	     // on line compressor

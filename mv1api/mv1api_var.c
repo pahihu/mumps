@@ -55,15 +55,15 @@ typedef struct _MV1VAR
 
 int mv1_var_init(MV1VAR *var)
 {
-  bzero(var, sizeof(MV1VAR));
+  bzero(var, sizeof(MV1VAR));                           // clear MV1VAR
   return 0;
-}
+} 
 
 int mv1_var_clear(MV1VAR *var)
 {
-  X_Clear(var->volset);
-  X_Clear(var->env);
-  X_Clear(var->var_m.name.var_xu);
+  X_Clear(var->volset);                                 // clear volset
+  X_Clear(var->env);                                    //   env
+  X_Clear(var->var_m.name.var_xu);                      //   glb name
   return 0;
 }
 
@@ -81,36 +81,35 @@ int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 {
   int i, c;
 
-  // --- glb name
-  if (glb)
-  { for (i = 0; i < MAX_NAME_BYTES; i++)
+  if (glb)                                              // overwrite glb
+  { for (i = 0; i < MAX_NAME_BYTES; i++)                //   if given
     { var->var_m.name.var_cu[i] = c = *glb++;
       if (0 == c) break;
     }
-    if (c)
-      return -(ERRMLAST+ERRZ12);
+    if (c)                                              // if too long,
+      return -(ERRMLAST+ERRZ12);                        //   complain
   }
 
-  var->resolved_uci_volset = 0;
+  if (volset || env)                                    // clear resolved
+    var->resolved_uci_volset = 0;                       //   if volset or env
+                                                        //   given
 
-  // --- volset
-  if (volset)
-  { for (i = 0; i < MAX_NAME_BYTES; i++)
+  if (volset)                                           // overwrite volset
+  { for (i = 0; i < MAX_NAME_BYTES; i++)                //   if given
     { var->volset.buf[i] = c = *volset++;
       if (0 == c) break;
     }
-    if (c)
-      return -(ERRMLAST+ERRZ12);
+    if (c)                                              // if too long,
+      return -(ERRMLAST+ERRZ12);                        //   complain
   }
 
-  // --- environment(uci)
-  if (env)
-  { for (i = 0; i < MAX_NAME_BYTES; i++)
+  if (env)                                              // overwrite env
+  { for (i = 0; i < MAX_NAME_BYTES; i++)                //   if given
     { var->env.buf[i] = c = *env++;
       if (0 == c) break;
     }
-    if (c)
-      return -(ERRMLAST+ERRZ12);
+    if (c)                                              // if too long,
+      return -(ERRMLAST+ERRZ12);                        //   complain
   }
 
   return 0;
@@ -118,14 +117,14 @@ int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 
 int mv1_subs_clear(MV1VAR *var)
 {
-  var->nsubs = 0;
+  var->nsubs = 0;                                       // clear subscripts
   var->var_m.slen = 0;
   return 0;
 }
 
 int mv1_subs_count(MV1VAR *var, int *cnt)
 {
-  *cnt = var->nsubs;
+  *cnt = var->nsubs;                                    // return #subscripts
   return 0;
 }
 
@@ -133,7 +132,7 @@ int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
 {
   short s;
 
-  if ((pos < 0) || (pos > var->nsubs))
+  if ((pos < 0) || (pos > var->nsubs - 1))
     return EINVAL;
 
   *len = 0;
@@ -150,7 +149,7 @@ int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
   u_char *dst;
   short s;
 
-  if ((pos < 0) || (pos > 1 + var->nsubs) || (pos > 63))
+  if ((pos < 0) || (pos > var->nsubs) || (pos >= 63))   // max. 63 subscripts
     return EINVAL;
 
   if (0 != pos)

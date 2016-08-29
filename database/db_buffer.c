@@ -132,6 +132,8 @@ short Get_block(u_int blknum)                           // Get block
   Get_GBD();						// get a GBD
   blk[level]->block = blknum;				// set block number
   blk[level]->last_accessed = (time_t) 0;		// clear last access
+  blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
+  blk[level]->blkver_low  = 0;
   i = blknum & (GBD_HASH - 1);				// get hash entry
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i]; // link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//

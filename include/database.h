@@ -98,6 +98,8 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   struct DB_BLOCK *mem;					// memory address of blk
   struct GBD *dirty;					// to write -> next
   time_t last_accessed;					// last time used
+  u_int  blkver_low;                                    // blk version LOW
+  u_int  blkver_high;                                   // blk version HIGH
 } gbd;							// end gbd struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record

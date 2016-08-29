@@ -53,7 +53,6 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
   var->var_m.volset = 0;
   var->var_m.uci = 0;
 
-  // TODO: if empty, then defaults from MV1DB
   if (!X_Empty(var->volset))
   { for (i = 0; i < MAX_VOL; i++)
       if (systab->vol[i] != NULL)
@@ -78,6 +77,45 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
 
   var->resolved_uci_volset = 1;
 
+  return 0;
+}
+
+#define MV1_INVALID_UCI         -1
+#define MV1_INVALID_VOLSET      -2
+
+static
+int Resolve_Subs(MV1DB *hnd, MV1VAR *var)
+{
+  short s;
+  int i, cnt;
+  label_block *vollab;
+  mvar *var_m;
+  u_char tmp[256];
+
+  if (var->var_m.uci-1 >= UCIS)
+    return MV1_INVALID_UCI;
+
+  if (var->var_m.volset-1 >= MAX_VOL)
+    return MV1_INVALID_VOLSET;
+
+  var_m = &var->var_m;
+  vollab = systab->vol[var_m->volset-1]->vollab;
+  bcopy(&vollab->volnam.var_xu, &var->volset, MAX_NAME_BYTES);
+  bcopy(&vollab->uci[var_m->uci-1].name.var_xu, &var->env, MAX_NAME_BYTES);
+  var->resolved_uci_volset = 1;
+  
+  // extract subscript pos/len
+  var->nsubs = 0;
+  for (i = 0; i < var_m->slen; )
+  { cnt = 0;
+    s = UTIL_Key_Extract(&var_m->key[i], &tmp[0], &cnt);
+    if (s < 0)
+      return s;
+    var->spos[var->nsubs] = i;
+    var->slen[var->nsubs] = cnt;
+    var->nsubs++;
+    i += cnt;
+  }
   return 0;
 }
 
@@ -163,6 +201,24 @@ int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval)
   return 0;
 }
 
+static
+int Key_Backwards_Fix(MV1VAR *var, int dir)
+{
+  int i;
+
+  i = -1;                                               // fix for backwards
+  if (-1 == dir)
+  { i = var->var_m.slen;
+    if ((var->var_m.key[i-1] == '\0') &&
+        (var->var_m.key[i-2] == '\0'))
+    { i -= 2;
+      var->var_m.key[i] = '\377';
+    }
+  }
+
+  return i;
+}
+
 int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
                 u_char *sibling, int *len)
 {
@@ -184,15 +240,7 @@ int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
   fprintf(stderr, "]\r\n");
 #endif
 
-  i = -1;                                               // fix for backwards
-  if (-1 == dir)
-  { i = var->var_m.slen;
-    if ((var->var_m.key[i-1] == '\0') &&
-        (var->var_m.key[i-2] == '\0'))
-    { i -= 2;
-      var->var_m.key[i] = '\377';
-    }
-  }
+  i = Key_Backwards_Fix(var, dir);
   s = DB_Order(&var->var_m, sibling, dir);
   if (s < 0)
     goto exit;
@@ -208,37 +256,24 @@ exit:
 int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next)
 {
   short s;
+  int i;
   cstring cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
     return 0;
 
-  // TODO: inefficient, it converts to string
-  s = DB_Query(&var->var_m, &cstr.buf[0], dir);
+  i = Key_Backwards_Fix(var, dir);
+  s = DB_Query(&var->var_m, &cstr.buf[0], dir, 0);
   if (s < 0)
-    return s;
+    goto exit;
   bcopy(&db_var, next, sizeof(mvar));
-  // TODO: setup spos/slen/nsubs
-  return -1;
-}
+  s = Resolve_Subs(hnd, next);
 
-int mv1_global_next(MV1DB *hnd, MV1VAR *var, u_char *data, int *dlen)
-{
-  short s;
-
-  s = Resolve_UCI_VOLSET(hnd, var);
-  if (s < 0)
-    return 0;
-
-  // TODO: uses mcopy() inside...
-  s = DB_QueryD(&var->var_m, data);
-  if (s < 0)
-    return s;
-
-  *dlen = s;
-  // TODO: setup spos/slen/nsubs
-  return -1;
+exit:
+  if (-1 != i)                                          // unfix
+    var->var_m.key[i] = '\0';
+  return s;
 }
 
 int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout)

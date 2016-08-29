@@ -57,7 +57,8 @@
 static u_short PrevChunk[64*1024];
 static u_char  buf0[64*1024];
 static int     LastIndex;                               // last Index compared
-static u_int   LastBlock = 0;                           // last blk located
+       u_int   LastBlock = 0;                           // last blk located
+static u_int   LastBlkVer_Low = 0, LastBlkVer_High = 0; // last blk version
 
 /*
   - so far:
@@ -183,9 +184,11 @@ short Locate(u_char *key)				// find key
   iidx = (int *) blk[level]->mem;			// point at the block
   Index = LOW_INDEX;					// start at the start
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
-  if ((level != LAST_USED_LEVEL) ||                     // leave PrevChunk, iff
-      (blk[level]->block != LastBlock) ||               // LAST_USED_LEVEL set
-      writing)                                          // and not writing
+  if (writing ||                                        // zot PrevChunk, iff
+      (level != LAST_USED_LEVEL) ||                     // LAST_USED_LEVEL set
+      (blk[level]->block != LastBlock) ||               //   blknum mismatch
+      (LastBlkVer_Low  != blk[level]->blkver_low) ||    //   blkver mismatch
+      (LastBlkVer_High != blk[level]->blkver_high))
   { bzero(PrevChunk + L, (R - L + 1) * sizeof(u_short));// clear PrevChunk
     for(i = L; i <= R; i++)                             // collect pfx lengths
     { tsunk = (cstring*) &iidx[idx[i]];
@@ -193,6 +196,8 @@ short Locate(u_char *key)				// find key
     }
   }
   LastBlock = blk[level]->block;                        // save blk
+  LastBlkVer_Low  = blk[level]->blkver_low;             // save blk version
+  LastBlkVer_High = blk[level]->blkver_high;
   LastIndex = R + 1;                                    // setup LastIndex
 
   if (writing)                                          // writing, chk last

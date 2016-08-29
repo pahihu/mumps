@@ -168,14 +168,19 @@ short Insert(u_char *key, cstring *data)                // insert a node
 // Note:     Must hold a write lock before calling this function
 //
 
+extern u_int LastBlock;                                 // see db_locate.c
+
 void Queit()						// que a gbd for write
 { int i;						// a handy int
   gbd *ptr;						// a handy ptr
 
+  LastBlock = 0;                                        // zot Locate() cache
   ptr = blk[level];					// point at the block
+  ptr->blkver_low++;
   systab->vol[volnum-1]->stats.logwt++;			// incr logical
   while (ptr->dirty != ptr)				// check it
-  { ptr = ptr->dirty;					// point at next
+  { ptr->blkver_low++;
+    ptr = ptr->dirty;					// point at next
     systab->vol[volnum-1]->stats.logwt++;		// incr logical
   }
 

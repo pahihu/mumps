@@ -317,7 +317,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-
+  writing = 1;                                          // say we are writing
   s = Get_data(0);					// attempt to get it
   if (((s == -ERRM7) && (level == 0)) ||		// if nosuch
       ((s < 0) && (s != -ERRM7)))			// or an error
@@ -462,10 +462,11 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
 // Input(s): Pointer to mvar to search from
 //	     Pointer to buffer to hold result
 //	     Direction, 1 = fwd, -1 = bck
+//           Convert to string, 1 - yes
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
+short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
 { short s;						// for returns
   int i;						// a handy int
 
@@ -552,6 +553,8 @@ short DB_Query(mvar *var, u_char *buf, int dir) 	// get next key
   db_var.name.var_xu = var->name.var_xu;		//      data
   db_var.slen = keybuf[0];				//         to
   bcopy(&keybuf[1], &db_var.key[0], keybuf[0]);		//           db_var
+  if (!docvt)                                           // if no conversion
+    return db_var.slen;                                 //   return slen
   return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return
 }
 
