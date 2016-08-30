@@ -46,13 +46,17 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include <assert.h>
 
 // PrevChunk[i] contains the index of the chunk, which 
 // is necessary to build the current keybuf[], recursively.
-static u_short aPrevChunk[64*1024];
-static u_char  aBuf0[64*1024];
+#define CACHE_SIZE      (256*1024)
+static u_short aPrevChunk[CACHE_SIZE];
+static u_char  aBuf0[CACHE_SIZE];
 static u_short *PrevChunk;
 static u_char  *buf0;
+
+static int wr_flag;
 
 typedef struct
 { u_char  *buf0;
@@ -60,12 +64,14 @@ typedef struct
   u_int   block;
   u_int   blkver_low;
   u_int   blkver_high;
-  u_short last_idx;
+  u_int   idx_len;
 } TChunkInfo;
 static TChunkInfo aChunkInfo[MAXTREEDEPTH];
 static int     lastChunkInfo = -1;              // last ChunkInfo filled
 static int     LastIndex;                       // last Index compared
        int     KeyBufBuilt;
+
+static int cache_mode;
 
 /*
   - so far:
@@ -114,12 +120,18 @@ u_short GetPrevChunkIndex(u_short x)
   u_char  prefixLen;
   // cstring *tsunk;
 
+  assert(LOW_INDEX <= x);
+  assert(x <= blk[level]->mem->last_idx);
+
   //if (PrevChunk[x])                                     // already calculated
   //  return PrevChunk[x];
 
   // tsunk = (cstring*) &iidx[idx[x]];
   prefixLen = buf0[x]; //tsunk->buf[0];
   PrevChunk[x] = prefixLen ? FindShorterChunk(x, prefixLen) : x;
+  assert(LOW_INDEX <= PrevChunk[x]);
+  assert(PrevChunk[x] <= blk[level]->mem->last_idx);
+  assert(PrevChunk[x] <= x);
   return PrevChunk[x];
 }
 
@@ -147,6 +159,14 @@ void Build_KeyBuf(void)
   do
   { prev = PrevChunk[x];
     if (!prev) prev = GetPrevChunkIndex(x);
+    assert(LOW_INDEX <= prev);
+    if (prev > blk[level]->mem->last_idx)
+    { fprintf(stderr,"wr_flag: %d\r\n", wr_flag);
+      fprintf(stderr,"cache mode: %d\r\n", cache_mode);
+      fprintf(stderr,"blk: %d x: %d\r\n", level, x);
+      fprintf(stderr,"last_idx: %d prev: %d\r\n", blk[level]->mem->last_idx, prev);
+      exit(1);
+    }
     chunkidx[--j] = prev;                               // collect chunk idxs
     done = (prev == x) || (prev == LOW_INDEX);          // done ?
     if (goingup && (prev <= LastIndex))                 // reached last Idx
@@ -182,6 +202,7 @@ void Build_KeyBuf(void)
 //		(u_char)	keybuf	the current full key
 //
 
+
 static
 void InitLocateCache(void)
 {
@@ -189,8 +210,6 @@ void InitLocateCache(void)
 
   for (i = 0; i < MAXTREEDEPTH; i++)
     aChunkInfo[i].block = 0;
-
-  lastChunkInfo = -1;
 }
 
 void UpdateLocateCache(void)
@@ -198,9 +217,12 @@ void UpdateLocateCache(void)
   int i;
   cstring *tsunk;
 
+  return;
+
+  // fprintf(stderr,"blk(%d) cache update @ %d\r\n",blk[level]->block,level);
   aChunkInfo[level].block      = blk[level]->block;
   aChunkInfo[level].blkver_low = blk[level]->blkver_low;
-  aChunkInfo[level].last_idx++;
+  aChunkInfo[level].idx_len++;
 
   for (i = blk[level]->mem->last_idx; i >= Index; i--)
     buf0[i + 1] = buf0[i];
@@ -213,44 +235,99 @@ void UpdateLocateCache(void)
 short LocateEx(u_char *key, int frominsert)		// find key
 { int i;						// a handy int
   int L, R;                                             // bin.search limits
-  u_short last_idx;
+  int idx_len, chunkLevel;
   cstring *tsunk;
 
+  // fprintf(stderr,"key=[%s]\r\n",&key[1]);
   if (-1 == lastChunkInfo)
     InitLocateCache();
+
+  wr_flag = writing + wanna_writing;
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
   Index = LOW_INDEX;					// start at the start
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
-  if ((0 == writing) &&
-      (level <= lastChunkInfo) &&
-      (aChunkInfo[level].block       == blk[level]->block) &&
-      (aChunkInfo[level].blkver_low  == blk[level]->blkver_low) &&
-      (aChunkInfo[level].blkver_high == blk[level]->blkver_high))
-  { buf0      = aChunkInfo[level].buf0;
-    PrevChunk = aChunkInfo[level].PrevChunk;
+
+  assert(0 <= level);
+  assert(level < MAXTREEDEPTH);
+
+  chunkLevel = level;
+  if ((0 == wr_flag) && (LAST_USED_LEVEL == level))
+  {
+     assert(-1 < lastChunkInfo);
+     chunkLevel = lastChunkInfo;
+     cache_mode = 0;
+     // fprintf(stderr,"LAST_USED_LEVEL: %d\r\n",chunkLevel);
+  }
+  if ((0 == wr_flag) &&
+      (chunkLevel <= lastChunkInfo) &&
+      (aChunkInfo[chunkLevel].block       == blk[level]->block) &&
+      (aChunkInfo[chunkLevel].blkver_low  == blk[level]->blkver_low) &&
+      (aChunkInfo[chunkLevel].blkver_high == blk[level]->blkver_high) &&
+      (aChunkInfo[chunkLevel].idx_len     == 1 + R)) // FIXME: why ???
+  { buf0      = aChunkInfo[chunkLevel].buf0;
+    PrevChunk = aChunkInfo[chunkLevel].PrevChunk;
+    // fprintf(stderr,"blk(%d) cached @ %d\r\n",blk[level]->block,chunkLevel);
+    cache_mode = 1;
+    if (R != aChunkInfo[chunkLevel].idx_len - 1)
+    { fprintf(stderr,"blk: %d changed w/o changing blkver (%d != %d)\r\n",
+              blk[level]->block, R, aChunkInfo[chunkLevel].idx_len - 1);
+      exit(1);
+    }
   }
   else
-  { if (0 == level)
+  { if ((0 == chunkLevel) || (-1 == lastChunkInfo))
     { PrevChunk = &aPrevChunk[0];
       buf0      = &aBuf0[0];
+      // fprintf(stderr,"blk(%d) put @ %d\r\n",blk[level]->block,level);
+      cache_mode = 2;
     }
     else
-    { last_idx  = aChunkInfo[level-1].last_idx;
-      PrevChunk = last_idx + aChunkInfo[level-1].PrevChunk;
-      buf0      = last_idx + aChunkInfo[level-1].buf0;
+    { 
+      assert(0 < chunkLevel);
+      if (chunkLevel > 1 + lastChunkInfo)
+      { 
+        // fprintf(stderr,"chunkLevel: %d lastChunkInfo: %d\r\n",chunkLevel,lastChunkInfo);
+        chunkLevel = 1 + lastChunkInfo;
+      }
+      assert(chunkLevel <= 1 + lastChunkInfo);
+
+      idx_len   = aChunkInfo[chunkLevel-1].idx_len;
+      assert(0 != aChunkInfo[chunkLevel-1].PrevChunk);
+      assert(0 != aChunkInfo[chunkLevel-1].buf0);
+
+      PrevChunk = idx_len + aChunkInfo[chunkLevel-1].PrevChunk;
+      buf0      = idx_len + aChunkInfo[chunkLevel-1].buf0;
+      // fprintf(stderr,"blk(%d) put @ %d\r\n",blk[level]->block,level);
+      cache_mode = 3;
     }
     // FIXME: PrevChunk/buf0 fit ?
 
-    aChunkInfo[level].block       = blk[level]->block;
-    aChunkInfo[level].blkver_low  = blk[level]->blkver_low;
-    aChunkInfo[level].blkver_high = blk[level]->blkver_high;
-    aChunkInfo[level].last_idx    = blk[level]->mem->last_idx;
-    aChunkInfo[level].buf0        = buf0;
-    aChunkInfo[level].PrevChunk   = PrevChunk;
-    lastChunkInfo = level;
+    assert(chunkLevel < MAXTREEDEPTH);
 
+    if (0 == wr_flag)
+    { aChunkInfo[chunkLevel].block       = blk[level]->block;
+      aChunkInfo[chunkLevel].blkver_low  = blk[level]->blkver_low;
+      aChunkInfo[chunkLevel].blkver_high = blk[level]->blkver_high;
+      aChunkInfo[chunkLevel].idx_len     = 1 + blk[level]->mem->last_idx;
+      aChunkInfo[chunkLevel].buf0        = buf0;
+      aChunkInfo[chunkLevel].PrevChunk   = PrevChunk;
+      lastChunkInfo = chunkLevel;
+    }
+
+    if ((buf0 < aBuf0) || (buf0 > &aBuf0[CACHE_SIZE]))
+    { fprintf(stderr,"buf0 out of range\r\n");
+      exit(1);
+    }
+    if ((PrevChunk < aPrevChunk) || (PrevChunk > &aPrevChunk[CACHE_SIZE]))
+    { fprintf(stderr,"PrevChunk out of range\r\n");
+      exit(1);
+    }
+
+    // fprintf(stderr,"filling [%d,%d]\r\n",L,R);
+    //memset(PrevChunk, 255, (1 + R) * sizeof(u_short));
+    //memset(buf0, 255, (1 + R) * sizeof(u_char));
     bzero(PrevChunk + L, (R - L + 1) * sizeof(u_short));// clear PrevChunk
     for(i = L; i <= R; i++)                             // collect pfx lengths
     { tsunk = (cstring*) &iidx[idx[i]];
@@ -275,7 +352,7 @@ short LocateEx(u_char *key, int frominsert)		// find key
   LastIndex = R + 1;                                    // setup LastIndex
 
   KeyBufBuilt = 0;
-  if (writing)                                          // writing, chk last
+  if (wr_flag)                                          // writing, chk last
   { Index = R;
     Build_KeyBuf();                                     // build keybuf
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
@@ -315,7 +392,11 @@ short LocateEx(u_char *key, int frominsert)		// find key
     { L = Index + 1;
       KeyBufBuilt = 1;
       continue;
-    }							// end locate loop
+    }
+    else if (i == K2_LESSER)                            // passed, adj. R
+    { R = Index - 1;
+      continue;
+    }
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     return 0;						// key found, done
   }

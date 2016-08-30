@@ -150,6 +150,7 @@ extern u_short *idx;					// for indexes
 extern int *iidx;					// int ver of index
 
 extern int writing;					// set when writing
+extern int wanna_writing;
 
 extern int hash_start;					// start searching here
 

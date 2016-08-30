@@ -70,6 +70,7 @@ u_short *idx;						// for Indexes
 int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
+int wanna_writing;                                      // 
 
 int hash_start = 0;					// start searching here
 
@@ -92,6 +93,7 @@ short Copy2local( mvar *var )
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
+  wanna_writing = 0;
   level = -1;						// no claimed gbds yet
   bcopy(var, &db_var, sizeof(var_u)+4+var->slen);	// copy the data
   if (db_var.volset == 0)				// if volset is zero
@@ -317,7 +319,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  //writing = 1;                                          // say we are writing
+  wanna_writing = 1;
   s = Get_data(0);					// attempt to get it
   if (((s == -ERRM7) && (level == 0)) ||		// if nosuch
       ((s < 0) && (s != -ERRM7)))			// or an error
@@ -897,6 +899,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   bzero(rekey_lvl, MAXREKEY * sizeof(int));             // and that table
 
   bcopy(&db_var, var, sizeof(mvar));			// copy the data back
+  wanna_writing = 1;
   s = Get_data(flags);					// get to level 'flags'
   retlevel = level;					// save real level
   if (!level)
