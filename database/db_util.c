@@ -56,6 +56,8 @@
 // Input(s): Pointer the the key and data to insert
 // Return:   String length -> Ok, negative MUMPS error -(ERRMLAST+ERRZ62)
 //
+extern int KeyBufBuilt;                                 // see db_locate.c
+
 short Insert(u_char *key, cstring *data)                // insert a node
 { int i;						// a handy int
   int isdata;						// data/ptr flag
@@ -64,12 +66,15 @@ short Insert(u_char *key, cstring *data)                // insert a node
   u_char ccc;						// common char count
   u_char ucc;						// uncommon char count
   u_int flags = 0;					// for $GLOBAL
+  int locate_used;                                      // Locate() used
 
   isdata = ((blk[level]->mem->type > 64) &&		// data block and
 	    (level));					// not the directory
 
+  locate_used = 0;
   if (blk[level]->mem->last_idx > LOW_INDEX - 1)	// if some data
-  { s = Locate(key);					// search for it
+  { locate_used = 1;
+    s = LocateEx(key, 1);			        // search for it
     if (s >= 0)						// if found
     { return -(ERRMLAST+ERRZ61);                        // database stuffed
     }
@@ -90,13 +95,15 @@ short Insert(u_char *key, cstring *data)                // insert a node
     partab.jobtab->last_block_flags = flags;
   }
 
-  keybuf[0] = 0;					// clear keybuf
-  for (i = LOW_INDEX; i < Index; i++)			// for all prev Indexes
-  { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  }							// we insert after this
+  if (!locate_used || !KeyBufBuilt)
+  { keybuf[0] = 0;					// clear keybuf
+    for (i = LOW_INDEX; i < Index; i++)			// for all prev Indexes
+    { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
+      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+	    chunk->buf[1]);				// update the key
+      keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+    }							// we insert after this
+  }
 
   ccc = 0;						// start here
   if ((key[0]) && (keybuf[0]))				// if any there
@@ -172,6 +179,7 @@ void Queit()						// que a gbd for write
 { int i;						// a handy int
   gbd *ptr;						// a handy ptr
 
+  // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
   ptr->blkver_low++;
   systab->vol[volnum-1]->stats.logwt++;			// incr logical

@@ -112,6 +112,9 @@
 // Input(s): Pointer to the data to set
 // Return:   String length -> Ok, negative MUMPS error
 //
+
+extern void UpdateLocateCache();
+
 short Set_data(cstring *data)				// set a record
 { short s;						// for returns
   int i;						// a handy int
@@ -265,6 +268,7 @@ short Set_data(cstring *data)				// set a record
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
+        UpdateLocateCache();                            // update Locate()
       }
 
       level--;						// point up a level
