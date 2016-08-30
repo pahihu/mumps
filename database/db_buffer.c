@@ -223,6 +223,8 @@ short New_block()					// get new block
 	 = blk[level];					// link it in
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
 	blk[level]->dirty = (gbd *) 1;			// reserve it
+        blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
+        blk[level]->blkver_low = 0;
 	blk[level]->last_accessed = MTIME(0);		// accessed
 	systab->vol[volnum-1]->first_free = c;		// save this
 	return 0;					// return success

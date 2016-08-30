@@ -135,6 +135,7 @@ cont:
     *(u_int *) record = PTR_UNDEFINED;			// mark as junk
     Tidy_block();					// and tidy it
 
+    blk[level]->blkver_low++;
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
       Queit();						// and que for write
@@ -197,6 +198,7 @@ cont:
     }							// end removing recs
 
     Tidy_block();					// tidy the block
+    blk[level]->blkver_low++;
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
       Queit();						// and que for write
@@ -367,7 +369,8 @@ cont:
   level = MAXTREEDEPTH - 1;				// a usefull level
   blk[level] = NULL;					// clear this
   for (i = top; i <= rlevel; i++)			// scan left list
-  { if (blk[i]->dirty == (gbd *) 1)			// reserved?
+  { blk[i]->blkver_low++;
+    if (blk[i]->dirty == (gbd *) 1)			// reserved?
     { if (blk[level] == NULL)				// if list not started
       { blk[i]->dirty = blk[i];				// point at self
       }							// end start of list
@@ -379,7 +382,8 @@ cont:
   }							// end scan
   for (i = top + 1; i <= rlevel; i++)			// scan right list
   { if (rblk[i] != NULL)				// if anything there
-    { if (rblk[i]->dirty == (gbd *) 1)			// reserved?
+    { rblk[i]->blkver_low++;
+      if (rblk[i]->dirty == (gbd *) 1)			// reserved?
       { if (blk[level] == NULL)				// if list not started
         { rblk[i]->dirty = rblk[i];			// point at self
         }						// end start of list

@@ -86,9 +86,10 @@ int hash_start = 0;					// start searching here
 // Note:     No locks are held at this stage.
 //
 
-short Copy2local( mvar *var )
+short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
 
+  // fprintf(stderr,"=== %s\r\n", rtn);
   partab.jobtab->grefs++;				// count global ref
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   curr_lock = 0;					// ensure this is clear
@@ -151,7 +152,7 @@ short Copy2local( mvar *var )
 short DB_Get(mvar *var, u_char *buf)           		// get global data
 { short s;						// for returns
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Get");				// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -193,7 +194,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Set");				// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -245,7 +246,7 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Data");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -308,7 +309,7 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
 short DB_Kill(mvar *var)	                       	// remove sub-tree
 { short s;						// for returns
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Kill");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -384,7 +385,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
   int i;						// a handy int
   int last_key;						// start of last key
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Order");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -472,7 +473,7 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Query");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -574,7 +575,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
 //  int i;						// a handy int
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_QueryD");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -648,7 +649,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     return 0;						// exit
   }
   sav = curr_lock;					// save this
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_GetLen");			// get local copy
   curr_lock = sav;					// restore current lock
   if (s < 0)						// check for error
   { if (curr_lock)					// if locked
@@ -805,7 +806,7 @@ int DB_GetFlags(mvar *var)	                       	// Get flags
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_GetFlags");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -840,7 +841,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { clearit = 1;					// setup to clear
     flags = -flags;					// get flags correct
   }
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_SetFlags");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -868,6 +869,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { i = i | flags;					// set flags
   }
   ((int *)record)[1] = i;				// set back to GD
+  blk[level]->blkver_low++;
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = blk[level];			// terminate list
     Queit();						// que for write
@@ -890,7 +892,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   int retlevel;						// the ACTUAL level
 
   flags &= 15;						// clear high bits
-  s = Copy2local(var);					// get local copy
+  s = Copy2local(var,"DB_Compress");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }

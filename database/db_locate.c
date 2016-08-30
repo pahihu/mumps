@@ -264,8 +264,8 @@ short LocateEx(u_char *key, int frominsert)		// find key
       (chunkLevel <= lastChunkInfo) &&
       (aChunkInfo[chunkLevel].block       == blk[level]->block) &&
       (aChunkInfo[chunkLevel].blkver_low  == blk[level]->blkver_low) &&
-      (aChunkInfo[chunkLevel].blkver_high == blk[level]->blkver_high) &&
-      (aChunkInfo[chunkLevel].idx_len     == 1 + R)) // FIXME: why ???
+      (aChunkInfo[chunkLevel].blkver_high == blk[level]->blkver_high))
+      // && (aChunkInfo[chunkLevel].idx_len     == 1 + R)) // FIXME: why ???
   { buf0      = aChunkInfo[chunkLevel].buf0;
     PrevChunk = aChunkInfo[chunkLevel].PrevChunk;
     // fprintf(stderr,"blk(%d) cached @ %d\r\n",blk[level]->block,chunkLevel);

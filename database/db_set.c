@@ -200,6 +200,7 @@ short Set_data(cstring *data)				// set a record
       return s;						// return the error
     }
 
+    blk[level]->blkver_low++;
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// terminate list
       blk[level + 1]->dirty = blk[level];		// point new here
@@ -244,6 +245,7 @@ short Set_data(cstring *data)				// set a record
       }
       Allign_record();					// allign to 4 byte
       ((u_int *) record)[1] |= GL_TOP_DEFINED;		// mark defined
+      blk[level]->blkver_low++;
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
@@ -265,6 +267,7 @@ short Set_data(cstring *data)				// set a record
     { if (s < 0)
       { return s;					// exit on error
       }
+      blk[level]->blkver_low++;
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
@@ -292,6 +295,7 @@ short Set_data(cstring *data)				// set a record
       }
       record->len = data->len;				// copy length
       bcopy(data->buf, record->buf, data->len);		// and the data
+      blk[level]->blkver_low++;
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
         Queit();					// que for write
@@ -326,6 +330,7 @@ short Set_data(cstring *data)				// set a record
     record->len = NODE_UNDEFINED;			// zot current data
     Tidy_block();					// tidy it
     s = Insert(&db_var.slen, data);			// try it
+    blk[level]->blkver_low++;
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// point at self
       Queit();						// que for write
@@ -571,7 +576,9 @@ fix_keys:
 
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
-  { if (blk[i]->dirty == (gbd *) 2)			// if changed
+  { if (blk[i]->dirty != (gbd *) 1)
+      blk[i]->blkver_low++;
+    if (blk[i]->dirty == (gbd *) 2)			// if changed
     { if (blk[level] == NULL)				// list empty
       { blk[i]->dirty = blk[i];				// point at self
       }
@@ -588,6 +595,7 @@ fix_keys:
   { if (cblk[i] == NULL)				// if empty
     { continue;						// ignore it
     }
+    cblk[i]->blkver_low++;
     if (cblk[i]->dirty == (gbd *) 1)			// not queued
     { if (blk[level] == NULL)				// list empty
       { cblk[i]->dirty = cblk[i];			// point at self
