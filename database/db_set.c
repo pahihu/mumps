@@ -209,6 +209,8 @@ short Set_data(cstring *data)				// set a record
     { blk[level + 1]->dirty = blk[level + 1];		// point new at self
     }
     level++;						// back to new block
+    blk[level]->blkver_low++;
+    blk[level]->blkver_low++;
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
     Index = LOW_INDEX;					// start at the start

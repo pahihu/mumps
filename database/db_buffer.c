@@ -341,6 +341,7 @@ void Get_GBD()						// get a GBD
   gbd *ptr;						// loop gbd ptr
   gbd *oldptr = NULL;					// remember oldest
   gbd *last;						// points to ptr
+  static time_t old_last_accessed = (time_t) 0;
 
 start:
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
@@ -355,7 +356,8 @@ start:
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
 
-  i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  // i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  i = hash_start & (GBD_HASH - 1);		// where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -374,6 +376,15 @@ start:
 	blk[level] = ptr;				// store where reqd
 	goto exit;					// common exit code
       }							// end found expired
+      if ((ptr->dirty == NULL) &&
+          (ptr->last_accessed <= old_last_accessed) &&
+          (ptr->last_accessed > 0))
+      { old = ptr->last_accessed;			// save time
+	oldptr = ptr;					// save the ptr
+	hash = i;					// and the hash
+        hash_start = i;
+        goto quite_old;
+      }
       if ((ptr->dirty == NULL) &&			// if free
 	  (ptr->last_accessed < old) &&			// and less than oldest
 	  (ptr->last_accessed > 0))			// and there is a time
@@ -399,6 +410,7 @@ start:
     goto start;						// and try again
   }
 
+quite_old:
   ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
   if (ptr == oldptr)					// is this it
   { systab->vol[volnum-1]->gbd_hash[hash] = ptr->next;	// unlink it
@@ -410,6 +422,7 @@ start:
     ptr->next = oldptr->next;				// unlink it
   }
   blk[level] = oldptr;					// store where reqd
+  old_last_accessed = 1 + oldptr->last_accessed;
 
 exit:
   blk[level]->block = 0;				// no block attached

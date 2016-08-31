@@ -255,7 +255,7 @@ short LocateEx(u_char *key, int frominsert)		// find key
   chunkLevel = level;
   if ((0 == wr_flag) && (LAST_USED_LEVEL == level))
   {
-     assert(-1 < lastChunkInfo);
+     // assert(-1 < lastChunkInfo);
      chunkLevel = lastChunkInfo;
      cache_mode = 0;
      // fprintf(stderr,"LAST_USED_LEVEL: %d\r\n",chunkLevel);
@@ -277,18 +277,19 @@ short LocateEx(u_char *key, int frominsert)		// find key
     }
   }
   else
-  { if ((0 == chunkLevel) || (-1 == lastChunkInfo))
+  { if (wr_flag)
+      lastChunkInfo = -1;
+
+    if ((0 == chunkLevel) || (-1 == lastChunkInfo))
     { PrevChunk = &aPrevChunk[0];
       buf0      = &aBuf0[0];
       // fprintf(stderr,"blk(%d) put @ %d\r\n",blk[level]->block,level);
       cache_mode = 2;
     }
     else
-    { 
-      assert(0 < chunkLevel);
+    { assert(0 < chunkLevel);
       if (chunkLevel > 1 + lastChunkInfo)
-      { 
-        // fprintf(stderr,"chunkLevel: %d lastChunkInfo: %d\r\n",chunkLevel,lastChunkInfo);
+      { // fprintf(stderr,"chunkLevel: %d lastChunkInfo: %d\r\n",chunkLevel,lastChunkInfo);
         chunkLevel = 1 + lastChunkInfo;
       }
       assert(chunkLevel <= 1 + lastChunkInfo);
