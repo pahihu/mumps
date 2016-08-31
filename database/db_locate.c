@@ -120,8 +120,10 @@ u_short GetPrevChunkIndex(u_short x)
   u_char  prefixLen;
   // cstring *tsunk;
 
-  assert(LOW_INDEX <= x);
-  assert(x <= blk[level]->mem->last_idx);
+  if (LOW_INDEX > x)
+    panic("GetPrevChunkIndex: LOW_INDEX > x");
+  if (x > blk[level]->mem->last_idx)
+    panic("GetPrevChunkIndex: x > blk[level]->mem->last_idx");
 
   //if (PrevChunk[x])                                     // already calculated
   //  return PrevChunk[x];
@@ -129,9 +131,12 @@ u_short GetPrevChunkIndex(u_short x)
   // tsunk = (cstring*) &iidx[idx[x]];
   prefixLen = buf0[x]; //tsunk->buf[0];
   PrevChunk[x] = prefixLen ? FindShorterChunk(x, prefixLen) : x;
-  assert(LOW_INDEX <= PrevChunk[x]);
-  assert(PrevChunk[x] <= blk[level]->mem->last_idx);
-  assert(PrevChunk[x] <= x);
+  if (LOW_INDEX > PrevChunk[x])
+    panic("GetPrevChunkIndex: LOW_INDEX > PrevChunk[x]");
+  if (PrevChunk[x] > blk[level]->mem->last_idx)
+    panic("GetPrevChunkIndex: PrevChunk[x] > blk[level]->mem->last_idx");
+  if (PrevChunk[x] > x)
+    panic("GetPrevChunkIndex: PrevChunk[x] > x");
   return PrevChunk[x];
 }
 
@@ -159,13 +164,14 @@ void Build_KeyBuf(void)
   do
   { prev = PrevChunk[x];
     if (!prev) prev = GetPrevChunkIndex(x);
-    assert(LOW_INDEX <= prev);
+    if (LOW_INDEX > prev)
+      panic("Build_KeyBuf: LOW_INDEX > prev");
     if (prev > blk[level]->mem->last_idx)
     { fprintf(stderr,"wr_flag: %d\r\n", wr_flag);
       fprintf(stderr,"cache mode: %d\r\n", cache_mode);
       fprintf(stderr,"blk: %d x: %d\r\n", level, x);
       fprintf(stderr,"last_idx: %d prev: %d\r\n", blk[level]->mem->last_idx, prev);
-      exit(1);
+      panic("Build_KeyBuf: prev > blk[level]->mem->last_idx");
     }
     chunkidx[--j] = prev;                               // collect chunk idxs
     done = (prev == x) || (prev == LOW_INDEX);          // done ?
@@ -242,15 +248,18 @@ short LocateEx(u_char *key, int frominsert)		// find key
   if (-1 == lastChunkInfo)
     InitLocateCache();
 
-  wr_flag = writing + wanna_writing;
+  // wr_flag = writing + wanna_writing;
+  wr_flag = blk[level]->dirty != 0;
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
   Index = LOW_INDEX;					// start at the start
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
 
-  assert(0 <= level);
-  assert(level < MAXTREEDEPTH);
+  if (0 > level)
+    panic("LocateEx: 0 > level");
+  if (level >= MAXTREEDEPTH)
+    panic("LocateEx: level >= MAXTREEDEPTH");
 
   chunkLevel = level;
   if ((0 == wr_flag) && (LAST_USED_LEVEL == level))
@@ -273,7 +282,7 @@ short LocateEx(u_char *key, int frominsert)		// find key
     if (R != aChunkInfo[chunkLevel].idx_len - 1)
     { fprintf(stderr,"blk: %d changed w/o changing blkver (%d != %d)\r\n",
               blk[level]->block, R, aChunkInfo[chunkLevel].idx_len - 1);
-      exit(1);
+      panic("LocateEx: R != aChunkInfo[chunkLevel].idx_len - 1");
     }
   }
   else
@@ -287,16 +296,21 @@ short LocateEx(u_char *key, int frominsert)		// find key
       cache_mode = 2;
     }
     else
-    { assert(0 < chunkLevel);
+    { 
+      if (0 >= chunkLevel)
+        panic("LocateEx: 0 >= chunkLevel");
       if (chunkLevel > 1 + lastChunkInfo)
       { // fprintf(stderr,"chunkLevel: %d lastChunkInfo: %d\r\n",chunkLevel,lastChunkInfo);
         chunkLevel = 1 + lastChunkInfo;
       }
-      assert(chunkLevel <= 1 + lastChunkInfo);
+      if (chunkLevel > 1 + lastChunkInfo)
+        panic("LocateEx: chunkLevel > 1 + lastChunkInfo");
 
       idx_len   = aChunkInfo[chunkLevel-1].idx_len;
-      assert(0 != aChunkInfo[chunkLevel-1].PrevChunk);
-      assert(0 != aChunkInfo[chunkLevel-1].buf0);
+      if (0 == aChunkInfo[chunkLevel-1].PrevChunk)
+        panic("LocateEx: 0 == aChunkInfo[chunkLevel-1].PrevChunk");
+      if (0 == aChunkInfo[chunkLevel-1].buf0)
+        panic("LocateEx: 0 == aChunkInfo[chunkLevel-1].buf0");
 
       PrevChunk = idx_len + aChunkInfo[chunkLevel-1].PrevChunk;
       buf0      = idx_len + aChunkInfo[chunkLevel-1].buf0;
@@ -305,7 +319,8 @@ short LocateEx(u_char *key, int frominsert)		// find key
     }
     // FIXME: PrevChunk/buf0 fit ?
 
-    assert(chunkLevel < MAXTREEDEPTH);
+    if (chunkLevel >= MAXTREEDEPTH)
+      panic("LocateEx: chunkLevel >= MAXTREEDEPTH");
 
     if (0 == wr_flag)
     { aChunkInfo[chunkLevel].block       = blk[level]->block;
@@ -319,11 +334,11 @@ short LocateEx(u_char *key, int frominsert)		// find key
 
     if ((buf0 < aBuf0) || (buf0 > &aBuf0[CACHE_SIZE]))
     { fprintf(stderr,"buf0 out of range\r\n");
-      exit(1);
+      panic("LocateEx: buf0 out of range");
     }
     if ((PrevChunk < aPrevChunk) || (PrevChunk > &aPrevChunk[CACHE_SIZE]))
     { fprintf(stderr,"PrevChunk out of range\r\n");
-      exit(1);
+      panic("LocateEx: PrevChunk out of range");
     }
 
     // fprintf(stderr,"filling [%d,%d]\r\n",L,R);

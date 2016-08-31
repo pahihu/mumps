@@ -233,10 +233,10 @@ start:
 	fprintf(stderr,"Daemon %d shutting down at %s\n",
 	         myslot, ctime(&t));			// log success
         fflush( stderr );
-        exit(0);					// and exit
+        exit (0);					// and exit
       }
       do_dismount();					// dismount it
-      exit(0);						// and exit
+      exit (0);						// and exit
     }							// end dismount code
     else
     { return;						// nothing to do

@@ -110,7 +110,7 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
         return -(ERRZ51+ERRMLAST);              // return an error
   }
   if (systab->start_user == -1)			// If shutting down
-  { exit(0);					// just quit
+  { exit (0);					// just quit
   }
   if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
   return 0;                                     // shouldn't get here except lock

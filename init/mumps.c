@@ -66,7 +66,7 @@ void help(void)                                 // give some help
   printf( "               where both switches are optional\n\n");
   printf( "      see http://mv1.mumps.org/\n");
   printf( "----------------------------------------------------\n");
-  exit(0);                                      // give help and exit
+  exit (0);                                     // give help and exit
 }
 
 //****************************************************************************
