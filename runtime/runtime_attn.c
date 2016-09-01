@@ -140,6 +140,7 @@ int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
   int ret;					// ant another
   int mid = -1;					// for the MUMPS id
+  char stderr_out[128];
 
   for (i = 0; i < systab->maxjob; i++)		// scan the slots
   { ret = systab->jobtab[i].pid;		// get pid
@@ -214,6 +215,9 @@ int ForkIt(int cft)				// Copy File Table True/False
   ret = -((partab.jobtab - systab->jobtab) + 1); // save minus parent job#
   partab.jobtab = &systab->jobtab[mid];         // and save our jobtab address
 
+  if (cft > -1)                                 // unlock in child
+    SemOp( SEM_SYS, systab->maxjob);
+
   for (i = 0; i < 10000; i++)			// wait for the above to happen
   { if (getpid() == partab.jobtab->pid)		// done yet ?
       break;					// yes - exit
@@ -242,7 +246,9 @@ int ForkIt(int cft)				// Copy File Table True/False
 
   (void)freopen("/dev/null", "r", stdin);	// redirect stdin
   (void)freopen("/dev/null", "w", stdout);	// redirect stdout
-  (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+  sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
+  // (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+  (void)freopen(stderr_out, "w", stderr);	// redirect stderr
 
   return ret;					// return -parent job#
 

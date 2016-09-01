@@ -267,7 +267,9 @@ short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 
 // Share and semaphore stuff
 int UTIL_Share(char *dbf);			// attach share and semaphores
-short SemOp(int sem_num, int numb);             // Add/Remove semaphore
+// short SemOp(int sem_num, int numb);             // Add/Remove semaphore
+#define SemOp(x,y) SemOpEx(x,y,__FILE__,__LINE__)
+short SemOpEx(int sem_num, int numb, const char *file, int line);             // Add/Remove semaphore
 short LCK_Order(cstring *ent, u_char *buf, int dir);
 short LCK_Get(cstring *ent, u_char *buf);
 short LCK_Kill(cstring *ent);

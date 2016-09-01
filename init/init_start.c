@@ -322,6 +322,7 @@ int INIT_Start( char *file,                     // database
   if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;	// and the max
   systab->vol[0]->num_of_daemons = jobs;	// initalise this
   systab->Mtime = time(0);                      // init MUMPS time
+  curr_lock = 0;                                // clear lock on globals
   while (SemOp( SEM_WD, WRITE));		// lock WD
   for (indx=0; indx<jobs; indx++)		// for each required daemon
   { i = DB_Daemon(indx, 1);			// start each daemon (volume 1)

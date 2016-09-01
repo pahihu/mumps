@@ -35,14 +35,17 @@
 
 #include <stdio.h>                              // always include
 #include <stdlib.h>                             // these two
+#include <strings.h>                            // for bzero()
 #include <sys/types.h>                          // for u_char def
 #include <errno.h>                              // error stuf
 #include <sys/ipc.h>                            // shared memory
 #include <sys/shm.h>                            // shared memory
 #include <sys/sem.h>                            // semaphores
+#include <unistd.h>                             // for usleep()
 #include "mumps.h"                              // standard includes
 #include "error.h"                              // standard includes
 #include "proto.h"                              // standard includes
+#include "database.h"                           // for MTIME()
 
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
@@ -87,13 +90,31 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
 //		   short   sem_flg;        /* operation flags */
 //	};
 
-short SemOp(int sem_num, int numb)              // Add/Remove semaphore
+int curr_sem[SEM_MAX];
+
+short SemOpEx0(int sem_num, int numb,
+              const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+  static int doinit = 1;
+  char msg[128];
 
+  fprintf(stderr,"%s:%d %d %3d\r\n", file, line, sem_num, numb);
+  fflush(stderr);
+
+  if (doinit)
+  { bzero(curr_sem, sizeof(curr_sem));
+    doinit = 0;
+  }
   if (numb == 0)				// check for junk
   { return 0;					// just return
+  }
+  curr_sem[sem_num] += numb;
+  if (abs(curr_sem[sem_num]) > systab->maxjob)
+  { sprintf(msg, "SemOp(): overload sem_num=%d, numb=%d, curr_sem=%d",
+                  sem_num, numb, curr_sem[sem_num]);
+    panic(msg);
   }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
@@ -109,6 +130,89 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
         return -(ERRZ51+ERRMLAST);              // return an error
   }
+  curr_sem[sem_num] -= numb;
+  if (systab->start_user == -1)			// If shutting down
+  { exit (0);					// just quit
+  }
+  if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
+  return 0;                                     // shouldn't get here except lock
+}
+
+u_int semslot(int pass)
+{
+  u_int slot;
+  db_stat *stats;
+
+  slot  = (u_int) MTIME(0);
+  if (partab.jobtab)
+    slot += partab.jobtab->pid + partab.jobtab->commands +
+            partab.jobtab->grefs;
+  stats = &systab->vol[0]->stats;
+  slot += stats->dbget + stats->dbset + stats->dbkil + 
+          stats->dbdat + stats->dbord + stats->dbqry;
+  return slot ^ (u_int) pass;
+}
+
+short SemOpEx(int sem_num, int numb,
+              const char *file, int line)        // Add/Remove semaphore
+{ short s;                                      // for returns
+  int i;                                        // for try loop
+  struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
+  static int doinit = 1;
+  char msg[128];
+  u_int mask, slot;
+  int pass;
+
+  // fprintf(stderr,"%s:%d %d %3d\r\n", file, line, sem_num, numb);
+  // fflush(stderr);
+
+  if (doinit)
+  { bzero(curr_sem, sizeof(curr_sem));
+    doinit = 0;
+  }
+  if (numb == 0)				// check for junk
+  { return 0;					// just return
+  }
+  curr_sem[sem_num] += numb;
+  if (abs(curr_sem[sem_num]) > systab->maxjob)
+  { sprintf(msg, "SemOp(): overload sem_num=%d, numb=%d, curr_sem=%d",
+                  sem_num, numb, curr_sem[sem_num]);
+    panic(msg);
+  }
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+  pass = 0;
+retry:
+  for (i = 0; i < 10; i++)                      // try this many times
+  { s = semop(systab->sem_id, &buf, 1);         // doit
+    if ((s < 0) && (errno == EAGAIN))
+    { mask = (1 << (i + 1)) - 1;
+      slot = semslot(i) & mask;
+      if (pass)
+      { fprintf(stderr,"SemOp(): pass=%d loop=%d slot=%d\r\n", pass, i, slot);
+        fflush(stderr);
+      }
+      usleep(1000 * slot);
+      continue;
+    }
+    break;
+  }
+  if ((s != 0) && (pass < 16))
+  { pass++;
+    goto retry;
+  }
+  if (s == 0)					// if that worked
+  { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
+      return 0;					// exit success
+  }
+  if (numb < 1)                               // if it was an add
+    if (partab.jobtab == NULL)		// from a daemon
+      panic("SemOp() error in write daemon");	// yes - die
+    if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
+      return -(ERRZ51+ERRMLAST);              // return an error
+
+  curr_sem[sem_num] -= numb;
+
   if (systab->start_user == -1)			// If shutting down
   { exit (0);					// just quit
   }

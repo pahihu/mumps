@@ -254,7 +254,7 @@ void Get_GBDs(int greqd)				// get n free GBDs
   int pass = 0;						// pass number
 
 start:
-  while (SemOp(SEM_GLOBAL, WRITE));			// get write lock
+  while (SemOp(SEM_GLOBAL, WRITE));                     // get write lock
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
   curr = 0;						// clear current  
   while (ptr != NULL)					// while some there

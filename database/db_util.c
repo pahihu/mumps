@@ -192,6 +192,11 @@ void Queit()						// que a gbd for write
   }
   // fprintf(stderr,"\r\n");
 
+  if (curr_lock != WRITE)
+  { char msg[32];
+    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
+    panic(msg);
+  }
   i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
   while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
   { sleep(1);						// wait a bit
@@ -214,6 +219,11 @@ void Garbit(int blknum)					// que a blk for garb
 { int i;						// a handy int
   int j;						// for loop
 
+  if (curr_lock != WRITE)
+  { char msg[32];
+    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
+    panic(msg);
+  }
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
   for (j = 0; ; j++)
   { if (systab->vol[volnum - 1]->garbQ[i] == 0)		// if slot avbl

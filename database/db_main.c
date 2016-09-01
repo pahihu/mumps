@@ -92,6 +92,9 @@ short Copy2local(mvar *var, char *rtn)
   // fprintf(stderr,"=== %s\r\n", rtn);
   partab.jobtab->grefs++;				// count global ref
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
+  if (curr_lock)
+  { panic("Copy2local: curr_lock != 0");
+  }
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
   wanna_writing = 0;
@@ -649,6 +652,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     return 0;						// exit
   }
   sav = curr_lock;					// save this
+  curr_lock = 0;
   s = Copy2local(var,"DB_GetLen");			// get local copy
   curr_lock = sav;					// restore current lock
   if (s < 0)						// check for error

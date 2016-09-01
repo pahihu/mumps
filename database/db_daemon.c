@@ -106,6 +106,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   { return (errno);					// die on error
   }
   curr_lock = 0;					// clear lock flag
+  SemOp( SEM_WD, -WRITE);                               // child: release SEM_WD
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename

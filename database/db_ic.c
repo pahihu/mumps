@@ -84,7 +84,9 @@ int DB_ic(int vol, int block)                  		// integrity checker
   { return (-ERRM26);					// no - error
   }
   volnum = vol;						// save this
-  curr_lock = 0;					// ensure this is clear
+  // curr_lock = 0;					// ensure this is clear
+  if (curr_lock)
+    SemOp(SEM_GLOBAL, -curr_lock);
   writing = 0;						// clear this
   icerr = 0;						// clear errors
   doing_full = 0;					// and this
