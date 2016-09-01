@@ -176,7 +176,7 @@ int INIT_Start( char *file,                     // database
               + hbuf[3]			       	// size of block (zero block)
               + (rmb * MBYTE);		 	// mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
-  share_size = sjlt_size + volset_size;             // shared memory size
+  share_size = sjlt_size + volset_size;         // shared memory size
   addoff = share_size;                              // where add buff starts
   share_size = share_size + ( addmb * MBYTE );      // and the additional
 
@@ -278,6 +278,8 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->shm_id = shar_mem_id;		// set up share id
   systab->sem_id = sem_id;			// set up semaphore id
   systab->vol[0]->map_dirty_flag = 0;		// clear dirty map flag
+
+  bzero(semtab, sizeof(semtab));
 
   if ( (realpath( file, fullpathvol) ) )	// get full path
     { if (strlen(fullpathvol) < VOL_FILENAME_MAX) // if can fit in our struct

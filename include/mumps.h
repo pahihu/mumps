@@ -292,6 +292,13 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int diskerrors;                             // Disk write errors
 } db_stat;                                      // database statistics
 
+typedef struct SEM_STAT
+{
+  u_int tryfailed_count;                        // no. of trylocks
+  u_int held_time;                              // usecs to held the lock
+  u_int held_count;                             // no. of times held
+} sem_stat;
+
 struct GBD;                                     // defined in "db_util.h"
 struct RBD;                                     // see compile.h
 
@@ -460,7 +467,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
 						// sizeof(systab_struct) = 256
 
 extern systab_struct *systab;                   // make its ptr external
+extern sem_stat semtab[2*SEM_MAX];
 extern int sem_id;                              // global semaphore id
+
 
 //** process memory structures ***/
 //** PARTAB definitions **

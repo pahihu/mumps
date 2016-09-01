@@ -38,9 +38,11 @@
 #include <strings.h>                            // for bzero()
 #include <sys/types.h>                          // for u_char def
 #include <errno.h>                              // error stuf
+#include <sched.h>                              // for sched_yield()
 #include <sys/ipc.h>                            // shared memory
 #include <sys/shm.h>                            // shared memory
 #include <sys/sem.h>                            // semaphores
+#include <sys/time.h>                           // for gettimeofday()
 #include <unistd.h>                             // for usleep()
 #include "mumps.h"                              // standard includes
 #include "error.h"                              // standard includes
@@ -153,7 +155,7 @@ u_int semslot(int pass)
   return slot ^ (u_int) pass;
 }
 
-short SemOpEx(int sem_num, int numb,
+short SemOpEx1(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
@@ -201,6 +203,138 @@ retry:
   { pass++;
     goto retry;
   }
+  if (s == 0)					// if that worked
+  { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
+      return 0;					// exit success
+  }
+  if (numb < 1)                               // if it was an add
+    if (partab.jobtab == NULL)		// from a daemon
+      panic("SemOp() error in write daemon");	// yes - die
+    if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
+      return -(ERRZ51+ERRMLAST);              // return an error
+
+  curr_sem[sem_num] -= numb;
+
+  if (systab->start_user == -1)			// If shutting down
+  { exit (0);					// just quit
+  }
+  if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
+  return 0;                                     // shouldn't get here except lock
+}
+
+static struct timeval sem_start[SEM_MAX];
+
+short TrySemLock(int sem_num, int numb)
+{
+  short s;
+  struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
+
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+  s = semop(systab->sem_id, &buf, 1);           // doit
+  return s;
+}
+
+short SemLock(int sem_num, int numb)
+{
+  short s;
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+  int i, x, slot, pass;
+  int slot_time, lock_read;
+
+  slot_time = 15;       // READ lock held time
+  lock_read = 0;
+  x = 2*sem_num;
+  if (-1 == numb)       // READ lock
+  { x += 1;
+    slot_time = 30;     // WRITE lock held time
+    lock_read = 1;
+  }
+
+  pass = 0;
+retry:
+  for (i = 0; i < 10; i++)
+  { s = TrySemLock(sem_num, numb);
+    if (s == 0)
+      break;
+#if 0
+    if ((lock_read == 0) && (i == 0))
+    { s = semctl(systab->sem_id, sem_num, GETVAL);
+      if (s != -1)
+      { semtab[x].tryfailed_count++;
+        usleep(slot_time * s);
+        continue;
+      }
+    }
+#endif
+    semtab[x].tryfailed_count++;
+    slot = random() & ((1 << (i + 1)) - 1);
+    usleep(slot_time * slot);
+  }
+
+  pass++;
+  if ((s != 0) && (pass < 16))
+  { sched_yield();
+    goto retry;
+  }
+/*
+  s = TrySemLock(sem_num, numb);
+  if (s)
+  { semtab[i].tryfailed_count++;
+    buf.sem_num = (u_short) sem_num;            // get the one we want
+    buf.sem_op = (short) numb;                  // and the number of them
+    s = semop(systab->sem_id, &buf, 1);         // doit
+  }
+*/
+  gettimeofday(&sem_start[sem_num], NULL);
+  return s;
+}
+
+short SemUnlock(int sem_num, int numb)
+{
+  struct timeval tv;
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+  short s;
+  u_int curr_held_time;
+  int x;
+
+  x = 2*sem_num + (1 == abs(numb) ? 1 : 0);
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+  s = semop(systab->sem_id, &buf, 1);
+
+  gettimeofday(&tv, NULL);
+  curr_held_time = 1000000 * (tv.tv_sec  - sem_start[sem_num].tv_sec) +
+                             (tv.tv_usec - sem_start[sem_num].tv_usec);
+  semtab[x].held_time += curr_held_time;
+  semtab[x].held_count++;
+  sem_start[sem_num] = tv;
+  return s;
+}
+
+short SemOpEx(int sem_num, int numb,
+              const char *file, int line)        // Add/Remove semaphore
+{ short s;                                      // for returns
+  static int doinit = 1;
+  char msg[128];
+
+  // fprintf(stderr,"%s:%d %d %3d\r\n", file, line, sem_num, numb);
+  // fflush(stderr);
+
+  if (doinit)
+  { bzero(curr_sem, sizeof(curr_sem));
+    doinit = 0;
+  }
+  if (numb == 0)				// check for junk
+  { return 0;					// just return
+  }
+  curr_sem[sem_num] += numb;
+  if (abs(curr_sem[sem_num]) > systab->maxjob)
+  { sprintf(msg, "SemOp(): overload sem_num=%d, numb=%d, curr_sem=%d",
+                  sem_num, numb, curr_sem[sem_num]);
+    panic(msg);
+  }
+  s = numb < 0 ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
   if (s == 0)					// if that worked
   { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
       return 0;					// exit success

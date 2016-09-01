@@ -56,6 +56,7 @@
 
 partab_struct partab;                           // setup partab
 systab_struct *systab;
+sem_stat semtab[2*SEM_MAX];
 
 u_char *astk[MAX_ASTK];                         // address stack
 u_char sstk[MAX_SSTK];				// string stack
@@ -126,6 +127,8 @@ start:
 #if defined(__APPLE__) || defined(__FreeBSD__)
   srandomdev();					// randomize
 #endif
+
+  bzero(semtab, sizeof(semtab));
 
   partab.jobtab = (jobtab *) NULL;		// clear jobtab pointer
   dbfd = open(file, O_RDONLY);                  // open the database for read
