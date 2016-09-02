@@ -117,7 +117,7 @@ extern void UpdateLocateCache();
 
 short Set_data(cstring *data)				// set a record
 { short s;						// for returns
-  int i;						// a handy int
+  int i, j;						// a handy int
   u_int *ui;						// an int ptr
   u_char tmp[2*MAX_NAME_BYTES];				// spare string
   u_char cstr[MAX_NAME_BYTES];				// and another
@@ -130,8 +130,25 @@ short Set_data(cstring *data)				// set a record
   int trailings;					// ptr to orig trail
   int this_level;					// to save level
   DB_Block *btmp;					// ditto
+  int qpos;
 
+start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  j = 0;                                                // clear counter
+  qpos = systab->vol[volnum - 1]->dirtyQw;
+  for (i = 0; i < NUM_DIRTY; i++)
+  { if (systab->vol[volnum - 1]->dirtyQ[qpos] == 0)
+    { if (j++ >= NUM_DIRTY/2) goto cont;                 // ensure we have 1/2 table
+    }
+    else
+      break;
+    qpos = (qpos + 1) & (NUM_DIRTY - 1);
+  }
+  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+  Sleep(1);
+  goto start;
+
+cont:
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
   { return s;						// return the error

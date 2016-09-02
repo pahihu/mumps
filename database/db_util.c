@@ -197,10 +197,14 @@ void Queit()						// que a gbd for write
     sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+  // we have the WRITE lock, at least NUM_DIRTY/2 is free
   i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
+#if 0
   while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
-  { sleep(1);						// wait a bit
+  { // Sleep(1);						// wait a bit
+    i = (i + 1) & (NUM_DIRTY - 1);
   }				// NOTE: The above CAN'T work!!!
+#endif
   systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
   systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
 
@@ -221,10 +225,13 @@ void Garbit(int blknum)					// que a blk for garb
 
   if (curr_lock != WRITE)
   { char msg[32];
-    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
+    sprintf(msg, "Garbit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+
+  // we have the WRITE lock
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
+#if 0
   for (j = 0; ; j++)
   { if (systab->vol[volnum - 1]->garbQ[i] == 0)		// if slot avbl
     { break;						// exit
@@ -232,8 +239,12 @@ void Garbit(int blknum)					// que a blk for garb
     if (j == 9)
     { panic("Garbit: could not get a garbage slot after 10 seconds");
     }
-    sleep(1);						// wait a bit
+    Sleep(1);						// wait a bit
   }				// NOTE: I don't think this can work either
+#endif
+  // while (systab->vol[volnum - 1]->garbQ[i] != 0)
+  // { i = (i + 1) & (NUM_GARB - 1);
+  // }
   systab->vol[volnum - 1]->garbQ[i] = blknum;		// stuff it in
   systab->vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1); // reset ptr
   return;						// and exit
@@ -717,4 +728,12 @@ fail:
   systab->vol[volnum - 1]->vollab->journal_available = 0; // turn it off
   close(partab.jnl_fds[volnum - 1]);			// close the file
   return;						// and exit
+}
+
+u_int SleepEx(u_int seconds, const char* file, int line)
+{
+  fprintf(stderr,"%s:%d: curr_lock=%d sleep(%u)\r\n", file, line,
+          curr_lock, seconds);
+  fflush(stderr);
+  return sleep(seconds);
 }

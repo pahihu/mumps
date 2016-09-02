@@ -241,6 +241,7 @@ void SemStats(void)
             i>>1, i&1, semtab[i].tryfailed_count, semtab[i].backoff_time,
             semtab[i].held_count, semtab[i].held_time);
   }
+  fflush(stderr);
 }
 
 

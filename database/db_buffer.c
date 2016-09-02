@@ -313,7 +313,7 @@ start:
     }
   }							// end while (TRUE)
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
-  sleep(1);
+  Sleep(1);
   pass++;						// increment a pass
   if (pass > 60)					// this is crazy!
   { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
@@ -405,7 +405,7 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
-    sleep(1);						// wait
+    Sleep(1);						// wait
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }

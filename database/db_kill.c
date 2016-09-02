@@ -67,6 +67,7 @@ short Kill_data()					// remove tree
   u_char *p;						// a handy ptr
   cstring *c;						// and another
   u_int *ui;						// and another
+  int qpos;
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -77,13 +78,18 @@ short Kill_data()					// remove tree
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
   j = 0;                                                // clear counter
+  qpos = systab->vol[volnum - 1]->garbQw;
   for (i = 0; i < NUM_GARB; i++)
-  { if (systab->vol[volnum - 1]->garbQ[i] == 0)
+  {
+    if (systab->vol[volnum - 1]->garbQ[qpos] == 0)
     { if (j++ >= NUM_GARB/2) goto cont;                 // ensure we have 1/2 table
     }
+    else
+      break;
+    qpos = (qpos + 1) & (NUM_GARB - 1);
   }
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
-  sleep(1);
+  Sleep(1);
   goto start;
 
 cont:
