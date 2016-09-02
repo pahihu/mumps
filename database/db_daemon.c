@@ -318,6 +318,7 @@ void do_dismount()					// dismount volnum
   }							// end wait for daemons
   fprintf(stderr,"Writing out clean flag as clean\n");  // operation
   fflush( stderr );
+  SemStats();                                           // print sem stats
   systab->vol[volnum-1]->vollab->clean = 1;		// set database as clean
   off =lseek( dbfd, 0, SEEK_SET);			// seek to start of file
   if (off < 0)

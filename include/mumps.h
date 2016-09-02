@@ -294,7 +294,8 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
 
 typedef struct SEM_STAT
 {
-  u_int tryfailed_count;                        // no. of trylocks
+  u_int tryfailed_count;                        // no. of failed try locks
+  u_int backoff_time;                           // usecs exp backoff time
   u_int held_time;                              // usecs to held the lock
   u_int held_count;                             // no. of times held
 } sem_stat;

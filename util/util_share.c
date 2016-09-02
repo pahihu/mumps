@@ -241,6 +241,7 @@ short SemLock(int sem_num, int numb)
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   int i, x, slot, pass;
   int slot_time, lock_read;
+  u_int backoff;
 
   slot_time = 15;       // READ lock held time
   lock_read = 0;
@@ -253,7 +254,7 @@ short SemLock(int sem_num, int numb)
 
   pass = 0;
 retry:
-  for (i = 0; i < 10; i++)
+  for (i = 0; i < 16; i++)
   { s = TrySemLock(sem_num, numb);
     if (s == 0)
       break;
@@ -269,7 +270,9 @@ retry:
 #endif
     semtab[x].tryfailed_count++;
     slot = random() & ((1 << (i + 1)) - 1);
-    usleep(slot_time * slot);
+    backoff = slot_time * slot;
+    semtab[x].backoff_time += backoff;
+    usleep(backoff);
   }
 
   pass++;
