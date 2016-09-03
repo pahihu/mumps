@@ -290,6 +290,8 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int blkdeall;                               // Block Deallocates
   u_int blkreorg;                               // Block Reorganizes
   u_int diskerrors;                             // Disk write errors
+  u_int dqstall;                                // No. of dirtyQ stalls
+  u_int gqstall;                                // No. of garbQ stalls
 } db_stat;                                      // database statistics
 
 typedef struct SEM_STAT

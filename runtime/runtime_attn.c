@@ -136,6 +136,8 @@ void DoInfo()
 //	      1 FORK
 //	     -1 Just do a rfork() for the daemons, no file table
 
+extern int curr_sem_init;
+
 int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
   int ret;					// ant another
@@ -215,8 +217,7 @@ int ForkIt(int cft)				// Copy File Table True/False
   ret = -((partab.jobtab - systab->jobtab) + 1); // save minus parent job#
   partab.jobtab = &systab->jobtab[mid];         // and save our jobtab address
 
-  if (cft > -1)                                 // unlock in child
-    SemOp( SEM_SYS, systab->maxjob);
+  curr_sem_init = 1;
 
   for (i = 0; i < 10000; i++)			// wait for the above to happen
   { if (getpid() == partab.jobtab->pid)		// done yet ?

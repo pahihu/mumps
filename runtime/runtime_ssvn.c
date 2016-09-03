@@ -432,6 +432,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.phywt);
 	if (strncasecmp( (char *) subs[2]->buf, "diskerrors\0", 11) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.diskerrors);
+	if (strncasecmp( (char *) subs[2]->buf, "dqstall\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.dqstall);
+	if (strncasecmp( (char *) subs[2]->buf, "gqstall\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gqstall);
       }						// end of "VOL"
       return (-ERRM38);				// junk
   }						// end of switch

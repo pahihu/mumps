@@ -48,6 +48,18 @@
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
 
+int KeyBufBuilt = 0;
+
+void UpdateLocateCache(void)
+{
+  return;
+}
+
+short LocateEx(u_char *key, int frominsert)
+{
+  return Locate(key);
+}
+
 //-----------------------------------------------------------------------------
 // Function: Locate
 // Descript: Locate passed in key in blk[level] updating extern vars

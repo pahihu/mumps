@@ -130,21 +130,38 @@ short Set_data(cstring *data)				// set a record
   int trailings;					// ptr to orig trail
   int this_level;					// to save level
   DB_Block *btmp;					// ditto
-  int qpos;
+  int qpos, wpos, rpos, qlen, qfree;
+  int MinSlots;
 
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  MinSlots = 3 * MAXTREEDEPTH;
+  wpos = systab->vol[volnum - 1]->dirtyQw;
+  rpos = systab->vol[volnum - 1]->dirtyQr;
+  if (rpos <= wpos) qlen = wpos - rpos;
+  else
+    qlen = NUM_DIRTY + wpos - rpos;
+  qfree = NUM_DIRTY - qlen;
+  if (qfree >= MinSlots)
+    goto cont;
+#if 0
   j = 0;                                                // clear counter
   qpos = systab->vol[volnum - 1]->dirtyQw;
   for (i = 0; i < NUM_DIRTY; i++)
   { if (systab->vol[volnum - 1]->dirtyQ[qpos] == 0)
-    { if (j++ >= NUM_DIRTY/2) goto cont;                 // ensure we have 1/2 table
+    { if (j++ >= MinSlots /*NUM_DIRTY/2*/) goto cont;                 // ensure we have 1/2 table
     }
     else
       break;
     qpos = (qpos + 1) & (NUM_DIRTY - 1);
   }
+#endif
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+  fprintf(stderr,"Set_data(): MinSlots=%d j=%d dQr=%d dQw=%d\r\n",
+                  MinSlots, j,
+                  systab->vol[volnum - 1]->dirtyQr,
+                  systab->vol[volnum - 1]->dirtyQw);
+  systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   Sleep(1);
   goto start;
 

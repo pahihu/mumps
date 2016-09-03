@@ -87,6 +87,8 @@ u_int MSLEEP(u_int seconds)
 // Return:   0 -> Ok, any non-zero = error
 //
 
+extern int curr_sem_init;
+
 int DB_Daemon(int slot, int vol)			// start a daemon
 { int i;						// a handy int 
   int k;						// and another
@@ -107,7 +109,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   }
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
-  SemOp( SEM_WD, -WRITE);                               // child: release SEM_WD
+  curr_sem_init = 1;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -317,6 +319,7 @@ void do_dismount()					// dismount volnum
     { MSLEEP(1);					// wait a second...
     }
   }							// end wait for daemons
+  SemStats();                                           // print sem stats
   fprintf(stderr,"Writing out clean flag as clean\n");  // operation
   fflush( stderr );
   systab->vol[volnum-1]->vollab->clean = 1;		// set database as clean

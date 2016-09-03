@@ -116,8 +116,10 @@ short SemLock(int sem_num, int numb)
     s = semop(systab->sem_id, &buf, 1);         // doit
   }
 
+/*
   if (s == 0)
     gettimeofday(&sem_start[sem_num], NULL);
+*/
   return s;
 }
  
@@ -134,12 +136,15 @@ short SemUnlock(int sem_num, int numb)
   buf.sem_op = (short) numb;                    // and the number of them
   s = semop(systab->sem_id, &buf, 1);
 
+/*
   gettimeofday(&tv, NULL);
   curr_held_time = 1000000 * (tv.tv_sec  - sem_start[sem_num].tv_sec) +
                              (tv.tv_usec - sem_start[sem_num].tv_usec);
   semtab[x].held_time += curr_held_time;
-  semtab[x].held_count++;
   sem_start[sem_num] = tv;
+*/
+
+  semtab[x].held_count++;
   return s;
 }
 
@@ -149,22 +154,22 @@ short SemUnlock(int sem_num, int numb)
 //		   short   sem_flg;        /* operation flags */
 //	};
 
-int curr_sem[SEM_MAX];
+static int curr_sem[SEM_MAX];
+       int curr_sem_init = 1;
 
 short SemOpEx0(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
-  static int doinit = 1;
   char msg[128];
 
   // fprintf(stderr,"%s:%d %d %3d\r\n", file, line, sem_num, numb);
   // fflush(stderr);
 
-  if (doinit)
+  if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));
-    doinit = 0;
+    curr_sem_init = 0;
   }
   if (numb == 0)				// check for junk
   { return 0;					// just return
@@ -202,15 +207,14 @@ short SemOpEx(int sem_num, int numb,
 { short s;                                      // for returns
   int i;                                        // for try loop
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
-  static int doinit = 1;
   char msg[128];
 
   // fprintf(stderr,"%s:%d %d %3d\r\n", file, line, sem_num, numb);
   // fflush(stderr);
 
-  if (doinit)
+  if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));
-    doinit = 0;
+    curr_sem_init = 0;
   }
   if (numb == 0)				// check for junk
   { return 0;					// just return

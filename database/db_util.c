@@ -205,6 +205,9 @@ void Queit()						// que a gbd for write
     i = (i + 1) & (NUM_DIRTY - 1);
   }				// NOTE: The above CAN'T work!!!
 #endif
+  if (systab->vol[volnum - 1]->dirtyQ[i] != NULL)
+  { panic("Queit(): dirtyQ overflow");
+  }
   systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
   systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
 
@@ -245,6 +248,9 @@ void Garbit(int blknum)					// que a blk for garb
   // while (systab->vol[volnum - 1]->garbQ[i] != 0)
   // { i = (i + 1) & (NUM_GARB - 1);
   // }
+  if (systab->vol[volnum - 1]->garbQ[i] != 0)
+  { panic("Garbit(): garbQ overflow");
+  }
   systab->vol[volnum - 1]->garbQ[i] = blknum;		// stuff it in
   systab->vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1); // reset ptr
   return;						// and exit
@@ -732,8 +738,10 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
-  fprintf(stderr,"%s:%d: curr_lock=%d sleep(%u)\r\n", file, line,
-          curr_lock, seconds);
+  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d dQw=%d dQr=%d\r\n",
+          file, line, curr_lock, seconds,
+          systab->vol[volnum - 1]->dirtyQw,
+          systab->vol[volnum - 1]->dirtyQr);
   fflush(stderr);
   return sleep(seconds);
 }
