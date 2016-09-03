@@ -35,6 +35,7 @@
 
 #include <stdio.h>                              // always include
 #include <stdlib.h>                             // these two
+#include <string.h>
 #include <strings.h>                            // for bzero()
 #include <sys/types.h>                          // for u_char def
 #include <errno.h>                              // error stuf

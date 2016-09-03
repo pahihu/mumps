@@ -294,7 +294,7 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int gqstall;                                // No. of garbQ stalls
 } db_stat;                                      // database statistics
 
-typedef struct SEM_STAT
+typedef struct MSEM_STAT
 {
   u_int tryfailed_count;                        // no. of failed try locks
   u_int backoff_time;                           // usecs exp backoff time

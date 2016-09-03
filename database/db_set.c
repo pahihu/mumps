@@ -135,6 +135,7 @@ short Set_data(cstring *data)				// set a record
 
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  j = 0;                                                // clear counter
   MinSlots = 3 * MAXTREEDEPTH;
   wpos = systab->vol[volnum - 1]->dirtyQw;
   rpos = systab->vol[volnum - 1]->dirtyQr;
@@ -145,7 +146,6 @@ start:
   if (qfree >= MinSlots)
     goto cont;
 #if 0
-  j = 0;                                                // clear counter
   qpos = systab->vol[volnum - 1]->dirtyQw;
   for (i = 0; i < NUM_DIRTY; i++)
   { if (systab->vol[volnum - 1]->dirtyQ[qpos] == 0)
