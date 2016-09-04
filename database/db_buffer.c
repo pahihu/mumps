@@ -132,6 +132,7 @@ short Get_block(u_int blknum)                           // Get block
   Get_GBD();						// get a GBD
   blk[level]->block = blknum;				// set block number
   blk[level]->last_accessed = (time_t) 0;		// clear last access
+  blk[level]->referenced    = 0;
   blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
   blk[level]->blkver_low  = 0;
   i = blknum & (GBD_HASH - 1);				// get hash entry
@@ -173,6 +174,7 @@ short Get_block(u_int blknum)                           // Get block
 
 exit:
   blk[level]->last_accessed = MTIME(0);			// set access time
+  blk[level]->referenced++;
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
@@ -226,6 +228,7 @@ short New_block()					// get new block
         blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
         blk[level]->blkver_low = 0;
 	blk[level]->last_accessed = MTIME(0);		// accessed
+        blk[level]->referenced = 2 * MAXTREEDEPTH;
 	systab->vol[volnum-1]->first_free = c;		// save this
 	return 0;					// return success
       }
@@ -245,6 +248,9 @@ short New_block()					// get new block
 //	     When it completes, it returns with a write lock held.
 //
 
+       int nrsvd_gbds;                                  // cleared in Copy2local
+static gbd* rsvd_gbds[2 * MAXTREEDEPTH];
+
 void Get_GBDs(int greqd)				// get n free GBDs
 { int i;						// a handy int
   int curr;						// current count
@@ -252,9 +258,15 @@ void Get_GBDs(int greqd)				// get n free GBDs
   gbd *last;						// and another
   time_t now;						// current time
   int pass = 0;						// pass number
+  int gfree;                                            // no. of free GBDs
+  int force_clear;                                      // force clear of refd
 
 start:
+  force_clear = 0;
   while (SemOp(SEM_GLOBAL, WRITE));                     // get write lock
+retry:
+  nrsvd_gbds = 0;
+  gfree = 0;                                            // clear no. of free
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
   curr = 0;						// clear current  
   while (ptr != NULL)					// while some there
@@ -266,7 +278,8 @@ start:
   }							// end while
   now = MTIME(0) + 1;					// get current time +
 
-  i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  // i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  i = hash_start & (GBD_HASH - 1);		        // where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -282,6 +295,7 @@ start:
 	systab->vol[volnum-1]->gbd_hash [GBD_HASH] = ptr; // and this
 	ptr->dirty = NULL;				// ensure clear
 	ptr->last_accessed = (time_t) 0;		// and this
+        ptr->referenced = 0;
 	curr++;						// count this
         if (curr >= greqd)				// if enough there
         { return;					// just exit
@@ -294,13 +308,33 @@ start:
 	}
 	continue;					// next ptr
       }							// end - no block
+#if 0
       if ((ptr->dirty == NULL) &&			// if free
 	  (ptr->last_accessed < now) &&			// and time expired
 	  (ptr->last_accessed > 0))			// and there is a time
       { curr++;						// count that
+        rsvd_gbds[nrsvd_gbds++] = ptr;
         if (curr >= greqd)				// if enough there
         { return;					// just exit
         }
+      }
+#endif
+      if ((ptr->dirty == NULL) &&			// if free
+          (ptr->last_accessed < now) &&
+	  (ptr->last_accessed > 0))			// and there is a time
+      { if (force_clear)
+          ptr->referenced = 0;
+        else if (ptr->referenced)
+          ptr->referenced--;
+        if (0 == ptr->referenced)
+        { curr++;					// count that
+          rsvd_gbds[nrsvd_gbds++] = ptr;
+          if (curr >= greqd)				// if enough there
+          { return;					// just exit
+          }
+        }
+        else
+          gfree++;
       }
 
       last = ptr;					// remember last
@@ -312,7 +346,12 @@ start:
     { break;						// done
     }
   }							// end while (TRUE)
+  if ((0 == force_clear) && (gfree + curr >= greqd))
+  { force_clear = 1;
+    goto retry;
+  }
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
+  systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   Sleep(1);
   pass++;						// increment a pass
   if (pass > 60)					// this is crazy!
@@ -349,6 +388,7 @@ start:
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
     systab->vol[volnum-1]->gbd_hash [GBD_HASH]
       = blk[level]->next;				// unlink it
+    systab->vol[volnum-1]->stats.gbfree++;
     goto exit;						// common exit code
   }
 
@@ -356,8 +396,26 @@ start:
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
 
+  if (nrsvd_gbds)
+  { while (nrsvd_gbds)
+    { ptr = rsvd_gbds[--nrsvd_gbds];
+      if ((ptr->dirty == NULL) &&			// if free
+          (ptr->last_accessed < now) &&                 // and time expired
+	  (ptr->last_accessed > 0))			// and there is a time
+      { old = ptr->last_accessed;			// save time
+        oldptr = ptr;					// save the ptr
+        hash = ptr->block & (GBD_HASH - 1);		// and the hash
+        hash_start = hash;
+        systab->vol[volnum-1]->stats.gbrsvd++;
+        goto quite_old;
+      }
+    }
+  }
+
+  systab->vol[volnum-1]->stats.gbsrch++;
+
   // i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
-  i = hash_start & (GBD_HASH - 1);		// where to start
+  i = hash_start & (GBD_HASH - 1);		        // where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -376,6 +434,7 @@ start:
 	blk[level] = ptr;				// store where reqd
 	goto exit;					// common exit code
       }							// end found expired
+#if 0
       if ((ptr->dirty == NULL) &&
           (ptr->last_accessed <= old_last_accessed) &&
           (ptr->last_accessed > 0))
@@ -392,6 +451,33 @@ start:
 	oldptr = ptr;					// save the ptr
 	hash = i;					// and the hash
       }
+#endif
+      if ((ptr->dirty == NULL) &&
+          (ptr->last_accessed > 0))
+      { if (ptr->referenced)
+          ptr->referenced--;
+        if (0 == ptr->referenced)
+        { old = ptr->last_accessed;			// save time
+	  oldptr = ptr;					// save the ptr
+	  hash = i;					// and the hash
+          hash_start = i;
+          goto quite_old;
+        }
+        else if (ptr->last_accessed < old)
+        { old = ptr->last_accessed;
+          oldptr = ptr;
+          hash = i;
+        }
+      }
+#if 0
+      if ((ptr->dirty == NULL) &&			// if free
+	  (ptr->last_accessed < old) &&			// and less than oldest
+	  (ptr->last_accessed > 0))			// and there is a time
+      { old = ptr->last_accessed;			// save time
+	oldptr = ptr;					// save the ptr
+	hash = i;					// and the hash
+      }
+#endif
       last = ptr;					// save last
       ptr = ptr->next;					// point at next
     }							// end 1 hash list
@@ -405,6 +491,7 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
+    systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
     Sleep(1);						// wait
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again

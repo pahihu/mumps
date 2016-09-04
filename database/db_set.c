@@ -157,10 +157,12 @@ start:
   }
 #endif
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+#if 0
   fprintf(stderr,"Set_data(): MinSlots=%d j=%d dQr=%d dQw=%d\r\n",
                   MinSlots, j,
                   systab->vol[volnum - 1]->dirtyQr,
                   systab->vol[volnum - 1]->dirtyQw);
+#endif
   systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   Sleep(1);
   goto start;

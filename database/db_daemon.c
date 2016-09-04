@@ -63,21 +63,23 @@ int do_zot(u_int gb);					// zot block and lower
 void do_free(u_int gb);					// free from map et al
 void ic_map(int flag, int dbfd);			// check the map
 void daemon_check();					// ensure all running
+static time_t last_daemon_check;                        // last daemon_check()
 
 //------------------------------------------------------------------------------
 // Function: MSLEEP
-// Descript: sleep given seconds, if daemon 0 update Mtime
+// Descript: sleep given milliseconds, if daemon 0 update Mtime
 // Input(s): seconds to wait
 // Return:   return value of sleep() system call
 //
 
 static
-u_int MSLEEP(u_int seconds)
+u_int MSLEEP(u_int mseconds)
 {
   if (!myslot)
     systab->Mtime = time(0);
 
-  return sleep(seconds);
+  //return sleep(seconds);
+  return usleep(1000 * mseconds);
 }
 
 //-----------------------------------------------------------------------------
@@ -110,6 +112,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
+  last_daemon_check = (time_t) 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -146,10 +149,10 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   { ic_map(-3, dbfd);					// doit
   }
 
-  i = MSLEEP(1);					// wait a bit
+  i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  { i = MSLEEP(1);					// rest
+  { i = MSLEEP(250);					// rest
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -201,9 +204,9 @@ start:
 	{ break;					// leave loop
 	}
 	daemon_check();					// ensure all running
-	i = MSLEEP(1);					// wait a bit
+	i = MSLEEP(1000);				// wait a bit
       }							// end while (TRUE)
-      i = MSLEEP(1);					// just a bit more
+      i = MSLEEP(1000);					// just a bit more
       systab->vol[volnum-1]->writelock = abs(systab->vol[volnum-1]->writelock);
       // Set the writelock to a positive value when all quiet
     }							// end wrtlock
@@ -316,7 +319,7 @@ void do_dismount()					// dismount volnum
     }
     SemOp( SEM_WD, -WRITE );				// unlock daemon table
     if (i)						// if pids still around
-    { MSLEEP(1);					// wait a second...
+    { MSLEEP(1000);					// wait a second...
     }
   }							// end wait for daemons
   SemStats();                                           // print sem stats
@@ -586,7 +589,7 @@ void do_free(u_int gb)					// free from map et al
     // ;
     { break;						// it worked
     }
-    MSLEEP(1);						// wait a bit
+    MSLEEP(1000);					// wait a bit
   }
   
   Free_block(gb);					// free the block
@@ -619,6 +622,9 @@ void daemon_check()					// ensure all running
 { int i;						// a handy int
   int fit;
 
+  if (last_daemon_check == systab->Mtime)
+    return;
+
   while (SemOp(SEM_WD, WRITE));				// lock WD
   for (i = 0; i < systab->vol[volnum - 1]->num_of_daemons; i++)
   { if (i != myslot)					// don't check self
@@ -633,5 +639,7 @@ void daemon_check()					// ensure all running
     }
   }							// end daemon check
   SemOp(SEM_WD, -WRITE);				// release lock
+
+  last_daemon_check = systab->Mtime;
   return;
 }

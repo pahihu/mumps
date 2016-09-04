@@ -100,6 +100,7 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   time_t last_accessed;					// last time used
   u_int  blkver_low;                                    // blk version LOW
   u_int  blkver_high;                                   // blk version HIGH
+  u_int  referenced;
 } gbd;							// end gbd struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record

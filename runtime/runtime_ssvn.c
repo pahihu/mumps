@@ -436,6 +436,14 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.dqstall);
 	if (strncasecmp( (char *) subs[2]->buf, "gqstall\0", 8) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.gqstall);
+	if (strncasecmp( (char *) subs[2]->buf, "gbwait\0", 7) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gbwait);
+	if (strncasecmp( (char *) subs[2]->buf, "gbfree\0", 7) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gbfree);
+	if (strncasecmp( (char *) subs[2]->buf, "gbrsvd\0", 7) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gbrsvd);
+	if (strncasecmp( (char *) subs[2]->buf, "gbsrch\0", 7) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gbsrch);
       }						// end of "VOL"
       return (-ERRM38);				// junk
   }						// end of switch

@@ -71,6 +71,7 @@ int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 int wanna_writing;                                      // 
+extern int nrsvd_gbds;
 
 int hash_start = 0;					// start searching here
 
@@ -98,6 +99,7 @@ short Copy2local(mvar *var, char *rtn)
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
   wanna_writing = 0;
+  nrsvd_gbds = 0;
   level = -1;						// no claimed gbds yet
   bcopy(var, &db_var, sizeof(var_u)+4+var->slen);	// copy the data
   if (db_var.volset == 0)				// if volset is zero
