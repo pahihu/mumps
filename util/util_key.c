@@ -44,7 +44,7 @@
 #include "error.h"                              // errors
 #include "compile.h"				// for rbd definition
 
-#define ASC_NUMBERS     1                       // Numbers in ASCII, else
+#define ASC_NUMBERS     0                       // Numbers in ASCII, else
                                                 //   compressed decimals
 
 //*** Function: UTIL_Key_Build - Build a key from an ascii source *********
@@ -58,7 +58,7 @@ short UTIL_Key_Build( cstring *src,             // locn of source string
   int idx = 0;					// for src->buf[]
   int i;                                        // for loops
   u_char dd;
-  int j, odd;
+  int j;
 
   if ((src->len < 0) || (src->len > 127))       // neg or > 127 is illegal
   { return -(ERRZ1+ERRMLAST);			// complain
@@ -122,14 +122,14 @@ short UTIL_Key_Build( cstring *src,             // locn of source string
     { dest[to++] = src->buf[i]; 		// copy remainder
     }
 #else
-    dd = 0; odd = dp & 1;
-    for (i = 0; i < dp; i++)
+    dd = 0;
+    for (i = 0, j = 0; i < dp; i++, j++)
     { dd <<= 4;
       dd |= src->buf[i] - '0';
-      if ((i + odd) & 1)
+      if (j & 1)
         dest[to++] = 1 + dd;
     }
-    for (i = dp + 1, j = 0; i < src->len; i++, j++)
+    for (i = dp + 1; i < src->len; i++, j++)
     { dd <<= 4;
       dd |= src->buf[i] - '0';
       if (j & 1)
@@ -160,13 +160,9 @@ short UTIL_Key_Build( cstring *src,             // locn of source string
     if (j & 1)
       dest[to++] = 1 + dd;
   }
-  if (j & 1)
-  { dd <<= 4;
-    dest[to++] = 1 + dd;
-  }
   if (src->buf[i] == '.')
     i++;
-  for (j = 0; i < src->len; i++, j++)
+  for (; i < src->len; i++, j++)
   { dd <<= 4;
     dd |= src->buf[i] - '0';
     if (j & 1)
@@ -213,6 +209,7 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
   int flg;					// flag for quotes in string
   int n;
   u_char dd, d0, d1;
+  int dpos;
 
   flg = *cnt;					// get the flag
   s = *key++;                                   // get first char
@@ -234,7 +231,7 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
   }                                             // end of string processing
 
   if (s & 64)                                   // if it's a positive number
-  { s &= 63;                                    // extract dp position
+  { dpos = (s &= 63);                           // extract dp position
     if ((*key == '\0') && (s == 0))		// check for numeric 0
     { str[idx++] = '0';				// add zero
       str[idx] = '\0';				// null terminate
@@ -244,16 +241,18 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
 #if ASC_NUMBERS
     for (i = 0; i < s; i++) str[idx++] = *key++; // copy to dp
 #else
-    n = (s + 1) >> 1;
+    n = (dpos + 1) >> 1;
     for (i = 0; i < n; i++)
     { dd = *key++ - 1;
       d0 = (dd & 0xF0) >> 4;
       d1 = (dd & 0x0F);
-      if ((i != 0) || (0 != d0))
-      { str[idx++] = '0' + d0; s++;
-      }
-      str[idx++] = '0' + d1; s++;
+      str[idx++] = '0' + d0;
+      str[idx++] = '0' + d1;
     }
+    if (dpos & 1)
+    { idx--;
+    }
+    s = n;
 #endif
     str[idx] = 0;				// null term (in case)
     *cnt = s+2;	                                // assume no dp, save count
@@ -262,14 +261,18 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
 #if ASC_NUMBERS
     while ((str[idx++] = *key++)) s++;          // move to NULL, counting
 #else
+    if (dpos & 1)
+    { str[idx++] = '0' + d1;
+    }
     while ((dd = *key++))
     { d0 = (dd & 0xF0) >> 4;
       d1 = (dd & 0x0F);
-      str[idx++] = '0' + d0; s++;
-      str[idx++] = '0' + d1; s++;
+      s++;
+      str[idx++] = '0' + d0;
+      str[idx++] = '0' + d1;
     }
     if ('0' == str[idx - 1])
-    { idx--; s--;
+    { idx--;
     }
     str[idx++] = '\0';
 #endif
@@ -279,22 +282,24 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
     return (short) idx;                         // return string count
   }                                             // end of positive number
 
-  s = 63 - s;                                   // get negative count
+  dpos = (s = 63 - s);                          // get negative count
   str[idx++] = '-';                             // save minus sign
 #if ASC_NUMBERS
   for (i = 0; i < s; i++)                       // copy to dp
     str[idx++] = ('9' + '0' -*key++);           // doing a 9's complement
 #else
-  n = (s + 1) >> 1;
+  n = (dpos + 1) >> 1;
   for (i = 0; i < n; i++)
   { dd = *key++ - 1;
     d0 = 9 - ((dd & 0xF0) >> 4);
     d1 = 9 - (dd & 0x0F);
-    if ((i != 0) || (0 != d0))
-    { str[idx++] = '0' + d0; s++;
-    }
-    str[idx++] = '0' + d1; s++;
+    str[idx++] = '0' + d0;
+    str[idx++] = '0' + d1;
   }
+  if (dpos & 1)
+  { idx--;
+  }
+  s = n;
 #endif
   str[idx] = 0;					// null term (in case)
   *cnt = s + 2;                                 // update the count
@@ -307,16 +312,20 @@ short UTIL_Key_Extract( u_char *key,            // where the key is
     str[idx++] = ('9' + '0' -*key++);           // copy a 9's complement
   }                                             // end while
 #else
+  if (s & 1)
+  { str[idx++] = '0' + d1; s++;
+  }
   while (TRUE)
   { dd = *key++;
     if (dd == 255) break;
+    s++;
     d0 = 9 - ((dd & 0xF0) >> 4);
     d1 = 9 - (dd & 0x0F);
-    str[idx++] = '0' + d0; s++;
-    str[idx++] = '0' + d1; s++;
+    str[idx++] = '0' + d0;
+    str[idx++] = '0' + d1;
   }
   if ('0' == str[idx - 1])
-  { idx--; s--;
+  { idx--;
   }
 #endif
   if (s > 127) return -(ERRZ1+ERRMLAST);        // check size
