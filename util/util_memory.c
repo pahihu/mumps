@@ -227,6 +227,9 @@ exit:
   return (short) i;				// exit
 }
 
+extern u_int locqry;
+extern u_int lochit;
+
 // SemStats is called to print semaphore statistics.
 void SemStats(void)
 {
@@ -241,6 +244,9 @@ void SemStats(void)
             i>>1, i&1, semtab[i].tryfailed_count, semtab[i].backoff_time,
             semtab[i].held_count, semtab[i].held_time);
   }
+  fprintf(stderr,"\r\n");
+  fprintf(stderr,"locqry = %u\r\n", locqry);
+  fprintf(stderr,"lochit = %u\r\n", lochit);
   fflush(stderr);
 }
 

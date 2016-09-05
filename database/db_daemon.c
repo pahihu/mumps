@@ -190,7 +190,7 @@ start:
         panic("do_daemon: write() map block failed");
       }
       systab->vol[volnum-1]->map_dirty_flag = 0;	// unset dirty flag
-      systab->vol[volnum-1]->stats.phywt++;		// count a write
+      ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
     }							// end map write
     if ((!myslot) && (systab->vol[volnum-1]->writelock < 0)) // check wrtlck
     { while (TRUE)					// loop
@@ -392,7 +392,7 @@ void do_write()						// write GBDs
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
         panic("write failed in Write_Chain()!!");
       }
-      systab->vol[volnum-1]->stats.phywt++;		// count a write
+      ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
 
     }							// end write code
 
@@ -416,6 +416,7 @@ void do_write()						// write GBDs
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
     }
+    lastptr->blkver_low++;
     lastptr->dirty = NULL;				// clear old dirtyptr
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
@@ -540,8 +541,8 @@ int do_zot(u_int gb)					// zot block
         { fprintf(stderr, "do_zot: zero of block %d failed\n", i);
           fflush( stderr );                             // flush to the file
         }
-        systab->vol[volnum-1]->stats.phywt++;		// count a write
-        systab->vol[volnum-1]->stats.logwt++;		// and a logical
+        ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+        ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);// and a logical
         do_free(i);					// free the block
       }
     }							// end zotting
@@ -568,8 +569,8 @@ zotit:
     fflush( stderr );                                   // flush to the file
     typ = -1;						// flag fail
   }
-  systab->vol[volnum-1]->stats.phywt++;			// count a write
-  systab->vol[volnum-1]->stats.logwt++;			// and a logical
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);	// count a write
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);	// and a logical
   free(bptr);						// free memory
   do_free(gb);						// and the block
   return typ;						// return the type

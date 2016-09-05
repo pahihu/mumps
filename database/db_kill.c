@@ -98,8 +98,8 @@ start:
     qpos = (qpos + 1) & (NUM_GARB - 1);
   }
 #endif
-  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
   systab->vol[volnum - 1]->stats.gqstall++;             // count garbQ stall
+  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
   Sleep(1);
   goto start;
 
@@ -152,7 +152,7 @@ cont:
     *(u_int *) record = PTR_UNDEFINED;			// mark as junk
     Tidy_block();					// and tidy it
 
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
@@ -217,7 +217,7 @@ cont:
     }							// end removing recs
 
     Tidy_block();					// tidy the block
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
@@ -391,7 +391,7 @@ cont:
   blk[level] = NULL;					// clear this
   for (i = top; i <= rlevel; i++)			// scan left list
   { 
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[i]->blkver_low++;
 #endif
     if (blk[i]->dirty == (gbd *) 1)			// reserved?
@@ -407,7 +407,7 @@ cont:
   for (i = top + 1; i <= rlevel; i++)			// scan right list
   { if (rblk[i] != NULL)				// if anything there
     { 
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
       rblk[i]->blkver_low++;
 #endif
       if (rblk[i]->dirty == (gbd *) 1)			// reserved?

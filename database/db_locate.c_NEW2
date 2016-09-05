@@ -48,8 +48,76 @@
 #include "error.h"					// error strings
 #include <assert.h>
 
-       int     KeyBufBuilt;
-static u_short LastIndex;
+        int     KeyBufBuilt;
+static  u_short LastIndex;
+static  u_short PrevChunk[32*1024];
+
+static struct
+{ u_int block;
+  u_int blkver_low;
+  u_int blkver_high;
+} blkcache[MAXTREEDEPTH];
+static int nblkcache = 0;
+
+        u_int   locqry = 0;
+        u_int   lochit = 0;
+
+//-----------------------------------------------------------------------------
+// Function:    FindShorterChunk
+// Descript:    find a previous chunk which has shorter
+//              prefix than prefixLen.
+// Input(s):    from - where to start, prefixLen - upper limit
+// Return:      index of chunk
+//
+
+static
+u_short FindShorterChunk(u_short from, u_short prefixLen)
+{
+  cstring *tsunk;
+
+  for (from-- ; from >= LOW_INDEX; from--)              // backward search
+  { 
+    tsunk = (cstring*) &iidx[idx[from]];
+    if (tsunk->buf[0] < prefixLen)                      // prefix is shorter?
+      return from;                                      // done
+  }
+  return LOW_INDEX;                                     // sentinel
+}
+
+//-----------------------------------------------------------------------------
+// Function:    GetPrevChunkIndex
+// Descript:    return the index of the previous chunk
+//              which is necessary to build keybuf[] for
+//              Index x
+// Input(s):    x - Index
+// Returns:     index of previous chunk
+//
+
+static
+u_short GetPrevChunkIndex(u_short x)
+{
+  u_char  prefixLen;
+  cstring *tsunk;
+
+  if (LOW_INDEX > x)
+    panic("GetPrevChunkIndex: LOW_INDEX > x");
+  if (x > blk[level]->mem->last_idx)
+    panic("GetPrevChunkIndex: x > blk[level]->mem->last_idx");
+
+  //if (PrevChunk[x])                                     // already calculated
+  //  return PrevChunk[x];
+
+  tsunk = (cstring*) &iidx[idx[x]];
+  prefixLen = tsunk->buf[0];
+  PrevChunk[x] = prefixLen ? FindShorterChunk(x, prefixLen) : x;
+  if (LOW_INDEX > PrevChunk[x])
+    panic("GetPrevChunkIndex: LOW_INDEX > PrevChunk[x]");
+  if (PrevChunk[x] > blk[level]->mem->last_idx)
+    panic("GetPrevChunkIndex: PrevChunk[x] > blk[level]->mem->last_idx");
+  if (PrevChunk[x] > x)
+    panic("GetPrevChunkIndex: PrevChunk[x] > x");
+  return PrevChunk[x];
+}
 
 //-----------------------------------------------------------------------------
 // Function:    Build_KeyBuf
@@ -61,21 +129,41 @@ static u_short LastIndex;
 static
 void Build_KeyBuf(void)
 {
-  int i;                                                // handy ints
+  u_short x;                                            // current Index
+  u_short prev;                                         // previous chunk idx
+  u_short chunkidx[256];                                // stores the chunk idxs
+  int i, j, done;                                       // handy ints
   int goingup;
   cstring *tsunk;
 
   // fprintf(stderr,"--- Collect_Chunks(Index = %d, LastIndex = %d)\r\n", Index, LastIndex);
   goingup = LastIndex < Index;                          // going upwards
-  if (goingup)
-  { i = LastIndex + 1;
-    goto fill;
-  }
-  i = LOW_INDEX;
+  j = 256;                                              // point to end of cidx
+  x = Index;                                            // start at Index
+  do
+  { prev = PrevChunk[x];
+    if (!prev) prev = GetPrevChunkIndex(x);
+    if (LOW_INDEX > prev)
+      panic("Build_KeyBuf: LOW_INDEX > prev");
+    if (prev > blk[level]->mem->last_idx)
+    { // fprintf(stderr,"wr_flag: %d\r\n", wr_flag);
+      // fprintf(stderr,"cache mode: %d\r\n", cache_mode);
+      fprintf(stderr,"blk: %d x: %d\r\n", level, x);
+      fprintf(stderr,"last_idx: %d prev: %d\r\n", blk[level]->mem->last_idx, prev);
+      panic("Build_KeyBuf: prev > blk[level]->mem->last_idx");
+    }
+    chunkidx[--j] = prev;                               // collect chunk idxs
+    done = (prev == x) || (prev == LOW_INDEX);          // done ?
+    if (goingup && (prev <= LastIndex))                 // reached last Idx
+    { done = TRUE;                                      // then done
+      j++;                                              // pop last entry
+    }
+    x = prev;                                           // recurse
+  } while (!done);
 
-fill:
-  for ( ; i < Index; i++)                               // for all collected idx
-  { // fprintf(stderr,"i = %d\r\n", i);
+  for ( ; j < 256; j++)                                 // for all collected idx
+  { i = chunkidx[j];
+    // fprintf(stderr,"i = %d\r\n", i);
     tsunk = (cstring *) &iidx[idx[i]];	                // point at the chunk
     bcopy(&tsunk->buf[2], &keybuf[tsunk->buf[0]+1],
 	  tsunk->buf[1]);				// update the keybuf
@@ -108,14 +196,53 @@ short LocateEx(u_char *key, int frominsert)		// find key
 { int i;						// a handy int
   int L, R;                                             // bin.search limits
   int wr_flag;
-
+  int found;
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
   Index = LOW_INDEX;					// start at the start
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
 
-  wr_flag = writing + wanna_writing;
+  bzero(PrevChunk + L, (R - L + 1) * sizeof(u_short));
+
+  locqry++;
+
+  wr_flag = blk[level]->dirty != 0;
+  if (0 == wr_flag)
+  { found = 0;
+    for (i = nblkcache; i >= 0; i--)
+    { if (blkcache[i].block != blk[level]->block)
+        continue;
+      if ((blkcache[i].blkver_low == blk[level]->blkver_low) &&
+          (blkcache[i].blkver_high == blk[level]->blkver_high))
+      { found = 1;
+        lochit++;
+        break;
+      }
+    }
+    if (0 == found)
+    { blkcache[level].block = blk[level]->block;
+      blkcache[level].blkver_low  = blk[level]->blkver_low;
+      blkcache[level].blkver_high = blk[level]->blkver_high;
+      nblkcache = level;
+    }
+  }
+#if 0
+  if (wr_flag ||
+      (level > nblkcache) ||
+      (blk[level]->block != blkcache[level].block) ||
+      (blk[level]->blkver_low != blkcache[level].blkver_low) ||
+      (blk[level]->blkver_high != blkcache[level].blkver_high))
+  { if (0 == wr_flag)
+    { blkcache[level].block = blk[level]->block;
+      blkcache[level].blkver_low  = blk[level]->blkver_low;
+      blkcache[level].blkver_high = blk[level]->blkver_high;
+      nblkcache = level;
+    }
+  }
+  else
+    systab->vol[volnum-1]->stats.lochit++;
+#endif
 
   LastIndex = R + 1;                                    // setup LastIndex
   KeyBufBuilt = 0;

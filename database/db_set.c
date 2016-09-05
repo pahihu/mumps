@@ -156,6 +156,7 @@ start:
     qpos = (qpos + 1) & (NUM_DIRTY - 1);
   }
 #endif
+  systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
 #if 0
   fprintf(stderr,"Set_data(): MinSlots=%d j=%d dQr=%d dQw=%d\r\n",
@@ -163,7 +164,6 @@ start:
                   systab->vol[volnum - 1]->dirtyQr,
                   systab->vol[volnum - 1]->dirtyQw);
 #endif
-  systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   Sleep(1);
   goto start;
 
@@ -236,7 +236,7 @@ cont:
       return s;						// return the error
     }
 
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
@@ -247,7 +247,7 @@ cont:
     { blk[level + 1]->dirty = blk[level + 1];		// point new at self
     }
     level++;						// back to new block
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
     idx = (u_short *) blk[level]->mem;			// point at the block
@@ -286,7 +286,7 @@ cont:
       }
       Allign_record();					// allign to 4 byte
       ((u_int *) record)[1] |= GL_TOP_DEFINED;		// mark defined
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
       blk[level]->blkver_low++;
 #endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
@@ -310,7 +310,7 @@ cont:
     { if (s < 0)
       { return s;					// exit on error
       }
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
       blk[level]->blkver_low++;
 #endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
@@ -340,7 +340,7 @@ cont:
       }
       record->len = data->len;				// copy length
       bcopy(data->buf, record->buf, data->len);		// and the data
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
       blk[level]->blkver_low++;
 #endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
@@ -377,7 +377,7 @@ cont:
     record->len = NODE_UNDEFINED;			// zot current data
     Tidy_block();					// tidy it
     s = Insert(&db_var.slen, data);			// try it
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
@@ -626,7 +626,7 @@ fix_keys:
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
   { 
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     if (blk[i]->dirty != (gbd *) 1)
       blk[i]->blkver_low++;
 #endif
@@ -647,7 +647,7 @@ fix_keys:
   { if (cblk[i] == NULL)				// if empty
     { continue;						// ignore it
     }
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
     cblk[i]->blkver_low++;
 #endif
     if (cblk[i]->dirty == (gbd *) 1)			// not queued

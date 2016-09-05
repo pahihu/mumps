@@ -70,6 +70,9 @@
 // MUMPS time
 #define MTIME(x)        systab->Mtime                   // updated by daemon 0
 
+#include <libkern/OSAtomic.h>
+#define ATOMIC_INCREMENT(x)     OSAtomicIncrement32((volatile int32_t*)&(x))
+
 // **** Structures ***********************************************************
 
 typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
@@ -94,6 +97,7 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 
 #define MV1_CACHE	0
 #define MV1_REFD	1
+#define MV1_BLKVER      1
 #undef MV1_RSVD
 #undef MV1_FORCE
 
@@ -103,7 +107,7 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   struct DB_BLOCK *mem;					// memory address of blk
   struct GBD *dirty;					// to write -> next
   time_t last_accessed;					// last time used
-#if MV1_CACHE == 0
+#ifdef MV1_BLKVER
   u_int  blkver_low;                                    // blk version LOW
   u_int  blkver_high;                                   // blk version HIGH
 #endif

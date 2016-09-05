@@ -619,7 +619,7 @@ short Compress1()
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
   { if (blk[i] != NULL)
     {
-#ifdef MV1_BLKVER 
+#ifdef XMV1_BLKVER 
       if (blk[i]->dirty != (gbd *) 1)
         blk[i]->blkver_low++;
 #endif

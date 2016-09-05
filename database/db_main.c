@@ -175,7 +175,7 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
     // This code must then be copied to all 10 other calls to Copy2local
     //
   }
-  systab->vol[volnum-1]->stats.dbget++;                 // update stats
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
   s = Get_data(0);					// attempt to get it
   if (s >= 0)						// if worked
   { if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
@@ -215,8 +215,8 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   if (i > (systab->vol[volnum-1]->vollab->block_size - BLK_HDR_SIZE)) // if too big
   { return -ERRM75;					// return an error
   }
-  systab->vol[volnum-1]->stats.dbset++;                 // update stats
   writing = 1;						// say we are writing
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
@@ -259,7 +259,7 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbdat++;                 // update stats
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbdat); // update stats
   s = Get_data(0);					// attempt to get it
   i = 1;						// assume data found
   if (s == -ERRM7)					// undefined global?
@@ -322,7 +322,6 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbkil++;                 // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
@@ -330,6 +329,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
     }
   }							// end writelock check
   wanna_writing = 1;
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbkil); // update stats
   s = Get_data(0);					// attempt to get it
   if (((s == -ERRM7) && (level == 0)) ||		// if nosuch
       ((s < 0) && (s != -ERRM7)))			// or an error
@@ -398,7 +398,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbord++;                 // update stats
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbord); // update stats
   last_key = UTIL_Key_Last(&db_var);			// get start of last
   buf[0] = '\0';					// null terminate ret
   if (dir < 0)						// if it's backward
@@ -486,7 +486,7 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbqry++;                 // update stats
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (dir < 0)						// if it's backward
   { s = Get_data(-1);					// get the previous
     if ((s < 0) && (s != -ERRM7))			// check for errors
@@ -855,8 +855,8 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   if (s < 0)
   { return s;						// exit on error
   }
-  systab->vol[volnum-1]->stats.dbset++;                 // update stats
   writing = 1;						// say we are writing
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
@@ -879,7 +879,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { i = i | flags;					// set flags
   }
   ((int *)record)[1] = i;				// set back to GD
-#ifdef MV1_BLKVER
+#ifdef XMV1_BLKVER
   blk[level]->blkver_low++;
 #endif
   if (blk[level]->dirty == (gbd *) 1)			// if reserved

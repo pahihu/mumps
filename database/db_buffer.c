@@ -96,7 +96,7 @@ short Get_block(u_int blknum)                           // Get block
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
 
-  systab->vol[volnum-1]->stats.logrd++;                 // update stats
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
   ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
@@ -394,8 +394,8 @@ retry:
     goto retry;
   }
 #endif
-  SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
+  SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   Sleep(1);
   pass++;						// increment a pass
   if (pass > 60)					// this is crazy!
@@ -432,7 +432,6 @@ start:
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
     systab->vol[volnum-1]->gbd_hash [GBD_HASH]
       = blk[level]->next;				// unlink it
-    systab->vol[volnum-1]->stats.gbfree++;
     goto exit;						// common exit code
   }
 
@@ -457,8 +456,6 @@ start:
     }
   }
 #endif
-
-  systab->vol[volnum-1]->stats.gbsrch++;
 
 #if MV1_CACHE
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
@@ -542,8 +539,8 @@ start:
   { if (writing)					// SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
-    SemOp(SEM_GLOBAL, -curr_lock);			// release current
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
+    SemOp(SEM_GLOBAL, -curr_lock);			// release current
     Sleep(1);						// wait
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
