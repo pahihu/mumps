@@ -181,12 +181,10 @@ void Queit()						// que a gbd for write
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
-  // ptr->blkver_low++;
   // fprintf(stderr,"Queit: %d",ptr->block);
   systab->vol[volnum-1]->stats.logwt++;			// incr logical
   while (ptr->dirty != ptr)				// check it
   { ptr = ptr->dirty;					// point at next
-    // ptr->blkver_low++;
     // fprintf(stderr," %d",ptr->block);
     systab->vol[volnum-1]->stats.logwt++;		// incr logical
   }
@@ -620,8 +618,11 @@ short Compress1()
   blk[level] = NULL;					// clear it
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
   { if (blk[i] != NULL)
-    { if (blk[i]->dirty != (gbd *) 1)
+    {
+#ifdef MV1_BLKVER 
+      if (blk[i]->dirty != (gbd *) 1)
         blk[i]->blkver_low++;
+#endif
       if (blk[i]->dirty == (gbd *) 2)			// if changed
       { if (blk[level] == NULL)				// list empty
         { blk[i]->dirty = blk[i];			// point at self

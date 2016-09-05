@@ -92,15 +92,24 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #define LOW_INDEX       22
 #endif
 
+#define MV1_CACHE	0
+#define MV1_REFD	1
+#undef MV1_RSVD
+#undef MV1_FORCE
+
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
   struct GBD *next;					// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
   struct GBD *dirty;					// to write -> next
   time_t last_accessed;					// last time used
+#if MV1_CACHE == 0
   u_int  blkver_low;                                    // blk version LOW
   u_int  blkver_high;                                   // blk version HIGH
+#endif
+#ifdef MV1_REFD
   u_int  referenced;
+#endif
 } gbd;							// end gbd struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record

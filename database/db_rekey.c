@@ -132,8 +132,10 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     *( (u_int *) record) = blk[1]->block;		// new top level blk
     level = 1;
     blk[level]->dirty = blk[level];			// hook to self
+#ifdef MV1_BLKVER
     blk[level]->blkver_low++;
     blk[0]->blkver_low++;
+#endif
     if (blk[0]->dirty == (gbd *) 1)			// if not queued
     { blk[0]->dirty = blk[level];			// hook it
       level = 0;					// and clear level
@@ -161,7 +163,10 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
   s = Insert(&db_var.slen, ptr);			// attempt to insert
   if (s == 0)						// if that worked
-  { blk[level]->blkver_low++;
+  { 
+#ifdef MV1_BLKVER
+    blk[level]->blkver_low++;
+#endif
     if (blk[level]->dirty == (gbd *) 1)
     { blk[level]->dirty = blk[level];			// hook to self
       Queit();						// and que
@@ -353,8 +358,11 @@ fix_keys:
 
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
-  { if (blk[i]->dirty != (gbd *) 1)
+  { 
+#ifdef MV1_BLKVER
+    if (blk[i]->dirty != (gbd *) 1)
       blk[i]->blkver_low++;
+#endif
     if (blk[i]->dirty == (gbd *) 2)			// if changed
     { if (blk[level] == NULL)				// list empty
       { blk[i]->dirty = blk[i];				// point at self
@@ -373,7 +381,9 @@ fix_keys:
   { if (cblk[i] == NULL)				// if empty
     { continue;						// ignore it
     }
+#ifdef MV1_BLKVER
     cblk[i]->blkver_low++;
+#endif
     if (cblk[i]->dirty == (gbd *) 1)			// not queued
     { if (blk[level] == NULL)				// list empty
       { cblk[i]->dirty = cblk[i];			// point at self

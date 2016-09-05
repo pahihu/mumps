@@ -236,7 +236,9 @@ cont:
       return s;						// return the error
     }
 
+#ifdef MV1_BLKVER
     blk[level]->blkver_low++;
+#endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// terminate list
       blk[level + 1]->dirty = blk[level];		// point new here
@@ -245,8 +247,9 @@ cont:
     { blk[level + 1]->dirty = blk[level + 1];		// point new at self
     }
     level++;						// back to new block
+#ifdef MV1_BLKVER
     blk[level]->blkver_low++;
-    blk[level]->blkver_low++;
+#endif
     idx = (u_short *) blk[level]->mem;			// point at the block
     iidx = (int *) blk[level]->mem;			// point at the block
     Index = LOW_INDEX;					// start at the start
@@ -283,7 +286,9 @@ cont:
       }
       Allign_record();					// allign to 4 byte
       ((u_int *) record)[1] |= GL_TOP_DEFINED;		// mark defined
+#ifdef MV1_BLKVER
       blk[level]->blkver_low++;
+#endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
@@ -305,7 +310,9 @@ cont:
     { if (s < 0)
       { return s;					// exit on error
       }
+#ifdef MV1_BLKVER
       blk[level]->blkver_low++;
+#endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
@@ -333,7 +340,9 @@ cont:
       }
       record->len = data->len;				// copy length
       bcopy(data->buf, record->buf, data->len);		// and the data
+#ifdef MV1_BLKVER
       blk[level]->blkver_low++;
+#endif
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
         Queit();					// que for write
@@ -368,7 +377,9 @@ cont:
     record->len = NODE_UNDEFINED;			// zot current data
     Tidy_block();					// tidy it
     s = Insert(&db_var.slen, data);			// try it
+#ifdef MV1_BLKVER
     blk[level]->blkver_low++;
+#endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// point at self
       Queit();						// que for write
@@ -614,8 +625,11 @@ fix_keys:
 
   blk[level] = NULL;					// clear this
   for (i = level - 1; i >= 0; i--)			// scan ptr blks
-  { if (blk[i]->dirty != (gbd *) 1)
+  { 
+#ifdef MV1_BLKVER
+    if (blk[i]->dirty != (gbd *) 1)
       blk[i]->blkver_low++;
+#endif
     if (blk[i]->dirty == (gbd *) 2)			// if changed
     { if (blk[level] == NULL)				// list empty
       { blk[i]->dirty = blk[i];				// point at self
@@ -633,7 +647,9 @@ fix_keys:
   { if (cblk[i] == NULL)				// if empty
     { continue;						// ignore it
     }
+#ifdef MV1_BLKVER
     cblk[i]->blkver_low++;
+#endif
     if (cblk[i]->dirty == (gbd *) 1)			// not queued
     { if (blk[level] == NULL)				// list empty
       { cblk[i]->dirty = cblk[i];			// point at self

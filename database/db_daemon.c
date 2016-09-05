@@ -152,7 +152,9 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
+  // { i = MSLEEP(1000);					// rest
   { i = MSLEEP(250);					// rest
+  // { i = MSLEEP(125);					// rest
     do_daemon();					// do something
   }
   return 0;						// never gets here

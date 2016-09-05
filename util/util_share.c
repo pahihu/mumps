@@ -117,10 +117,11 @@ short SemLock(int sem_num, int numb)
     s = semop(systab->sem_id, &buf, 1);         // doit
   }
 
-/*
+// #define MV1_PROFILE 1
+#ifdef MV1_PROFILE
   if (s == 0)
     gettimeofday(&sem_start[sem_num], NULL);
-*/
+#endif
   return s;
 }
  
@@ -137,13 +138,13 @@ short SemUnlock(int sem_num, int numb)
   buf.sem_op = (short) numb;                    // and the number of them
   s = semop(systab->sem_id, &buf, 1);
 
-/*
+#ifdef MV1_PROFILE
   gettimeofday(&tv, NULL);
   curr_held_time = 1000000 * (tv.tv_sec  - sem_start[sem_num].tv_sec) +
                              (tv.tv_usec - sem_start[sem_num].tv_usec);
   semtab[x].held_time += curr_held_time;
   sem_start[sem_num] = tv;
-*/
+#endif
 
   semtab[x].held_count++;
   return s;

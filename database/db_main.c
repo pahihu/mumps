@@ -71,7 +71,9 @@ int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 int wanna_writing;                                      // 
+#ifdef MV1_RSVD
 extern int nrsvd_gbds;
+#endif
 
 int hash_start = 0;					// start searching here
 
@@ -99,7 +101,9 @@ short Copy2local(mvar *var, char *rtn)
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
   wanna_writing = 0;
+#ifdef MV1_RSVD
   nrsvd_gbds = 0;
+#endif
   level = -1;						// no claimed gbds yet
   bcopy(var, &db_var, sizeof(var_u)+4+var->slen);	// copy the data
   if (db_var.volset == 0)				// if volset is zero
@@ -875,7 +879,9 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { i = i | flags;					// set flags
   }
   ((int *)record)[1] = i;				// set back to GD
+#ifdef MV1_BLKVER
   blk[level]->blkver_low++;
+#endif
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = blk[level];			// terminate list
     Queit();						// que for write
