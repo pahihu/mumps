@@ -102,7 +102,8 @@ short Get_block(u_int blknum)                           // Get block
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
       while (ptr->last_accessed == (time_t) 0)		// if being read
-      { SchedYield();					// wait for it
+      { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
+        SchedYield();					// wait for it
       }
       goto exit;					// go common exit code
     }
@@ -121,7 +122,8 @@ short Get_block(u_int blknum)                           // Get block
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
         while (ptr->last_accessed == (time_t) 0)	// if being read
-        { SchedYield();					// wait for it
+        { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
+          SchedYield();					// wait for it
         }
         goto exit;					// go common exit code
       }

@@ -293,6 +293,7 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int dqstall;                                // No. of dirtyQ stalls
   u_int gqstall;                                // No. of garbQ stalls
   u_int gbwait;                                 // No. of waits for GBDs
+  u_int rdwait;                                 // No. of waits for read()
 } db_stat;                                      // database statistics
 
 typedef struct MSEM_STAT
