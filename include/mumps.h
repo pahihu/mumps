@@ -260,6 +260,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
   u_char clean;                                 // clean dismount flag
   char journal_file[JNL_FILENAME_MAX + 1];      // journal file name
   uci_tab uci[UCIS];                            // current ucis (at 256!!!)
+  u_int64 txid;                                 // TX id
 } label_block;         				// define the label block
 						// sizeof(label_block) = 1024
 #if MAX_NAME_BYTES == 8
@@ -464,6 +465,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   locktab *lockfree;                            // head of lock free space
   long addoff;                                  // off from systab to add buff
   long addsize;                                 // add buff size
+  u_int64 TxId;                                 // TX id
   time_t Mtime;                                 // Mtime, updated by daemon 0
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs

@@ -316,7 +316,7 @@ int INIT_Start( char *file,                     // database
     systab->vol[0]->upto = 1;			// mark for cleaning
   }
   else
-  { systab->vol[0]->vollab->clean = 1;		// mark as mounted
+  { systab->vol[0]->vollab->clean = 0;		// mark as mounted, was 1
     systab->vol[0]->map_dirty_flag = 1;		// and map needs writing
   }
   jobs = jobs/DAEMONS;                          // number of daemons

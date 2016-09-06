@@ -80,6 +80,7 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 { u_char type;						// block type
   u_char flags;						// flags
   u_short spare;					// future
+  u_int64 blkver;
   u_int right_ptr;					// right pointer
   u_short last_idx;					// last used index off
   u_short last_free;					// last free lw in block
@@ -92,8 +93,8 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #define LOW_INDEX	10                              // BLK_HDR_SIZE
                                                         //   / sizeof(short)
 #else
-#define BLK_HDR_SIZE    44
-#define LOW_INDEX       22
+#define BLK_HDR_SIZE    52                              // 44
+#define LOW_INDEX       26                              // 22
 #endif
 
 #define MV1_CACHE	0
@@ -145,6 +146,7 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 // **** External declarations ************************************************
 // Defined in database/db_main.c
 
+extern u_int64 txid;
 extern int curr_lock;					// lock on globals
 extern int gbd_expired;
 extern mvar db_var;					// local copy of var
