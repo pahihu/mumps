@@ -61,6 +61,13 @@ union semun {
 };
 #endif                                  //linux
 
+#if defined(__CYGWIN__)
+#define IPC_R    000400  /* read permission */
+#define IPC_W    000200  /* write/alter permission */
+#define	SHM_R	(IPC_R)
+#define	SHM_W	(IPC_W)
+#endif
+
 
 
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
@@ -234,7 +241,7 @@ int INIT_Start( char *file,                     // database
   systab->jobtab =
     (jobtab *)&systab->last_blk_used[jobs + 1]; // setup jobtab pointer
   systab->maxjob = jobs;                        // save max jobs
-  systab->start_user = (int) getuid();		// remember who started this
+  systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
 
   systab->lockstart =

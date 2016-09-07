@@ -179,7 +179,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
     goto exit;					// and exit
   }
 
-  partab.jobtab->user = (short) getuid();	// get user number
+  partab.jobtab->user = getuid();		// get user number
 
   if ((partab.jobtab->user == systab->start_user) || // if he started it
       (partab.jobtab->user == 0))		// or is root

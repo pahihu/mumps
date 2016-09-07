@@ -235,14 +235,14 @@ void SemStats(void)
 {
   int i;
 
-  fprintf(stderr,"sem type #tryfail bkoff-us #held    held-us\r\n");
-  fprintf(stderr,"-------------------------------------------\r\n");
+  fprintf(stderr,"sem type #tryfail bkoff-us #held    held-us semop-us\r\n");
+  fprintf(stderr,"----------------------------------------------------\r\n");
   for (i = 0; i < 2*SEM_MAX; i++)
   { if (0 == semtab[i].held_count)
       continue;
-    fprintf(stderr,"%3d %4d %8u %8u %8u %8u\r\n",
+    fprintf(stderr,"%3d %4d %8u %8u %8u %8u %8u\r\n",
             i>>1, i&1, semtab[i].tryfailed_count, semtab[i].backoff_time,
-            semtab[i].held_count, semtab[i].held_time);
+            semtab[i].held_count, semtab[i].held_time, semtab[i].semop_time);
   }
   fprintf(stderr,"\r\n");
   fprintf(stderr,"locqry = %u\r\n", locqry);

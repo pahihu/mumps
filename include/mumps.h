@@ -303,6 +303,7 @@ typedef struct MSEM_STAT
   u_int backoff_time;                           // usecs exp backoff time
   u_int held_time;                              // usecs to held the lock
   u_int held_count;                             // no. of times held
+  u_int semop_time;
 } sem_stat;
 
 struct GBD;                                     // defined in "db_util.h"
@@ -408,7 +409,7 @@ typedef struct __attribute__ ((__packed__)) JOBTAB
   int trap;                                     // outstanding traps
   int attention;                                // do something
   short async_error;                            // async erors
-  short user;                                   // user number
+  uid_t user;                                   // user number
   short priv;                                   // privs this job
   short precision;                              // decimal precision
   u_char io;                                    // current io index
@@ -458,7 +459,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   int precision;                                // decimal precision
   int max_tt;                                   // max TRANTAB used
   trantab tt[MAX_TRANTAB];                      // translation tables
-  int start_user;                               // he's priv too
+  uid_t start_user;                             // he's priv too
   void *lockstart;                              // head of lock table
   int locksize;                                 // how many bytes
   locktab *lockhead;                            // head of used locks

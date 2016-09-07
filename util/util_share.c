@@ -89,6 +89,21 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
 
 static struct timeval sem_start[SEM_MAX];
 
+u_int semop_time;
+
+int Semop(int sem_id, struct sembuf *buf, int nbuf)
+{
+  int s;
+  struct timeval st, et;
+
+  gettimeofday(&st, NULL);
+  s = semop(sem_id, buf, 1);           // doit
+  gettimeofday(&et, NULL);
+  semop_time += 1000000 * (et.tv_sec  - st.tv_sec) +
+                         (et.tv_usec - st.tv_usec);
+  return s;
+}
+
 short TrySemLock(int sem_num, int numb)
 {
   short s;
@@ -96,7 +111,7 @@ short TrySemLock(int sem_num, int numb)
 
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  s = semop(systab->sem_id, &buf, 1);           // doit
+  s = Semop(systab->sem_id, &buf, 1);           // doit
   return s;
 }
 
@@ -110,17 +125,20 @@ short SemLock(int sem_num, int numb)
   if (-1 == numb)       // READ lock
     x += 1;
 
+  semop_time = 0;
   s = TrySemLock(sem_num, numb);
   if (s != 0)
   { buf.sem_num = (u_short) sem_num;            // get the one we want
     buf.sem_op = (short) numb;                  // and the number of them
-    s = semop(systab->sem_id, &buf, 1);         // doit
+    s = Semop(systab->sem_id, &buf, 1);         // doit
   }
 
-// #define MV1_PROFILE 1
+#define MV1_PROFILE 1
 #ifdef MV1_PROFILE
   if (s == 0)
+  { semtab[x].semop_time += semop_time;
     gettimeofday(&sem_start[sem_num], NULL);
+  }
 #endif
   return s;
 }
@@ -136,7 +154,8 @@ short SemUnlock(int sem_num, int numb)
   x = 2*sem_num + (1 == abs(numb) ? 1 : 0);
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  s = semop(systab->sem_id, &buf, 1);
+  semop_time = 0;
+  s = Semop(systab->sem_id, &buf, 1);
 
 #ifdef MV1_PROFILE
   gettimeofday(&tv, NULL);
@@ -144,6 +163,7 @@ short SemUnlock(int sem_num, int numb)
                              (tv.tv_usec - sem_start[sem_num].tv_usec);
   semtab[x].held_time += curr_held_time;
   sem_start[sem_num] = tv;
+  semtab[x].semop_time += semop_time;
 #endif
 
   semtab[x].held_count++;

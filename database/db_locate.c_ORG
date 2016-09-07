@@ -49,6 +49,8 @@
 #include "error.h"					// error strings
 
 int KeyBufBuilt = 0;
+int locqry = 0;
+int lochit = 0;
 
 void UpdateLocateCache(void)
 {

@@ -32,6 +32,7 @@
  *
  */
 
+
 #include <stdio.h>					// always include
 #include <stdlib.h>					// these two
 #include <string.h>					// for bcopy
@@ -46,136 +47,19 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
-#include <assert.h>
 
-#define NUM_CHUNK       (256 * 1024)
+int KeyBufBuilt = 0;
+int locqry = 0;
+int lochit = 0;
 
-static  int     locate_init = 1;
-        int     KeyBufBuilt;
-static  u_short LastIndex;
-static  u_short wPrevChunk[ 32*1024];                   // write cache
-static  u_short aPrevChunk[NUM_CHUNK];                  //   read cache
-static  u_short *PrevChunk;
-
-static struct
-{ u_int block;
-  u_int blkver_low;
-  u_int blkver_high;
-  u_int idx_len;
-  u_short *PrevChunk;
-} blkcache[MAXTREEDEPTH];
-static int nblkcache = 0;
-
-        u_int   locqry = 0;
-        u_int   lochit = 0;
-
-//-----------------------------------------------------------------------------
-// Function:    FindShorterChunk
-// Descript:    find a previous chunk which has shorter
-//              prefix than prefixLen.
-// Input(s):    from - where to start, prefixLen - upper limit
-// Return:      index of chunk
-//
-
-static
-u_short FindShorterChunk(u_short from, u_short prefixLen)
+void UpdateLocateCache(void)
 {
-  cstring *tsunk;
-
-  for (from-- ; from >= LOW_INDEX; from--)              // backward search
-  { 
-    tsunk = (cstring*) &iidx[idx[from]];
-    if (tsunk->buf[0] < prefixLen)                      // prefix is shorter?
-      return from;                                      // done
-  }
-  return LOW_INDEX;                                     // sentinel
+  return;
 }
 
-//-----------------------------------------------------------------------------
-// Function:    GetPrevChunkIndex
-// Descript:    return the index of the previous chunk
-//              which is necessary to build keybuf[] for
-//              Index x
-// Input(s):    x - Index
-// Returns:     index of previous chunk
-//
-
-static
-u_short GetPrevChunkIndex(u_short x)
+short LocateEx(u_char *key, int frominsert)
 {
-  u_char  prefixLen;
-  cstring *tsunk;
-
-  if (LOW_INDEX > x)
-    panic("GetPrevChunkIndex: LOW_INDEX > x");
-  if (x > blk[level]->mem->last_idx)
-    panic("GetPrevChunkIndex: x > blk[level]->mem->last_idx");
-
-  //if (PrevChunk[x])                                     // already calculated
-  //  return PrevChunk[x];
-
-  tsunk = (cstring*) &iidx[idx[x]];
-  prefixLen = tsunk->buf[0];
-  PrevChunk[x] = prefixLen ? FindShorterChunk(x, prefixLen) : x;
-  if (LOW_INDEX > PrevChunk[x])
-    panic("GetPrevChunkIndex: LOW_INDEX > PrevChunk[x]");
-  if (PrevChunk[x] > blk[level]->mem->last_idx)
-    panic("GetPrevChunkIndex: PrevChunk[x] > blk[level]->mem->last_idx");
-  if (PrevChunk[x] > x)
-    panic("GetPrevChunkIndex: PrevChunk[x] > x");
-  return PrevChunk[x];
-}
-
-//-----------------------------------------------------------------------------
-// Function:    Build_KeyBuf
-// Descript:    build up keybuf[] for Index, uses GetPrevChunkIndex
-//              to recursively build up keybuf[] updating external vars
-//              keybuf, LastIndex
-//
-
-static
-void Build_KeyBuf(void)
-{
-  u_short x;                                            // current Index
-  u_short prev;                                         // previous chunk idx
-  u_short chunkidx[256];                                // stores the chunk idxs
-  int i, j, done;                                       // handy ints
-  int goingup;
-  cstring *tsunk;
-
-  // fprintf(stderr,"--- Collect_Chunks(Index = %d, LastIndex = %d)\r\n", Index, LastIndex);
-  goingup = LastIndex < Index;                          // going upwards
-  j = 256;                                              // point to end of cidx
-  x = Index;                                            // start at Index
-  do
-  { prev = PrevChunk[x];
-    if (!prev) prev = GetPrevChunkIndex(x);
-    if (LOW_INDEX > prev)
-      panic("Build_KeyBuf: LOW_INDEX > prev");
-    if (prev > blk[level]->mem->last_idx)
-    { // fprintf(stderr,"wr_flag: %d\r\n", wr_flag);
-      // fprintf(stderr,"cache mode: %d\r\n", cache_mode);
-      fprintf(stderr,"blk: %d x: %d\r\n", level, x);
-      fprintf(stderr,"last_idx: %d prev: %d\r\n", blk[level]->mem->last_idx, prev);
-      panic("Build_KeyBuf: prev > blk[level]->mem->last_idx");
-    }
-    chunkidx[--j] = prev;                               // collect chunk idxs
-    done = (prev == x) || (prev == LOW_INDEX);          // done ?
-    if (goingup && (prev <= LastIndex))                 // reached last Idx
-    { done = TRUE;                                      // then done
-      j++;                                              // pop last entry
-    }
-    x = prev;                                           // recurse
-  } while (!done);
-
-  for ( ; j < 256; j++)                                 // for all collected idx
-  { i = chunkidx[j];
-    // fprintf(stderr,"i = %d\r\n", i);
-    tsunk = (cstring *) &iidx[idx[i]];	                // point at the chunk
-    bcopy(&tsunk->buf[2], &keybuf[tsunk->buf[0]+1],
-	  tsunk->buf[1]);				// update the keybuf
-  }
-  LastIndex = Index;                                    // remember Index
+  return Locate(key);
 }
 
 //-----------------------------------------------------------------------------
@@ -194,156 +78,30 @@ void Build_KeyBuf(void)
 //		(u_char)	keybuf	the current full key
 //
 
-void UpdateLocateCache(void)
-{
-  return;
-}
-
-short LocateEx(u_char *key, int frominsert)		// find key
+short Locate(u_char *key)				// find key
 { int i;						// a handy int
-  int L, R;                                             // bin.search limits
-  int wr_flag;
-  int found;
-
-  if (locate_init)
-  { for (i = 0; i < MAXTREEDEPTH; i++)
-    { blkcache[i].block     = (u_int) -1;
-      blkcache[i].PrevChunk = 0;
-    }
-    nblkcache = 0;
-    locate_init = 0;
-  }
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
   Index = LOW_INDEX;					// start at the start
-  L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
-
-  locqry++;
-
-  found = 0;
-  wr_flag = blk[level]->dirty != 0;
-  if (0 == wr_flag)
-  { for (i = nblkcache; i >= 0; i--)
-    { if (blkcache[i].block != blk[level]->block)
-        continue;
-      if ((blkcache[i].blkver_low == blk[level]->blkver_low) &&
-          (blkcache[i].blkver_high == blk[level]->blkver_high))
-      { found = 1;
-        lochit++;
-        PrevChunk = blkcache[i].PrevChunk;
-        break;
-      }
-    }
-    if (0 == found)
-    { blkcache[level].block = blk[level]->block;
-      blkcache[level].blkver_low  = blk[level]->blkver_low;
-      blkcache[level].blkver_high = blk[level]->blkver_high;
-      blkcache[level].idx_len     = blk[level]->mem->last_idx + 1;
-      if ((0 == level) ||
-          (0 == blkcache[level-1].PrevChunk))
-      { PrevChunk = aPrevChunk;
-      }
-      else
-      { PrevChunk = blkcache[level-1].PrevChunk + blkcache[level-1].idx_len;
-      }
-      if (PrevChunk - aPrevChunk > NUM_CHUNK)
-      { panic("LocateEx(): PrevChunk cache is full");
-      }
-      blkcache[level].PrevChunk = PrevChunk;
-      nblkcache = level;
-      bzero(PrevChunk + L, (R - L + 1) * sizeof(u_short));
-    }
-  }
-  else
-  { PrevChunk = wPrevChunk;
-    bzero(PrevChunk + L, (R - L + 1) * sizeof(u_short));
-  }
-
-
-#if 0
-  if (wr_flag ||
-      (level > nblkcache) ||
-      (blk[level]->block != blkcache[level].block) ||
-      (blk[level]->blkver_low != blkcache[level].blkver_low) ||
-      (blk[level]->blkver_high != blkcache[level].blkver_high))
-  { if (0 == wr_flag)
-    { blkcache[level].block = blk[level]->block;
-      blkcache[level].blkver_low  = blk[level]->blkver_low;
-      blkcache[level].blkver_high = blk[level]->blkver_high;
-      nblkcache = level;
-    }
-  }
-  else
-    systab->vol[volnum-1]->stats.lochit++;
-#endif
-
-  LastIndex = R + 1;                                    // setup LastIndex
-  KeyBufBuilt = 0;
-  if (0 /*wr_flag*/)                                    // writing, chk last
-  { Index = R;
-    Build_KeyBuf();                                     // build keybuf
-    chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
+  while (TRUE)						// loop
+  { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     i = UTIL_Key_KeyCmp(&keybuf[1], &key[1], keybuf[0], key[0]); // compare
-    if (i == K2_GREATER)                                // key > last key
-    { Index = R + 1;                                    // early exit
-      // KeyBufBuilt = 1;
-      return -ERRM7;
+    if (i == KEQUAL)					// same?
+    { return 0;						// done
     }
-  }
-
-  // fprintf(stderr,"L=%d R=%d\n",L,R);
-  while (L <= R)                                        // loop
-  { // if (R - L + 1 < 4) // YYY
-    // { Index = L;
-    //   Build_KeyBuf();
-    //   return LocateLin(key, R);
-    // }
-    KeyBufBuilt = 0;
-    Index = (L + R) >> 1;                               // find middle
-    Build_KeyBuf();
-    chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-    	  chunk->buf[1]);				// update the key
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-#if 0
-    fprintf(stderr," Index=%d\n",Index);
-    fprintf(stderr,"keybuf=[%s] %d\n",&keybuf[1],keybuf[0]);
-    fprintf(stderr,"   key=[%s] %d\n",&key[1],key[0]);
-#endif
-    i = UTIL_Key_KeyCmp(&keybuf[1], &key[1], keybuf[0], key[0]); // compare
-    if (i == K2_GREATER)                                // not reached, adj. L
-    { L = Index + 1;
-      // KeyBufBuilt = 1;
-      continue;
+    if (i == K2_LESSER)					// passed it?
+    { return -ERRM7;					// no such
     }
-    else if (i == K2_LESSER)                            // passed, adj. R
-    { R = Index - 1;
-      continue;
+    Index++;						// point at next
+    if (Index > blk[level]->mem->last_idx)		// passed the end
+    { return -ERRM7;					// no such
     }
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
-    return 0;						// key found, done
-  }
-  Index = L;                                            // not found
-  if (Index <= blk[level]->mem->last_idx)               // update if Index valid
-  { if (!frominsert)
-    { chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
-      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-                  chunk->buf[1]);			// update the key
-      keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2];// point at the dbc
-    }
-  }
-  return -ERRM7;
-}
-
-short Locate(u_char *key)
-{
-  return LocateEx(key, 0);
+  }							// end locate loop
 }
 
 //-----------------------------------------------------------------------------
