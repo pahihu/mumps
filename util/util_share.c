@@ -91,15 +91,15 @@ static struct timeval sem_start[SEM_MAX];
 
 u_int semop_time;
 
-int Semop(int sem_id, struct sembuf *buf, int nbuf)
+int Semop(int semid, struct sembuf *sops, size_t nsops)
 {
   int s;
   struct timeval st, et;
 
   gettimeofday(&st, NULL);
-  s = semop(sem_id, buf, 1);           // doit
+  s = semop(semid, sops, nsops);           // doit
   gettimeofday(&et, NULL);
-  semop_time += 1000000 * (et.tv_sec  - st.tv_sec) +
+  semop_time = 1000000 * (et.tv_sec  - st.tv_sec) +
                          (et.tv_usec - st.tv_usec);
   return s;
 }
@@ -120,6 +120,7 @@ short SemLock(int sem_num, int numb)
   short s;
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   int x;
+  u_int semop_time_sav;
 
   x = 2*sem_num;
   if (-1 == numb)       // READ lock
@@ -127,6 +128,7 @@ short SemLock(int sem_num, int numb)
 
   semop_time = 0;
   s = TrySemLock(sem_num, numb);
+  semop_time_sav = semop_time; 
   if (s != 0)
   { buf.sem_num = (u_short) sem_num;            // get the one we want
     buf.sem_op = (short) numb;                  // and the number of them
@@ -136,7 +138,7 @@ short SemLock(int sem_num, int numb)
 #define MV1_PROFILE 1
 #ifdef MV1_PROFILE
   if (s == 0)
-  { semtab[x].semop_time += semop_time;
+  { semtab[x].semop_time += semop_time_sav;
     gettimeofday(&sem_start[sem_num], NULL);
   }
 #endif
@@ -154,7 +156,6 @@ short SemUnlock(int sem_num, int numb)
   x = 2*sem_num + (1 == abs(numb) ? 1 : 0);
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  semop_time = 0;
   s = Semop(systab->sem_id, &buf, 1);
 
 #ifdef MV1_PROFILE
