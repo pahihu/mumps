@@ -283,7 +283,7 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
   { Index++;
   }
   if ((i) || (Index > blk[level]->mem->last_idx))	// found or passed end
-  { s = Locate_next();					// get next record
+  { s = Locate_next(keybuf);				// get next record
     if (s == -ERRM7)					// any more?
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -354,7 +354,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
       }
     }							// end still in block
     else
-    { s = Locate_next();				// point at next block
+    { s = Locate_next(keybuf);				// point at next block
       if (!s)						// found one
       { if ((db_var.slen > keybuf[0]) ||		// found smaller key
             (bcmp(&keybuf[1], db_var.key, db_var.slen))) // not a descendant?
@@ -440,7 +440,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       return 0;						// and return
     }
     if (Index > blk[level]->mem->last_idx)		// no more avbl
-    { s = Locate_next();				// get next (if there)
+    { s = Locate_next(0);				// get next (if there)
       if (s < 0)					// failed?
       { if (curr_lock)					// if locked
         { SemOp( SEM_GLOBAL, -curr_lock);		// release global lock
@@ -449,12 +449,19 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
       }
     }
   }							// end forwards
+#ifdef MV1_CCC
   for (i = LOW_INDEX; i <= Index; i++)			// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }
+#else
+  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
+  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+	  chunk->buf[1]);				// update the key
+  keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+#endif
 
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -536,7 +543,7 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
     { Index++;
     }
     if ((Index > blk[level]->mem->last_idx) || (s >= 0)) // want next one
-    { s = Locate_next();				// point at next
+    { s = Locate_next(0);				// point at next
       if (s < 0)					// not found or error
       { if (curr_lock)					// if locked
         { SemOp( SEM_GLOBAL, -curr_lock);		// release global lock
@@ -550,12 +557,19 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
     }
   }
 
+#ifdef MV1_CCC
   for (i = LOW_INDEX; i <= Index; i++)			// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }
+#else
+  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
+  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+	  chunk->buf[1]);				// update the key
+  keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+#endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
@@ -607,7 +621,11 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
   { Index--;						// <UNDEF> last time
   }							// back up Index
 
-  s = Locate_next();					// point at next
+#ifdef MV1_CCC
+  s = Locate_next(keybuf);				// point at next
+#else
+  s = Locate_next(0);				        // point at next
+#endif
   if (s < 0)						// not found or error
   { if (curr_lock)					// if locked
     { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -624,7 +642,13 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 //	  chunk->buf[1]);				// update the key
 //    keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
 //  }
+#ifdef MV1_CCC
   bcopy(&keybuf[1], var->key, (int) keybuf[0]);		// copy in the key
+#else
+  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
+  bcopy(&chunk->buf[2], var->key, chunk->buf[1]);	// update the key
+  keybuf[0] = chunk->buf[0] + chunk->buf[1];
+#endif
   var->slen = keybuf[0];				// update the length
   s = mcopy(record->buf, buf, record->len);		// copy the data
   if (curr_lock)					// if locked
@@ -726,14 +750,14 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
   u_char *p;						// for malloc
   int dbfd;						// for open
 
-  p = malloc(systab->vol[vol]->vollab->block_size);	// get some space
+  p = dlmalloc(systab->vol[vol]->vollab->block_size);	// get some space
   if (p == NULL)
   { return -(ERRMLAST+ERRZLAST+errno);			// die
   }
   bzero(p, systab->vol[vol]->vollab->block_size);	// clear it
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)						// if failed
-  { free(p);						// free memory
+  { dlfree(p);						// free memory
     return -(ERRMLAST+ERRZLAST+errno);			// and die
   }
 
@@ -743,19 +767,19 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 
   fres = lseek( dbfd, fptr, SEEK_SET);			// Seek to eof
   if (fres != fptr)					// if failed
-  { free(p);						// free memory
+  { dlfree(p);						// free memory
     return -(ERRMLAST+ERRZLAST+errno);			// and die
   }
   vexp = vsiz - systab->vol[vol]->vollab->max_block;	// expand by
   while (vexp)
   { i = write(dbfd, p, systab->vol[vol]->vollab->block_size);
     if (i < 0)						// if failed
-    { free(p);						// free memory
+    { dlfree(p);					// free memory
       return -(ERRMLAST+ERRZLAST+errno);		// and die
     }
     vexp--;						// count 1
   }
-  free(p);						// free memory
+  dlfree(p);						// free memory
   i = close(dbfd);					// close db file
   systab->vol[vol]->vollab->max_block = vsiz;		// store new size
   systab->vol[vol]->map_dirty_flag = 1;			// say write this

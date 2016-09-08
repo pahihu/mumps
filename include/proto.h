@@ -36,6 +36,13 @@
 #ifndef _MUMPS_PROTO_H_                         // only do this once
 #define _MUMPS_PROTO_H_
 
+//****************************************************************************
+// Doug Lea's Malloc
+//
+void *dlmalloc(size_t);
+void dlfree(void*);
+void *dlrealloc(void*, size_t);
+
 
 //****************************************************************************
 // Identifier

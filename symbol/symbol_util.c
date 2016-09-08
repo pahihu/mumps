@@ -60,7 +60,7 @@ short ST_Hash(var_u *var)                       // var name in a quad
      29, 31, 37, 41, 43, 47, 53, 59,
      61, 67, 71, 73, 79, 83, 89, 97,
     101,103,107,109,113,127,131,137 };
-  for (i = 0; i < MAX_NAME_BYTES; i++)          // for each character
+  for (i = 0; var->var_cu[i] && (i < MAX_NAME_BYTES); i++) // for each character
   { ret = ((var->var_cu[i] * p[i]) + ret);
   }
   return (short)(ret % ST_HASH);                // return mod hash value
@@ -205,7 +205,7 @@ short ST_Kill(mvar *var)                        // var name in a quad
       while (check != NULL)			// for all dp blocks
       { checkprev = check;			// save a copy
         check = check->deplnk;			// get next
-        free(checkprev);			// free this one
+        dlfree(checkprev);			// free this one
       }
       data->deplnk = NULL;			// clear pointer
       data->dbc = VAR_UNDEFINED;		// dong it
@@ -226,7 +226,7 @@ short ST_Kill(mvar *var)                        // var name in a quad
     }						// end else killing a dep blk
     if ((data->deplnk == ST_DEPEND_NULL) && (data->attach < 2) &&
         (data->dbc == VAR_UNDEFINED))		// none attached
-    { free(data);				// free data block space
+    { dlfree(data);				// free data block space
       symtab[ptr].data = ST_DATA_NULL;		// and clear the pointer
     }						// end freeing data block
   }						// end if data block exists
@@ -255,11 +255,11 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
   if (mvardr->slen == 0)			// killing a data block
   { if (prev != ST_DEPEND_NULL)			// prev is defined
     { prev->deplnk = ST_DEPEND_NULL;		// unlink all deps regardless
-      free(dp);					// get rid of dep
+      dlfree(dp);				// get rid of dep
     }						// end if prev defined
     else					// prev not defined
     { dblk->deplnk = ST_DEPEND_NULL;		// unlink one and only dep
-      free(dp);					// get rid of that dep
+      dlfree(dp);				// get rid of that dep
     }						// end if prev not defined
   }						// end if killing a data block
   else						// killing a dep tree
@@ -270,7 +270,7 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
       else					// removing first dep
       { dblk->deplnk = dp->deplnk;		// bypass a first dep killee
       }						// end else removing first dep
-      free(dp);					// get rid of this dep
+      dlfree(dp);				// get rid of this dep
     }						// end if keys match up to slen
   }						// end else killing a dep
 }						// end function ST_RemDp
@@ -343,7 +343,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
   { i = DTBLKSIZE + data->len;			// reqd memory
     if ((var->slen != 0) || (i < DTMINSIZ))	// not reqd or too small
       i = DTMINSIZ;				// make it min size
-    newPtrDt = malloc(i);			// allocate necessary space
+    newPtrDt = dlmalloc(i);			// allocate necessary space
     if (newPtrDt == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
     if (var->slen == 0)				// no subscript key
     { newPtrDt->deplnk = ST_DEPEND_NULL;	// no dependents
@@ -352,7 +352,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       bcopy(&data->buf[0], &newPtrDt->data, data->len+1); // copy data in
     }						// end if - slen is zero
     else					// subscript defined
-    { newPtrDp = malloc(DPBLKSIZE + data->len + var->slen + pad); // new dep blk
+    { newPtrDp = dlmalloc(DPBLKSIZE + data->len + var->slen + pad);//new dep blk
       if (newPtrDp == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
       newPtrDt->dbc = VAR_UNDEFINED;		// initialize data byte count
       newPtrDt->deplnk = newPtrDp;		// initialize link to dependent
@@ -377,7 +377,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
 // **************************************************************************
   else						// data block already exists
   { if (var->slen == 0)				// not dependent setting
-    { newPtrDt = realloc(symtab[fwd].data,
+    { newPtrDt = dlrealloc(symtab[fwd].data,
 			 DTBLKSIZE + data->len); // allocate data block
       if (newPtrDt == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
       if ((newPtrDt != symtab[fwd].data) &&	// did it move?
@@ -391,7 +391,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       bcopy(&data->buf[0], &newPtrDt->data, data->len+1); // copy the data in
     }						// end if-not dependent setting
     else					// setting dependent
-    { newPtrDp = malloc(DPBLKSIZE + data->len + var->slen + pad); // allo DP blk
+    { newPtrDp = dlmalloc(DPBLKSIZE + data->len + var->slen + pad);//allo DP blk
       if (newPtrDp == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
       newPtrDp->deplnk = ST_DEPEND_NULL;	// init dependent pointer
       newPtrDp->keylen = var->slen;		// copy sub keylength
@@ -417,12 +417,12 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
         { if (prevPtr == ST_DEPEND_NULL)	// if no prev pointer
           { newPtrDp->deplnk = ptr1->deplnk;	// link to previous first dep
             symtab[fwd].data->deplnk = newPtrDp; // link in as first dep
-            free(ptr1);				// remove previous dep link
+            dlfree(ptr1);			// remove previous dep link
           }					// end if no prev ptr
           else					// if prev pointer is defined
           { newPtrDp->deplnk = ptr1->deplnk;	// set new dependent link
             prevPtr->deplnk = newPtrDp;		// alter previous to link in
-            free(ptr1);				// remove previous dep link
+            dlfree(ptr1);			// remove previous dep link
           }					// end else bypassing mid list
         }					// end if-replace data
         else if ((ptr1 != ST_DEPEND_NULL) && 	// if we have a dependent
@@ -1033,7 +1033,7 @@ void ST_SymDet(int count, short *list)
 	if (symtab[list[i]].data->deplnk != NULL)
 	{ continue;
 	}
-	free(symtab[list[i]].data);		// free the data block
+	dlfree(symtab[list[i]].data);		// free the data block
 	symtab[list[i]].data = NULL;		// and remember this
       }
       if (symtab[list[i]].data == NULL)		// no data?
@@ -1042,7 +1042,7 @@ void ST_SymDet(int count, short *list)
       }
     }
   }
-  free(list);					// dump the memory
+  dlfree(list);					// dump the memory
   return;
 }						// end function ST_SymDet
 
@@ -1068,13 +1068,13 @@ short ST_SymSet(short pos, cstring *data)
   i = DTBLKSIZE + data->len + 1;		// size required
   if (i < DTMINSIZ) i = DTMINSIZ;		// check for minimum
   if (symtab[pos].data == ST_DATA_NULL)		// if no data block
-  { symtab[pos].data = malloc(i);		// get some memory
+  { symtab[pos].data = dlmalloc(i);		// get some memory
     if (symtab[pos].data == ST_DATA_NULL) return -(ERRZ56+ERRMLAST); // no mem
     symtab[pos].data->deplnk = ST_DEPEND_NULL;	// init dep link
     symtab[pos].data->attach = 1;		// init attach count
   }						// end if no data block defined
   else if (symtab[pos].data->dbc < data->len)	// enough space?
-  { ptr = realloc(symtab[pos].data, i);		// attempt to increase it
+  { ptr = dlrealloc(symtab[pos].data, i);	// attempt to increase it
     if (ptr == NULL)
     { return -(ERRZ56+ERRMLAST); // no mem
     }
@@ -1103,10 +1103,10 @@ short ST_SymKill(short pos)
     while (dptr != ST_DEPEND_NULL)		// for each dependant
     { fptr = dptr;				// save this one
       dptr = fptr->deplnk;			// get next
-      free(fptr);				// free this
+      dlfree(fptr);				// free this
     }
     if (symtab[pos].data->attach < 2)		// if no more attached
-    { free(symtab[pos].data);			// free data block
+    { dlfree(symtab[pos].data);			// free data block
       symtab[pos].data = ST_DATA_NULL;		// clear the pointer
     }
   }

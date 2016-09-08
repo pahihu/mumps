@@ -416,7 +416,9 @@ void do_write()						// write GBDs
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
     }
+#ifdef MV1_BLKVER
     lastptr->blkver_low++;
+#endif
     lastptr->dirty = NULL;				// clear old dirtyptr
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
@@ -472,7 +474,7 @@ int do_zot(u_int gb)					// zot block
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
 
-  bptr = malloc(systab->vol[volnum-1]->vollab->block_size); // get some memory
+  bptr = dlmalloc(systab->vol[volnum-1]->vollab->block_size); // get some memory
   if (bptr == NULL)					// if failed
   { fprintf(stderr, "do_zot: malloc for block %d failed\n", gb);
     fflush( stderr );                                   // flush to the file
@@ -500,7 +502,7 @@ int do_zot(u_int gb)					// zot block
     if (file_ret < 1)
     { fprintf(stderr, "do_zot: seek to block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
-      free(bptr);					// free memory
+      dlfree(bptr);					// free memory
       return -1;					// return error
     }
     ret = read( dbfd, bptr,
@@ -508,7 +510,7 @@ int do_zot(u_int gb)					// zot block
     if (ret < 0)					// if it failed
     { fprintf(stderr, "do_zot: read of block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
-      free(bptr);					// free memory
+      dlfree(bptr);					// free memory
       return -1;					// return error
     }
   }							// end read from disk
@@ -559,7 +561,7 @@ zotit:
   if (file_ret < 1)
   { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
     fflush( stderr );                                   // flush to the file
-    free(bptr);						// free memory
+    dlfree(bptr);					// free memory
     return -1;						// return error
   }
   ret = write( dbfd, systab->vol[volnum-1]->zero_block,
@@ -571,7 +573,7 @@ zotit:
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);	// count a write
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);	// and a logical
-  free(bptr);						// free memory
+  dlfree(bptr);						// free memory
   do_free(gb);						// and the block
   return typ;						// return the type
 }

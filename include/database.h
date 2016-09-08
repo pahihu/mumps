@@ -97,9 +97,9 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #define LOW_INDEX       26                              // 22
 #endif
 
-#define MV1_CACHE	0
-#define MV1_REFD	1
-#define MV1_BLKVER      1
+#define MV1_CACHE	1
+//#define MV1_REFD	1
+#undef MV1_BLKVER
 #undef MV1_RSVD
 #undef MV1_FORCE
 
@@ -189,7 +189,7 @@ short Kill_data();					// remove tree
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
 short LocateEx(u_char *key, int frominsert);		//   used in Insert()
-short Locate_next();					// point at next key
+short Locate_next(u_char *out);				// point at next key
 
 // File: database/db_rekey.c
 short Add_rekey(u_int block, int level);		// add to re-key table

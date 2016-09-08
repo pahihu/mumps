@@ -1990,7 +1990,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if ((curframe->symbol == NULL) &&	// need symbol space?
 	    (rouadd->num_vars))			// any vars?
 	{ curframe->symbol = 
-	    malloc(rouadd->num_vars * sizeof(short)); // symbol index space
+	    dlmalloc(rouadd->num_vars * sizeof(short)); // symbol index space
 	  // SHOULD FREE() THIS IN THE ERRORS THAT FOLLOW !!!
           symbol_malloced = 1;
 	  for (i = 0; i < rouadd->num_vars; i++) // for each one
@@ -2001,7 +2001,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if (args > 0)		                // check for args
 	{ if (*mumpspc++ != LOADARG)		// any there?
 	  { if (symbol_malloced)
-	    { free(curframe->symbol);
+	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
@@ -2015,7 +2015,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  j = *mumpspc++;			// number of them
 	  if ((args - 1) > j)			// too many supplied?
 	  { if (symbol_malloced)
-	    { free(curframe->symbol);
+	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
@@ -2031,7 +2031,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = ST_New(j, list); 			// new them
 	  if (s < 0)
 	  { if (symbol_malloced)
-	    { free(curframe->symbol);
+	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;		// point back
@@ -2051,7 +2051,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      { s = ST_Set(var, cptr); 		// set it
 	        if (s < 0)
 	        { if (symbol_malloced)
-	          { free(curframe->symbol);
+	          { dlfree(curframe->symbol);
 	            curframe->symbol = NULL;
 	          }
 	          partab.jobtab->cur_do--;	// point back
@@ -2066,7 +2066,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      s = ST_ConData(var, p);		// connect them
 	      if (s < 0) 
 	      { if (symbol_malloced)
-	        { free(curframe->symbol);
+	        { dlfree(curframe->symbol);
 	          curframe->symbol = NULL;
 	        }
 	        partab.jobtab->cur_do--;	// point back
@@ -2078,7 +2078,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	  if (s < 0)
           { if (symbol_malloced)
-	    { free(curframe->symbol);
+	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
 	    }
 	    partab.jobtab->cur_do--;	        // point back
@@ -2348,7 +2348,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if ((curframe->symbol == NULL) &&	// need symbol space?
 	    (rouadd->num_vars))			// any vars?
 	{ curframe->symbol = 
-	    malloc(rouadd->num_vars * sizeof(short)); // symbol index space
+	    dlmalloc(rouadd->num_vars * sizeof(short)); // symbol index space
 	  for (i = 0; i < rouadd->num_vars; i++) // for each one
 	    curframe->symbol[i] = -1;		// mark not setup
 	}
@@ -2626,7 +2626,7 @@ short run(int savasp, int savssp)		// run compiled code
 	s = ST_Create(&var->name.var_xu);	// get its index
 	if (s < 0) ERROR(s)			// die on error
 	if (symtab[s].data == ST_DATA_NULL)	// if data block undef
-	{ symtab[s].data = malloc(DTMINSIZ); 	// allocate some mem
+	{ symtab[s].data = dlmalloc(DTMINSIZ); 	// allocate some mem
 	  if (symtab[s].data == NULL) ERROR(-(ERRZ56+ERRMLAST)) // no memory
 	  bzero(symtab[s].data, DTMINSIZ);	// clear it
 	  symtab[s].data->attach = 1;		// this one attached

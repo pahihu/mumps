@@ -666,7 +666,7 @@ static tDirStatus dsDataListAndHeaderDeallocate(
     
     err = dsDataListDeallocate(inDirReference, inDataList);
     if (err == eDSNoErr) {
-        free(inDataList);
+        dlfree(inDataList);
     }
     
     return err;
@@ -1144,7 +1144,7 @@ static tDirStatus FindUsersAuthInfo(
                             // user name used for authentication; remember its value in a
                             // freshly allocated string.
                         
-                            userNameForAuth = (char *) malloc( thisValueDataLen + 1 );
+                            userNameForAuth = (char *) dlmalloc( thisValueDataLen + 1 );
                             if (userNameForAuth == NULL) {
                                 err = eDSAllocationFailed;
                             } else {
@@ -1210,7 +1210,7 @@ static tDirStatus FindUsersAuthInfo(
         assert(junk == eDSNoErr);
     }
     if (userNameForAuth != NULL) {
-        free(userNameForAuth);
+        dlfree(userNameForAuth);
     }
     if (foundRecAttrList != 0) {
         junk = dsCloseAttributeList(foundRecAttrList);
@@ -1411,7 +1411,7 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     // Clean up.
 
     if (userNameForAuth != NULL) {
-        free(userNameForAuth);
+        dlfree(userNameForAuth);
     }
     if (pathListToAuthNode != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode);

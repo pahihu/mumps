@@ -218,8 +218,8 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   { z = 0;					// leave the leading zero
   }
 
-  tempc = malloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
-  dest = malloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
+  tempc = dlmalloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
+  dest = dlmalloc(sizeof(short) + numexp->len + (numexp->len / 3) + 3);
   dest->len = numexp->len - z;
   bcopy(&numexp->buf[z], dest->buf, numexp->len);
   if (d1 != NULL)				// add in commas
@@ -377,7 +377,7 @@ short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
   if (s < 0)
   { return s;
   }
-  change = malloc(sizeof(short) + s + 1);
+  change = dlmalloc(sizeof(short) + s + 1);
   change->len = s;
   bcopy(ret_buffer, change->buf, s + 1);
   return Dfnumber2(ret_buffer, change, code);

@@ -135,7 +135,7 @@ short SemLock(int sem_num, int numb)
     s = Semop(systab->sem_id, &buf, 1);         // doit
   }
 
-#define MV1_PROFILE 1
+// #define MV1_PROFILE 1
 #ifdef MV1_PROFILE
   if (s == 0)
   { semtab[x].semop_time += semop_time_sav;

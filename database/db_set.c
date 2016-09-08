@@ -431,10 +431,18 @@ cont:
   ts = 0;						// trail size zot
   trailings = Index;					// for ron
   if (trailings <= blk[level]->mem->last_idx)		// if any point
-  { for (i = LOW_INDEX; i < trailings; i++)		// scan front of blk
+  { 
+#ifdef MV1_CCC
+    for (i = LOW_INDEX; i < trailings; i++)		// scan front of blk
     { chunk = (cstring *) &iidx[idx[i]];		// point at chunk
       bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
     }							// get fk[] correct
+#else
+    if (trailings != LOW_INDEX)
+    { chunk = (cstring *) &iidx[idx[trailings - 1]];	// point at chunk
+      bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
+    }
+#endif
     i = Index;						// start here
     chunk = (cstring *) &iidx[idx[i]];			// point at first chunk
     ts = chunk->buf[0] + 2;				// get ccc plus a bit

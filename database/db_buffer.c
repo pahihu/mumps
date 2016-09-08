@@ -303,7 +303,7 @@ retry:
   }							// end while
   now = MTIME(0) + 1;					// get current time +
 
-#if MV1_CACHE
+#ifdef MV1_CACHE
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
 #else
   hash_start_sav = hash_start;
@@ -340,7 +340,7 @@ retry:
 	}
 	continue;					// next ptr
       }							// end - no block
-#if MV1_CACHE
+#ifdef MV1_CACHE
       if ((ptr->dirty == NULL) &&			// if free
 	  (ptr->last_accessed < now) &&			// and time expired
 	  (ptr->last_accessed > 0))			// and there is a time
@@ -459,7 +459,7 @@ start:
   }
 #endif
 
-#if MV1_CACHE
+#ifdef MV1_CACHE
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
 #else
   i = hash_start & (GBD_HASH - 1);		        // where to start
@@ -482,7 +482,7 @@ start:
 	blk[level] = ptr;				// store where reqd
 	goto exit;					// common exit code
       }							// end found expired
-#if MV1_CACHE
+#ifdef MV1_CACHE
       if ((ptr->dirty == NULL) &&
           (ptr->last_accessed <= old_last_accessed) &&
           (ptr->last_accessed > 0))
@@ -518,7 +518,7 @@ start:
         }
       }
 #endif
-#if MV1_CACHE
+#ifdef MV1_CACHE
       if ((ptr->dirty == NULL) &&			// if free
 	  (ptr->last_accessed < old) &&			// and less than oldest
 	  (ptr->last_accessed > 0))			// and there is a time

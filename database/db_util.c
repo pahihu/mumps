@@ -97,15 +97,18 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
   if (!locate_used || !KeyBufBuilt)
   { keybuf[0] = 0;					// clear keybuf
+#ifdef MV1_CCC
     for (i = LOW_INDEX; i < Index; i++)			// for all prev Indexes
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
     }							// we insert after this
+#endif
   }
 
   ccc = 0;						// start here
+#ifdef MV1_CCC
   if ((key[0]) && (keybuf[0]))				// if any there
   { while (key[ccc + 1] == keybuf[ccc + 1])		// while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))	// at end of either
@@ -114,6 +117,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
       ccc++;						// increment ptr
     }
   }
+#endif
   ucc = key[0] - ccc;					// and this
   rs = sizeof(short) + 2				// chunksiz + ccc + ucc
        + ucc + data->len;				// + key + data
@@ -377,12 +381,19 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
   fiidx = (int *) fptr->mem;				// point at it
 
   keybuf[0] = 0;					// clear this
+#ifdef MV1_CCC
   for (i = LOW_INDEX; i <= blk[level]->mem->last_idx; i++)// scan to end to blk
   { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }							// end update keybuf[]
+#else
+  chunk = (cstring *) &iidx[idx[blk[level]->mem->last_idx]];// point at to chunk
+  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+	  chunk->buf[1]);				// update the key
+  keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+#endif
 
   for (i = LOW_INDEX; i <= fptr->mem->last_idx; i++)	// for each Index
   { c = (cstring *) &fiidx[sfidx[i]];			// point at chunk
@@ -406,6 +417,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
       }
     }
     ccc = 0;						// start here
+#ifdef MV1_CCC
     if ((fk[0]) && (keybuf[0]))				// if any there
     { while (fk[ccc + 1] == keybuf[ccc + 1])		// while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))	// at end of either
@@ -414,6 +426,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
         ccc++;						// increment ptr
       }
     }
+#endif
     ucc = fk[0] - ccc;					// get the ucc
     cs = 4 + ucc + (isdata ? (c->len + 2) : 4);		// chunk size = this
     if (!level)						// if GD
