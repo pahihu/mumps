@@ -58,6 +58,7 @@ COMOBJS	= 	compile/dollar.o \
 		runtime/runtime_ssvn.o \
 		runtime/runtime_util.o \
 		runtime/runtime_vars.o \
+		runtime/dlmalloc.o \
 		seqio/SQ_Util.o \
 		seqio/SQ_Signal.o \
 		seqio/SQ_Device.o \
