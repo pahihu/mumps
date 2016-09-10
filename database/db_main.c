@@ -158,7 +158,11 @@ short Copy2local(mvar *var, char *rtn)
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-short DB_Get(mvar *var, u_char *buf)           		// get global data
+short DB_Get(mvar *var, u_char *buf)	                // get global data
+{ return DB_GetEx(var, buf, 0);
+}
+
+short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
 { short s;						// for returns
 
   s = Copy2local(var,"DB_Get");				// get local copy
@@ -176,6 +180,10 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
     //
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
+
+  if (wrlock)
+    Ensure_GBDs();
+
   s = Get_data(0);					// attempt to get it
   if (s >= 0)						// if worked
   { if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
@@ -185,7 +193,7 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
     { s = mcopy(record->buf, buf, record->len);		// copy the data
     }
   }
-  if (curr_lock)					// if locked
+  if ((s != 0) || (!wrlock && curr_lock))		// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count
@@ -199,13 +207,24 @@ short DB_Get(mvar *var, u_char *buf)           		// get global data
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-short DB_Set(mvar *var, cstring *data)	         	// set global data
+short DB_Set(mvar *var, cstring *data)    	        // set global data
+{ return DB_SetEx(var, data, 0);
+}
+
+short DB_SetEx(mvar *var, cstring *data, int wrlock)    // set global data
 { short s;						// for returns
   int i;						// a handy int
+  int curr_lock;
+  int curr_lock_sav;
 
+  curr_lock_sav = 0;
+  if (wrlock)
+    curr_lock_sav = curr_lock;
   s = Copy2local(var,"DB_Set");				// get local copy
+  curr_lock = curr_lock_sav;
   if (s < 0)
-  { return s;						// exit on error
+  { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+    return s;						// exit on error
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
   if (i & 3)						// if required
@@ -213,14 +232,16 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   }
   i += 4;						// add Index
   if (i > (systab->vol[volnum-1]->vollab->block_size - BLK_HDR_SIZE)) // if too big
-  { return -ERRM75;					// return an error
+  { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+    return -ERRM75;					// return an error
   }
   writing = 1;						// say we are writing
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+      return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
 
@@ -232,7 +253,8 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   }
 
   if (!i)
-  { return -(ERRZLAST+ERRZ11);				// complain if failed
+  { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+    return -(ERRZLAST+ERRZ11);				// complain if failed
   }
 
   s = Set_data(data);					// do the set

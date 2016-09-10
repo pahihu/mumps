@@ -321,6 +321,7 @@ function:					// function code starts here
   sel = ((name[0] == 'S') && (toupper((int)name[1]) != 'T')); // is $SELECT
   if ((name[0] == 'D') ||			// $DATA
       (name[0] == 'G') ||			// $GET
+      (name[0] == 'I') ||                       // $INCREMENT
       (name[0] == 'N') ||			// $NAME / $NEXT
       (name[0] == 'O') ||			// $ORDER
      ((name[0] == 'Q') &&			// $QUERY
@@ -464,6 +465,16 @@ function:					// function code starts here
         *comp_ptr++ = FUNG1;			// one arg form
       else if (args == 2)
 	*comp_ptr++ = FUNG2;			// the 2 arg opcode
+      else
+        EXPRE					// all others junk
+      return;					// done
+    case 'I':					// $I[NCREMENT]
+      if (len > 1)				// check for extended name
+        if (strncasecmp(name, "increment", 3) != 0) EXPRE
+      if (args == 1)
+        *comp_ptr++ = FUNI1;			// one arg form
+      else if (args == 2)
+	*comp_ptr++ = FUNI2;			// the 2 arg opcode
       else
         EXPRE					// all others junk
       return;					// done

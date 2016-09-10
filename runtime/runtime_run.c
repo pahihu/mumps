@@ -1429,6 +1429,25 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
+      case FUNI1:				// $I[NCREMENT] 1 arg
+	var = (mvar *) astk[--asp];		// get the variable pointer
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Dincrement1(cptr, var);	        // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
+      case FUNI2:				// $I[NCREMENT] 2 arg
+	ptr1 = (cstring *)astk[--asp];		// get arg 2
+	var = (mvar *) astk[--asp]; 		// get first arg
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Dincrement2(cptr, var, ptr1);	// doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
       case FUNJ2:				// $J[USTIFY] 2 arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	i = cstringtoi((cstring *)astk[--asp]); // get second arg

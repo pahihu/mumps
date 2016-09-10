@@ -759,3 +759,34 @@ u_int SleepEx(u_int seconds, const char* file, int line)
   fflush(stderr);
   return sleep(seconds);
 }
+
+
+void Ensure_GBDs(void)
+{
+  int j;
+  int qpos, wpos, rpos, qlen, qfree;
+  int MinSlots;
+
+start:
+  Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+
+  j = 0;                                                // clear counter
+  MinSlots = 3 * MAXTREEDEPTH;
+  wpos = systab->vol[volnum - 1]->dirtyQw;
+  rpos = systab->vol[volnum - 1]->dirtyQr;
+  if (rpos <= wpos) qlen = wpos - rpos;
+  else
+    qlen = NUM_DIRTY + wpos - rpos;
+  qfree = NUM_DIRTY - qlen;
+  if (qfree >= MinSlots)
+    goto cont;
+
+  systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
+  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+
+  Sleep(1);
+  goto start;
+
+cont:
+  return;
+}

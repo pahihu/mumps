@@ -48,10 +48,11 @@
 #include "error.h"					// error strings
 #include <assert.h>
 
+
 #define NUM_CHUNK       (256 * 1024)
 
-static  int     locate_init = 1;
         int     KeyBufBuilt;
+static  int     locate_init = 1;
 static  u_short LastIndex;
 static  u_short wPrevChunk[ 32*1024];                   // write cache
 static  u_short aPrevChunk[NUM_CHUNK];                  //   read cache

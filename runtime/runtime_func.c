@@ -424,6 +424,61 @@ short Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
 }
 
 //***********************************************************************
+// $INCREMENT(variable[,expr])
+//
+short Dincrement1(cstring *ret, mvar *var)
+{ u_char tmp[8];				// some space
+  cstring *cptr;				// for the call
+  cptr = (cstring *) tmp;			// point at the space
+  cptr->len = 1;				// zero length
+  cptr->buf[0] = '1';				// default one
+  cptr->buf[1] = '\0';				// null terminated
+  return Dincrement2(ret, var, cptr); 	        // do it below
+}
+
+short Dincrement2(cstring *ret, mvar *var, cstring *expr)
+{ short s;					// for return values 
+  u_char temp[65];
+  u_char *p;
+
+  if (var->uci == UCI_IS_LOCALVAR)		// for a local var
+  { s = ST_Get(var, ret->buf);		        // attempt to get the data
+    if (s >= 0) goto gotit;			// if we got data, return it
+    if (s == -(ERRM6)) s = 0;			// flag undefined local var
+  }
+  else if (var->name.var_cu[0] == '$') 		// ssvn?
+    return (-ERRM38);				// no such
+  else						// for a global var
+  { bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+    s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
+    if (s >= 0) goto gotit;			// if we got data, return it
+    if (s == -(ERRM7)) s = 0;			// flag undefined global var
+  }
+  if (s != 0) goto errout;			// if an error, return it
+
+gotit:
+  ret->len = s;
+  fprintf(stderr,"len:%d buf:%s\r\n", ret->len, ret->buf);
+  p = expr->buf;
+  s = ncopy(&p, temp);
+  if (s < 0) goto errout;
+  s = runtime_add((char *) ret->buf, (char *) temp);
+  fprintf(stderr,"len:%d buf:%s\r\n", ret->len, ret->buf);
+  if (s < 0) goto errout;
+  ret->len = s;
+  if (var->uci == UCI_IS_LOCALVAR)
+    s = ST_Set(var, ret);
+  else
+    s = DB_SetEx(var, ret, 1);
+  if (s < 0) goto errout;
+  s = ret->len;		                        // and return the length
+
+errout:
+  fprintf(stderr,"errout: %d\r\n", s);
+  return s;
+}
+
+//***********************************************************************
 // $JUSTIFY(expr,int1[,int2])
 //
 short Djustify2(u_char *ret_buffer, cstring *expr, int size)
@@ -1137,7 +1192,7 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
     vptr->len = vptr->len + cptr->len;		// the new length
     if (var->uci == UCI_IS_LOCALVAR)
       return ST_Set(var, vptr);			// set it back and return
-    return DB_Set(var, vptr);			// set it back and return
+    return DB_Set(var, vptr);		        // set it back and return
   }
   np = Dlength2x(vptr, dptr);			// get number of pieces
   if (np < i1)					// current < = start
@@ -1152,7 +1207,7 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
     vptr->len += s;				// add to length
     if (var->uci == UCI_IS_LOCALVAR)
       return ST_Set(var, vptr);			// set it back and return
-    return DB_Set(var, vptr);			// set it back and return
+    return DB_Set(var, vptr);		        // set it back and return
   }
   for (end = 0; end < vptr->len; end++)         // scan expr
   { if (vptr->buf[end] == dptr->buf[0])         // if first char matches
@@ -1179,7 +1234,7 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
     vptr->len = beg + cptr->len;		// fixup length
     if (var->uci == UCI_IS_LOCALVAR)
       return ST_Set(var, vptr);			// set it back and return
-    return DB_Set(var, vptr);			// set it back and return
+    return DB_Set(var, vptr);		        // set it back and return
   }
   if (end >= vptr->len) end = vptr->len - 1;	// don't point past end
   i1 = beg;					// start of cut
@@ -1221,7 +1276,7 @@ short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
     vptr->len = i1 - 1 + cptr->len;		// the new length
     if (var->uci == UCI_IS_LOCALVAR)
       return ST_Set(var, vptr);			// set it back and return
-    return DB_Set(var, vptr);			// set it back and return
+    return DB_Set(var, vptr);		        // set it back and return
   }
   if ((i2 - i1 + 1) != cptr->len)		// not an exact fit?
   { s = mcopy(&vptr->buf[i2],			// move tail from here

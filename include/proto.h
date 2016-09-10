@@ -66,7 +66,9 @@ int   X_take(u_char *a, chr_x *b);
 
 // Database prototypes
 short DB_Get(mvar *var, u_char *buf);            // get global data
+short DB_GetEx(mvar *var, u_char *buf, int wrlock);// get global data
 short DB_Set(mvar *var, cstring *data);          // set global data
+short DB_SetEx(mvar *var, cstring *data, int wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()
 short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
@@ -165,6 +167,8 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code);
 short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd);
 short Dget1(u_char *ret_buffer, mvar *var);
 short Dget2(u_char *ret_buffer, mvar *var, cstring *expr);
+short Dincrement1(cstring *ret, mvar *var);
+short Dincrement2(cstring *ret, mvar *var, cstring *expr);
 short Djustify2(u_char *ret_buffer, cstring *expr, int size);
 short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, cstring *expr);
