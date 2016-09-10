@@ -7,7 +7,7 @@ GLOSIZE() ; global name size
 LBLKSIZE() ;label block size
   Q $S($$R2:3072,1:1024)
 HDRSIZE() ; db block header size
-  Q 12+$$GLOSIZE
+  Q 20+$$GLOSIZE
 LOWIDX()  ; low index
   Q $$HDRSIZE/2
 R2() ; true if MV1R2

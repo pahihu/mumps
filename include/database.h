@@ -80,11 +80,11 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 { u_char type;						// block type
   u_char flags;						// flags
   u_short spare;					// future
-  u_int64 blkver;
   u_int right_ptr;					// right pointer
   u_short last_idx;					// last used index off
   u_short last_free;					// last free lw in block
   chr_x global;						// global name
+  u_int64 blkver;
 } DB_Block;						// end block header
 
 #if MAX_NAME_BYTES == 8
