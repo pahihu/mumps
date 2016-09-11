@@ -18,6 +18,7 @@
 #include <limits.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "opcodes.h"				// the op codes
 #include "mumps.h"                              // standard includes
@@ -44,6 +45,61 @@ short g_sqrt (char *a);                          /* square root */
 short root (char *a, int n);                     /* n.th root */
 void roundit (char *a, int digits);
 
+// #define MV1_MAPM        1
+
+#ifdef MV1_MAPM
+
+#include "m_apm.h"
+static M_APM aa, bb, cc, dummy;                  // MAPM args
+
+static
+void m_apmtom(char *buf, M_APM cc)
+{
+    int dplaces;
+
+    if (m_apm_is_integer(cc))
+      m_apm_to_integer_string(buf, cc);
+    else
+    { dplaces = m_apm_significant_digits(cc) - m_apm_exponent(cc) - 1;
+      if (dplaces > partab.jobtab->precision)
+        dplaces = partab.jobtab->precision;
+      m_apm_to_fixpt_string(buf, dplaces, cc);
+    }
+}
+
+#endif
+
+#ifdef MV1_INTMATH
+typedef long long int64;
+
+int64 aa, bb, cc;
+
+short strton(char *a, int64 *ret)
+{
+  char *ptr;
+
+  *ret = strtoll(a, &ptr, 10);
+  if (errno)
+    return -1;
+  if (*ptr != '\0')
+    return -1;
+
+  return 0;
+}
+#endif
+
+
+void runtime_math_init(void)
+{
+#ifdef MV1_MAPM
+    aa = m_apm_init();
+    bb = m_apm_init();
+    cc = m_apm_init();
+    dummy = m_apm_init();
+#endif
+    return;
+}
+
 
 short runtime_add(char *a, char *b)		// add b to a
 {
@@ -53,6 +109,21 @@ short runtime_add(char *a, char *b)		// add b to a
 	strcpy (a, b);
 	return strlen(a);
     }
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_set_string(bb, b);
+
+    m_apm_add(cc, aa, bb);
+    m_apmtom(a, cc);
+
+    return strlen(a);
+#endif
+
+#ifdef MV1_INTMATH
+    if (!strton(a, &aa) && !strton(b, &bb))
+      return sprintf(a, "%lld", aa + bb);
+#endif
 
     {
 	short   dpa,			/* decimal point of 'a' */
@@ -314,6 +385,21 @@ short runtime_mul(char *a, char *b)             // multiply a by b
     int ccur;
     int carry;
 
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_set_string(bb, b);
+
+    m_apm_multiply(cc, aa, bb);
+    m_apmtom(a, cc);
+
+    return strlen(a);
+#endif
+
+#ifdef MV1_INTMATH
+    if (!strton(a, &aa) && !strton(b, &bb))
+      return sprintf(a, "%lld", aa * bb);
+#endif
+
 /* if zero or one there's not much to do */
     if (b[1] == EOL) {
         if (b[0] == ZERO) {
@@ -554,6 +640,58 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         return 1;
     if ((v[0] == '0') && (!v[1]))
 	return -ERRM9;
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, uu);
+    m_apm_set_string(bb,  v);
+
+    switch (typ)
+    { case OPDIV: m_apm_divide(cc, partab.jobtab->precision, aa, bb); break;
+      case OPINT: m_apm_integer_divide(cc, aa, bb); break;
+      case OPMOD: 
+        m_apm_absolute_value(dummy, bb);
+        if (0 == m_apm_compare(dummy, MM_Two))
+        { m_apm_copy(cc, m_apm_is_odd(aa) ? MM_One : MM_Zero);
+          if (-1 == m_apm_sign(bb))
+          { m_apm_copy(dummy, cc);
+            m_apm_negate(cc, dummy);
+          }
+        }
+        else
+        { // aa - bb * floor(aa / bb)
+          m_apm_divide(dummy, partab.jobtab->precision, aa, bb);
+          m_apm_floor(cc, dummy);
+          m_apm_multiply(dummy, bb, cc);
+          m_apm_subtract(cc, aa, dummy);
+        }
+    }
+    m_apmtom(uu, cc);
+
+    return strlen(uu);
+#endif
+
+#ifdef MV1_INTMATH
+    if (!strton(uu, &aa) && !strton(v, &bb))
+    { int done = 1;
+      switch (typ)
+      { case OPDIV:
+          cc = aa / bb;
+          done = 0 == aa % bb;
+          break;
+        case OPINT:
+          cc = aa / bb;
+          break;
+        case OPMOD:
+          if (2 == llabs(bb))
+            cc = bb < 0 ? -(aa & 1) : (aa & 1);
+          else
+            cc = aa - bb * (aa / bb);
+          break;
+      }
+      if (done)
+        return sprintf(uu, "%lld", cc);
+    }
+#endif
 
 /* look at the signs */
     strcpy (u, uu);
@@ -918,6 +1056,17 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	if (a[0] == ONE)
 	    return 1;
     }
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_set_string(bb, b);
+
+    m_apm_pow(cc, partab.jobtab->precision, aa, bb);
+    m_apmtom(a, cc);
+
+    return strlen(a);
+#endif
+
     if (b[0] == MINUS) {
 	s = runtime_power (a, &b[1]);
 	if (s < 0) return s;
@@ -1088,6 +1237,22 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
                                         /* MUMPS numbers. comp returns t>s  */
 {   int s1;
     int t1;
+
+#ifdef MV1_MAPM
+    int ret;
+    m_apm_set_string(aa, s);
+    m_apm_set_string(bb, t);
+
+    ret = m_apm_compare(bb, aa);
+
+    return ret > 0 ? TRUE : FALSE;
+#endif
+
+#ifdef MV1_INTMATH
+    if (!strton(s, &aa) && !strton(t, &bb))
+      return bb > aa ? TRUE : FALSE;
+#endif
+
     s1 = s[0];
     t1 = t[0];
 
@@ -1136,11 +1301,22 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
 short g_sqrt (char *a)			/* square root */
 {   int i, ch;
     short s;
+
+
     if (a[0] == ZERO)
 	return 1;
     if (a[0] == MINUS) {
 	return -ERRM9;
     }
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_sqrt(cc, partab.jobtab->precision, aa);
+    m_apmtom(a, cc);
+
+    return strlen(a);
+#endif
+
     {
 	char    tmp1[MAX_NUM_BYTES +2 ],
 	        tmp2[MAX_NUM_BYTES +2 ],
@@ -1191,6 +1367,17 @@ short root (char *a, int n)		/* n.th root */
     if (a[0] == MINUS || n == 0) {
 	return -ERRM9;
     }
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_set_double(bb, 1.0 / (double) n);
+
+    m_apm_pow(cc, partab.jobtab->precision, aa, bb);
+    m_apmtom(a, cc);
+
+    return strlen(a);
+#endif
+
     {
 	char    tmp1[MAX_NUM_BYTES +2],
 	        tmp2[MAX_NUM_BYTES +2],
@@ -1287,6 +1474,15 @@ void roundit (char *a, int digits)
             i,
             pointpos,
             lena;
+
+#ifdef MV1_MAPM
+    m_apm_set_string(aa, a);
+    m_apm_round(cc, digits, aa);
+
+    m_apmtom(a, cc);
+
+    return;
+#endif
 
     pointpos = -1;
     i = 0;

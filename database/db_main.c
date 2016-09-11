@@ -196,7 +196,8 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
     }
   }
   if (curr_lock)		                        // if locked
-  { if ((0 == wrlock) || (wrlock && (s != -(ERRM7))))
+  { if ((0 == wrlock) ||
+        (wrlock && (s < 0) && (s != -(ERRM7))))
     SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count

@@ -139,6 +139,8 @@ int main(int argc,char **argv)                  // main entry point
   argv += optind;                               // should point at parameter
   if (argc != 1) help();                        // must have database name
 
+  runtime_math_init();                          // initialize MAPM lib
+
   if (volnam != NULL) exit(                     // do a create
           INIT_Create_File( blocks,             // number of blocks
                             bsize*1024,         // block size in bytes

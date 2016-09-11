@@ -148,6 +148,7 @@ void SchedYield();				// do a sched_yield()
 void DoInfo();					// for control t
 
 // Runtime math (decimal ex FreeMUMPS)
+void  runtime_math_init(void);                  // initialize MAPM lib
 short runtime_add(char *a, char *b);		// add b to a
 short runtime_mul(char *a, char *b);		// mul a by b
 short runtime_div(char *uu, char *v, short typ); // divide string arithmetic
