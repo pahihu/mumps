@@ -182,7 +182,9 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
 
   if (wrlock)
-    Ensure_GBDs();
+  { Ensure_GBDs();
+    writing = 1;
+  }
 
   s = Get_data(0);					// attempt to get it
   if (s >= 0)						// if worked
@@ -193,8 +195,9 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
     { s = mcopy(record->buf, buf, record->len);		// copy the data
     }
   }
-  if ((s != 0) || (!wrlock && curr_lock))		// if locked
-  { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
+  if (curr_lock)		                        // if locked
+  { if ((0 == wrlock) || (wrlock && (s != -(ERRM7))))
+    SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count
 }
@@ -214,14 +217,15 @@ short DB_Set(mvar *var, cstring *data)    	        // set global data
 short DB_SetEx(mvar *var, cstring *data, int wrlock)    // set global data
 { short s;						// for returns
   int i;						// a handy int
-  int curr_lock;
   int curr_lock_sav;
 
-  curr_lock_sav = 0;
-  if (wrlock)
-    curr_lock_sav = curr_lock;
+  curr_lock_sav = 0;                                    // $INCREMENT() locks
+  if (wrlock)                                           //   in DB_Get
+  { curr_lock_sav = curr_lock;                          //   save curr_lock
+    curr_lock = 0;                                      //   to make Copy2local
+  }                                                     //   happy
   s = Copy2local(var,"DB_Set");				// get local copy
-  curr_lock = curr_lock_sav;
+  curr_lock = curr_lock_sav;                            //   restore curr_lock
   if (s < 0)
   { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
     return s;						// exit on error

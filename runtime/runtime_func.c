@@ -451,6 +451,7 @@ short Dincrement2(cstring *ret, mvar *var, cstring *expr)
   else						// for a global var
   { bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
     s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
+    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
     if (s >= 0) goto gotit;			// if we got data, return it
     if (s == -(ERRM7)) s = 0;			// flag undefined global var
   }
@@ -458,23 +459,31 @@ short Dincrement2(cstring *ret, mvar *var, cstring *expr)
 
 gotit:
   ret->len = s;
-  fprintf(stderr,"len:%d buf:%s\r\n", ret->len, ret->buf);
+  ret->buf[ret->len] = '\0';
+  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
   p = expr->buf;
   s = ncopy(&p, temp);
   if (s < 0) goto errout;
   s = runtime_add((char *) ret->buf, (char *) temp);
-  fprintf(stderr,"len:%d buf:%s\r\n", ret->len, ret->buf);
   if (s < 0) goto errout;
   ret->len = s;
+  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
   if (var->uci == UCI_IS_LOCALVAR)
+  { // fprintf(stderr, "Dincrement: set local\r\n");
     s = ST_Set(var, ret);
+  }
   else
+  { // fprintf(stderr, "Dincrement: set global\r\n");
     s = DB_SetEx(var, ret, 1);
+    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
+  }
   if (s < 0) goto errout;
   s = ret->len;		                        // and return the length
 
 errout:
-  fprintf(stderr,"errout: %d\r\n", s);
+  // if (s < 0) fprintf(stderr,"errout: %d\r\n", s);
+  if (curr_lock)
+    SemOp( SEM_GLOBAL, -curr_lock);
   return s;
 }
 
