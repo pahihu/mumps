@@ -3,13 +3,11 @@
 // https://github.com/preshing/cpp11-on-multicore
 //
 #include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
 #include <math.h>
 #include <sys/sem.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <libkern/OSAtomic.h>
 
 #include "mumps.h"
 #include "database.h"
@@ -46,14 +44,14 @@ short DoSem(int sem_num, int numb)
   return semop(systab->sem_id, &buf, 1);        // doit
 }
 
-#define ATOMIC_ADD_FETCH(ptr,val)       OSAtomicAdd32Barrier(val,ptr)
-#define ATOMIC_SUB_FETCH(ptr,val)       OSAtomicAdd32Barrier(-(val),ptr)
+#define ATOMIC_FETCH_ADD(ptr,val)       __sync_fetch_and_add(ptr,val)
+#define ATOMIC_FETCH_SUB(ptr,val)       __sync_fetch_and_sub(ptr,val)
 #define ATOMIC_CAS(ptr,oldval,newval) \
-        OSAtomicCompareAndSwap32Barrier(oldval,newval,ptr)
+        __sync_bool_compare_and_swap(ptr,oldval,newval)
 
-#define F_WRITERS         0
-#define F_WAIT_TO_READ    8
-#define F_READERS        16
+#define F_WRITERS        0
+#define F_WAIT_TO_READ   8
+#define F_READERS       16
 #define FLD_WIDTH       255
 #define BITONE(y)       (1 << (y))
 #define FLDINC(x,y)     x = (x) + BITONE(y)
@@ -63,12 +61,11 @@ short DoSem(int sem_num, int numb)
 
 void lock_reader(rwlock_t *lck)
 {
-  u_int old_status;
+  u_int old_status = *lck;
   u_int new_status;
 
   do
-  { old_status = *lck;
-    new_status = old_status;
+  { new_status = old_status;
     if (FLD(old_status,F_WRITERS) > 0)
       FLDINC(new_status,F_WAIT_TO_READ);
     else
@@ -76,45 +73,34 @@ void lock_reader(rwlock_t *lck)
   } while (!ATOMIC_CAS(lck, old_status, new_status));
 
   if (FLD(old_status,F_WRITERS) > 0)
-  { fprintf(stderr, "lock_reader: waiting\r\n");
-    fflush(stderr);
     DoSem(SEM_GLOBAL_RD, -1);
-  }
 }
 
 void unlock_reader(rwlock_t *lck)
 {
-  u_int old_status = ATOMIC_SUB_FETCH(lck, BITONE(F_READERS));
-  assert(FLD(old_status,F_READERS) < systab->maxjob);
-  fprintf(stderr, "unlock_reader: %08X\r\n", old_status);
-  fflush(stderr);
-  if (FLD(old_status,F_READERS) == 0 && FLD(old_status,F_WRITERS) > 0)
+  u_int old_status = ATOMIC_FETCH_SUB(lck, BITONE(F_READERS));
+  assert(FLD(old_status,F_READERS) > 0);
+  if (FLD(old_status,F_READERS) == 1 && FLD(old_status,F_WRITERS) > 0)
     DoSem(SEM_GLOBAL_WR, 1);
 }
 
 void lock_writer(rwlock_t *lck)
 {
-  u_int old_status = ATOMIC_ADD_FETCH(lck, BITONE(F_WRITERS));
-  assert(FLD(old_status,F_WRITERS) <= FLD_WIDTH);
-  if (FLD(old_status,F_READERS) > 0 || FLD(old_status,F_WRITERS) > 1)
-  { fprintf(stderr, "lock_writer: waiting\r\n");
-    fflush(stderr);
+  u_int old_status = ATOMIC_FETCH_ADD(lck, BITONE(F_WRITERS));
+  assert(FLD(old_status,F_WRITERS) + 1 <= FLD_WIDTH);
+  if (FLD(old_status,F_READERS) > 0 || FLD(old_status,F_WRITERS) > 0)
     DoSem(SEM_GLOBAL_WR, -1);
-  }
-  fprintf(stderr, "lock_writer: %08X\r\n", *lck);
-  fflush(stderr);
   assert(FLD(*lck,F_READERS) == 0);
 }
 
 void unlock_writer(rwlock_t *lck)
 {
-  u_int old_status;
+  u_int old_status = *lck;
   u_int new_status;
   u_int wait_to_read = 0;
 
   do
-  { old_status = *lck;
-    assert(FLD(old_status,F_READERS) == 0);
+  { assert(FLD(old_status,F_READERS) == 0);
     new_status = old_status;
     FLDDEC(new_status,F_WRITERS);
     wait_to_read = FLD(old_status,F_WAIT_TO_READ);
@@ -133,13 +119,12 @@ void unlock_writer(rwlock_t *lck)
 // based on unlock_writer from preshing
 void unlock_writer_to_reader(rwlock_t *lck)
 {
-  u_int old_status;
+  u_int old_status = *lck;
   u_int new_status;
   u_int wait_to_read = 0;
 
   do
-  { old_status = *lck;
-    assert(FLD(old_status,F_READERS) == 0);
+  { assert(FLD(old_status,F_READERS) == 0);
     new_status = old_status;
     FLDDEC(new_status,F_WRITERS);
     wait_to_read = FLD(old_status,F_WAIT_TO_READ);
@@ -177,7 +162,7 @@ short TrySemLock(int sem_num, int numb)
     else
       lock_reader(&systab->shsem[SEM_GLOBAL]);
   }
-  else if (ATOMIC_ADD_FETCH(&systab->shsem[sem_num], 1) > 1)
+  else if (ATOMIC_FETCH_ADD(&systab->shsem[sem_num], 1) > 0)
     dosemop = 1;
 
   if (dosemop)
@@ -237,7 +222,7 @@ short SemUnlock(int sem_num, int numb)
     else
       unlock_reader(&systab->shsem[SEM_GLOBAL]);
   }
-  else if (ATOMIC_SUB_FETCH(&systab->shsem[sem_num], 1) > 0)
+  else if (ATOMIC_FETCH_SUB(&systab->shsem[sem_num], 1) > 1)
     dosemop = 1;
 
   if (dosemop)

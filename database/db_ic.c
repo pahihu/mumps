@@ -311,6 +311,7 @@ u_int ic_block(u_int block, u_int points_at,
       icerr++;						// count it
       s = SQ_Write(outc);				// output it
       s = SQ_WriteFormat(SQ_LF);			// and a !
+      s = SemOp( SEM_GLOBAL, -curr_lock);		// release the lock
       return 0;						// give up
   }
 
