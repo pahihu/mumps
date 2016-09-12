@@ -38,6 +38,8 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
+#include "rwlock.h"
+
 //** general constant definitions ***/
 
 #define FALSE           0                       // nicer than using 0
@@ -189,7 +191,10 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 
-#define SEM_MAX         5                       // total number of these
+#define SEM_GLOBAL_RD   5
+#define SEM_GLOBAL_WR   6
+
+#define SEM_MAX         7                       // total number of these
 
 #if defined(__sun__) || defined(__NetBSD__)
 union semun {
@@ -468,6 +473,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   long addsize;                                 // add buff size
   u_int64 TxId;                                 // TX id
   time_t Mtime;                                 // Mtime, updated by daemon 0
+  rwlock_t shsem[SEM_MAX];                      // shared semaphores
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
 } systab_struct;                                // end of systab

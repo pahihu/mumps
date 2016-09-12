@@ -167,7 +167,8 @@ int INIT_Start( char *file,                     // database
   printf( "and %dkb for locktab.\n", locksize/1024);
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
 
-  for (i = 0; i < SEM_MAX; sem_val[i++] = jobs); // setup for sem init
+  for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
+    sem_val[i] = (SEM_GLOBAL_RD == i) || (SEM_GLOBAL_WR == i)  ? 0 : jobs;
   semvals.array = sem_val;
 
   sjlt_size = sizeof(systab_struct)		// size of Systab
@@ -330,8 +331,11 @@ int INIT_Start( char *file,                     // database
   if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;   // minimum of MIN_DAEMONS
   if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;	// and the max
   systab->vol[0]->num_of_daemons = jobs;	// initalise this
+
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
+  bzero(systab->shsem, sizeof(systab->shsem));  // clear shared semaphores
+
   while (SemOp( SEM_WD, WRITE));		// lock WD
   for (indx=0; indx<jobs; indx++)		// for each required daemon
   { i = DB_Daemon(indx, 1);			// start each daemon (volume 1)
