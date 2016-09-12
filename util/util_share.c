@@ -97,10 +97,10 @@ short SemOpEx(int sem_num, int numb,
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   char msg[128];
 
-  fprintf(stderr,"%08X %d %3d %s:%d\r\n",
-                  systab->shsem[SEM_GLOBAL], sem_num, numb,
-                  file, line);
-  fflush(stderr);
+  // fprintf(stderr,"%08X %d %3d %s:%d\r\n",
+  //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
+  //                 file, line);
+  // fflush(stderr);
 
   if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));

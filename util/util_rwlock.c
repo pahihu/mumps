@@ -76,8 +76,8 @@ void lock_reader(rwlock_t *lck)
   } while (!ATOMIC_CAS(lck, old_status, new_status));
 
   if (FLD(old_status,F_WRITERS) > 0)
-  { fprintf(stderr, "lock_reader: waiting\r\n");
-    fflush(stderr);
+  { // fprintf(stderr, "lock_reader: waiting\r\n");
+    // fflush(stderr);
     DoSem(SEM_GLOBAL_RD, -1);
   }
 }
@@ -86,24 +86,31 @@ void unlock_reader(rwlock_t *lck)
 {
   u_int old_status = ATOMIC_SUB_FETCH(lck, BITONE(F_READERS));
   assert(FLD(old_status,F_READERS) < systab->maxjob);
-  fprintf(stderr, "unlock_reader: %08X\r\n", old_status);
-  fflush(stderr);
+  // fprintf(stderr, "unlock_reader: %08X\r\n", old_status);
+  // fflush(stderr);
   if (FLD(old_status,F_READERS) == 0 && FLD(old_status,F_WRITERS) > 0)
     DoSem(SEM_GLOBAL_WR, 1);
 }
 
 void lock_writer(rwlock_t *lck)
 {
+  u_int nreaders;
   u_int old_status = ATOMIC_ADD_FETCH(lck, BITONE(F_WRITERS));
   assert(FLD(old_status,F_WRITERS) <= FLD_WIDTH);
   if (FLD(old_status,F_READERS) > 0 || FLD(old_status,F_WRITERS) > 1)
-  { fprintf(stderr, "lock_writer: waiting\r\n");
-    fflush(stderr);
+  { // fprintf(stderr, "lock_writer: waiting\r\n");
+    // fflush(stderr);
     DoSem(SEM_GLOBAL_WR, -1);
   }
-  fprintf(stderr, "lock_writer: %08X\r\n", *lck);
-  fflush(stderr);
-  assert(FLD(*lck,F_READERS) == 0);
+  // fprintf(stderr, "lock_writer: %08X\r\n", *lck);
+  // fflush(stderr);
+  old_status = *lck;
+  nreaders = FLD(old_status,F_READERS);
+  if (nreaders)
+  { fprintf(stderr, "lock_writer: old_status=%08X\r\n", old_status);
+    fflush(stderr);
+    assert(nreaders == 0);
+  }
 }
 
 void unlock_writer(rwlock_t *lck)
