@@ -90,6 +90,9 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
 static int curr_sem[SEM_MAX];
        int curr_sem_init = 1;
 
+const  char *sem_file;
+       int  sem_line;
+
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
@@ -97,6 +100,8 @@ short SemOpEx(int sem_num, int numb,
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   char msg[128];
 
+  sem_file = file;
+  sem_line = line;
   // fprintf(stderr,"%08X %d %3d %s:%d\r\n",
   //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
   //                 file, line);

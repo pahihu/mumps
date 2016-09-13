@@ -107,14 +107,14 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
   struct GBD *next;					// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
-  struct GBD *dirty;					// to write -> next
-  time_t last_accessed;					// last time used
+  volatile struct GBD *dirty;				// to write -> next
+  volatile time_t last_accessed;			// last time used
 #ifdef MV1_BLKVER
-  u_int  blkver_low;                                    // blk version LOW
-  u_int  blkver_high;                                   // blk version HIGH
+  volatile u_int  blkver_low;                           // blk version LOW
+  volatile u_int  blkver_high;                          // blk version HIGH
 #endif
 #ifdef MV1_REFD
-  u_int  referenced;
+  volatile u_int  referenced;
 #endif
 } gbd;							// end gbd struct
 

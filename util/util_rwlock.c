@@ -46,10 +46,18 @@ short DoSem(int sem_num, int numb)
   return semop(systab->sem_id, &buf, 1);        // doit
 }
 
-#define ATOMIC_ADD_FETCH(ptr,val)       OSAtomicAdd32Barrier(val,ptr)
-#define ATOMIC_SUB_FETCH(ptr,val)       OSAtomicAdd32Barrier(-(val),ptr)
+#define ATOMIC_ADD_FETCH(ptr,val) \
+        OSAtomicAdd32Barrier(val,(volatile int32_t*)ptr)
+
+#define ATOMIC_SUB_FETCH(ptr,val) \
+        OSAtomicAdd32Barrier(-(val),(volatile int32_t*)ptr)
+
 #define ATOMIC_CAS(ptr,oldval,newval) \
-        OSAtomicCompareAndSwap32Barrier(oldval,newval,ptr)
+        OSAtomicCompareAndSwap32Barrier(oldval,newval,(volatile int32_t*)ptr)
+
+#define ATOMIC_SYNC \
+        OSMemoryBarrier()
+
 
 #define F_WRITERS         0
 #define F_WAIT_TO_READ    8
@@ -61,13 +69,31 @@ short DoSem(int sem_num, int numb)
 #define FLD(x,y)        (FLD_WIDTH & ((x) >> (y)))
 #define SET_FLD(z,x,y)  { z &= ~(FLD_WIDTH << (x)); z |= (FLD_WIDTH & (y)) << (x); }
 
-void lock_reader(rwlock_t *lck)
+extern const char *sem_file;
+extern       int   sem_line;
+
+static
+void myassert(u_int val, u_int expr, const char *file, int line)
+{
+  if (expr) return;
+  fprintf(stderr, "Assertion failed: val=%08X at %s:%d, SemOp() at %s:%d\r\n",
+                  val, file, line, sem_file, sem_line);
+  assert(0);
+}
+
+#define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
+
+
+void lock_reader(volatile u_int *lck)
 {
   u_int old_status;
   u_int new_status;
 
+  ASSERT(curr_lock, curr_lock == 0);
+
   do
-  { old_status = *lck;
+  { ATOMIC_SYNC; old_status = *lck;
+    ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     new_status = old_status;
     if (FLD(old_status,F_WRITERS) > 0)
       FLDINC(new_status,F_WAIT_TO_READ);
@@ -78,50 +104,99 @@ void lock_reader(rwlock_t *lck)
   if (FLD(old_status,F_WRITERS) > 0)
   { // fprintf(stderr, "lock_reader: waiting\r\n");
     // fflush(stderr);
+    // ATOMIC_FETCH(old_status,lck);
+    // ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
+    // ASSERT(old_status, FLD(old_status,F_WAIT_TO_READ) > 0);
     DoSem(SEM_GLOBAL_RD, -1);
   }
+
+#ifndef NDEBUG
+  // ATOMIC_FETCH(old_status,lck);
+  // ASSERT(old_status, FLD(old_status,F_READERS) > 0);
+#endif
 }
 
-void unlock_reader(rwlock_t *lck)
+
+void unlock_reader(volatile u_int *lck)
 {
-  u_int old_status = ATOMIC_SUB_FETCH(lck, BITONE(F_READERS));
-  assert(FLD(old_status,F_READERS) < systab->maxjob);
+  u_int old_status;
+
+  ASSERT(curr_lock, curr_lock == READ);
+
+#ifndef NDEBUG
+  ATOMIC_SYNC; old_status = *lck;
+  ASSERT(old_status, FLD(old_status,F_READERS) > 0);
+#endif
+  old_status = ATOMIC_SUB_FETCH(lck, BITONE(F_READERS));
+  ASSERT(old_status, (old_status & 0xFF000000U) == 0);
+  ASSERT(old_status, FLD(old_status,F_READERS) < systab->maxjob);
   // fprintf(stderr, "unlock_reader: %08X\r\n", old_status);
   // fflush(stderr);
-  if (FLD(old_status,F_READERS) == 0 && FLD(old_status,F_WRITERS) > 0)
+  if ((FLD(old_status,F_READERS) == 0) && (FLD(old_status,F_WRITERS) > 0))
+  { // ATOMIC_FETCH(old_status,lck);
+    // ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    // ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
     DoSem(SEM_GLOBAL_WR, 1);
+    // ATOMIC_FETCH(old_status,lck);
+    // ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    // ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
+  }
 }
 
-void lock_writer(rwlock_t *lck)
+
+void lock_writer(volatile u_int *lck)
 {
+  int dowait;
   u_int nreaders;
-  u_int old_status = ATOMIC_ADD_FETCH(lck, BITONE(F_WRITERS));
-  assert(FLD(old_status,F_WRITERS) <= FLD_WIDTH);
-  if (FLD(old_status,F_READERS) > 0 || FLD(old_status,F_WRITERS) > 1)
+  u_int old_status;
+
+  ASSERT(curr_lock, curr_lock == 0);
+
+  old_status = ATOMIC_ADD_FETCH(lck, BITONE(F_WRITERS));
+  ASSERT(old_status, (old_status & 0xFF000000U) == 0);
+  ASSERT(old_status, FLD(old_status,F_WRITERS) <= FLD_WIDTH);
+  dowait = 0;
+  if ((FLD(old_status,F_READERS) > 0) || (FLD(old_status,F_WRITERS) > 1))
   { // fprintf(stderr, "lock_writer: waiting\r\n");
     // fflush(stderr);
+    dowait = 1;
     DoSem(SEM_GLOBAL_WR, -1);
   }
+#ifndef NDEBUG
+  // ATOMIC_FETCH(old_status,lck);
+  // ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
+#endif
   // fprintf(stderr, "lock_writer: %08X\r\n", *lck);
   // fflush(stderr);
-  old_status = *lck;
-  nreaders = FLD(old_status,F_READERS);
-  if (nreaders)
-  { fprintf(stderr, "lock_writer: old_status=%08X\r\n", old_status);
-    fflush(stderr);
-    assert(nreaders == 0);
-  }
+  // ATOMIC_FETCH(old_status,lck);
+  // ASSERT(old_status, (old_status & 0xFF000000U) == 0);
+  // nreaders = FLD(old_status,F_READERS);
+  // if (nreaders)
+  // { fprintf(stderr, "lock_writer: old_status=%08X dowait=%d\r\n",
+  //                    old_status, dowait);
+  //   fflush(stderr);
+  //   ASSERT(old_status, nreaders == 0);
+  // }
 }
 
-void unlock_writer(rwlock_t *lck)
+void unlock_writer(volatile u_int *lck)
 {
   u_int old_status;
   u_int new_status;
   u_int wait_to_read = 0;
 
+  ASSERT(curr_lock, curr_lock == WRITE);
+
   do
-  { old_status = *lck;
-    assert(FLD(old_status,F_READERS) == 0);
+  { ATOMIC_SYNC; old_status = *lck;
+#ifndef NDEBUG
+    ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
+#endif
+    ASSERT(old_status, (old_status & 0xFF000000U) == 0);
+    if (FLD(old_status,F_READERS) != 0)
+    { ATOMIC_SUB_FETCH(lck,BITONE(F_WRITERS));
+      ASSERT(old_status, FLD(old_status,F_READERS) == 0); // XXX
+    }
     new_status = old_status;
     FLDDEC(new_status,F_WRITERS);
     wait_to_read = FLD(old_status,F_WAIT_TO_READ);
@@ -133,20 +208,26 @@ void unlock_writer(rwlock_t *lck)
 
   if (wait_to_read > 0)
     DoSem(SEM_GLOBAL_RD, wait_to_read);
-  else if (FLD(old_status,F_WRITERS) > 1)
+  else if (FLD(old_status,F_WRITERS) > 0)
     DoSem(SEM_GLOBAL_WR, 1);
 }
 
-// based on unlock_writer from preshing
-void unlock_writer_to_reader(rwlock_t *lck)
+// based on unlock_writer from Preshing above
+void unlock_writer_to_reader(volatile u_int *lck)
 {
   u_int old_status;
   u_int new_status;
   u_int wait_to_read = 0;
 
+  ASSERT(curr_lock, curr_lock == WRITE);
+
   do
-  { old_status = *lck;
-    assert(FLD(old_status,F_READERS) == 0);
+  { ATOMIC_SYNC; old_status = *lck;
+#ifndef NDEBUG
+    ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
+#endif
+    ASSERT(old_status, (old_status & 0xFF000000U) == 0);
+    ASSERT(old_status, FLD(old_status,F_READERS) == 0);
     new_status = old_status;
     FLDDEC(new_status,F_WRITERS);
     wait_to_read = FLD(old_status,F_WAIT_TO_READ);
@@ -162,9 +243,14 @@ void unlock_writer_to_reader(rwlock_t *lck)
 
   if (wait_to_read > 0)
     DoSem(SEM_GLOBAL_RD, wait_to_read);
+#ifndef NDEBUG
+  // ATOMIC_FETCH(old_status,lck);
+  // ASSERT(old_status, FLD(old_status,F_READERS) > 0);
+#endif
   // else if (old_status.writers > 1)
   // SemOp(SEM_GLOBAL_WRITE, -WRITE);
 }
+
 
 // Checking and profiling versions of semaphore operations
 // Source: pahia@t-online.hu
@@ -181,8 +267,13 @@ short TrySemLock(int sem_num, int numb)
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
       lock_writer(&systab->shsem[SEM_GLOBAL]);
-    else
+    else if (numb == READ)
       lock_reader(&systab->shsem[SEM_GLOBAL]);
+    else
+    { char msg[64];
+      sprintf(msg, "TrySemLock(): numb=%d", numb);
+      panic(msg);
+    }
   }
   else if (ATOMIC_ADD_FETCH(&systab->shsem[sem_num], 1) > 1)
     dosemop = 1;
@@ -241,8 +332,13 @@ short SemUnlock(int sem_num, int numb)
       unlock_writer(&systab->shsem[SEM_GLOBAL]);
     else if (numb == WR_TO_R)
       unlock_writer_to_reader(&systab->shsem[SEM_GLOBAL]);
-    else
+    else if (numb == -READ)
       unlock_reader(&systab->shsem[SEM_GLOBAL]);
+    else
+    { char msg[64];
+      sprintf(msg, "SemUnLock(): numb=%d", numb);
+      panic(msg);
+    }
   }
   else if (ATOMIC_SUB_FETCH(&systab->shsem[sem_num], 1) > 0)
     dosemop = 1;

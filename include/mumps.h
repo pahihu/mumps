@@ -38,7 +38,6 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#include "rwlock.h"
 
 //** general constant definitions ***/
 
@@ -471,9 +470,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   locktab *lockfree;                            // head of lock free space
   long addoff;                                  // off from systab to add buff
   long addsize;                                 // add buff size
-  u_int64 TxId;                                 // TX id
-  time_t Mtime;                                 // Mtime, updated by daemon 0
-  rwlock_t shsem[SEM_MAX];                      // shared semaphores
+  volatile u_int64 TxId;                        // TX id
+  volatile time_t Mtime;                        // Mtime, updated by daemon 0
+  volatile u_int shsem[SEM_MAX];                // shared semaphores
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
 } systab_struct;                                // end of systab
