@@ -83,6 +83,13 @@ void myassert(u_int val, u_int expr, const char *file, int line)
 
 #define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
 
+u_int ATOMIC_FETCH(volatile u_int *lck)
+{
+  u_int t = 0;
+
+  while (!ATOMIC_CAS(&t, 0, systab->shsem[SEM_GLOBAL]));
+  return t;
+}
 
 void lock_reader(volatile u_int *lck)
 {
@@ -92,7 +99,7 @@ void lock_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == 0);
 
   do
-  { ATOMIC_SYNC; old_status = *lck;
+  { old_status = ATOMIC_FETCH(lck);
     ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     new_status = old_status;
     if (FLD(old_status,F_WRITERS) > 0)
@@ -124,7 +131,7 @@ void unlock_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == READ);
 
 #ifndef NDEBUG
-  ATOMIC_SYNC; old_status = *lck;
+  old_status = ATOMIC_FETCH(lck); 
   ASSERT(old_status, FLD(old_status,F_READERS) > 0);
 #endif
   old_status = ATOMIC_SUB_FETCH(lck, BITONE(F_READERS));
@@ -188,7 +195,7 @@ void unlock_writer(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == WRITE);
 
   do
-  { ATOMIC_SYNC; old_status = *lck;
+  { old_status = ATOMIC_FETCH(lck);
 #ifndef NDEBUG
     ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
 #endif
@@ -222,7 +229,7 @@ void unlock_writer_to_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == WRITE);
 
   do
-  { ATOMIC_SYNC; old_status = *lck;
+  { old_status = ATOMIC_FETCH(lck);
 #ifndef NDEBUG
     ASSERT(old_status, FLD(old_status,F_WRITERS) > 0);
 #endif
