@@ -87,6 +87,9 @@ int SQ_Socket_Create (int nonblock)
   sid = socket ( PF_INET, SOCK_STREAM, 0 );
   if ( sid == -1 ) return ( getError ( SYS, errno ) );
 
+  flag = 1;
+  setsockopt(sid, SOL_SOCKET, SO_REUSEADDR | SO_NOSIGPIPE, &flag, sizeof(int));
+
   if (nonblock)
   { flag = fcntl ( sid, F_GETFL, 0 );
     if ( flag == -1 )
