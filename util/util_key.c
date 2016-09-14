@@ -657,6 +657,45 @@ int UTIL_Key_Chars_In_Subs( char *Key, int keylen, int maxsubs, int *subs,
   return (i);						// return no. of chars
 }
 
+// nsubs = 4
+// subsPos[0] = 0
+// subsPos[1] = 2
+// subsPos[2] = 5
+// subsPos[3] = 8
+// subsPos[4] = keylen
+
+int UTIL_Key_Chars_In_SubsEx( char *Key, u_char nsubs, u_char *subsPos,
+                int maxsubs, int *subs, char *KeyBuffer )
+{ nsubs = nsubs > maxsubs ? maxsubs : nsubs;            // select the smaller
+  *subs = nsubs;
+  bcopy( Key, KeyBuffer, subsPos[nsubs] );
+  return subsPos[nsubs];
+}
+
+int UTIL_Key_Subs( char *Key, int keylen, u_char *subs, u_char *subsPos )
+{ int cnt, i;						// subs & char counts
+  cnt = 0;						// initialise
+  i = 0;						// these two
+  while ( ( i < keylen ) && ( cnt < 255 ) )		// while still in key
+  { subsPos[cnt++] = i;                                 // save subscript pos
+    if ( (Key[i]&128) || (Key[i]&64) )			// if +ve no. or string
+    { for (i++; Key[i]; i++);				// loop til find NULL
+        i++;						// skip NULL char
+    }
+    else						// else if -ve
+    { for (i++; (Key[i] != -1); i++);			// loop til find $C(255)
+        i++;						// skip past 255
+    }
+  }
+  subsPos[cnt] = keylen;                                // sentinel is keylen
+  *subs = cnt;
+  // fprintf(stderr, "keylen=%d\r\n", keylen);
+  // for (i = 0; i <= cnt; i++)
+  // { fprintf(stderr, "  subs[%d]=%d\r\n", i, subsPos[i]);
+  // }
+  return (i);						// return no. of chars
+}
+
 chr_x *_X_Clear(chr_x *a)
 {
   bzero(a->buf, MAX_NAME_BYTES);

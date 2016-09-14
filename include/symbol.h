@@ -38,7 +38,9 @@
 
 #define DTBLKSIZE sizeof(ST_depend*)+(sizeof(short)*2)+sizeof(char)
 #define DTMINSIZ 32				// leaves 21 for data
-#define DPBLKSIZE sizeof(u_char)+sizeof(ST_depend *)+sizeof(short)+sizeof(char)
+#define DPBLKSIZE \
+  (sizeof(u_char)+sizeof(ST_depend *)+sizeof(short)+sizeof(char)+ \
+   sizeof(u_char)+(MAX_SUBSCRIPTS+1)*sizeof(u_char))
 #define NTBLKSIZE sizeof(ST_newtab *)+2*sizeof(short)+sizeof(short *)+sizeof(ST_locdata *)
 
 struct ST_DATA;                                 // defined below
@@ -57,10 +59,14 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK // define new stack
 
 #define SIZ_KEY_DATA    (32768+256+3)           // for the following
 
+#define MV1_SUBSPOS     1
+
 typedef struct __attribute__ ((__packed__)) ST_DEPEND // symbol dependant block
 { struct ST_DEPEND *deplnk;                     // dependants link
-  int pieces;                                   // no. of subscripts
-  int uplevlen;                                 // len. of upOneLevel key
+#ifdef MV1_SUBSPOS
+  u_char nsubs;                                 // no. of subscripts
+  u_char subspos[MAX_SUBSCRIPTS+1];             // len. of upOneLevel key
+#endif
   u_char keylen;                                // length of key (bytes)
   u_char bytes[SIZ_KEY_DATA];                   // key bytes then data bytes
 } ST_depend;                                    // end ST_depend structure

@@ -260,6 +260,9 @@ int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_KeyEqu(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_Chars_In_Subs( char *Key, int keylen,
 	int maxsubs, int *subs, char *KeyBuffer );
+int UTIL_Key_Subs( char *Key, int keylen, u_char *nsubs, u_char *subsPos);
+int UTIL_Key_Chars_In_SubsEx( char *Key, u_char nsubs, u_char *subsPos,
+	int maxsubs, int *subs, char *KeyBuffer );
 
 // General utility prototypes
 short UTIL_strerror(int err, u_char *buf);      // return string error msg

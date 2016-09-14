@@ -332,7 +332,6 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
   int pad = 0;					// extra space padding
   short *ptr2short;				// needed for short into char
   int fwd;					// position in symtab
-  int subs;                                     // a handy int
 
   if ((var->slen & 1) != 0) pad = 1;		// set up for any extra space
   if (var->volset)				// if volset defined
@@ -360,13 +359,11 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       newPtrDt->attach = 1;			// initialize attach count
       newPtrDp->deplnk = ST_DEPEND_NULL;	// no more dependents
       newPtrDp->keylen = var->slen;		// copy sub keylength
-      // ---
-      newPtrDp->pieces = 0;
-      UTIL_Key_Chars_In_Subs((char *)var->key,
-                             (int)var->slen, 255, &newPtrDp->pieces, (char *)NULL);
-      newPtrDp->uplevlen = UTIL_Key_Chars_In_Subs((char *)var->key,
-                             (int)var->slen, newPtrDp->pieces - 1, &subs, (char *)NULL);
-      // ---
+#ifdef MV1_SUBSPOS
+      newPtrDp->nsubs = 0;
+      UTIL_Key_Subs((char *)var->key, (int)var->slen,
+           &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
+#endif
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
       if (n & 1) n++;				// ensure n is even
@@ -403,13 +400,11 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       if (newPtrDp == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
       newPtrDp->deplnk = ST_DEPEND_NULL;	// init dependent pointer
       newPtrDp->keylen = var->slen;		// copy sub keylength
-      // ---
-      newPtrDp->pieces = 0;
-      UTIL_Key_Chars_In_Subs((char *)var->key,
-                             (int)var->slen, 255, &newPtrDp->pieces, (char *)NULL);
-      newPtrDp->uplevlen = UTIL_Key_Chars_In_Subs((char *)var->key,
-                             (int)var->slen, newPtrDp->pieces - 1, &subs, (char *)NULL);
-      // ---
+#ifdef MV1_SUBSPOS
+      newPtrDp->nsubs = 0;
+      UTIL_Key_Subs((char *)var->key, (int)var->slen,
+           &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
+#endif
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
       if (n & 1) n++;				// ensure n is even
@@ -594,7 +589,11 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   int ptr1;                                     // position in symtab
   ST_depend *current;                           // active pointer
   ST_depend *prev = ST_DEPEND_NULL;             // pointer to previous element
-  int pieces = 0;                               // subscripts in key
+#ifdef MV1_SUBSPOS
+  u_char pieces = 0;                            // subscripts in key
+#else
+  int pieces = 0;
+#endif
   int subs;
   int i = 0;                                    // generic counter
   char keysub[256];                             // current key subscript
@@ -603,6 +602,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   int index = 0;                                // where up to in key extract
   int upto = 0;                                 // max number of subs
   short ret = 0;                                // current position in key
+  u_char subspos[TYPMAXSUB+1];
 
   if (var->volset)                              // if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);       // get it this way
@@ -619,10 +619,17 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   { return 0;                                   // cant $Order a data block
   }                                             // return null
 
+#ifdef MV1_SUBSPOS
+  UTIL_Key_Subs((char *)var->key, (int)var->slen, &pieces, &subspos[0]);
+  upOneLev[0] = UTIL_Key_Chars_In_SubsEx(
+                  (char *)var->key, pieces, &subspos[0],
+                  pieces-1, &subs, (char *)&upOneLev[1]);
+#else
   UTIL_Key_Chars_In_Subs((char *)var->key, (int)var->slen, 255, &pieces, (char *)NULL);
                                                 // Return number of subscripts in pieces
   upOneLev[0]=(u_char) UTIL_Key_Chars_In_Subs((char *)var->key, (int)var->slen,
                                               pieces-1, &subs, (char *)&upOneLev[1]);
+#endif
         // Return characters in all but last subscript, number of subscripts in subs
         // and key string (less last subscript) at upOneLev[1] on for upOneLev[0] bytes
 
@@ -647,10 +654,14 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     if (current == ST_DEPEND_NULL)              // if current pointing nowhere
     { return 0;                                 // return length of zero
     }                                           // end if current points->NULL
-    bcopy((char *)current->bytes, (char *)&crud[1], current->uplevlen);
-    crud[0] = current->uplevlen;
-    // crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
-    //                                  pieces-1, &subs, (char *)&crud[1]);
+#ifdef MV1_SUBSPOS
+    crud[0]=UTIL_Key_Chars_In_SubsEx(
+            (char *)current->bytes, current->nsubs, &current->subspos[0],
+            pieces-1, &subs, (char *)&crud[1]);
+#else
+    crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
+            pieces-1, &subs, (char *)&crud[1]);
+#endif
     if ((crud[0] != 0) && (upOneLev[0] != 0))
     { if (crud[0] != upOneLev[0]) return(0);
       if (bcmp(&crud[1], &upOneLev[1], upOneLev[0]) != 0) return(0);
@@ -670,10 +681,15 @@ short ST_Order(mvar *var, u_char *buf, int dir)
 
     if (UTIL_Key_KeyEqu(var->key, current->bytes, // compare keys. If compare
                     var->slen, current->keylen) != 0) // fails to match exact
-    { bcopy((char *)current->bytes, (char *)&crud[1], current->uplevlen);
-      crud[0] = current->uplevlen;
-      // crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
-      //                                  pieces-1, &subs, (char *)&crud[1]);
+    { 
+#ifdef MV1_SUBSPOS
+      crud[0]=UTIL_Key_Chars_In_SubsEx(
+              (char *)current->bytes, current->nsubs, &current->subspos[0],
+              pieces-1, &subs, (char *)&crud[1]);
+#else
+      crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
+                                       pieces-1, &subs, (char *)&crud[1]);
+#endif
 
       if ((crud[0] != 0) && (upOneLev[0] != 0)) // if lengths aren't 0
       { if (bcmp(&crud[1], &upOneLev[1], upOneLev[0]) != 0) // & cmp fails

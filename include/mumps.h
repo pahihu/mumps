@@ -69,6 +69,7 @@
 #define MAX_STR_LEN     32767                   // max size of a string
 #define MAX_ECODE       1024                    // max len for $ECODE
 #define MAX_NAME_BYTES  32                      // max len for names
+#define MAX_SUBSCRIPTS  63                      // max no. of subscripts
 
 #define SECDAY          86400                   // seconds per day ($H)
 #define YRADJ           47117                   // days from 1 Jan 1841 to 1970
