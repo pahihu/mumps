@@ -69,6 +69,7 @@ union semun {
 #endif
 
 
+extern int rwlock_init();
 
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
 void Routine_Init();                    // proto for routine setup
@@ -168,7 +169,11 @@ int INIT_Start( char *file,                     // database
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
+#ifdef MV1_SHSEM
     sem_val[i] = (SEM_GLOBAL_RD == i) || (SEM_GLOBAL_WR == i)  ? 0 : jobs;
+#else
+    sem_val[i] = jobs;
+#endif
   semvals.array = sem_val;
 
   sjlt_size = sizeof(systab_struct)		// size of Systab
@@ -334,7 +339,9 @@ int INIT_Start( char *file,                     // database
 
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
+#ifdef MV1_SHSEM
   bzero(systab->shsem, sizeof(systab->shsem));  // clear shared semaphores
+#endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
   for (indx=0; indx<jobs; indx++)		// for each required daemon

@@ -332,6 +332,7 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
   int pad = 0;					// extra space padding
   short *ptr2short;				// needed for short into char
   int fwd;					// position in symtab
+  int subs;                                     // a handy int
 
   if ((var->slen & 1) != 0) pad = 1;		// set up for any extra space
   if (var->volset)				// if volset defined
@@ -359,6 +360,13 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       newPtrDt->attach = 1;			// initialize attach count
       newPtrDp->deplnk = ST_DEPEND_NULL;	// no more dependents
       newPtrDp->keylen = var->slen;		// copy sub keylength
+      // ---
+      newPtrDp->pieces = 0;
+      UTIL_Key_Chars_In_Subs((char *)var->key,
+                             (int)var->slen, 255, &newPtrDp->pieces, (char *)NULL);
+      newPtrDp->uplevlen = UTIL_Key_Chars_In_Subs((char *)var->key,
+                             (int)var->slen, newPtrDp->pieces - 1, &subs, (char *)NULL);
+      // ---
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
       if (n & 1) n++;				// ensure n is even
@@ -395,6 +403,13 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       if (newPtrDp == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
       newPtrDp->deplnk = ST_DEPEND_NULL;	// init dependent pointer
       newPtrDp->keylen = var->slen;		// copy sub keylength
+      // ---
+      newPtrDp->pieces = 0;
+      UTIL_Key_Chars_In_Subs((char *)var->key,
+                             (int)var->slen, 255, &newPtrDp->pieces, (char *)NULL);
+      newPtrDp->uplevlen = UTIL_Key_Chars_In_Subs((char *)var->key,
+                             (int)var->slen, newPtrDp->pieces - 1, &subs, (char *)NULL);
+      // ---
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
       if (n & 1) n++;				// ensure n is even
@@ -632,8 +647,10 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     if (current == ST_DEPEND_NULL)              // if current pointing nowhere
     { return 0;                                 // return length of zero
     }                                           // end if current points->NULL
-    crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
-                                     pieces-1, &subs, (char *)&crud[1]);
+    bcopy((char *)current->bytes, (char *)&crud[1], current->uplevlen);
+    crud[0] = current->uplevlen;
+    // crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
+    //                                  pieces-1, &subs, (char *)&crud[1]);
     if ((crud[0] != 0) && (upOneLev[0] != 0))
     { if (crud[0] != upOneLev[0]) return(0);
       if (bcmp(&crud[1], &upOneLev[1], upOneLev[0]) != 0) return(0);
@@ -653,8 +670,10 @@ short ST_Order(mvar *var, u_char *buf, int dir)
 
     if (UTIL_Key_KeyEqu(var->key, current->bytes, // compare keys. If compare
                     var->slen, current->keylen) != 0) // fails to match exact
-    { crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
-                                       pieces-1, &subs, (char *)&crud[1]);
+    { bcopy((char *)current->bytes, (char *)&crud[1], current->uplevlen);
+      crud[0] = current->uplevlen;
+      // crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
+      //                                  pieces-1, &subs, (char *)&crud[1]);
 
       if ((crud[0] != 0) && (upOneLev[0] != 0)) // if lengths aren't 0
       { if (bcmp(&crud[1], &upOneLev[1], upOneLev[0]) != 0) // & cmp fails
@@ -669,7 +688,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   ret = 0;
   for (i=1; i<=pieces; i++)                     // number of keys
   { upto = 0;                                   // clear flag
-    ret = UTIL_Key_Extract(&current->bytes[index], (u_char *)keysub, &upto); // nxt key
+                                                // nxt key
+    ret = UTIL_Key_Extract(&current->bytes[index], (u_char *)keysub, &upto);
     index = index + upto;                       // increment index
     if ((index >= current->keylen) &&
           (i < pieces))                         // hit end of key & !found
@@ -678,7 +698,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   }                                             // end for-pieces to level reqd
                                                 // now have ascii key in
                                                 // desired position number
-  return mcopy((u_char *)keysub, buf, ret);		// put the ascii value of
+  return mcopy((u_char *)keysub, buf, ret);	// put the ascii value of
                                                 // that key in *buf
                                                 // return the length of it
 }                                               // end function - ST_Order

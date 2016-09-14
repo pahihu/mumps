@@ -59,6 +59,8 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK // define new stack
 
 typedef struct __attribute__ ((__packed__)) ST_DEPEND // symbol dependant block
 { struct ST_DEPEND *deplnk;                     // dependants link
+  int pieces;                                   // no. of subscripts
+  int uplevlen;                                 // len. of upOneLevel key
   u_char keylen;                                // length of key (bytes)
   u_char bytes[SIZ_KEY_DATA];                   // key bytes then data bytes
 } ST_depend;                                    // end ST_depend structure
