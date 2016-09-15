@@ -55,6 +55,10 @@
 #include	"error.h"
 #include	"seqio.h"
 
+#ifdef __linux__
+#define SO_NOSIGPIPE    0
+#endif
+
 #define		BACKLOG		3		// Connections to queue
 
 int SQ_Socket_Create ( int nonblock );
