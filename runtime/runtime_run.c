@@ -1074,7 +1074,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if (opc == OPMVARF)			// if reqd
 	  ssp = ssp + sizeof(mvar);		// allow maximum size
 	else					// else 'normal' mvar
-	  ssp = ssp + var->slen + sizeof(var_u) + (5 * sizeof(u_char));
+	  ssp = ssp + var->slen + MVAR_SIZE;
 	break;
 
       case INDEVAL:				// eval name indirection
@@ -1578,7 +1578,7 @@ short run(int savasp, int savssp)		// run compiled code
 	var = (mvar *) &sstk[ssp];		// some space
 	s = UTIL_MvarFromCStr(ptr1, var);	// convert to an mvar
 	if (s < 0) ERROR(s)			// complain on error
-	ssp = ssp + sizeof(var_u) + 4 + var->slen; // protect the mvar
+	ssp = ssp + MVAR_SIZE + var->slen;      // protect the mvar
 	cptr = (cstring *) &sstk[ssp];		// where the answer goes
 	astk[asp++] = (u_char *) cptr;		// stack it
 	if (j == -1)				// "environment" reqd
@@ -2855,7 +2855,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  asp = s;				// restore returned asp
 	  if (var->uci != UCI_IS_LOCALVAR)	// not a local?
 	    ERROR(-(ERRMLAST+ERRZ13))		// must be local
-	  ssp = ssp + var->slen + sizeof(var_u) + (4 * sizeof(u_char));
+	  ssp = ssp + var->slen + MVAR_SIZE;
 	  s = -1;				// flag var type
 	}
 	forx = (for_stack *) &sstk[ssp];	// where to put for stuf

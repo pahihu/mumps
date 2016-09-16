@@ -119,7 +119,7 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   }
   else if (type == TYPVARIND)			// it's an indirect
   { ind = (mvar *) astk[asp-subs-1];		// point at mvar so far
-    bcopy(ind, var, ind->slen + sizeof(var_u) + 5); // copy it in
+    bcopy(ind, var, ind->slen + MVAR_SIZE);     // copy it in
   }
   else if ((type & TYPVARIDX) &&		// if it's the index type
 	   (type < TYPVARGBL))			// and it's local

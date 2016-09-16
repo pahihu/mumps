@@ -49,6 +49,7 @@
 #include "database.h"				        // database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include <assert.h>
 
 
 int curr_lock;						// lock on globals
@@ -88,6 +89,12 @@ int hash_start = 0;					// start searching here
 //
 // Note:     No locks are held at this stage.
 //
+
+void BAD_MVAR()
+{
+  int flag = 1;
+  return;
+}
 
 short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
@@ -147,6 +154,14 @@ short Copy2local(mvar *var, char *rtn)
   { return (-ERRM26);					// error
   }
   volnum = db_var.volset;				// save this for ron
+  if (db_var.nsubs != 255)
+  { int actsubs;
+    UTIL_Key_Chars_In_Subs((char *)db_var.key, (int)db_var.slen,
+                           255, &actsubs, NULL);
+    if (db_var.nsubs != actsubs)
+      BAD_MVAR();
+    assert(db_var.nsubs == actsubs);
+  }
   return 0;						// else return ok
 }
 

@@ -62,8 +62,10 @@ short UTIL_Key_BuildEx( mvar *var, cstring *src, u_char *dest)
     return s;
   if (255 == var->nsubs)
     var->nsubs = 0;
+  assert(var->nsubs < MAX_SUBSCRIPTS + 1);
   var->subspos[var->nsubs] = diff;
   var->nsubs++;
+  assert(var->nsubs < MAX_SUBSCRIPTS + 1);
   var->subspos[var->nsubs] = diff ? s + var->slen : s;
   return s;
 }
