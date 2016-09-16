@@ -49,6 +49,7 @@
 #include "error.h"                              // standard includes
 #include "proto.h"                              // standard includes
 #include "database.h"                           // for MTIME()
+#include "rwlock.h"                             // for SemLock()/SemUnlock()
 
 extern int curr_lock;				// for tracking SEM_GLOBAL
 

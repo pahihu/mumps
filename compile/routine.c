@@ -362,6 +362,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   u_char *p;					// and a char ptr
   var_u rounam;					// the routine name
   int same = 0;					// same routine flag
+  u_char src_nsubs, rou_nsubs = 0;
 
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
@@ -435,7 +436,8 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   if (!partab.checkonly)			// if it's a real compile
   { s = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
     if (s < 0) return s;			// if we got an error, quit
-    rou_slen = rou->slen;			// save routine key size
+    rou_slen  = rou->slen;			// save routine key size
+    rou_nsubs = rou->nsubs;
   }
   if (!same)					// if not the same
   { s = DB_Kill(rou);				// dong it
@@ -447,11 +449,12 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     Routine_Delete(rounam.var_xu, rou->uci);	// delete the routine
   }
   src_slen = src->slen;				// save source key size
+  src_nsubs = src->nsubs;
 
   line->buf[0] = '0';				// seed the $O()
   line->buf[1] = '\0';				// null terminated
   line->len = 1;				// this long
-  s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
+  s = UTIL_Key_BuildEx(src, line, &src->key[src_slen]); // build the key
   src->slen = src_slen + s;			// store the new length
   comp_ptr = code;				// setup the compiler ptr
   partab.varlst = var_tbl;			// for localvar()
@@ -460,7 +463,9 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     s = Dorder1(line->buf, src);		// get next in source
     if (!s) break;				// all done
     line->len = s;				// save length
-    s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
+    src->nsubs = src_nsubs;                     // reset nsubs
+    src->slen  = src_slen;
+    s = UTIL_Key_BuildEx(src, line, &src->key[src_slen]); // build the key
     src->slen = src_slen + s;			// store the new length
     s = Dget1(line->buf, src);			// get the data
     if (s < 1) continue;			// ignore empty/undefined lines
@@ -574,7 +579,9 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     { for (i = 0; source_ptr[i] == '\t'; source_ptr[i++] = ' ');
 						// convert leading tab to space
       cptr->len = itocstring(cptr->buf, lino);	// convert to a cstring
-      s = UTIL_Key_Build(cptr, &rou->key[rou_slen]); // build the key
+      rou->nsubs = rou_nsubs;
+      rou->slen  = rou_slen;
+      s = UTIL_Key_BuildEx(rou, cptr, &rou->key[rou_slen]); // build the key
       rou->slen = rou_slen + s;			// store the new length
       s = DB_Set(rou, line);			// write out the source line
       if (s < 0)
@@ -690,7 +697,9 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   cptr->len = 1;				// the size
   if (partab.checkonly)				// just a check
     return 0;					// exit - NEED an error count
-  s = UTIL_Key_Build(cptr, &rou->key[rou_slen]); // build the key
+  rou->nsubs = rou_nsubs;
+  rou->slen  = rou_slen;
+  s = UTIL_Key_BuildEx(rou, cptr, &rou->key[rou_slen]); // build the key
   rou->slen = rou_slen + s;			// store the new length
   s = DB_Set(rou, line);			// set it
   if (same)

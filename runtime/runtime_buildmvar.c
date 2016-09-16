@@ -100,6 +100,7 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   }
   else
     subs = *mumpspc++;				// get in line
+  var->nsubs  = 255;
   var->volset = 0;				// default vol set
   var->uci = (type < TYPVARGBL) ?
     UCI_IS_LOCALVAR : 0;			// assume local var or uci 0
@@ -111,8 +112,10 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     i = UTIL_Key_Last( &partab.jobtab->last_ref); // start of last key
     if (i < 0) return (-ERRM1); 		// say "Naked indicator undef"
     bcopy( &(partab.jobtab->last_ref), var, 
-            sizeof(var_u) + 5 + i);   		// copy naked naked
+            MVAR_SIZE + i);   		        // copy naked naked
     var->slen = (u_char) i;			// stuf in the count
+    var->nsubs = partab.jobtab->last_ref.nsubs;
+    if (var->nsubs != 255) var->nsubs--;
   }
   else if (type == TYPVARIND)			// it's an indirect
   { ind = (mvar *) astk[asp-subs-1];		// point at mvar so far
@@ -145,8 +148,10 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
     if ((ptr->len == 0)	&&			// if it's a null
         ((!nul_ok) || (i != (subs-1))))		// not ok or not last subs
       return (-(ERRZ16+ERRMLAST));		// complain
-    s = UTIL_Key_Build(ptr,
+    s = UTIL_Key_BuildEx(var, ptr,
 		       &var->key[var->slen]); 	// get one subscript
+    if (s < 0)
+      return s;
     if ((s + var->slen) > 255)			// check how big
       return (-(ERRZ2+ERRMLAST));		// complain on error
     var->slen = s + var->slen; 			// add it in

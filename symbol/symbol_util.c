@@ -360,9 +360,9 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       newPtrDp->deplnk = ST_DEPEND_NULL;	// no more dependents
       newPtrDp->keylen = var->slen;		// copy sub keylength
 #ifdef MV1_SUBSPOS
-      newPtrDp->nsubs = 0;
-      UTIL_Key_Subs((char *)var->key, (int)var->slen,
-           &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
+      newPtrDp->nsubs = 255;
+      // UTIL_Key_Subs((char *)var->key, (int)var->slen,
+      //      &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
 #endif
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
@@ -401,9 +401,9 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
       newPtrDp->deplnk = ST_DEPEND_NULL;	// init dependent pointer
       newPtrDp->keylen = var->slen;		// copy sub keylength
 #ifdef MV1_SUBSPOS
-      newPtrDp->nsubs = 0;
-      UTIL_Key_Subs((char *)var->key, (int)var->slen,
-           &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
+      newPtrDp->nsubs = 255;
+      // UTIL_Key_Subs((char *)var->key, (int)var->slen,
+      //      &newPtrDp->nsubs, (u_char *)&newPtrDp->subspos[0]);
 #endif
       n = var->slen;				// get the key size
       bcopy(&var->key[0], &newPtrDp->bytes[0], n); // copy the key
@@ -602,7 +602,6 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   int index = 0;                                // where up to in key extract
   int upto = 0;                                 // max number of subs
   short ret = 0;                                // current position in key
-  u_char subspos[TYPMAXSUB+1];
 
   if (var->volset)                              // if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);       // get it this way
@@ -620,9 +619,14 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   }                                             // return null
 
 #ifdef MV1_SUBSPOS
-  UTIL_Key_Subs((char *)var->key, (int)var->slen, &pieces, &subspos[0]);
+  if (var->nsubs == 255)
+  { UTIL_Key_Subs((char *)var->key, (int)var->slen,
+                                    &var->nsubs, &var->subspos[0]);
+  }
+  pieces = var->nsubs;
   upOneLev[0] = UTIL_Key_Chars_In_SubsEx(
-                  (char *)var->key, pieces, &subspos[0],
+                  (char *)var->key, (int)var->slen,
+                  &var->nsubs, &var->subspos[0],
                   pieces-1, &subs, (char *)&upOneLev[1]);
 #else
   UTIL_Key_Chars_In_Subs((char *)var->key, (int)var->slen, 255, &pieces, (char *)NULL);
@@ -656,7 +660,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     }                                           // end if current points->NULL
 #ifdef MV1_SUBSPOS
     crud[0]=UTIL_Key_Chars_In_SubsEx(
-            (char *)current->bytes, current->nsubs, &current->subspos[0],
+            (char *)current->bytes, (int)current->keylen,
+            &current->nsubs, &current->subspos[0],
             pieces-1, &subs, (char *)&crud[1]);
 #else
     crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
@@ -684,7 +689,8 @@ short ST_Order(mvar *var, u_char *buf, int dir)
     { 
 #ifdef MV1_SUBSPOS
       crud[0]=UTIL_Key_Chars_In_SubsEx(
-              (char *)current->bytes, current->nsubs, &current->subspos[0],
+              (char *)current->bytes, (int)current->keylen,
+              &current->nsubs, &current->subspos[0],
               pieces-1, &subs, (char *)&crud[1]);
 #else
       crud[0]=UTIL_Key_Chars_In_Subs((char *)current->bytes, (int)current->keylen,
@@ -955,7 +961,7 @@ short ST_DumpV(mvar *global)
   int i;					// generic counter
   int j;					// generic counter
   short s;					// for functions
-  short gs;					// global slen save value
+  short gslen, gnsubs;				// global slen save value
   u_char gks[255];
   cstring *cdata;				// variable data gets dumped
   u_char dump[1024];				// variable name gets dumped
@@ -964,7 +970,8 @@ short ST_DumpV(mvar *global)
   cdata = (cstring *) dump;			// make it a cstring
   partab.src_var.uci = UCI_IS_LOCALVAR;		// init uci as LOCAL
   partab.src_var.volset = 0;			// init volume set
-  gs = global->slen;				// save original sub length
+  gslen  = global->slen;			// save original sub length
+  gnsubs = global->nsubs;
   bcopy(global->key, gks, global->slen);	// save original key
   for (i = 0; i<= ST_MAX-1; i++)		// for each entry in ST
   { if (symtab[i].data == ST_DATA_NULL) continue; // get out if nothing to dump
@@ -977,10 +984,12 @@ short ST_DumpV(mvar *global)
     if (symtab[i].data->dbc != -1)		// if data exists
     { s = UTIL_String_Mvar(&partab.src_var, cdata->buf, 255);
       cdata->len = s;
-      bcopy(gks, global->key, gs);		// restore initial key
-      global->slen = gs;			// restore initial length
-      global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-      						// set rest of global key&len
+      bcopy(gks, global->key, gslen);		// restore initial key
+      global->slen  = gslen;			// restore initial length
+      global->nsubs = gnsubs;
+      s = UTIL_Key_BuildEx(global, cdata, &global->key[gslen]);
+      if (s < 0) return s;                      // got an error
+      global->slen = global->slen + s;          // set rest of global key&len
       s = DB_Set(global, (cstring *) &(symtab[i].data->dbc)); // try to set it
       if (s == -ERRM75)				// if string too long
       { j = symtab[i].data->dbc;		// save this
@@ -998,10 +1007,12 @@ short ST_DumpV(mvar *global)
       cdata->len = s;
       j = (int) depPtr->keylen;			// find key length
       if ((j&1)!=0) j++;			// up it to next even boudary
-      bcopy(gks, global->key, gs);		// restore initial key
-      global->slen = gs;			// restore initial length
-      global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-      						// set up global key
+      bcopy(gks, global->key, gslen);		// restore initial key
+      global->slen  = gslen;			// restore initial length
+      global->nsubs = gnsubs;
+      s = UTIL_Key_BuildEx(global, cdata, &global->key[gslen]);
+      if (s < 0) return s;                      // got an error
+      global->slen = global->slen + s;          // set up global key
       s = DB_Set(global, (cstring *) &depPtr->bytes[j]); // try to set it
       if (s < 0) return s;
 

@@ -215,7 +215,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         if (strncasecmp( (char *) subs[1]->buf, "$reference\0", 11) == 0)
         { vp = &systab->jobtab[i].last_ref;	// addr of $R
 	  if (vp->name.var_cu[0] == '\0') return 0; // return null string
-	  bcopy(vp, tmp, vp->slen + sizeof(var_u) + 4); // copy to tmp
+	  bcopy(vp, tmp, vp->slen + MVAR_SIZE); // copy to tmp
 	  vp = (mvar *) tmp;			// point at tmp
 	  if (vp->uci == 0) vp->uci = systab->jobtab[i].uci;
 	  if (vp->volset == 0) vp->volset = systab->jobtab[i].vol;

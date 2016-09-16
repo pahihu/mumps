@@ -98,7 +98,7 @@ short Ddata(u_char *ret_buffer, mvar *var)
 { if (var->uci == 255) return ST_Data(var, ret_buffer); // for a local var
   if (var->name.var_cu[0] == '$') 		// ssvn?
     return SS_Data(var, ret_buffer);		// yes
-  bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+  bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
   return DB_Data(var, ret_buffer);		// else it's global
 }
 
@@ -410,7 +410,7 @@ short Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
       s = 0;					// flag undefined ssvn
   }
   else						// for a global var
-  { bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     s = DB_Get(var, ret_buffer);		// attempt to get the data
     if (s >= 0) return s;			// if we got data, return it
     if (s == -(ERRM7)) s = 0;			// flag undefined global var
@@ -449,7 +449,7 @@ short Dincrement2(cstring *ret, mvar *var, cstring *expr)
   else if (var->name.var_cu[0] == '$') 		// ssvn?
     return (-ERRM38);				// no such
   else						// for a global var
-  { bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
     // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
     if (s >= 0) goto gotit;			// if we got data, return it
@@ -708,7 +708,7 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
   { s = SS_Order(var, ret_buffer, realdir);	// yes
   }
   else
-   { bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
      if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
      s = DB_Order(var, ret_buffer, realdir);	// else it's global
    }
@@ -793,7 +793,7 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
     return ST_Query(var, ret_buffer, dir); 	// for local var
   if (var->name.var_cu[0] == '$') 		// ssvn?
     return (-ERRM38);				// no such
-  bcopy( var, &(partab.jobtab->last_ref), sizeof(var_u) + 5 + var->slen);
+  bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
   if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
   return DB_Query(var, ret_buffer, dir, 1);	// else it's global
 }
@@ -903,11 +903,14 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
     var = (mvar *) ret_buffer;			// use same space for mvar
     X_set("$ECODE\0\0", &var->name.var_cu[0], 8);// copy in $ECODE
+    var->nsubs = 255;
     var->volset = 0;
     var->uci = UCI_IS_LOCALVAR;
     cptr = (cstring *) temp;			// some spare space
     cptr->len = itocstring(cptr->buf, level);	// setup for subscript
-    var->slen = UTIL_Key_Build(cptr, &var->key[0]);
+    s = UTIL_Key_BuildEx(var, cptr, &var->key[0]);
+    if (s < 0) return s;                        // got an error
+    var->slen = s;
     s = ST_Get(var, ret_buffer);		// get and return
     if (s == -ERRM6) s = 0;			// allow for not there
     return s;
@@ -934,6 +937,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   line = systab->jobtab[job].dostk[level].line_num; // get line number
   if (arg2 == 2)				// "MCODE"
   { var = (mvar *) ret_buffer;			// use same space for mvar
+    var->nsubs = 255;
     X_set("$ROUTINE", &var->name.var_cu[0], 8); // copy in $ROUTINE
     var->volset = systab->jobtab[job].rvol;	// vol number
     var->uci = systab->jobtab[job].ruci;	// uci number
@@ -945,11 +949,11 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     }
     cptr->buf[i] = '\0';			// null terminate
     cptr->len = i;				// save the length
-    s = UTIL_Key_Build(cptr, &var->key[0]);	// make a key from it
+    s = UTIL_Key_BuildEx(var, cptr, &var->key[0]); // make a key from it
     if (s < 0) return s;			// die on error
     var->slen = (u_char) s;			// save the length
     cptr->len = itocstring(cptr->buf, line);	// make a string from int
-    s = UTIL_Key_Build(cptr, &var->key[var->slen]); // make a key from it
+    s = UTIL_Key_BuildEx(var, cptr, &var->key[var->slen]);// make a key from it
     if (s < 0) return s;			// die on error
     var->slen = (u_char) s + var->slen;		// save the length
     s = Dget1(ret_buffer, var);			// get data
@@ -977,6 +981,7 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
 { int i = 0;					// a handy int
   int j = 0;					// and another
   u_char slen;					// saved length
+  u_char nsubs;                                 // saved nsubs
   short s;					// for functions
   int off = 1;					// line offset
   u_char rou[4+MAX_NAME_BYTES];			// routine name
@@ -1050,17 +1055,19 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   if ((ct->len == 0) && (!off))			// just the name reqd?
     return mcopy(cr->buf, ret_buffer, cr->len);	// return the name
   X_set("$ROUTINE", &partab.src_var.name.var_cu[0], 8); // setup for DB_Get
+  partab.src_var.nsubs  = 255;
   partab.src_var.volset = partab.jobtab->rvol;	// vol
   partab.src_var.uci = partab.jobtab->ruci;	// uci
   if (cr->buf[0] == '%')			// manager routine?
     partab.src_var.uci = 1;			// point there
   partab.src_var.slen = 0;			// init key size
-  s = UTIL_Key_Build(cr, &partab.src_var.key[0]); // first key
+  s = UTIL_Key_BuildEx(&partab.src_var, cr, &partab.src_var.key[0]);// first key
   if (s < 0) return s;				// die on error
-  slen = s;					// save key size
+  slen  = s;					// save key size
+  nsubs = partab.src_var.nsubs;                 // save nsubs
   if (ct->len == 0)				// no tag?
   { ct->len = itocstring(ct->buf, off);		// cstring off
-    s = UTIL_Key_Build(ct,
+    s = UTIL_Key_BuildEx(&partab.src_var, ct,
 		       &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size
@@ -1073,7 +1080,9 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   }
   for (j = 1; ; j++)				// need to read all lines
   { cr->len = itocstring(cr->buf, j);		// cstring j
-    s = UTIL_Key_Build(cr,
+    partab.src_var.slen  = slen;
+    partab.src_var.nsubs = nsubs; 
+    s = UTIL_Key_BuildEx(&partab.src_var, cr,
 		       &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size
@@ -1091,7 +1100,9 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
     if (off == 0) return s;			// no offset - all done
     j = j + off;				// add the offset
     cr->len = itocstring(cr->buf, j);		// cstring j
-    s = UTIL_Key_Build(cr,
+    partab.src_var.slen  = slen;
+    partab.src_var.nsubs = nsubs;
+    s = UTIL_Key_BuildEx(&partab.src_var, cr,
 		       &partab.src_var.key[slen]); // next key
     if (s < 0) return s;			// die on error
     partab.src_var.slen = s + slen;		// save key size

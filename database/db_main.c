@@ -105,7 +105,7 @@ short Copy2local(mvar *var, char *rtn)
   nrsvd_gbds = 0;
 #endif
   level = -1;						// no claimed gbds yet
-  bcopy(var, &db_var, sizeof(var_u)+4+var->slen);	// copy the data
+  bcopy(var, &db_var, MVAR_SIZE+var->slen);	        // copy the data
   if (db_var.volset == 0)				// if volset is zero
   { db_var.volset = partab.jobtab->vol;			// get current volset
   }

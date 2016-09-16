@@ -9,20 +9,21 @@
 #include <sys/sem.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <libkern/OSAtomic.h>
 
 #include "mumps.h"
 #include "database.h"
 #include "proto.h"
 #include "rwlock.h"
 
+#ifdef MV1_PTHREAD
 #include <pthread.h>
+#endif
 
 static u_int          semop_time;
 
 int rwlock_init(void)
 {
-#ifdef MV1_SHSEM
+#ifdef MV1_PTHREAD
   int s;
   pthread_rwlockattr_t attr;
 
@@ -66,22 +67,28 @@ short DoSem(int sem_num, int numb)
   return semop(systab->sem_id, &buf, 1);        // doit
 }
 
-#if 0
+#ifdef MV1_SHSEM
+
+#ifdef __APPLE__
+
+#include <libkern/OSAtomic.h>
 #define ATOMIC_FETCH_ADD(ptr,fld) \
-  (OSAtomicAdd32Barrier(BITONE(fld),(volatile int32_t*)ptr) - BITONE(fld))
+  (OSAtomicAdd32(BITONE(fld),(volatile int32_t*)ptr) - BITONE(fld))
 
 #define ATOMIC_FETCH_SUB(ptr,fld) \
-  (OSAtomicAdd32Barrier(-BITONE(fld),(volatile int32_t*)ptr) + BITONE(fld))
+  (OSAtomicAdd32(-BITONE(fld),(volatile int32_t*)ptr) + BITONE(fld))
 
 #define ATOMIC_CAS(ptr,oldval,newval) \
-  OSAtomicCompareAndSwap32Barrier(oldval,newval,(volatile int32_t*)ptr)
+  OSAtomicCompareAndSwap32(oldval,newval,(volatile int32_t*)ptr)
 
 #define ATOMIC_SYNC \
   OSMemoryBarrier()
 
 #define ATOMIC_INC(var) \
-  OSAtomicIncrement32Barrier(&var)
+  OSAtomicIncrement32(&var)
+
 #else
+
 #define ATOMIC_FETCH_ADD(ptr,fld) \
   __sync_fetch_and_add(ptr,BITONE(fld))
 
@@ -96,6 +103,7 @@ short DoSem(int sem_num, int numb)
 
 #define ATOMIC_INC(var) \
   __sync_fetch_and_add(&var,1)
+
 #endif
 
 
@@ -128,7 +136,6 @@ void myassert(u_int val, u_int expr, const char *file, int line)
 
 #define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
 
-#ifdef MV1_SHSEM
 u_int ATOMIC_FETCH(volatile u_int *ptr)
 {
   u_int t = 0, val;
@@ -142,7 +149,7 @@ u_int ATOMIC_FETCH(volatile u_int *ptr)
 
 void lock_reader(volatile u_int *lck)
 {
-#if 1
+#ifdef MV1_PTHREAD
   pthread_rwlock_rdlock(&systab->gblock);
 #else
   u_int old_status;
@@ -163,6 +170,7 @@ void lock_reader(volatile u_int *lck)
     else
       FLDINC(new_status,F_READERS);
   } while (!ATOMIC_CAS(lck, old_status, new_status));
+  ATOMIC_SYNC;
 
   if (FLD(old_status,F_WRITERS) > 0)
   { DoSem(SEM_GLOBAL_RD, -1);
@@ -181,7 +189,7 @@ void lock_reader(volatile u_int *lck)
 
 void unlock_reader(volatile u_int *lck)
 {
-#if 1
+#ifdef MV1_PTHREAD
   pthread_rwlock_unlock(&systab->gblock);
 #else
   u_int old_status;
@@ -192,6 +200,7 @@ void unlock_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == READ);
 
   old_status = ATOMIC_FETCH_SUB(lck, F_READERS);
+  ATOMIC_SYNC;
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_READERS) > 0);
   if ((FLD(old_status,F_READERS) == 1) && (FLD(old_status,F_WRITERS) > 0))
@@ -206,7 +215,7 @@ void unlock_reader(volatile u_int *lck)
 
 void lock_writer(volatile u_int *lck)
 {
-#if 1
+#ifdef MV1_PTHREAD
   pthread_rwlock_wrlock(&systab->gblock);
 #else
   u_int nreaders;
@@ -219,6 +228,7 @@ void lock_writer(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == 0);
 
   old_status = ATOMIC_FETCH_ADD(lck, F_WRITERS);
+  ATOMIC_SYNC;
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_WRITERS) + 1 <= FLD_WIDTH);
   if ((FLD(old_status,F_READERS) > 0) || (FLD(old_status,F_WRITERS) > 0))
@@ -237,7 +247,7 @@ void lock_writer(volatile u_int *lck)
 
 void unlock_writer(volatile u_int *lck)
 {
-#if 1
+#ifdef MV1_PTHREAD
   pthread_rwlock_unlock(&systab->gblock);
 #else
   u_int old_status;
@@ -262,6 +272,7 @@ void unlock_writer(volatile u_int *lck)
       SET_FLD(new_status,F_READERS,wait_to_read);
     }
   } while (!ATOMIC_CAS(lck, old_status, new_status));
+  ATOMIC_SYNC;
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
@@ -275,7 +286,7 @@ void unlock_writer(volatile u_int *lck)
 // based on unlock_writer from Preshing above
 void unlock_writer_to_reader(volatile u_int *lck)
 {
-#if 1
+#ifdef MV1_PTHREAD
   return;
 #else
   u_int old_status;
@@ -304,6 +315,7 @@ void unlock_writer_to_reader(volatile u_int *lck)
       SET_FLD(new_status,F_READERS,1);
     }
   } while (!ATOMIC_CAS(lck, old_status, new_status));
+  ATOMIC_SYNC;
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
@@ -338,8 +350,13 @@ short TrySemLock(int sem_num, int numb)
       panic(msg);
     }
   }
-  else if (ATOMIC_FETCH_ADD(&systab->shsem[sem_num], F_BIT0) > 0)
-    dosemop = 1;
+  else {
+    u_int old_status = ATOMIC_FETCH_ADD(&systab->shsem[sem_num], F_BIT0);
+    ATOMIC_SYNC;
+    if (old_status > 0)
+    { dosemop = 1;
+    }
+  }
 
   if (dosemop)
 #endif
@@ -406,8 +423,13 @@ short SemUnlock(int sem_num, int numb)
       panic(msg);
     }
   }
-  else if (ATOMIC_FETCH_SUB(&systab->shsem[sem_num], F_BIT0) > 1)
-    dosemop = 1;
+  else {
+    u_int old_status = ATOMIC_FETCH_SUB(&systab->shsem[sem_num], F_BIT0);
+    ATOMIC_SYNC;
+    if (old_status > 1)
+    { dosemop = 1;
+    }
+  }
 
   if (dosemop)
 #endif

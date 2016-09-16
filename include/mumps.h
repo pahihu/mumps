@@ -193,6 +193,7 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 
+// #define MV1_SHSEM       1
 #ifndef MV1_SHSEM
 #define SEM_MAX         5                       // total number of these
 #else
@@ -232,13 +233,25 @@ typedef struct __attribute__ ((__packed__)) CSTRING // our string type
   u_char buf[32768];                            // and the content
 } cstring;                                      // end counted string
 
+#define MV1_SUBSPOS     1
+
 typedef struct __attribute__ ((__packed__)) MVAR // subscripted MUMPS var
 { var_u name;                                   // variable name
   u_char volset;                                // volset number
   u_char uci;                                   // uci# -> 255 = local var
+#ifdef MV1_SUBSPOS
+  u_char nsubs;                                 // no. of subscripts
+  u_char subspos[MAX_SUBSCRIPTS+1];             // subscript positions
+#endif
   u_char slen;                                  // subs (key) length
   u_char key[256];                              // the subs (key) - allow for 0
 } mvar;                                         // end MUMPS subs var
+
+#ifdef MV1_SUBSPOS
+#define MVAR_SIZE    (sizeof(var_u) + 3*sizeof(u_char) + (MAX_SUBSCRIPTS + 1 + 1)*sizeof(u_char) + 2*sizeof(u_char))
+#else
+#define MVAR_SIZE    (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
+#endif
 						// sizeof(mvar) = 267
 
 //** common memory structures ***/
@@ -481,7 +494,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   volatile time_t Mtime;                        // Mtime, updated by daemon 0
 #ifdef MV1_SHSEM
   volatile u_int shsem[SEM_MAX];                // shared semaphores
+#ifdef MV1_PTHREAD
   pthread_rwlock_t gblock;
+#endif
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs

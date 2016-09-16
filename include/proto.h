@@ -248,6 +248,7 @@ short SS_Order(mvar *var, u_char *buf, int dir); // get next subscript
 
 // Key Utility prototypes
 short UTIL_Key_Build( cstring *src, u_char *dest); // locn of source string
+short UTIL_Key_BuildEx( mvar *var, cstring *src, u_char *dest); // locn of source string
 short UTIL_Key_Extract( u_char *key,
 	u_char *str, int *cnt); 		// extract subscript
 short UTIL_String_Key( u_char *key,
@@ -261,7 +262,8 @@ int UTIL_Key_KeyEqu(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_Chars_In_Subs( char *Key, int keylen,
 	int maxsubs, int *subs, char *KeyBuffer );
 int UTIL_Key_Subs( char *Key, int keylen, u_char *nsubs, u_char *subsPos);
-int UTIL_Key_Chars_In_SubsEx( char *Key, u_char nsubs, u_char *subsPos,
+int UTIL_Key_Chars_In_SubsEx( char *Key, int keylen,
+        u_char *pnsubs, u_char *subsPos,
 	int maxsubs, int *subs, char *KeyBuffer );
 
 // General utility prototypes

@@ -50,6 +50,24 @@
 //*** Function: UTIL_Key_Build - Build a key from an ascii source *********
 //**  Key is in order: NEGATIVE NUMBER -> ZERO -> POSITIVE NUMBER -> STRING
 //*************************************************************************
+short UTIL_Key_BuildEx( mvar *var, cstring *src, u_char *dest)
+{ short s;
+  u_char diff;
+
+  diff = dest - &var->key[0];
+  s = UTIL_Key_Build(src, dest);
+  if (s < 0)
+    return s;
+  if (diff && (s + var->slen > 255))
+    return s;
+  if (255 == var->nsubs)
+    var->nsubs = 0;
+  var->subspos[var->nsubs] = diff;
+  var->nsubs++;
+  var->subspos[var->nsubs] = diff ? s + var->slen : s;
+  return s;
+}
+
 short UTIL_Key_Build( cstring *src,             // locn of source string
                       u_char *dest)             // where to put it
 { int minus = 0;                                // minus flag
@@ -390,6 +408,11 @@ int UTIL_Key_Last( mvar *var)			// point at last subs in mvar
 { int last = -1;				// return value
   int i = 0;					// idx into var->key[]
 
+  if (var->nsubs != 255)
+  { if (var->nsubs == 0) return last;
+    return var->subspos[var->nsubs - 1];
+  }
+
   while (i < var->slen)				// while any there
   { last = i;					// save beginning
     if (var->key[i++] < 64)			// negative number
@@ -479,6 +502,7 @@ short UTIL_MvarFromCStr( cstring *src,		// the string
   u_char tmp[260];				// temp area for subscripts
 
   kb = (cstring *) tmp;				// make it a cstring
+  var->nsubs  = 255;
   var->volset = 0;				// clear volset
   var->uci = UCI_IS_LOCALVAR;			// assume local variable
   var->slen = 0;				// and no subscripts
@@ -567,7 +591,7 @@ short UTIL_MvarFromCStr( cstring *src,		// the string
     }						// end copy 1 subs
     kb->buf[i] = '\0';				// null terminate
     kb->len = i;				// save the length
-    s = UTIL_Key_Build(kb, &var->key[var->slen]); // do one key
+    s = UTIL_Key_BuildEx(var, kb, &var->key[var->slen]); // do one key
     if (s < 0) return s;			// got an error
     if ((s + var->slen) > 255) return -(ERRMLAST+ERRZ12); // junk
     if ((var->key[var->slen] == 128) && (!q))	// got a string + no quotes
@@ -664,9 +688,15 @@ int UTIL_Key_Chars_In_Subs( char *Key, int keylen, int maxsubs, int *subs,
 // subsPos[3] = 8
 // subsPos[4] = keylen
 
-int UTIL_Key_Chars_In_SubsEx( char *Key, u_char nsubs, u_char *subsPos,
+int UTIL_Key_Chars_In_SubsEx( char *Key, int keylen,
+                u_char *pnsubs, u_char *subsPos,
                 int maxsubs, int *subs, char *KeyBuffer )
-{ nsubs = nsubs > maxsubs ? maxsubs : nsubs;            // select the smaller
+{ int nsubs;
+  if (*pnsubs == 255)
+  { UTIL_Key_Subs(Key, keylen, pnsubs, subsPos);
+  }
+  nsubs = *pnsubs;
+  nsubs = nsubs > maxsubs ? maxsubs : nsubs;            // select the smaller
   *subs = nsubs;
   bcopy( Key, KeyBuffer, subsPos[nsubs] );
   return subsPos[nsubs];

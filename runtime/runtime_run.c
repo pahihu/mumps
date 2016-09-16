@@ -745,7 +745,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, ptr1);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, ptr1);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -780,7 +780,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if ((var->uci != UCI_IS_LOCALVAR) &&
 	    (var->name.var_cu[0] != '$'))	// a real global
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	}
 	break;					// done
 
@@ -800,7 +800,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -822,7 +822,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -840,7 +840,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -862,7 +862,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -881,7 +881,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -901,7 +901,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Set(var, cptr);		// do it - ssvn
 	else
 	{ bcopy( var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	  s = DB_Set(var, cptr);		// do it - global	
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -1055,7 +1055,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Get(&partab.src_var, cptr->buf); // do it - ssvn
 	else
 	{ bcopy( &partab.src_var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + partab.src_var.slen);	// update naked
+	    MVAR_SIZE + partab.src_var.slen);     // update naked
 	  s = DB_Get(&partab.src_var, cptr->buf); // do it - global
 	}
         if (s < 0) ERROR(s)			// complain on error
@@ -1907,7 +1907,7 @@ short run(int savasp, int savssp)		// run compiled code
 	      break;
 	    }
 	//if (rou == 0)				// check for nosuch
-	if (X_Empty(rou))				// check for nosuch
+	if (X_Empty(rou))			// check for nosuch
 	  ERROR(-ERRM13)			// give up
 	partab.jobtab->dostk[partab.jobtab->cur_do].pc =
 	  mumpspc;				// save current pc
@@ -1928,6 +1928,8 @@ short run(int savasp, int savssp)		// run compiled code
 	{ rouadd = Routine_Attach(rou);		// attach to it
 	  if (rouadd == NULL)			// check for nosuch
 	  { partab.jobtab->cur_do--;		// back to original frame
+            fprintf(stderr, "Routine_Attach: ERRM13");
+            fflush(stderr);
 	    ERROR(-ERRM13)			// give up
 	  }
 	  if (rouadd == ((rbd *)(-1)))		// no space
@@ -2594,7 +2596,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = SS_Kill(var);			// do it - ssvn
 	else
 	{ bcopy(var, &(partab.jobtab->last_ref),
-	    sizeof(var_u) + 5 + var->slen);	// update naked
+	    MVAR_SIZE + var->slen);	        // update naked
 	    s = DB_Kill(var);			// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
@@ -3256,12 +3258,13 @@ short run(int savasp, int savssp)		// run compiled code
 	ptr2 = (cstring *) astk[--asp];		// get arg 2 (ignored)
 	ptr1 = (cstring *) astk[--asp];		// get arg 1
         var2 = (mvar *) &sstk[ssp];		// some space
+        var2->nsubs = 255;
         ssp = ssp + sizeof(mvar);		// cover it
         X_set("$ROUTINE", &var2->name.var_cu, 8); // ^$R
 	var2->volset = partab.jobtab->rvol;	// the volume
 	var2->uci = partab.jobtab->ruci;	// and the uci
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
-	s = UTIL_Key_Build(ptr1, &var2->key[0]); // build the key
+	s = UTIL_Key_BuildEx(var2, ptr1, &var2->key[0]); // build the key
 	if (s < 0) ERROR(s)			// give up on error
 	var2->slen = s;				// save the length
 	s = Compile_Routine((mvar *) NULL,	// don't compile a routine

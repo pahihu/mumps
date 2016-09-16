@@ -6,7 +6,7 @@
 CC	= gcc
 LIBS	= -lm -lcrypt
 
-EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1
+EXTRA   = -O3 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1
 ifeq ($(MAKECMDGOALS),test)
 EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
 endif
@@ -73,6 +73,7 @@ COMOBJS	= 	compile/dollar.o \
 		util/util_lock.o \
 		util/util_memory.o \
 		util/util_routine.o \
+                util/util_rwlock.o \
 		util/util_share.o \
 		util/util_strerror.o \
 		xcall/xcall.o
