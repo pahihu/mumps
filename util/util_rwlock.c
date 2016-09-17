@@ -21,6 +21,12 @@
 
 static u_int          semop_time;
 
+static u_int lrsucc = 0;
+static u_int ulrsucc = 0;
+static u_int lwsucc = 0;
+static u_int ulwsucc = 0;
+static u_int ulw2rsucc = 0;
+
 int rwlock_init(void)
 {
 #ifdef MV1_PTHREAD
@@ -69,23 +75,26 @@ short DoSem(int sem_num, int numb)
 
 #ifdef MV1_SHSEM
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(MV1_GCC_SYNC)
 
 #include <libkern/OSAtomic.h>
 #define ATOMIC_FETCH_ADD(ptr,fld) \
-  (OSAtomicAdd32(BITONE(fld),(volatile int32_t*)ptr) - BITONE(fld))
+  (OSAtomicAdd32Barrier(BITONE(fld),(volatile int32_t*)ptr) - BITONE(fld))
 
 #define ATOMIC_FETCH_SUB(ptr,fld) \
-  (OSAtomicAdd32(-BITONE(fld),(volatile int32_t*)ptr) + BITONE(fld))
+  (OSAtomicAdd32Barrier(-BITONE(fld),(volatile int32_t*)ptr) + BITONE(fld))
 
 #define ATOMIC_CAS(ptr,oldval,newval) \
-  OSAtomicCompareAndSwap32(oldval,newval,(volatile int32_t*)ptr)
+  OSAtomicCompareAndSwap32Barrier(oldval,newval,(volatile int32_t*)ptr)
 
 #define ATOMIC_SYNC \
   OSMemoryBarrier()
 
 #define ATOMIC_INC(var) \
   OSAtomicIncrement32(&var)
+
+#define ATOMIC_FETCH(ptr) \
+  OSAtomicAdd32Barrier(0, (volatile int32_t*)ptr)
 
 #else
 
@@ -103,6 +112,9 @@ short DoSem(int sem_num, int numb)
 
 #define ATOMIC_INC(var) \
   __sync_fetch_and_add(&var,1)
+
+#define ATOMIC_FETCH(ptr) \
+  __sync_fetch_and_add(ptr,0)
 
 #endif
 
@@ -131,21 +143,16 @@ void myassert(u_int val, u_int expr, const char *file, int line)
   fprintf(stderr, "Assertion failed: opseq=%d val=%08X at %s() %s:%d, SemOp() at %s:%d\r\n",
                   opseq, val, rtn, file, line, sem_file, sem_line);
   fflush(stderr);
+  fprintf(stderr, "  LRsucc = %u\r\n", lrsucc);
+  fprintf(stderr, "  URsucc = %u\r\n", ulrsucc);
+  fprintf(stderr, "  LWsucc = %u\r\n", lwsucc);
+  fprintf(stderr, "  UWsucc = %u\r\n", ulwsucc);
+  fprintf(stderr, "UW2Rsucc = %u\r\n", ulw2rsucc);
+  fflush(stderr);
   assert(0);
 }
 
 #define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
-
-u_int ATOMIC_FETCH(volatile u_int *ptr)
-{
-  u_int t = 0, val;
-
-  do
-  { val = *ptr;
-  } while (!ATOMIC_CAS(&t, 0, val));
-
-  return t;
-}
 
 void lock_reader(volatile u_int *lck)
 {
@@ -170,18 +177,19 @@ void lock_reader(volatile u_int *lck)
     else
       FLDINC(new_status,F_READERS);
   } while (!ATOMIC_CAS(lck, old_status, new_status));
-  ATOMIC_SYNC;
 
   if (FLD(old_status,F_WRITERS) > 0)
   { DoSem(SEM_GLOBAL_RD, -1);
     retry = 0;
     do
     { old_status = ATOMIC_FETCH(lck);
-    } while ((0 == FLD(old_status,F_READERS)) && (++retry < (1000*1000)));
-    fprintf(stderr, "  lock_reader: opseq=%d status=%08X retry=%u\r\n",
-                    opseq, old_status, retry);
-    fflush(stderr);
+    // } while ((0 == FLD(old_status,F_READERS)) && (++retry < (1000*1000)));
+    } while (0);
+    // fprintf(stderr, "  lock_reader: opseq=%d status=%08X retry=%u\r\n",
+    //                 opseq, old_status, retry);
+    // fflush(stderr);
     ASSERT(old_status, FLD(old_status,F_READERS) > 0);
+    lrsucc++;
   }
 #endif
 }
@@ -200,14 +208,16 @@ void unlock_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == READ);
 
   old_status = ATOMIC_FETCH_SUB(lck, F_READERS);
-  ATOMIC_SYNC;
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_READERS) > 0);
   if ((FLD(old_status,F_READERS) == 1) && (FLD(old_status,F_WRITERS) > 0))
-  { fprintf(stderr, "unlock_reader: opseq=%d status=%08X\r\n",
-                     opseq, old_status);
-    fflush(stderr);
+  { // fprintf(stderr, "unlock_reader: opseq=%d status=%08X\r\n",
+    //                  opseq, old_status);
+    // fflush(stderr);
     DoSem(SEM_GLOBAL_WR, 1);
+    old_status = ATOMIC_FETCH(lck);
+    ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    ulrsucc++;
   }
 #endif
 }
@@ -228,7 +238,6 @@ void lock_writer(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == 0);
 
   old_status = ATOMIC_FETCH_ADD(lck, F_WRITERS);
-  ATOMIC_SYNC;
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_WRITERS) + 1 <= FLD_WIDTH);
   if ((FLD(old_status,F_READERS) > 0) || (FLD(old_status,F_WRITERS) > 0))
@@ -236,11 +245,13 @@ void lock_writer(volatile u_int *lck)
     retry = 0;
     do
     { old_status = ATOMIC_FETCH(lck);
-    } while (FLD(old_status,F_READERS) && ++retry < (1000*1000));
-    fprintf(stderr, "  lock_writer: opseq=%d status=%08X retry=%u\r\n",
-                    opseq, old_status, retry);
-    fflush(stderr);
+    // } while (FLD(old_status,F_READERS) && ++retry < (1000*1000));
+    } while (0);
+    // fprintf(stderr, "  lock_writer: opseq=%d status=%08X retry=%u\r\n",
+    //                 opseq, old_status, retry);
+    // fflush(stderr);
     ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    lwsucc++;
   }
 #endif
 }
@@ -272,13 +283,15 @@ void unlock_writer(volatile u_int *lck)
       SET_FLD(new_status,F_READERS,wait_to_read);
     }
   } while (!ATOMIC_CAS(lck, old_status, new_status));
-  ATOMIC_SYNC;
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
   }
   else if (FLD(old_status,F_WRITERS) > 1)
   { DoSem(SEM_GLOBAL_WR, 1);
+    old_status = ATOMIC_FETCH(lck);
+    ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    ulwsucc++;
   }
 #endif
 }
@@ -315,11 +328,11 @@ void unlock_writer_to_reader(volatile u_int *lck)
       SET_FLD(new_status,F_READERS,1);
     }
   } while (!ATOMIC_CAS(lck, old_status, new_status));
-  ATOMIC_SYNC;
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
   }
+  ulw2rsucc++;
 #endif
 }
 #endif
@@ -352,7 +365,6 @@ short TrySemLock(int sem_num, int numb)
   }
   else {
     u_int old_status = ATOMIC_FETCH_ADD(&systab->shsem[sem_num], F_BIT0);
-    ATOMIC_SYNC;
     if (old_status > 0)
     { dosemop = 1;
     }
@@ -425,7 +437,6 @@ short SemUnlock(int sem_num, int numb)
   }
   else {
     u_int old_status = ATOMIC_FETCH_SUB(&systab->shsem[sem_num], F_BIT0);
-    ATOMIC_SYNC;
     if (old_status > 1)
     { dosemop = 1;
     }
@@ -449,6 +460,11 @@ short SemUnlock(int sem_num, int numb)
 
   semtab[x].held_count++;
   return s;
+}
+
+void UTIL_Barrier(void)
+{
+  do { asm volatile ("mfence":::"memory"); } while(0);
 }
 
 //	struct sembuf {

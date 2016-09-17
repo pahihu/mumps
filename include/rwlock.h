@@ -11,4 +11,6 @@ short TrySemLock(int sem_num, int numb);
 short SemLock(int sem_num, int numb);
 short SemUnlock(int sem_num, int numb);
 
+void UTIL_Barrier(void);
+
 #endif

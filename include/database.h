@@ -36,6 +36,10 @@
 #ifndef _MUMPS_DATABASE_H_				// only do this once
 #define _MUMPS_DATABASE_H_
 
+#ifndef VOLATILE
+#define VOLATILE        volatile
+#endif
+
 
 // **** Defines ***************************************************************
 
@@ -105,10 +109,10 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
-  struct GBD *next;					// next entry in list
+  VOLATILE struct GBD *next;				// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
-  struct GBD* dirty;				        // to write -> next
-  time_t last_accessed;			                // last time used
+  VOLATILE struct GBD* dirty;				// to write -> next
+  VOLATILE time_t last_accessed;			// last time used
 #ifdef MV1_BLKVER
   u_int  blkver_low;                                    // blk version LOW
   u_int  blkver_high;                                   // blk version HIGH

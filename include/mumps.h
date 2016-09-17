@@ -38,7 +38,13 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
+#ifdef MV1_PTHREAD
 #include <pthread.h>
+#endif
+
+#ifndef VOLATILE
+#define VOLATILE        volatile
+#endif
 
 
 //** general constant definitions ***/
@@ -193,7 +199,7 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 
-// #define MV1_SHSEM       1
+#define MV1_SHSEM       1
 #ifndef MV1_SHSEM
 #define SEM_MAX         5                       // total number of these
 #else
@@ -268,8 +274,8 @@ typedef union __attribute__ ((__packed__)) DATA_UNION // diff types of msg data
 
 typedef struct __attribute__ ((__packed__)) WD_TAB // write daemon table
 { int pid;                                      // the wd's pid
-  int doing;                                    // what we are doing
-  msg_data currmsg;                             // the current gbd */block#
+  VOLATILE int doing;                           // what we are doing
+  VOLATILE msg_data currmsg;                    // the current gbd */block#
 } wdtab_struct;                                 // end write daemon structure
 
 typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
@@ -277,14 +283,14 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
   u_int max_block;                              // maximum block number
   int header_bytes;                             // bytes in label/map
   int block_size;                               // bytes per data block
-  var_u volnam;                                 // volume name (8 bytes)
+  VOLATILE var_u volnam;                        // volume name (8 bytes)
   short db_ver;                                 // database version
   u_char journal_available;                     // jrnl turned on at startup
   u_char journal_requested;                     // && journal_available = ON
-  u_char clean;                                 // clean dismount flag
+  VOLATILE u_char clean;                        // clean dismount flag
   char journal_file[JNL_FILENAME_MAX + 1];      // journal file name
   uci_tab uci[UCIS];                            // current ucis (at 256!!!)
-  u_int64 txid;                                 // TX id
+  VOLATILE u_int64 txid;                        // TX id
 } label_block;         				// define the label block
 						// sizeof(label_block) = 1024
 #if MAX_NAME_BYTES == 8
@@ -336,7 +342,7 @@ struct RBD;                                     // see compile.h
 typedef struct __attribute__ ((__packed__)) VOL_DEF
 { label_block *vollab;                          // ptr to volset label block
   void *map;                                    // start of map area
-  void *first_free;                             // first word with free bits
+  VOLATILE void *first_free;                    // first word with free bits
   struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
   struct GBD *gbd_head;                         // head of global buffer desc
   int num_gbd;                                  // number of global buffers
@@ -347,18 +353,18 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   void *rbd_end;                                // first addr past routine area
   int num_of_daemons;                           // number of daemons
   wdtab_struct wd_tab[MAX_DAEMONS];             // write daemon info table
-  int dismount_flag;                            // flag to indicate dismounting
-  int map_dirty_flag;                           // set if map is dirty
-  int writelock;                                // MUMPS write lock
+  VOLATILE int dismount_flag;                   // flag to indicate dismounting
+  VOLATILE int map_dirty_flag;                  // set if map is dirty
+  VOLATILE int writelock;                       // MUMPS write lock
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
-  int dirtyQw;                                  // write ptr for dirty que
-  int dirtyQr;                                  // read ptr for dirty que
+  VOLATILE int dirtyQw;                         // write ptr for dirty que
+  VOLATILE int dirtyQr;                         // read ptr for dirty que
   u_int garbQ[NUM_GARB];                        // garbage que (for daemons)
-  int garbQw;                                   // write ptr for garbage que
-  int garbQr;                                   // read ptr for garbage que
-  off_t jrn_next;                               // next free offset in jrn file
+  VOLATILE int garbQw;                          // write ptr for garbage que
+  VOLATILE int garbQr;                          // read ptr for garbage que
+  VOLATILE off_t jrn_next;                      // next free offset in jrn file
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
 } vol_def;                                      // end of volume def
@@ -490,10 +496,10 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   locktab *lockfree;                            // head of lock free space
   long addoff;                                  // off from systab to add buff
   long addsize;                                 // add buff size
-  volatile u_int64 TxId;                        // TX id
-  volatile time_t Mtime;                        // Mtime, updated by daemon 0
+  VOLATILE u_int64 TxId;                        // TX id
+  VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
 #ifdef MV1_SHSEM
-  volatile u_int shsem[SEM_MAX];                // shared semaphores
+  VOLATILE u_int shsem[SEM_MAX];                // shared semaphores
 #ifdef MV1_PTHREAD
   pthread_rwlock_t gblock;
 #endif

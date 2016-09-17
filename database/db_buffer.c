@@ -105,6 +105,7 @@ short Get_block(u_int blknum)                           // Get block
       { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
         SchedYield();					// wait for it
       }
+      UTIL_Barrier();
       goto exit;					// go common exit code
     }
     ptr = ptr->next;					// point at next
@@ -125,6 +126,7 @@ short Get_block(u_int blknum)                           // Get block
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
           SchedYield();					// wait for it
         }
+        UTIL_Barrier();
         goto exit;					// go common exit code
       }
       ptr = ptr->next;					// point at next
@@ -133,7 +135,6 @@ short Get_block(u_int blknum)                           // Get block
   systab->vol[volnum-1]->stats.phyrd++;                 // update stats
   Get_GBD();						// get a GBD
   blk[level]->block = blknum;				// set block number
-  blk[level]->last_accessed = (time_t) 0;		// clear last access
 #ifdef MV1_REFD
   blk[level]->referenced    = 0;
 #endif
@@ -141,6 +142,8 @@ short Get_block(u_int blknum)                           // Get block
   blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
   blk[level]->blkver_low  = 0;
 #endif
+  UTIL_Barrier();
+  blk[level]->last_accessed = (time_t) 0;		// clear last access
   i = blknum & (GBD_HASH - 1);				// get hash entry
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i]; // link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
@@ -179,13 +182,14 @@ short Get_block(u_int blknum)                           // Get block
   }
 
 exit:
-  blk[level]->last_accessed = MTIME(0);			// set access time
 #ifdef MV1_REFD
   blk[level]->referenced = 1;
 #endif
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
+  UTIL_Barrier();
+  blk[level]->last_accessed = MTIME(0);			// set access time
   Index = LOW_INDEX;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
