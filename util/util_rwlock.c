@@ -9,11 +9,13 @@
 #include <sys/sem.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "mumps.h"
 #include "database.h"
 #include "proto.h"
 #include "rwlock.h"
+
 
 #ifdef MV1_PTHREAD
 #include <pthread.h>
@@ -26,6 +28,19 @@ static u_int ulrsucc = 0;
 static u_int lwsucc = 0, lwos = 0;
 static u_int ulwsucc = 0;
 static u_int ulw2rsucc = 0;
+
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#define monotonic_time  mach_absolute_time
+#endif
+#ifdef __linux__
+#include <time.h>
+u_int64 monotonic_time(void)
+{ struct timespec time;
+  clock_gettime(CLOCK_MONOTONIC, &time);
+  return (u_int64)time.tv_sec * 1000000000 + time.tv_nsec;
+}
+#endif
 
 int rwlock_init(void)
 {
@@ -78,13 +93,13 @@ short DoSem(int sem_num, int numb)
 #if defined(__APPLE__) && !defined(MV1_GCC_SYNC)
 
 #include <libkern/OSAtomic.h>
-#define ATOMIC_FETCH_ADD(ptr,fld) \
+#define _ATOMIC_FETCH_ADD(ptr,fld) \
   (OSAtomicAdd32Barrier(BITONE(fld),(volatile int32_t*)ptr) - BITONE(fld))
 
-#define ATOMIC_FETCH_SUB(ptr,fld) \
+#define _ATOMIC_FETCH_SUB(ptr,fld) \
   (OSAtomicAdd32Barrier(-BITONE(fld),(volatile int32_t*)ptr) + BITONE(fld))
 
-#define ATOMIC_CAS(ptr,oldval,newval) \
+#define _ATOMIC_CAS(ptr,oldval,newval) \
   OSAtomicCompareAndSwap32Barrier(oldval,newval,(volatile int32_t*)ptr)
 
 #define ATOMIC_SYNC \
@@ -132,17 +147,16 @@ short DoSem(int sem_num, int numb)
 
 extern const char *sem_file;
 extern       int   sem_line;
+extern     pid_t   mypid;
        const char *rtn;
-
-static int32_t opseq = 0;
 
 static
 void myassert(u_int val, u_int expr, const char *file, int line)
 {
   if (expr) return;
-  fprintf(stderr, "Assertion failed: opseq=%d val=%08X at %s() %s:%d, SemOp() at %s:%d\r\n",
-                  opseq, val, rtn, file, line, sem_file, sem_line);
-  fflush(stderr);
+  fprintf(stderr, "%5d %20lld %08X xxx %s:%d %s()\r\n",
+                  mypid, monotonic_time(),
+                  val, file, line, rtn);
   fprintf(stderr, "  LRsucc = %u (%u)\r\n", lrsucc, lros);
   fprintf(stderr, "  URsucc = %u\r\n", ulrsucc);
   fprintf(stderr, "  LWsucc = %u (%u)\r\n", lwsucc, lwos);
@@ -196,9 +210,19 @@ u_int ATOMIC_FETCH(volatile u_int *lck)
   u_int t = 0;
 
   ATOMIC_SYNC;
-  _ATOMIC_CAS(&t, 0, *lck);
-  ATOMIC_SYNC;
+  _ATOMIC_CAS(&t,0,*lck);
   return t;
+}
+
+static
+void mv1_log(u_int old_status, int numb)
+{
+  static u_int opseq = 0;
+
+  fprintf(stderr,"%5d %20lld %08X %3d   %s:%d\r\n",
+                  mypid, monotonic_time(),
+                  old_status, numb, sem_file, sem_line);
+  if (opseq++ % 25 == 0) fflush(stderr);
 }
 
 void lock_reader(volatile u_int *lck)
@@ -210,12 +234,11 @@ void lock_reader(volatile u_int *lck)
   u_int new_status;
   u_int retry;
 
-  rtn = "lock_reader";
-  ATOMIC_INC(opseq);
-
+  rtn = "  lock_reader";
   ASSERT(curr_lock, curr_lock == 0);
 
   old_status = ATOMIC_FETCH(lck);
+  mv1_log(old_status, READ);
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     new_status = old_status;
@@ -251,11 +274,11 @@ void unlock_reader(volatile u_int *lck)
   u_int old_status;
 
   rtn = "unlock_reader";
-  ATOMIC_INC(opseq);
-
   ASSERT(curr_lock, curr_lock == READ);
 
   old_status = ATOMIC_FETCH_SUB(lck, F_READERS);
+  mv1_log(old_status, -READ);
+
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_READERS) > 0);
   if ((FLD(old_status,F_READERS) == 1) && (FLD(old_status,F_WRITERS) > 0))
@@ -280,12 +303,12 @@ void lock_writer(volatile u_int *lck)
   u_int old_status;
   u_int retry;
 
-  rtn = "lock_writer";
-  ATOMIC_INC(opseq);
-
+  rtn = "  lock_writer";
   ASSERT(curr_lock, curr_lock == 0);
 
   old_status = ATOMIC_FETCH_ADD(lck, F_WRITERS);
+  mv1_log(old_status, WRITE);
+
   ASSERT(old_status, (old_status & 0xFF000000U) == 0);
   ASSERT(old_status, FLD(old_status,F_WRITERS) + 1 <= FLD_WIDTH);
   if ((FLD(old_status,F_READERS) > 0) || (FLD(old_status,F_WRITERS) > 0))
@@ -315,11 +338,11 @@ void unlock_writer(volatile u_int *lck)
   u_int wait_to_read = 0;
 
   rtn = "unlock_writer";
-  ATOMIC_INC(opseq);
-
   ASSERT(curr_lock, curr_lock == WRITE);
 
   old_status = ATOMIC_FETCH(lck);
+  mv1_log(old_status, -WRITE);
+
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     ASSERT0(old_status, FLD(old_status,F_WRITERS) >  0);
@@ -356,11 +379,11 @@ void unlock_writer_to_reader(volatile u_int *lck)
   u_int wait_to_read = 0;
 
   rtn = "unlock_writer_to_reader";
-  ATOMIC_INC(opseq);
-
   ASSERT(curr_lock, curr_lock == WRITE);
 
   old_status = ATOMIC_FETCH(lck);
+  mv1_log(old_status, WR_TO_R);
+
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     ASSERT0(old_status, FLD(old_status,F_WRITERS) >  0);
@@ -368,14 +391,8 @@ void unlock_writer_to_reader(volatile u_int *lck)
     new_status = old_status;
     FLDDEC(new_status,F_WRITERS);
     wait_to_read = FLD(old_status,F_WAIT_TO_READ);
-    if (wait_to_read > 0)
-    { SET_FLD(new_status,F_WAIT_TO_READ,0);
-      SET_FLD(new_status,F_READERS,1 + wait_to_read);
-    }
-    else
-    { SET_FLD(new_status,F_WAIT_TO_READ,0);
-      SET_FLD(new_status,F_READERS,1);
-    }
+    SET_FLD(new_status,F_WAIT_TO_READ,0);
+    SET_FLD(new_status,F_READERS,1 + wait_to_read);
   } while (!ATOMIC_CAS(lck, &old_status, new_status));
 
   if (wait_to_read > 0)

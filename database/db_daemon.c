@@ -89,7 +89,8 @@ u_int MSLEEP(u_int mseconds)
 // Return:   0 -> Ok, any non-zero = error
 //
 
-extern int curr_sem_init;
+extern int   curr_sem_init;
+extern pid_t mypid;
 
 int DB_Daemon(int slot, int vol)			// start a daemon
 { int i;						// a handy int 
@@ -113,6 +114,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
   last_daemon_check = (time_t) 0;
+  mypid = 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename

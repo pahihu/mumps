@@ -51,6 +51,8 @@
 #include "database.h"                           // for MTIME()
 #include "rwlock.h"                             // for SemLock()/SemUnlock()
 
+#include <mach/mach_time.h>
+
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
 //****************************************************************************
@@ -94,6 +96,8 @@ static int curr_sem[SEM_MAX];
 const  char *sem_file;
        int  sem_line;
 
+pid_t mypid = 0;
+
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
@@ -103,10 +107,11 @@ short SemOpEx(int sem_num, int numb,
 
   sem_file = file;
   sem_line = line;
-  // fprintf(stderr,"%08X %d %3d %s:%d\r\n",
+  if (mypid == 0) mypid = getpid();
+  // fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
+  //                 mypid, mach_absolute_time(),
   //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
   //                 file, line);
-  // fflush(stderr);
 
   if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));

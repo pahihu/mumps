@@ -170,7 +170,7 @@ int INIT_Start( char *file,                     // database
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
 #ifdef MV1_SHSEM
-    sem_val[i] = (SEM_GLOBAL_RD == i) || (SEM_GLOBAL_WR == i)  ? 0 : jobs;
+    sem_val[i] = 0;
 #else
     sem_val[i] = jobs;
 #endif

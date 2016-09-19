@@ -137,6 +137,7 @@ void DoInfo()
 //	     -1 Just do a rfork() for the daemons, no file table
 
 extern int curr_sem_init;
+extern pid_t mypid;
 
 int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
@@ -218,6 +219,7 @@ int ForkIt(int cft)				// Copy File Table True/False
   partab.jobtab = &systab->jobtab[mid];         // and save our jobtab address
 
   curr_sem_init = 1;
+  mypid = getpid();
 
   for (i = 0; i < 10000; i++)			// wait for the above to happen
   { if (getpid() == partab.jobtab->pid)		// done yet ?
