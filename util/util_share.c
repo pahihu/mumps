@@ -97,6 +97,7 @@ const  char *sem_file;
        int  sem_line;
 
 pid_t mypid = 0;
+extern void mv1_log_init();
 
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
@@ -107,7 +108,10 @@ short SemOpEx(int sem_num, int numb,
 
   sem_file = file;
   sem_line = line;
-  if (mypid == 0) mypid = getpid();
+  if (mypid == 0)
+  { mypid = getpid();
+    mv1_log_init();
+  }
   // fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
   //                 mypid, mach_absolute_time(),
   //                 systab->shsem[SEM_GLOBAL], sem_num, numb,

@@ -256,6 +256,8 @@ void SemStats(void)
 // If not the current job, also free jobtab entry.
 //
 
+extern void mv1_log_flush();
+
 void CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
@@ -264,6 +266,7 @@ void CleanJob(int job)				// tidy up a job
   fflush(stderr);
 
   SemStats();                                   // print sem stats
+  mv1_log_flush();
 
   j = job - 1;					// copy argument to int job form
   if (!job) j = partab.jobtab - systab->jobtab; // or get current int job#

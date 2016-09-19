@@ -29,6 +29,11 @@ static u_int lwsucc = 0, lwos = 0;
 static u_int ulwsucc = 0;
 static u_int ulw2rsucc = 0;
 
+extern const char *sem_file;
+extern       int   sem_line;
+extern     pid_t   mypid;
+       const char *rtn;
+
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #define monotonic_time  mach_absolute_time
@@ -88,6 +93,50 @@ short DoSem(int sem_num, int numb)
   return semop(systab->sem_id, &buf, 1);        // doit
 }
 
+#define MAX_NTRCBUF     1024
+
+typedef struct TRCITEM
+{ u_int64 stamp;
+  u_int   status;
+  int     numb;
+  const char *file;
+  int     line;
+} trcitem_t;
+
+trcitem_t trcbuf[MAX_NTRCBUF];
+int ntrcbuf = 0;
+
+static
+void mv1_log(u_int old_status, int numb)
+{
+  trcbuf[ntrcbuf].stamp  = monotonic_time();
+  trcbuf[ntrcbuf].status = old_status;
+  trcbuf[ntrcbuf].numb   = numb;
+  trcbuf[ntrcbuf].file   = sem_file;
+  trcbuf[ntrcbuf].line   = sem_line;
+  ntrcbuf++; ntrcbuf &= (MAX_NTRCBUF - 1);
+}
+
+void mv1_log_init(void)
+{ int i;
+
+  for (i = 0; i < MAX_NTRCBUF; i++)
+    trcbuf[i].stamp = 0;
+  ntrcbuf = 0;
+}
+
+void mv1_log_flush(void)
+{ int i;
+
+  for (i = 0; i < MAX_NTRCBUF; i++)
+  { trcitem_t *t = &trcbuf[i];
+    if (0 == t->stamp) continue;
+    fprintf(stderr,"%5d %16lld %08X %3d   %s:%d\r\n",
+                  mypid, t->stamp,
+                  t->status, t->numb, t->file, t->line);
+  }
+}
+
 #ifdef MV1_SHSEM
 
 #if defined(__APPLE__) && !defined(MV1_GCC_SYNC)
@@ -108,9 +157,6 @@ short DoSem(int sem_num, int numb)
 #define ATOMIC_INC(var) \
   OSAtomicIncrement32(&var)
 
-// #define ATOMIC_FETCH(ptr) \
-//   OSAtomicAdd32Barrier(0, (volatile int32_t*)ptr)
-
 #else
 
 #define _ATOMIC_FETCH_ADD(ptr,fld) \
@@ -128,9 +174,6 @@ short DoSem(int sem_num, int numb)
 #define ATOMIC_INC(var) \
   __sync_fetch_and_add(&var,1)
 
-// #define ATOMIC_FETCH(ptr) \
-//   __sync_fetch_and_add(ptr,0)
-
 #endif
 
 
@@ -138,17 +181,12 @@ short DoSem(int sem_num, int numb)
 #define F_WRITERS         0
 #define F_WAIT_TO_READ    8
 #define F_READERS        16
-#define FLD_WIDTH       255
-#define BITONE(y)       (1 << (y))
+#define FLD_WIDTH       ((int32_t) 255)
+#define BITONE(y)       ((int32_t)1 << (y))
 #define FLDINC(x,y)     x = (x) + BITONE(y)
 #define FLDDEC(x,y)     x = (x) - BITONE(y)
 #define FLD(x,y)        (FLD_WIDTH & ((x) >> (y)))
 #define SET_FLD(z,x,y)  { z &= ~(FLD_WIDTH << (x)); z |= (FLD_WIDTH & (y)) << (x); }
-
-extern const char *sem_file;
-extern       int   sem_line;
-extern     pid_t   mypid;
-       const char *rtn;
 
 static
 void myassert(u_int val, u_int expr, const char *file, int line)
@@ -162,6 +200,7 @@ void myassert(u_int val, u_int expr, const char *file, int line)
   fprintf(stderr, "  LWsucc = %u (%u)\r\n", lwsucc, lwos);
   fprintf(stderr, "  UWsucc = %u\r\n", ulwsucc);
   fprintf(stderr, "UW2Rsucc = %u\r\n", ulw2rsucc);
+  mv1_log_flush();
   fflush(stderr);
   assert(0);
 }
@@ -209,20 +248,9 @@ u_int ATOMIC_FETCH(volatile u_int *lck)
 {
   u_int t = 0;
 
-  ATOMIC_SYNC;
-  _ATOMIC_CAS(&t,0,*lck);
-  return t;
-}
-
-static
-void mv1_log(u_int old_status, int numb)
-{
-  static u_int opseq = 0;
-
-  fprintf(stderr,"%5d %20lld %08X %3d   %s:%d\r\n",
-                  mypid, monotonic_time(),
-                  old_status, numb, sem_file, sem_line);
-  if (opseq++ % 25 == 0) fflush(stderr);
+  // ATOMIC_SYNC;
+  // _ATOMIC_CAS(&t,0,*lck);
+  return *lck;
 }
 
 void lock_reader(volatile u_int *lck)
@@ -238,7 +266,6 @@ void lock_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == 0);
 
   old_status = ATOMIC_FETCH(lck);
-  mv1_log(old_status, READ);
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     new_status = old_status;
@@ -247,6 +274,7 @@ void lock_reader(volatile u_int *lck)
     else
       FLDINC(new_status,F_READERS);
   } while (!ATOMIC_CAS(lck, &old_status, new_status));
+  mv1_log(old_status, READ);
 
   if (FLD(old_status,F_WRITERS) > 0)
   { DoSem(SEM_GLOBAL_RD, -1);
@@ -341,8 +369,6 @@ void unlock_writer(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == WRITE);
 
   old_status = ATOMIC_FETCH(lck);
-  mv1_log(old_status, -WRITE);
-
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     ASSERT0(old_status, FLD(old_status,F_WRITERS) >  0);
@@ -355,6 +381,7 @@ void unlock_writer(volatile u_int *lck)
       SET_FLD(new_status,F_READERS,wait_to_read);
     }
   } while (!ATOMIC_CAS(lck, &old_status, new_status));
+  mv1_log(old_status, -WRITE);
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
@@ -382,8 +409,6 @@ void unlock_writer_to_reader(volatile u_int *lck)
   ASSERT(curr_lock, curr_lock == WRITE);
 
   old_status = ATOMIC_FETCH(lck);
-  mv1_log(old_status, WR_TO_R);
-
   do
   { ASSERT(old_status, (old_status & 0xFF000000U) == 0);
     ASSERT0(old_status, FLD(old_status,F_WRITERS) >  0);
@@ -394,6 +419,7 @@ void unlock_writer_to_reader(volatile u_int *lck)
     SET_FLD(new_status,F_WAIT_TO_READ,0);
     SET_FLD(new_status,F_READERS,1 + wait_to_read);
   } while (!ATOMIC_CAS(lck, &old_status, new_status));
+  mv1_log(old_status, WR_TO_R);
 
   if (wait_to_read > 0)
   { DoSem(SEM_GLOBAL_RD, wait_to_read);
