@@ -38,6 +38,8 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
+#include <stdint.h>
+
 #ifndef VOLATILE
 #define VOLATILE        volatile
 #endif
@@ -195,7 +197,7 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 
-#define MV1_SHSEM       1
+// #define MV1_SHSEM       1
 #ifndef MV1_SHSEM
 #define SEM_MAX         5                       // total number of these
 #else

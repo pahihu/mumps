@@ -201,7 +201,7 @@ void myassert(uint32_t val, uint32_t expr, const char *file, int line)
 #define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
 #define ASSERT0(x,y)
 
-#define MV1_GCC_ATOMIC  1
+// #define MV1_GCC_ATOMIC  1
 #ifdef MV1_GCC_ATOMIC
 #define ATOMIC_LOAD(ptr) \
   __atomic_load_n(ptr,__ATOMIC_RELAXED)
@@ -511,7 +511,11 @@ short SemUnlock(int sem_num, int numb)
 
 void UTIL_Barrier(void)
 {
+#ifdef MV1_SHSEM
   do { ATOMIC_SYNC; } while(0);
+#else
+  return;
+#endif
 }
 
 //	struct sembuf {

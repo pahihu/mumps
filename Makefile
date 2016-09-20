@@ -3,7 +3,7 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
-CC	= gcc
+CC	    = gcc
 LIBS	= -lm -lcrypt
 
 EXTRA   = -O3 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1
@@ -13,6 +13,10 @@ endif
 
 ifeq ($(findstring solaris,$(OSTYPE)),solaris)
 LIBS    = -lcrypt -lnsl -lsocket -lm
+endif
+
+ifeq ($(OSTYPE),linux)
+LIBS   += -lrt
 endif
 
 

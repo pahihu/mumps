@@ -51,8 +51,6 @@
 #include "database.h"                           // for MTIME()
 #include "rwlock.h"                             // for SemLock()/SemUnlock()
 
-#include <mach/mach_time.h>
-
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
 //****************************************************************************
@@ -113,7 +111,7 @@ short SemOpEx(int sem_num, int numb,
     mv1_log_init();
   }
   // fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
-  //                 mypid, mach_absolute_time(),
+  //                 mypid, monotonic_time(),
   //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
   //                 file, line);
 
