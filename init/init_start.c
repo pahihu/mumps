@@ -213,8 +213,8 @@ int INIT_Start( char *file,                     // database
     return(errno);                              // and return with error
   }
   sem_id = semget(shar_mem_key, SEM_MAX,	// Use SMH_ not SEM_ as
-                  (SHM_R|SHM_W|(SHM_R>>3)	// linux needs that
-                  |(SHM_W>>3)|IPC_CREAT)); 	// create semaphores
+                  (SEM_R|SEM_A|(SEM_R>>3)	// linux needs that
+                  |(SEM_A>>3)|IPC_CREAT)); 	// create semaphores
   if (sem_id < 0)
   { fprintf( stderr, "Unable to create semaphore set - %s\n",
             strerror(errno));                   // give an error

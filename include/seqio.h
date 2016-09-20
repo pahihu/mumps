@@ -39,6 +39,7 @@
 #define _MUMPS_SEQIO_H_
 
 #include	<sys/types.h>
+#include        <stdint.h>
 #include	"mumps.h"
 
 // ************************************************************************* //

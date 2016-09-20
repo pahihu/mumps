@@ -38,10 +38,6 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#ifdef MV1_PTHREAD
-#include <pthread.h>
-#endif
-
 #ifndef VOLATILE
 #define VOLATILE        volatile
 #endif
@@ -499,10 +495,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
 #ifdef MV1_SHSEM
-  VOLATILE u_int shsem[SEM_MAX];                // shared semaphores
-#ifdef MV1_PTHREAD
-  pthread_rwlock_t gblock;
-#endif
+  VOLATILE uint32_t shsem[SEM_MAX];             // shared semaphores
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
