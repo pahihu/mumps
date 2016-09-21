@@ -78,6 +78,7 @@ COMOBJS	= 	compile/dollar.o \
 		util/util_memory.o \
 		util/util_routine.o \
                 util/util_rwlock.o \
+                util/d_rwlock.o \
 		util/util_share.o \
 		util/util_strerror.o \
 		xcall/xcall.o

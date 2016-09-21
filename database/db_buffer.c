@@ -402,7 +402,11 @@ retry:
 #endif
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
-  Sleep(1);
+  // Sleep(1);
+  if (pass & 3)
+    SchedYield();
+  else
+    Sleep(1);
   pass++;						// increment a pass
   if (pass > 60)					// this is crazy!
   { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
@@ -431,7 +435,9 @@ void Get_GBD()						// get a GBD
   gbd *oldptr = NULL;					// remember oldest
   gbd *last;						// points to ptr
   static time_t old_last_accessed = (time_t) 0;
+  int pass;
 
+  pass = 0;
 start:
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
@@ -547,7 +553,12 @@ start:
     }
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
-    Sleep(1);						// wait
+    // Sleep(1);						// wait
+    if (pass & 3)
+      SchedYield();
+    else
+      Sleep(1);
+    pass++;
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }

@@ -39,6 +39,7 @@
 #define _MUMPS_MUMPS_H_
 
 #include <stdint.h>
+#include "d_rwlock.h"
 
 #ifndef VOLATILE
 #define VOLATILE        volatile
@@ -128,7 +129,8 @@
 
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        1024                    // hash size for global buffers
-#define NUM_DIRTY       1024                    // max queued dirty chains
+//#define NUM_DIRTY       1024                    // max queued dirty chains
+#define NUM_DIRTY       2048                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 
 #define RBD_HASH        1023                    // hash size for routine names
@@ -197,7 +199,7 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 
-// #define MV1_SHSEM       1
+#define MV1_SHSEM       1
 #ifndef MV1_SHSEM
 #define SEM_MAX         5                       // total number of these
 #else
@@ -497,7 +499,8 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
 #ifdef MV1_SHSEM
-  VOLATILE uint32_t shsem[SEM_MAX];             // shared semaphores
+  LATCH_T shsem[SEM_MAX];                       // shared semaphores
+  RWLOCK_T glorw;
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs

@@ -340,7 +340,9 @@ int INIT_Start( char *file,                     // database
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
 #ifdef MV1_SHSEM
-  bzero(systab->shsem, sizeof(systab->shsem));  // clear shared semaphores
+  for (i = 0; i < SEM_MAX; i++)                 // init shared IPC
+    LatchInit(&systab->shsem[i]);
+  RWLockInit(&systab->glorw, systab->maxjob);
 #endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
