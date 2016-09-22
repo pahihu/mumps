@@ -757,9 +757,13 @@ u_int SleepEx(u_int seconds, const char* file, int line)
           systab->vol[volnum - 1]->dirtyQw,
           systab->vol[volnum - 1]->dirtyQr);
   fflush(stderr);
-  return sleep(seconds);
+  return MSleep(1000 * seconds);
 }
 
+int MSleep(u_int mseconds)
+{
+  return usleep(1000 * mseconds);
+}
 
 void Ensure_GBDs(void)
 {

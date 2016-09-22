@@ -72,11 +72,17 @@ static time_t last_daemon_check;                        // last daemon_check()
 // Return:   return value of sleep() system call
 //
 
+static u_int mtime_mseconds = 1000;
+static u_int last_mtime_mseconds = 0;
+
 static
 u_int MSLEEP(u_int mseconds)
 {
-  if (!myslot)
-    systab->Mtime = time(0);
+  mtime_mseconds += mseconds;
+  if (!myslot && (mtime_mseconds - last_mtime_mseconds) > 250)
+  { systab->Mtime = time(0);
+    last_mtime_mseconds = mtime_mseconds;
+  }
 
   //return sleep(seconds);
   return usleep(1000 * mseconds);
@@ -154,9 +160,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  // { i = MSLEEP(1000);					// rest
-  { i = MSLEEP(250);					// rest
-  // { i = MSLEEP(125);					// rest
+  // { i = MSLEEP(1000);				// rest
+  { i = MSLEEP(125);					// rest
     do_daemon();					// do something
   }
   return 0;						// never gets here

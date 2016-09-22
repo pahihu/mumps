@@ -287,6 +287,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 int UTIL_Share(char *dbf);			// attach share and semaphores
 #define Sleep(x)   SleepEx(x,__FILE__,__LINE__)
 u_int SleepEx(u_int seconds, const char *file, int line);
+int MSleep(u_int mseconds);
 // short SemOp(int sem_num, int numb);             // Add/Remove semaphore
 #define SemOp(x,y) SemOpEx(x,y,__FILE__,__LINE__)
 short SemOpEx(int sem_num, int numb, const char *file, int line);             // Add/Remove semaphore

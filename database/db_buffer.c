@@ -269,6 +269,9 @@ short New_block()					// get new block
 static gbd* rsvd_gbds[2 * MAXTREEDEPTH];
 #endif
 
+#define GBD_TRIES_PER_SEC	(4 * 1000)
+#define GBD_TRIES		(60 * GBD_TRIES_PER_SEC)
+
 void Get_GBDs(int greqd)				// get n free GBDs
 { int i;						// a handy int
   int curr;						// current count
@@ -406,9 +409,9 @@ retry:
   if (pass & 3)
     SchedYield();
   else
-    Sleep(1);
+    MSleep(1);
   pass++;						// increment a pass
-  if (pass > 60)					// this is crazy!
+  if (pass > GBD_TRIES)					// this is crazy!
   { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
   }
   goto start;						// try again
@@ -557,8 +560,11 @@ start:
     if (pass & 3)
       SchedYield();
     else
-      Sleep(1);
+      MSleep(1);
     pass++;
+    if (pass > GBD_TRIES)				// this is crazy!
+    { panic("Get_GBD: Can't get a GDB after 60 seconds");
+    }
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }

@@ -1,6 +1,8 @@
 #ifndef _D_RWLOCK_H
 #define _D_RWLOCK_H
 
+#include <stdint.h>
+
 typedef volatile uint32_t LATCH_T;
 
 typedef struct _SEM_T
