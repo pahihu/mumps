@@ -31,7 +31,11 @@ extern       int   sem_line;
 extern     pid_t   mypid;
        const char *rtn;
 
+#ifdef USE_LIBATOMIC_OPS
+#define ATOMIC_SYNC     AO_nop_full()
+#else
 #define ATOMIC_SYNC     __sync_synchronize()
+#endif
 
 #ifdef __APPLE__
 #include <mach/mach_time.h>

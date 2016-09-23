@@ -4,20 +4,26 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sched.h>
+#include <sys/types.h>
 
 #include "d_rwlock.h"
+#include "mumps.h"
 
+#ifdef USE_LIBATOMIC_OPS
+#define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
+#else
 
-uint32_t inter_add(volatile uint32_t *ptr, uint32_t incr)
+AO_t inter_add(volatile AO_t *ptr, AO_t incr)
 {
-  // return __sync_add_and_fetch(ptr, incr);
-  uint32_t oldval, newval;
+  AO_t oldval, newval;
   do
   { oldval = *ptr;
     newval = oldval + incr;
   } while(!__sync_bool_compare_and_swap(ptr, oldval, newval));
   return newval;
 }
+
+#endif
 
 
 /* --- LATCH --- */
@@ -33,35 +39,51 @@ uint32_t inter_add(volatile uint32_t *ptr, uint32_t incr)
 #define LOCK_SPINS              1024
 #endif
 
+#ifndef USE_LIBATOMIC_OPS
 static LATCH_T LATCH_FREE;
+#endif
 
 
 void LatchInit(LATCH_T *latch)
 {
+#ifdef USE_LIBATOMIC_OPS
+  *latch = AO_TS_INITIALIZER;
+#else
   LatchUnlock(latch);
   LATCH_FREE = *latch;
+#endif
 }
 
 
 static
 int LatchTryLock(LATCH_T *latch)
 {
-  uint32_t ret;
+#ifdef USE_LIBATOMIC_OPS
+  AO_TS_t ret;
+  ret = AO_test_and_set_acquire_read(latch);
+  return AO_TS_CLEAR == ret;
+#else
+  AO_t ret;
 
   ret = __sync_lock_test_and_set(latch, LATCH_FREE + 1);
   return LATCH_FREE == ret;
+#endif
 }
 
 
 void LatchUnlock(LATCH_T *latch)
 {
+#ifdef USE_LIBATOMIC_OPS
+  AO_CLEAR(latch);
+#else
   __sync_lock_release(latch);
+#endif
 }
 
 
 void LatchLock(LATCH_T *latch)
 { int i, j;
-  uint32_t slot;
+  AO_t slot;
 
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
@@ -98,7 +120,7 @@ void SemInit(SEM_T *sem)
 
 void SemWait(SEM_T *sem)
 { int i, j, done;
-  uint32_t slot;
+  AO_t slot;
   
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
@@ -194,7 +216,7 @@ void UnlockWriter(RWLOCK_T *lok)
 
 void UnlockWriterToReader(RWLOCK_T *lok)
 {
-  uint32_t wait_to_read;
+  AO_t wait_to_read;
 
   LatchLock(&lok->g_latch);
   assert(0 == lok->readers);

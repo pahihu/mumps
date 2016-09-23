@@ -3,23 +3,36 @@
 
 #include <stdint.h>
 
+// #define USE_LIBATOMIC_OPS 1
+
+#ifdef USE_LIBATOMIC_OPS
+
+#include <atomic_ops.h>
+typedef AO_TS_t LATCH_T;
+
+#else
+
+typedef uint32_t AO_t;
 typedef volatile uint32_t LATCH_T;
+
+
+#endif
 
 typedef struct _SEM_T
 { LATCH_T  g_latch;
-  uint32_t ntok;
+  AO_t ntok;
 } SEM_T;
 
 typedef struct _RWLOCK_T
 { LATCH_T g_latch;
   LATCH_T wr_latch;
   SEM_T   rd_sem;
-  uint32_t readers;
-  uint32_t writers;
-  uint32_t wait_to_read;
+  AO_t readers;
+  AO_t writers;
+  AO_t wait_to_read;
 } RWLOCK_T;
 
-uint32_t inter_add(volatile uint32_t *ptr, uint32_t incr);
+AO_t inter_add(volatile AO_t *ptr, AO_t incr);
 
 void LatchInit(LATCH_T *latch);
 void LatchLock(LATCH_T *latch);

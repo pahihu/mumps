@@ -1,13 +1,27 @@
 #include <errno.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <mach/mach_time.h>
 #include <assert.h>
+#include <sched.h>
+
+#include <stdint.h>
+
+extern uint64_t monotonic_time(void);
+
+#if defined(linux) || defined(__CYGWIN__)
+union semun {
+        int val;                        /* value for SETVAL */
+        struct semid_ds *buf;           /* buffer for IPC_STAT, IPC_SET */
+        unsigned short int *array;      /* array for GETALL, SETALL */
+        struct seminfo *__buf;          /* buffer for IPC_INFO */
+};
+#endif                                  //linux
 
 // #define USE_MACH_SEMA   1
 #include "c_rwlock.h"
@@ -33,14 +47,14 @@ END_BITFIELD_TYPE()
 
 #else
 
-#define Status          uint32_t
+#define Status          AO_t
 #define F_BIT0            0
 #define F_WRITERS        20
 #define F_WAIT_TO_READ   10
 #define F_READERS         0
 #define FLD_WIDTH        10
-#define BITONE(x)       ((uint32_t) (1 << (x)))
-#define FLD_MAX         ((uint32_t) BITONE(FLD_WIDTH) - 1)
+#define BITONE(x)       ((AO_t) (1 << (x)))
+#define FLD_MAX         ((AO_t) BITONE(FLD_WIDTH) - 1)
 #define FLDINC(x,y)     x += BITONE(y)
 #define FLDDEC(x,y)     x -= BITONE(y)
 #define FLD(x,y)        (FLD_MAX & ((x) >> (y)))
@@ -51,6 +65,45 @@ END_BITFIELD_TYPE()
 
 #endif
 
+#ifdef USE_LIBATOMIC_OPS
+#define ATOMIC_LOAD(ptr) \
+    AO_load(ptr)
+
+#define ATOMIC_FETCH_ADD(ptr,val,mo) \
+    AO_fetch_and_add_acquire(ptr,val)
+
+#define ATOMIC_FETCH_SUB(ptr,val,mo) \
+    AO_fetch_and_add_release(ptr,-(val))
+
+#define XATOMIC_CAS_ACQUIRE(ptr,oldval,newval) \
+    AO_fetch_compare_and_swap_acquire(ptr,oldval,newval)
+
+#define XATOMIC_CAS_RELEASE(ptr,oldval,newval) \
+    AO_fetch_compare_and_swap_release(ptr,oldval,newval)
+
+int ATOMIC_CAS_ACQUIRE(volatile AO_t *ptr, AO_t *poldval, AO_t newval)
+{
+  AO_t oldval, curval;
+
+  oldval  = *poldval;
+  curval = XATOMIC_CAS_ACQUIRE(ptr,oldval,newval);
+  if (oldval != curval)
+    *poldval = curval;
+  return oldval == curval;
+}
+
+int ATOMIC_CAS_RELEASE(volatile AO_t *ptr, AO_t *poldval, AO_t newval)
+{
+  AO_t oldval, curval;
+
+  oldval  = *poldval;
+  curval = XATOMIC_CAS_RELEASE(ptr,oldval,newval);
+  if (oldval != curval)
+    *poldval = curval;
+  return oldval == curval;
+}
+
+#endif
 
 #ifdef USE_GCC_ATOMIC
 
@@ -66,7 +119,10 @@ END_BITFIELD_TYPE()
 #define ATOMIC_CAS(ptr,pold,newval,mo) \
   __atomic_compare_exchange_n(ptr,pold,newval,-1,mo,__ATOMIC_RELAXED)
 
-#else
+#endif
+
+
+#ifdef USE_GCC_SYNC
 
 #define ATOMIC_LOAD(ptr) \
   __sync_fetch_and_add(ptr, 0)
@@ -80,9 +136,9 @@ END_BITFIELD_TYPE()
 #define XATOMIC_CAS(ptr,oldval,newval,mo) \
   __sync_bool_compare_and_swap(ptr,oldval,newval)
 
-uint32_t ATOMIC_CAS(volatile uint32_t *ptr, uint32_t *pold, uint32_t newval, int mo)
+AO_t ATOMIC_CAS(volatile AO_t *ptr, AO_t *pold, AO_t newval, int mo)
 {
-  uint32_t ret = XATOMIC_CAS(ptr,*pold,newval,0);
+  AO_t ret = XATOMIC_CAS(ptr,*pold,newval,0);
   if (ret) return ret;
   *pold = *ptr;
   return ret;
@@ -90,16 +146,100 @@ uint32_t ATOMIC_CAS(volatile uint32_t *ptr, uint32_t *pold, uint32_t newval, int
 
 #endif
 
+
+/* --- LATCH --- */
+
+#define USE_EXPBACK             1
+
+#define LOCK_TRIES_PER_SEC      (4 * 1000)
+#define LOCK_TRIES              (50 * LOCK_TRIES_PER_SEC)
+#define LOCK_SLEEP              1
+#ifdef USE_EXPBACK
+#define LOCK_SPINS              8
+#else
+#define LOCK_SPINS              1024
+#endif
+
+#ifndef USE_LIBATOMIC_OPS
+static LATCH_T LATCH_FREE;
+#endif
+
+
+void LatchInit(LATCH_T *latch)
+{
+#ifdef USE_LIBATOMIC_OPS
+  *latch = AO_TS_INITIALIZER;
+#else
+  LatchUnlock(latch);
+  LATCH_FREE = *latch;
+#endif
+}
+
+
+static
+int LatchTryLock(LATCH_T *latch)
+{
+#ifdef USE_LIBATOMIC_OPS
+  AO_TS_t ret;
+  ret = AO_test_and_set_acquire_read(latch);
+  return AO_TS_CLEAR == ret;
+#else
+  AO_t ret;
+
+  ret = __sync_lock_test_and_set(latch, LATCH_FREE + 1);
+  return LATCH_FREE == ret;
+#endif
+}
+
+
+void LatchUnlock(LATCH_T *latch)
+{
+#ifdef USE_LIBATOMIC_OPS
+  AO_CLEAR(latch);
+#else
+  __sync_lock_release(latch);
+#endif
+}
+
+
+void LatchLock(LATCH_T *latch)
+{ int i, j;
+  AO_t slot;
+
+  for (i = 0; i < LOCK_TRIES; i++)
+  { for (j = 0; j < LOCK_SPINS; j++)
+    { if (LatchTryLock(latch))
+        return;
+#ifdef USE_EXPBACK
+      slot = random() & ((1 << j) - 1);
+      usleep(slot);
+#endif
+    }
+#ifdef USE_EXPBACK
+    if (0 == (i & 3))
+      sched_yield();
+#else
+    if (i & 3)
+      sched_yield();
+    else
+      usleep(1000 * LOCK_SLEEP);
+#endif
+  }
+  fprintf(stderr, "lock_latch: timeout\n");
+  assert(0);
+}
+
+
 #define SEM_GLOBAL_RD   0
 #define SEM_GLOBAL_WR   1
 #define SEM_MAX         2
 
 static
-void myassert(uint32_t val, uint32_t expr, const char *file, int line)
+void myassert(AO_t val, AO_t expr, const char *file, int line)
 {
   if (expr) return;
   fprintf(stderr, "%5d %20lld %08X xxx %s:%d\n",
-                  getpid(), mach_absolute_time(),
+                  getpid(), monotonic_time(),
                   val, file, line);
   fflush(stderr);
   *(volatile char *)0 = 0;
@@ -109,7 +249,7 @@ void myassert(uint32_t val, uint32_t expr, const char *file, int line)
 #define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
 
 static
-int DoSem(RwLock_t *lok, int sem_num, int numb)
+int DoSem(RWLOCK_T *lok, int sem_num, int numb)
 {
 #ifdef USE_MACH_SEMA
   if (numb < 0)
@@ -137,7 +277,7 @@ int DoSem(RwLock_t *lok, int sem_num, int numb)
 #endif
 }
 
-int rwlock_init(RwLock_t *lok, int maxjob)
+int RWLockInit(RWLOCK_T *lok, int maxjob)
 {
 #ifdef USE_MACH_SEMA
   semaphore_create(mach_task_self(), &lok->sema[SEM_GLOBAL_RD], SYNC_POLICY_FIFO, 0);
@@ -158,7 +298,7 @@ int rwlock_init(RwLock_t *lok, int maxjob)
   }
   semvals.array = sem_val;
 
-  semid = semget(sem_key, SEM_MAX, (SEM_R|SEM_A|(SEM_R>>3)|(SEM_A>>3)|IPC_CREAT));
+  semid = semget(sem_key, SEM_MAX, (SHM_R|SHM_W|(SHM_R>>3)|(SHM_W>>3)|IPC_CREAT));
   if (semid < 0)
   { fprintf(stderr, "semget(): %s\n", strerror(errno));
     return errno;
@@ -178,7 +318,7 @@ int rwlock_init(RwLock_t *lok, int maxjob)
   return 0;
 }
 
-int rwlock_finish(RwLock_t *lck)
+int RWLockFinish(RWLOCK_T *lck)
 { 
 #ifdef USE_MACH_SEMA
   semaphore_destroy(mach_task_self(), lck->sema[SEM_GLOBAL_RD]);
@@ -189,13 +329,12 @@ int rwlock_finish(RwLock_t *lck)
 #endif
 }
 
-void lock_reader(RwLock_t *lok)
+void LockReader(RWLOCK_T *lok)
 {
   Status old_status;
   Status new_status;
-  uint32_t retry;
 
-  volatile uint32_t *lck = &lok->status;
+  volatile AO_t *lck = &lok->status;
 
   old_status = ATOMIC_LOAD(lck);
   do
@@ -204,7 +343,7 @@ void lock_reader(RwLock_t *lok)
       FLDINC(new_status,F_WAIT_TO_READ);
     else
       FLDINC(new_status,F_READERS);
-  } while (!ATOMIC_CAS(lck, VALPTR(old_status), new_status, __ATOMIC_ACQUIRE));
+  } while (!ATOMIC_CAS_ACQUIRE(lck, VALPTR(old_status), new_status));
 
   if (FLD(old_status,F_WRITERS) > 0)
   { DoSem(lok, SEM_GLOBAL_RD, -1);
@@ -212,10 +351,10 @@ void lock_reader(RwLock_t *lok)
 }
 
 
-void unlock_reader(RwLock_t *lok)
+void UnlockReader(RWLOCK_T *lok)
 {
   Status old_status;
-  volatile uint32_t *lck = &lok->status;
+  volatile AO_t *lck = &lok->status;
 
   old_status = ATOMIC_FETCH_SUB(lck, BITONE(F_READERS), __ATOMIC_RELEASE);
 
@@ -228,10 +367,10 @@ void unlock_reader(RwLock_t *lok)
 }
 
 
-void lock_writer(RwLock_t *lok)
+void LockWriter(RWLOCK_T *lok)
 {
   Status old_status;
-  volatile uint32_t *lck = &lok->status;
+  volatile AO_t *lck = &lok->status;
 
   old_status = ATOMIC_FETCH_ADD(lck, BITONE(F_WRITERS), __ATOMIC_ACQUIRE);
 
@@ -242,12 +381,12 @@ void lock_writer(RwLock_t *lok)
   }
 }
 
-void unlock_writer(RwLock_t *lok)
+void UnlockWriter(RWLOCK_T *lok)
 {
   Status old_status;
   Status new_status;
-  uint32_t wait_to_read = 0;
-  volatile uint32_t *lck = &lok->status;
+  AO_t wait_to_read = 0;
+  volatile AO_t *lck = &lok->status;
 
   old_status = ATOMIC_LOAD(lck);
   do
@@ -259,12 +398,34 @@ void unlock_writer(RwLock_t *lok)
     { SET_FLD(new_status,F_WAIT_TO_READ,0);
       SET_FLD(new_status,F_READERS,wait_to_read);
     }
-  } while (!ATOMIC_CAS(lck, VALPTR(old_status), new_status, __ATOMIC_RELEASE));
+  } while (!ATOMIC_CAS_RELEASE(lck, VALPTR(old_status), new_status));
 
   if (wait_to_read > 0)
   { DoSem(lok, SEM_GLOBAL_RD, wait_to_read);
   }
   else if (FLD(old_status,F_WRITERS) > 1)
   { DoSem(lok, SEM_GLOBAL_WR, 1);
+  }
+}
+
+void UnlockWriterToReader(RWLOCK_T *lok)
+{
+  Status old_status;
+  Status new_status;
+  AO_t wait_to_read = 0;
+  volatile AO_t *lck = &lok->status;
+
+  old_status = ATOMIC_LOAD(lck);
+  do
+  { ASSERT(old_status, FLD(old_status,F_READERS) == 0);
+    new_status = old_status;
+    FLDDEC(new_status,F_WRITERS);
+    wait_to_read = FLD(old_status,F_WAIT_TO_READ);
+    SET_FLD(new_status,F_WAIT_TO_READ,0);
+    SET_FLD(new_status,F_READERS,1+wait_to_read);
+  } while (!ATOMIC_CAS_RELEASE(lck, VALPTR(old_status), new_status));
+
+  if (wait_to_read > 0)
+  { DoSem(lok, SEM_GLOBAL_RD, wait_to_read);
   }
 }
