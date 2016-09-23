@@ -538,6 +538,8 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (dir < 0)						// if it's backward
   { s = Get_data(-1);					// get the previous
+    // fprintf(stderr, "DB_Query: Get_data(-1)=%d\r\n", s);
+    // fflush(stderr);
     if ((s < 0) && (s != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -552,6 +554,13 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
       return 0;						// and return
     }
     Index--;                                          	// backup the Index
+    if ((s == -ERRM7) && (Index < LOW_INDEX))           // glvn not subscripted
+    { buf[0] = '\0';					// null terminate ret
+      if (curr_lock)					// if locked
+      { SemOp( SEM_GLOBAL, -curr_lock);		        // release global lock
+      }
+      return 0;					        // and return
+    }
     if (Index < LOW_INDEX)                             	// can't happen?
     { panic("DB_Query: Problem with negative direction");
     }
@@ -565,6 +574,8 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
       }
       return 0;						// and return
     }
+    // fprintf(stderr, "DB_Query: Index=%d\r\n", Index);
+    // fflush(stderr);
   }							// end backwards
   else							// it's forward
   { s = Get_data(0);					// try to find that
@@ -614,6 +625,13 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
 #endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
+  }
+  if ((s == -ERRM7) &&                                  // not found
+      (keybuf[0] == 0) &&                               // key has no subscript
+       db_var.slen &&                                   // original subscript is
+      (db_var.key[0] == 0 || db_var.key[0] == 255))     //   empty
+  { buf[0] = '\0';
+    return 0;
   }
   db_var.uci = var->uci;				// copy
   db_var.volset = var->volset;				//   original & new
