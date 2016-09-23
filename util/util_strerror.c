@@ -184,7 +184,8 @@ static struct
   {ERRZ70+ERRMLAST,	"Offset not permitted in entryref"},
   {ERRZ71+ERRMLAST,	"No such host is known"},
   {ERRZ72+ERRMLAST,	"Type h_errno error has occured"},
-  {ERRZ73+ERRMLAST, "Invalid database file specified"},
+  {ERRZ73+ERRMLAST,     "Invalid database file specified"},
+  {ERRZ74+ERRMLAST,     "Invalid function argument"},
   {0,         NULL}
 };                                                      // merrtab[]
 
@@ -208,6 +209,8 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
   return (short)(strlen((char *) ptr));                 // and return length
 }
 
+extern int curr_lock;
+
 void panic(char *msg)					// print msg and exit
 { FILE *a;						// for freopen
   char tmp[1024];					// some string space
@@ -216,6 +219,9 @@ void panic(char *msg)					// print msg and exit
   time_t t;						// for time
   int errsv;
 
+  if (curr_lock)
+  { SemOp( SEM_GLOBAL, -curr_lock);
+  }
   errsv = errno;
   fprintf( stderr, "\n\rFATAL MUMPS ERROR occured!!\n\r%s\n\r", msg); // print
   if (errsv) fprintf( stderr, "errno = %d %s\n\r", errsv, strerror(errsv));

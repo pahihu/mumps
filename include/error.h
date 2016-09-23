@@ -185,6 +185,7 @@
 #define ERRZ71		71	// No such host is known
 #define ERRZ72		72	// Type h_errno error has occured
 #define ERRZ73		73	// Invalid database file specified
+#define ERRZ74		74	// Invalid function argument
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

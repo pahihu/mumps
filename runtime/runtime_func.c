@@ -438,7 +438,7 @@ short Dincrement1(cstring *ret, mvar *var)
 
 short Dincrement2(cstring *ret, mvar *var, cstring *expr)
 { short s;					// for return values 
-  u_char temp[65];
+  u_char num[128],temp[128];
   u_char *p;
 
   if (var->uci == UCI_IS_LOCALVAR)		// for a local var
@@ -461,20 +461,25 @@ gotit:
   ret->len = s;
   ret->buf[ret->len] = '\0';
   // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
-  p = expr->buf;
+  p = expr->buf;                                // make a number from expr
   s = ncopy(&p, temp);
-  if (s < 0) goto errout;
-  s = runtime_add((char *) ret->buf, (char *) temp);
-  if (s < 0) goto errout;
-  ret->len = s;
+  if (s < 0) goto errout;                       // got an error, bail out
+  p = ret->buf;                                 // make a number from ret
+  s = ncopy(&p, num);
+  if (s < 0) goto errout;                       // got an error, bail out
+  s = runtime_add((char *) num, (char *) temp); // add them together
+  if (s < 0) goto errout;                       // check for error
+  bcopy(num, ret->buf, s);                      // copy back the result
+  ret->buf[s] = '\0';                           // terminate with zero
+  ret->len = s;                                 // set length
   // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
-  if (var->uci == UCI_IS_LOCALVAR)
+  if (var->uci == UCI_IS_LOCALVAR)              // set as local
   { // fprintf(stderr, "Dincrement: set local\r\n");
     s = ST_Set(var, ret);
   }
   else
   { // fprintf(stderr, "Dincrement: set global\r\n");
-    s = DB_SetEx(var, ret, 1);
+    s = DB_SetEx(var, ret, 1);                  // set as global
     // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
   }
   if (s < 0) goto errout;
@@ -586,9 +591,10 @@ short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round)
     while (TRUE)
     { neg = ret_buffer[ru] == '-';              // check leading '-'
       if (neg)
-      { ret_buffer[ru] = '0';                   // rewrite as '0'
+      { ret_buffer[ru] = '1';                   // rewrite as '1'
         if (ru - 1 >= 0)                        // propagate sign
           ret_buffer[ru - 1] = '-';
+        break;                                  // stop
       }
       ret_buffer[ru]++;				// increment it
       if (ret_buffer[ru] <= '9')
@@ -691,6 +697,8 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
   if ((dir != 1) && (dir != -1)			// validate direction
     && ((dir != 2) && (systab->historic & HISTORIC_DNOK))) // for $NEXT
     return -(ERRMLAST+ERRZ12);			// complain on error
+  if (0 == var->slen)                           // no subscripts
+    return -(ERRMLAST+ERRZ74);
   realdir = dir;
   if (dir == 2)
   { realdir = 1;
@@ -781,10 +789,22 @@ short Dquery1(u_char *ret_buffer, mvar *var)
 
 short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 { int i = -1;					// dir patch flag
+  int nosubs = 0;                               // subs patch flag
+  short s;
   if ((dir != 1) && (dir != -1))		// validate direction
     return -(ERRMLAST+ERRZ12);			// complain on error
+  if (!var->slen)
+  { nosubs = 1;
+    var->key[0] = '\0';
+    var->key[1] = '\0';
+    var->slen   = 2;
+    var->nsubs  = 1;
+    var->subspos[0] = 0;
+    var->subspos[1] = 2;
+  }
   if (dir == -1)				// is it backwards?
-    if ((var->key[var->slen-1] == '\0') &&
+    if ( var->slen &&
+        (var->key[var->slen-1] == '\0') &&
         (var->key[var->slen-2] == '\0'))	// is it a nul?
     { i = var->slen-2;				// posn of first 0
       var->key[i] = '\377';			// change to 255
@@ -795,7 +815,13 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
     return (-ERRM38);				// no such
   bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
   if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-  return DB_Query(var, ret_buffer, dir, 1);	// else it's global
+  s = DB_Query(var, ret_buffer, dir, 1);	// else it's global
+  if (nosubs)
+  { var->slen  = 0;
+    var->nsubs = 0;
+    var->subspos[0] = 0;
+  }
+  return s;
 }
 
 //***********************************************************************
