@@ -186,6 +186,8 @@ static struct
   {ERRZ72+ERRMLAST,	"Type h_errno error has occured"},
   {ERRZ73+ERRMLAST,     "Invalid database file specified"},
   {ERRZ74+ERRMLAST,     "Invalid function argument"},
+  {ERRZ75+ERRMLAST,     "Invalid bit string"},
+  {ERRZ76+ERRMLAST,     "Invalid list"},
   {0,         NULL}
 };                                                      // merrtab[]
 

@@ -246,11 +246,21 @@
 #define INDWRIT	195				// WRITE arg indir
 #define INDXEC	196				// XECUTE arg indir
 
-#define FUNI1   197                             // $I[NCREMENT] 1 arg
-#define FUNI2   198                             // $I[NCREMENT] 2 arg
-//spare		199
-
-//spare		200 -> 229
+#define FUNZINC1 197                            // $ZINCR[EMENT] 1 arg
+#define FUNZINC2 198                            // $ZINCR[EMENT] 2 arg
+#define FUNZBSTR 199
+#define FUNZBSTR2 200
+#define FUNZBLEN 201
+#define FUNZBCNT 202
+#define FUNZBGET 203
+#define FUNZBSET 204
+#define FUNZBFND3 205
+#define FUNZBFND2 206
+#define FUNZBNOT 207
+#define FUNZBAND 208
+#define FUNZBOR  209
+#define FUNZBXOR 210
+//spare		211 -> 229
 
 //spare		230 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()

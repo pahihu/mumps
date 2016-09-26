@@ -1374,7 +1374,6 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-
       case FUNFN2:				// $FN[UMBER] 2 arg
 	ptr2 = (cstring *) astk[--asp];		// get arg 2
 	cptr = (cstring *)astk[--asp];
@@ -1391,7 +1390,6 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-
       case FUNFN3:				// $FN[UMBER] 3 arg
 	i = cstringtoi((cstring *)astk[--asp]); // get third arg
 	ptr2 = (cstring *) astk[--asp];		// get arg 2
@@ -1409,7 +1407,6 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-
       case FUNG1:				// $G[ET] 1 arg
 	var = (mvar *) astk[--asp];		// get the variable pointer
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
@@ -1429,20 +1426,138 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-      case FUNI1:				// $I[NCREMENT] 1 arg
+      case FUNZBSTR:                            // $ZBITSTR 1 arg form
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	i = cstringtoi((cstring *)astk[--asp]); // get arg
+        s = Dzbitstr(cptr->buf, i);             // doit
+        if (s < 0) ERROR(s)			// complain on error
+        cptr->len = s;                          // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBSTR2:                           // $ZBITSTR 2 args form
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	j = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	i = cstringtoi((cstring *)astk[--asp]); // get arg
+        s = Dzbitstr2(cptr->buf, i, j);         // doit
+        if (s < 0) ERROR(s)			// complain on error
+        cptr->len = s;                          // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBLEN:                            // $ZBITLEN
+	ptr1 = (cstring *)astk[--asp];
+        i = Dzbitlen(ptr1);                     // doit
+        if (i < 0) ERROR(i)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, i);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBCNT:                            // $ZBITCOUNT
+	ptr1 = (cstring *)astk[--asp];
+        i = Dzbitcount(ptr1);                   // doit
+        if (i < 0) ERROR(i)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, i);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBGET:                            // $ZBITGET
+	i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dzbitget(ptr1, i);                  // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, s);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBSET:                            // $ZBITSET
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	j = cstringtoi((cstring *)astk[--asp]); // get arg 3
+	i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dzbitset(cptr->buf, ptr1, i, j);    // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBFND3:                           // $ZBITFIND 3 args form
+	j = cstringtoi((cstring *)astk[--asp]); // get arg 3
+	i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+	i = Dzbitfind3(ptr1, i, j);             // doit
+        if (i < 0) ERROR(i)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, i);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBFND2:                           // $ZBITFIND 2 args form
+	i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+	i = Dzbitfind2(ptr1, i);                // doit
+        if (i < 0) ERROR(i)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, i);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBNOT:                            // $ZBITNOT
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	ptr1 = (cstring *)astk[--asp];
+	s = Dzbitnot(cptr->buf, ptr1);          // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBAND:                            // $ZBITAND
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	ptr2 = (cstring *)astk[--asp];
+	ptr1 = (cstring *)astk[--asp];
+	s = Dzbitand(cptr->buf, ptr1, ptr2);    // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBOR:                             // $ZBITOR
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	ptr2 = (cstring *)astk[--asp];
+	ptr1 = (cstring *)astk[--asp];
+	s = Dzbitor(cptr->buf, ptr1, ptr2);     // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZBXOR:                            // $ZBITXOR
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	ptr2 = (cstring *)astk[--asp];
+	ptr1 = (cstring *)astk[--asp];
+	s = Dzbitxor(cptr->buf, ptr1, ptr2);    // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNZINC1:				// $ZINCR[EMENT] 1 arg
 	var = (mvar *) astk[--asp];		// get the variable pointer
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
-	s = Dincrement1(cptr, var);	        // doit
+	s = Dzincrement1(cptr, var);	        // doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// the count
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-      case FUNI2:				// $I[NCREMENT] 2 arg
+      case FUNZINC2:				// $ZINCR[EMENT] 2 arg
 	ptr1 = (cstring *)astk[--asp];		// get arg 2
 	var = (mvar *) astk[--asp]; 		// get first arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
-	s = Dincrement2(cptr, var, ptr1);	// doit
+	s = Dzincrement2(cptr, var, ptr1);	// doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// the count
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it

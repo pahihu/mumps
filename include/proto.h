@@ -168,8 +168,6 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code);
 short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd);
 short Dget1(u_char *ret_buffer, mvar *var);
 short Dget2(u_char *ret_buffer, mvar *var, cstring *expr);
-short Dincrement1(cstring *ret, mvar *var);
-short Dincrement2(cstring *ret, mvar *var, cstring *expr);
 short Djustify2(u_char *ret_buffer, cstring *expr, int size);
 short Djustify3(u_char *ret_buffer, cstring *expr, int size, int round);
 short Dlength1(u_char *ret_buffer, cstring *expr);
@@ -201,6 +199,23 @@ short DSetpiece(u_char *tmp, cstring *cptr, mvar *var,
 		cstring *dptr, int i1, int i2);		// Set $PIECE()
 short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
 		  int i1, int i2);			// Set $EXTRACT()
+
+short Dzincrement1(cstring *ret, mvar *var);
+short Dzincrement2(cstring *ret, mvar *var, cstring *expr);
+short Dzbitstr(u_char *ret, int len);
+short Dzbitstr2(u_char *ret, int len, int ff);
+int   Dzbitlen(cstring *bstr);
+int   Dzbitcount(cstring *bstr);
+short Dzbitget(cstring *bstr, int pos);
+short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff);
+int   Dzbitfind3(cstring *bstr, int ff, int pos);
+int   Dzbitfind2(cstring *bstr, int ff);
+short Dzbitnot(u_char *ret, cstring *bstr);
+short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2);
+short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2);
+short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2);
+
+
 
 
 // Runtime Variables

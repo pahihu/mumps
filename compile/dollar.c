@@ -321,7 +321,8 @@ function:					// function code starts here
   sel = ((name[0] == 'S') && (toupper((int)name[1]) != 'T')); // is $SELECT
   if ((name[0] == 'D') ||			// $DATA
       (name[0] == 'G') ||			// $GET
-      (name[0] == 'I') ||                       // $INCREMENT
+     ((name[0] == 'Z') &&                       // $ZINCR[EMENT]
+      (toupper((int)name[1]) == 'I'))  ||       //
       (name[0] == 'N') ||			// $NAME / $NEXT
       (name[0] == 'O') ||			// $ORDER
      ((name[0] == 'Q') &&			// $QUERY
@@ -468,16 +469,6 @@ function:					// function code starts here
       else
         EXPRE					// all others junk
       return;					// done
-    case 'I':					// $I[NCREMENT]
-      if (len > 1)				// check for extended name
-        if (strncasecmp(name, "increment", 3) != 0) EXPRE
-      if (args == 1)
-        *comp_ptr++ = FUNI1;			// one arg form
-      else if (args == 2)
-	*comp_ptr++ = FUNI2;			// the 2 arg opcode
-      else
-        EXPRE					// all others junk
-      return;					// done
     case 'J':					// $J[USTIFY]
       if (len > 1)				// check for extended name
         if (strncasecmp(name, "justify", 7) != 0) EXPRE
@@ -591,64 +582,64 @@ function:					// function code starts here
 	EXPRE
       }
       EXPRE
-      case 'S':					// $S[ELECT], $ST[ACK]
-	if ((len == 1) ||
+    case 'S':					// $S[ELECT], $ST[ACK]
+      if ((len == 1) ||
 	  (strncasecmp(name, "select", 6) == 0)) // $S[ELECT]
-	{ if (args & 1)				// must be even number
-	  { comp_ptr = ptr;			// start of this
-	    EXPRE				// and error it
-	  }
-	  *comp_ptr++ = JMP;			// for the last expr
-	  selj[args] = comp_ptr;		// remember for offset
-	  comp_ptr = comp_ptr + sizeof(short);	// leave space for it
-	  selj[args+1] = comp_ptr;		// for the last JMP0
-	  *comp_ptr++ = OPERROR;		// no tve is an error
-          bcopy(&errm4, comp_ptr, sizeof(short));// and the error#
-          comp_ptr += sizeof(short);
-	  for (i = 1; i <= args; i++)		// scan the addr array
-	  { if (i & 1)
-	      *((short *) (selj[i])) =
-	        (short) (selj[i+1] - selj[i]);
-	    else
-	      *((short *) (selj[i])) =
-	        (short) (comp_ptr - selj[i]) - sizeof(short);
-	  }
-	  return;				// end of $SELECT()
+      { if (args & 1)				// must be even number
+        { comp_ptr = ptr;			// start of this
+	  EXPRE				// and error it
 	}
-	if (((len == 2) && (toupper((int)name[1]) == 'T')) ||
-	    (strncasecmp(name, "stack", 5) == 0)) // $ST[ACK]
-	{ if (args == 1)
-	  { *comp_ptr++ = FUNST1;
-	    return;				// and exit
-	  }
-          if (args == 2)
-	  { *comp_ptr++ = FUNST2;
-	    return;				// and exit
-	  }
-	  EXPRE
-        }
-      case 'T':					// $T[EXT], $TR[ANSLATE]
-	if ((len == 1) ||
-	  (strncasecmp(name, "text", 4) == 0))	// $T[EXT]
-	{ if (args == 1)
-	  { *comp_ptr++ = FUNT;			// one arg form
-	    return;				// and exit
-	  }
-	  EXPRE
+	*comp_ptr++ = JMP;			// for the last expr
+        selj[args] = comp_ptr;		// remember for offset
+        comp_ptr = comp_ptr + sizeof(short);	// leave space for it
+        selj[args+1] = comp_ptr;		// for the last JMP0
+        *comp_ptr++ = OPERROR;		// no tve is an error
+        bcopy(&errm4, comp_ptr, sizeof(short));// and the error#
+        comp_ptr += sizeof(short);
+	for (i = 1; i <= args; i++)		// scan the addr array
+	{ if (i & 1)
+	    *((short *) (selj[i])) =
+	      (short) (selj[i+1] - selj[i]);
+	  else
+	    *((short *) (selj[i])) =
+	      (short) (comp_ptr - selj[i]) - sizeof(short);
 	}
-	if (((len == 2) && (toupper((int)name[1]) == 'R')) ||
-	    (strncasecmp(name, "translate", 9) == 0)) // $TR[ANSLATE]
-	{ if (args == 2)
-	  { *comp_ptr++ = FUNTR2;
-	    return;				// and exit
-	  }
-          if (args == 3)
-	  { *comp_ptr++ = FUNTR3;
-	    return;				// and exit
-	  }
-	  EXPRE
+	return;				// end of $SELECT()
+     }
+     if (((len == 2) && (toupper((int)name[1]) == 'T')) ||
+         (strncasecmp(name, "stack", 5) == 0)) // $ST[ACK]
+     { if (args == 1)
+       { *comp_ptr++ = FUNST1;
+          return;				// and exit
+       }
+       if (args == 2)
+       { *comp_ptr++ = FUNST2;
+         return;				// and exit
+       }
+       EXPRE
+     }
+    case 'T':					// $T[EXT], $TR[ANSLATE]
+      if ((len == 1) ||
+          (strncasecmp(name, "text", 4) == 0))	// $T[EXT]
+      { if (args == 1)
+        { *comp_ptr++ = FUNT;			// one arg form
+          return;				// and exit
         }
-      case 'V':					// $VIEW
+        EXPRE
+      }
+      if (((len == 2) && (toupper((int)name[1]) == 'R')) ||
+          (strncasecmp(name, "translate", 9) == 0)) // $TR[ANSLATE]
+      { if (args == 2)
+        { *comp_ptr++ = FUNTR2;
+          return;				// and exit
+        }
+        if (args == 3)
+        { *comp_ptr++ = FUNTR3;
+	  return;				// and exit
+        }
+        EXPRE
+      }
+    case 'V':					// $VIEW
       if (len > 1)				// check for extended name
         if (strncasecmp(name, "view", 4) != 0) EXPRE
       if (args == 2)
@@ -664,7 +655,96 @@ function:					// function code starts here
 	  return;				// and exit
 	}
       EXPRE
-
+    case 'Z':					// $ZINCR[EMENT](var[,expr])
+      if (len > 1)
+      { if ((0 == strncasecmp(name, "zincr", 5)) ||
+            (0 == strncasecmp(name, "zincrement", 10)))
+        { if (args == 1)
+            *comp_ptr++ = FUNZINC1;		// one arg form
+          else if (args == 2)
+	    *comp_ptr++ = FUNZINC2;		// the 2 arg opcode
+          else
+            EXPRE				// all others junk
+          return;				// done
+        }
+        else if (0 == strncasecmp(name, "zbitstr", 7)) // $ZBITSTR(len[,ff)
+        { if (1 == args)                        // one arg form
+            *comp_ptr++ = FUNZBSTR;
+          else if (2 == args)                   // the 2 arg opcode
+            *comp_ptr++ = FUNZBSTR2;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitlen", 7)) // $ZBITLEN(bstr)
+        { if (1 == args)                        // one arg form
+            *comp_ptr++ = FUNZBLEN;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitcount", 9)) // $ZBITCOUNT(bstr)
+        { if (1 == args)                        // one arg form
+            *comp_ptr++ = FUNZBCNT;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitget", 7))
+        { if (2 == args)                        // two args form
+            *comp_ptr++ = FUNZBGET;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitset", 7)) // $ZBITSET(bstr,pos,ff)
+        { if (3 == args)                        // three args form
+            *comp_ptr++ = FUNZBSET;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+                                                // $ZBITFIND(bstr,ff[,pos])
+        else if (0 == strncasecmp(name, "zbitfind", 8))
+        { if (2 == args)                        // two args form
+            *comp_ptr++ = FUNZBFND2;
+          else if (3 == args)                   // three args form
+            *comp_ptr++ = FUNZBFND3;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitnot", 7))
+        { if (1 == args)                        // one arg form
+            *comp_ptr++ = FUNZBNOT;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitand", 7))
+        { if (2 == args)                        // two args form
+            *comp_ptr++ = FUNZBAND;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitor", 6))
+        { if ( 2 == args)                       // two args form
+            *comp_ptr++ = FUNZBOR;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        else if (0 == strncasecmp(name, "zbitxor", 7))
+        { if (2 == args)                        // two args form
+            *comp_ptr++ = FUNZBXOR;
+          else
+            EXPRE                               // all others junk
+          return;                               // done
+        }
+        
+      }
+      EXPRE
     default: 
 	EXPRE
   }						// end of switch
