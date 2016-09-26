@@ -219,7 +219,7 @@ short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2);
 short Dlist(u_char *ret, cstring *lst);
 short Dlist2(u_char *ret, cstring *lst, int pos);
 short Dlist3(u_char *ret, cstring *lst, int from, int to);
-short Dlistbuild(u_char *ret, int i);
+short Dlistbuild(u_char *ret, cstring *arg);
 short Dlistdata(cstring *lst);
 short Dlistdata2(cstring *lst, int pos);
 short Dlistfind2(cstring *lst, cstring *val);

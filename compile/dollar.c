@@ -62,6 +62,7 @@ void dodollar()					// parse var, funct etc
   u_char save[1024];                            // a usefull save area
   int savecount;                                // number of bytes saved
   short errm4 = -ERRM4;                         // usefull error number
+  int allowundf = 0;                            // enable UNDF function arg
   c = toupper(*source_ptr++);			// get the character in upper
   if (c == '$')					// extrinsic
   { ptr = comp_ptr;				// save compile pointer
@@ -319,6 +320,8 @@ function:					// function code starts here
   source_ptr++;					// incr past the bracket
   ptr = comp_ptr;				// remember where this goes
   sel = ((name[0] == 'S') && (toupper((int)name[1]) != 'T')); // is $SELECT
+  allowundf = (name[0] == 'L') &&               // allow UNDF arg for $LIST
+                (toupper(name[1]) != 'E');      //   functions
   if ((name[0] == 'D') ||			// $DATA
       (name[0] == 'G') ||			// $GET
      ((name[0] == 'Z') &&                       // $ZINCR[EMENT]
@@ -329,54 +332,58 @@ function:					// function code starts here
       (toupper((int)name[1]) != 'S') &&		// but not $QS
       (toupper((int)name[1]) != 'L')))		// and not $QL
 
-    { if (*source_ptr == '@')			// indirection ?
-      { atom();					// eval it
-	ptr = comp_ptr - 1;			// remember where this goes
-	if (*ptr == INDEVAL)			// if it's going to eval it
-	{ if ((name[0] == 'N') ||
-	      (name[0] == 'O') ||
-	      (name[0] == 'Q'))			// $NAME, $ORDER or $QUERY
-	    *ptr = INDMVARN;			// allow null subs
-	  else
-	    *ptr = INDMVAR;			// make an mvar from it
-	}
-	else					// experimantal for $O(@.@())
-	{ ptr -= 2;				// back up over subs to type
-	  if (*ptr == OPVAR)
-	  { if ((name[0] == 'N') ||
-	        (name[0] == 'O') ||
-	        (name[0] == 'Q'))		// $NAME, $ORDER or $QUERY
-	        *ptr = OPMVARN;			// allow null subs
-	      else
-	        *ptr = OPMVAR;			// change to OPMVAR
-	  }
-	}
-      }
-
-      else
-      { s = localvar();				// we need a var
-        if (s < 0)
-        { comperror(s);				// compile the error
-	  return;				// and exit
-        }
-        ptr = &ptr[s];				// point at the OPVAR
-	if ((name[0] == 'N') ||
-	    (name[0] == 'O') ||
+  { if (*source_ptr == '@')			// indirection ?
+    { atom();					// eval it
+      ptr = comp_ptr - 1;			// remember where this goes
+      if (*ptr == INDEVAL)			// if it's going to eval it
+      { if ((name[0] == 'N') ||
+            (name[0] == 'O') ||
 	    (name[0] == 'Q'))			// $NAME, $ORDER or $QUERY
-	    *ptr = OPMVARN;			// allow null subs
-	else
-          *ptr = OPMVAR;			// change to a OPMVAR
+	  *ptr = INDMVARN;			// allow null subs
+        else
+	  *ptr = INDMVAR;			// make an mvar from it
       }
-    }
-    else if ((name[0] == 'T') && (toupper((int)name[1]) != 'R')) // $TEXT
-    { i = routine(-2);				// parse to sstk
-      if (i < -4)				// check for error
-      { comperror(i);				// complain
-	return;					// and exit
+      else					// experimantal for $O(@.@())
+      { ptr -= 2;				// back up over subs to type
+        if (*ptr == OPVAR)
+        { if ((name[0] == 'N') ||
+	      (name[0] == 'O') ||
+	      (name[0] == 'Q'))		        // $NAME, $ORDER or $QUERY
+            *ptr = OPMVARN;			// allow null subs
+	  else
+	    *ptr = OPMVAR;			// change to OPMVAR
+	}
       }
     }
     else
+    { s = localvar();				// we need a var
+      if (s < 0)
+      { comperror(s);				// compile the error
+        return;				        // and exit
+      }
+      ptr = &ptr[s];				// point at the OPVAR
+      if ((name[0] == 'N') ||
+          (name[0] == 'O') ||
+	  (name[0] == 'Q'))			// $NAME, $ORDER or $QUERY
+        *ptr = OPMVARN;			        // allow null subs
+      else
+        *ptr = OPMVAR;			        // change to a OPMVAR
+    }
+  }
+  else if ((name[0] == 'T') && (toupper((int)name[1]) != 'R')) // $TEXT
+  { i = routine(-2);				// parse to sstk
+    if (i < -4)				        // check for error
+    { comperror(i);				// complain
+      return;					// and exit
+    }
+  }
+  else
+  { if (allowundf &&                            // if UNDF allowed
+        ((*source_ptr == ')') || (*source_ptr == ',')))
+      *comp_ptr++ = VARUNDF;                    // compile a single UNDEF
+    else
       eval();					// for other functions
+  }
   while (TRUE)
   { args++;					// count an argument
     if (args > 255) EXPRE			// too many args
@@ -389,7 +396,11 @@ function:					// function code starts here
       comp_ptr = comp_ptr + sizeof(short);	// leave space for it
     }						// end special $SELECT() stuf
     else if (c != ',') EXPRE			// else must be a comma
-    eval();					// get next argument
+    if (allowundf &&                            // if UNDF allowed
+        ((*source_ptr == ',') || (*source_ptr == ')')))
+      *comp_ptr++ = VARUNDF;
+    else
+      eval();					// get next argument
   }						// end of args loop
   switch (name[0])				// dispatch on initial
   { case 'A':					// $A[SCII]
@@ -479,9 +490,71 @@ function:					// function code starts here
       else EXPRE				// all else is junk
       return;					// and exit
     case 'L':					// $L[ENGTH]
-      if (len > 1)				// check for extended name
-        if (strncasecmp(name, "length", 6) != 0) EXPRE
-      if (args == 1)
+      if (len > 1)
+      { switch (toupper(name[1]))
+        { case 'B':                             // $LISTBUILD, $LB
+ListBuild:  if (len > 2) EXPRE
+            if (args > 255) EXPRE		// check number of args
+            *comp_ptr++ = FUNLB;                // unlimited args
+            *comp_ptr++ = (u_char) args;	// number of arguments
+            return;                             // and exit
+          case 'D':                             // $LISTDATA, $LD
+ListData:   if (len > 2) EXPRE
+            if (1 == args)
+              *comp_ptr++ = FUNLD1;             // one arg form
+            else if (2 == args)
+              *comp_ptr++ = FUNLD2;             // two args form
+            else EXPRE                          // all else is junk
+            return;                             // and exit
+          case 'E':
+            if (strncasecmp(name, "length", 6) != 0) EXPRE
+            goto Length;
+          case 'F':                             // $LISTFIND, $LF
+ListFind:   if (len > 2) EXPRE
+            if (2 == args)
+              *comp_ptr++ = FUNLF2;             // two args form
+            else if (3 == args)
+              *comp_ptr++ = FUNLF3;             // three args form
+            else EXPRE                          // all else is junk
+            return;                             // and exit
+          case 'G':                             // $LISTGET, $LG
+ListGet:    if (len > 2) EXPRE
+            if (1 == args)
+              *comp_ptr++ = FUNLG1;             // one arg form
+            else if (2 == args)
+              *comp_ptr++ = FUNLG2;             // two args form
+            else if (3 == args)
+              *comp_ptr++ = FUNLG3;             // three args form
+            else EXPRE                          // all else is junk
+            return;                             // and exit
+          case 'I':                             // $LIST, $LI
+            if (len > 2)
+            {      if (!strncasecmp(name, "listbuild",   9)) goto ListBuild;
+              else if (!strncasecmp(name, "listdata",    8)) goto ListData;
+              else if (!strncasecmp(name, "listfind",    8)) goto ListFind;
+              else if (!strncasecmp(name, "listget",     7)) goto ListGet;
+              else if (!strncasecmp(name, "listlength", 10)) goto ListLength;
+              if (strncasecmp(name, "list", 4)) EXPRE
+            }
+            if (1 == args)
+              *comp_ptr++ = FUNLI1;             // one arg form
+            else if (2 == args)
+              *comp_ptr++ = FUNLI2;             // two args form
+            else if (3 == args)
+              *comp_ptr++ = FUNLI3;             // three args form
+            else EXPRE                          // all else is junk
+            return;                             // and exit
+          case 'L':                             // $LISTLENGTH, $LL
+ListLength: if (len > 2) EXPRE
+            if (1 == args)
+              *comp_ptr++ = FUNLL;              // one arg form
+            else EXPRE                          // all else is junk
+            return;                             // and exit
+          default:
+            EXPRE
+        }
+      }
+Length: if (args == 1)
 	*comp_ptr++ = FUNL1;			// one arg form
       else if (args == 2)
 	*comp_ptr++ = FUNL2;			// two arg form

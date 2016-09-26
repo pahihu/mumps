@@ -1563,6 +1563,82 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
+      case FUNLB:                               // $LISTBUILD
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	cptr->len = 0;				// clear the count
+	args = *mumpspc++;			// get arg count
+	for (i = 0; i < args; i++)
+	{ s = Dlistbuild(&cptr->buf[cptr->len],
+		    (cstring *)astk[asp-args+i]); // doit
+          if ((0 > s) || (cptr->len + s > MAX_STR_LEN))
+            ERROR(-ERRM75)
+	  cptr->len = cptr->len + s;		// add the count
+	}
+	asp = asp - args;			// remove the args
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
+      case FUNLG1:                              // $LISTGET 1 arg
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistget(cptr->buf, ptr1);          // doit
+        if (s < 0) ERROR(s)			// complain on error
+        cptr->len = s;                          // the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNLG2:                              // $LISTGET 2 arg
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistget2(cptr->buf, ptr1, i);      // doit
+        if (s < 0) ERROR(s)			// complain on error
+        cptr->len = s;                          // the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNLG3:                              // $LISTGET 3 arg
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        ptr2 = (cstring *)astk[--asp];          // get arg 3
+        i = cstringtoi((cstring *)astk[--asp]); // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistget3(cptr->buf, ptr1, i, ptr2);// doit
+        if (s < 0) ERROR(s)			// complain on error
+        cptr->len = s;                          // the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNLF2:                              // $LISTFIND 2 arg
+	ptr2 = (cstring *)astk[--asp];          // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistfind2(ptr1, ptr2);             // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, s);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNLF3:                              // $LISTFIND 3 arg
+        i = cstringtoi((cstring *)astk[--asp]); // get arg 3
+	ptr2 = (cstring *)astk[--asp];          // get arg 2
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistfind3(ptr1, ptr2, i);          // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, s);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+      case FUNLL:                               // $LISTLENGTH
+	ptr1 = (cstring *)astk[--asp];
+        s = Dlistlength(ptr1);                  // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+        cptr->len = itocstring(cptr->buf, s);   // convert to string
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+        break;
+
       case FUNJ2:				// $J[USTIFY] 2 arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	i = cstringtoi((cstring *)astk[--asp]); // get second arg

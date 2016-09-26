@@ -1667,8 +1667,26 @@ short Dlist(u_char *ret, cstring *lst)
 //***********************************************************************
 // $LISTBUILD(...)
 //
-short Dlistbuild(u_char *ret, int i)
-{ return -1;
+short Dlistbuild(u_char *ret, cstring *arg)
+{ short len;
+
+  fprintf(stderr, "Dlistbuild(): len=%d\r\n", arg->len);
+  if (VAR_UNDEFINED == arg->len)
+  { *ret++ = 128;
+    *ret++ = 0;
+    return 2;
+  }
+  else if (128 > arg->len)
+  { *ret++ = arg->len;
+    len = 1;
+  }
+  else
+  { *ret++ = 128 + (arg->len / 256);
+    *ret++ = arg->len & 255;
+    len = 2;
+  }
+  bcopy(&arg->buf[0], ret, arg->len);
+  return len + arg->len;
 }
 
 //***********************************************************************
@@ -1683,10 +1701,48 @@ short Dlistdata(cstring *lst)
 }
 
 //***********************************************************************
-// $LISTFIND(lst,pos[,after])
+// $LISTFIND(lst,val[,after])
 //
 short Dlistfind3(cstring *lst, cstring *val, int after)
-{ return -1;
+{ short s, i, len;
+  short eltlen;
+  u_char *eltpos;
+  int undf;
+
+  if (-1 == after)
+    return 0;
+  if (-1 > after)
+    return -(ERRMLAST+ERRZ74);
+
+  i = 0; s = 0;
+  while (i < lst->len)
+  { s++; undf = 0;
+    len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+        undf = (0 == len);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    eltlen = undf ? VAR_UNDEFINED : len;
+    eltpos = &lst->buf[i];
+    if (s > after)
+    { if ((eltlen == val->len) &&
+          (0 == bcmp(eltpos, &val->buf[0], eltlen)))
+        return s;
+    }
+    i += len;
+  }
+  if (i != lst->len)
+    return -(ERRMLAST+ERRZ76);
+
+  return 0;
 }
 
 short Dlistfind2(cstring *lst, cstring *val)
@@ -1697,7 +1753,47 @@ short Dlistfind2(cstring *lst, cstring *val)
 // $LISTGET(lst[,pos[,def])
 //
 short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def)
-{ return -1;
+{ short s, i, len;
+  short eltlen;
+  u_char *eltpos;
+  int undf;
+
+  if ((-1 != pos) && (1 > pos))
+    return -(ERRMLAST+ERRZ74);
+
+  i = 0; s = 0;
+  while (i < lst->len)
+  { s++; undf = 0;
+    len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+        undf = (0 == len);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    eltlen = undf ? VAR_UNDEFINED : len;
+    eltpos = &lst->buf[i];
+    if (pos == s)
+      goto found;
+    i += len;
+  }
+  if (i != lst->len)
+    return -(ERRMLAST+ERRZ76);
+
+found:
+  if (VAR_UNDEFINED == eltlen)
+  { bcopy(&def->buf[0], ret, def->len);
+    eltlen = def->len;
+  }
+  else
+    bcopy(eltpos, ret, eltlen);
+  return eltlen;
 }
 
 short Dlistget2(u_char *ret, cstring *lst, int pos)
@@ -1718,6 +1814,24 @@ short Dlistget(u_char *ret, cstring *lst)
 // $LISTLENGTH(lst)
 //
 short Dlistlength(cstring *lst)
-{ return -1;
+{ short s, i, len;
+
+  i = 0; s = 0;
+  while (i < lst->len)
+  { len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    i += len; s++;
+  }
+  return (i == lst->len) ? s : -(ERRMLAST+ERRZ76);
 }
 

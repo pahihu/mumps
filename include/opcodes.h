@@ -262,19 +262,19 @@
 #define FUNZBOR  209                            // $ZBITOR
 #define FUNZBXOR 210                            // $ZBITXOR
 
-#define FUNLI1  211
-#define FUNLI2  212
-#define FUNLI3  213
-#define FUNLB   214
-#define FUNLD1  215
-#define FUNLD2  216
-#define FUNLD3  217
-#define FUNLF2  218
-#define FUNLF3  219
-#define FUNLG1  220
-#define FUNLG2  221
-#define FUNLG3  222
-#define FUNLL   223
+#define FUNLI1  211                             // $LIST 1 arg
+#define FUNLI2  212                             // $LIST 2 arg
+#define FUNLI3  213                             // $LIST 3 arg
+#define FUNLB   214                             // $LISTBUILD
+#define FUNLD1  215                             // $LISTDATA 1 arg
+#define FUNLD2  216                             // $LISTDATA 2 arg
+#define FUNLD3  217                             // $LISTDATA 3 arg
+#define FUNLF2  218                             // $LISTFIND 2 arg
+#define FUNLF3  219                             // $LISTFIND 3 arg
+#define FUNLG1  220                             // $LISTGET 1 arg
+#define FUNLG2  221                             // $LISTGET 2 arg
+#define FUNLG3  222                             // $LISTGET 3 arg
+#define FUNLL   223                             // $LISTLENGTH
 
 //spare		224 -> 229
 
