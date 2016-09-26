@@ -248,19 +248,35 @@
 
 #define FUNZINC1 197                            // $ZINCR[EMENT] 1 arg
 #define FUNZINC2 198                            // $ZINCR[EMENT] 2 arg
-#define FUNZBSTR 199
-#define FUNZBSTR2 200
-#define FUNZBLEN 201
-#define FUNZBCNT 202
-#define FUNZBGET 203
-#define FUNZBSET 204
-#define FUNZBFND3 205
-#define FUNZBFND2 206
-#define FUNZBNOT 207
-#define FUNZBAND 208
-#define FUNZBOR  209
-#define FUNZBXOR 210
-//spare		211 -> 229
+
+#define FUNZBSTR1 199                           // $ZBITSTR 1 arg
+#define FUNZBSTR2 200                           // $ZBITSTR 2 arg
+#define FUNZBLEN 201                            // $ZBITLEN
+#define FUNZBCNT 202                            // $ZBITCOUNT
+#define FUNZBGET 203                            // $ZBITGET
+#define FUNZBSET 204                            // $ZBITSET
+#define FUNZBFND3 205                           // $ZBITFIND 2 arg
+#define FUNZBFND2 206                           // $ZBITFIND 3 arg
+#define FUNZBNOT 207                            // $ZBITNOT
+#define FUNZBAND 208                            // $ZBITAND
+#define FUNZBOR  209                            // $ZBITOR
+#define FUNZBXOR 210                            // $ZBITXOR
+
+#define FUNLI1  211
+#define FUNLI2  212
+#define FUNLI3  213
+#define FUNLB   214
+#define FUNLD1  215
+#define FUNLD2  216
+#define FUNLD3  217
+#define FUNLF2  218
+#define FUNLF3  219
+#define FUNLG1  220
+#define FUNLG2  221
+#define FUNLG3  222
+#define FUNLL   223
+
+//spare		224 -> 229
 
 //spare		230 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()

@@ -1426,7 +1426,7 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
-      case FUNZBSTR:                            // $ZBITSTR 1 arg form
+      case FUNZBSTR1:                           // $ZBITSTR 1 arg form
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	i = cstringtoi((cstring *)astk[--asp]); // get arg
         s = Dzbitstr(cptr->buf, i);             // doit

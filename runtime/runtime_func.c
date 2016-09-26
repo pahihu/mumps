@@ -457,354 +457,6 @@ void Bits_Init(void)                            // init Bits[] array
 }
 
 //***********************************************************************
-// $ZBITSTR(len[,ff])
-//
-short Dzbitstr2(u_char *ret, int len, int ff)
-{ if (len < 0)                                  // invalid arg
-    return -(ERRMLAST+ERRZ74);
-  ret[0] = len & 7;                             // trailing bit count
-  len = (len + 7) >> 3;                         // round up to byte boundary
-  if (1 + len > MAX_STR_LEN)                    // bitstr does not fit
-    return -ERRM75;                             //   error
-  memset(&ret[1], ff ? 255 : 0, len);           // set/clear contents
-  return (short)(1 + len);                      // return length
-}
-
-short Dzbitstr(u_char *ret, int len)
-{ return Dzbitstr2(ret, len, 0);                // no flag, assume 0
-}
-
-//***********************************************************************
-// $ZBITLEN(bstr)
-//
-int Dzbitlen(cstring *bstr)
-{ int len;
-
-  if ((0 == bstr->len) || (7 < bstr->buf[0]))   // empty string, or invalid
-    return -(ERRMLAST+ERRZ75);                  //   trailing bit count
-  len = bstr->len - 1;
-  if (bstr->buf[0])
-    len--;
-  return (len << 3) + bstr->buf[0];
-}
-
-//***********************************************************************
-// $ZBITCOUNT(bstr)
-//
-int Dzbitcount(cstring *bstr)
-{ int i, len, count;
-  u_char byt;
-  static int initBits = 1;
-
-  if (initBits)
-  { Bits_Init();
-    initBits = 0;
-  }
-  len = Dzbitlen(bstr);                         // check bit string
-  if (0 > len)
-    return len;
-
-  count = 0;                                    // init counter
-  for (i = 1; i < bstr->len - 1; i++)
-  { byt = bstr->buf[i];
-    count += Bits[byt].bit1count;               // count 1s
-  }
-  byt = BitMask[bstr->buf[0]] & bstr->buf[bstr->len - 1]; // handle
-  count += Bits[byt].bit1count;                 //  trailing bits
-
-  return count;
-}
-
-//***********************************************************************
-// $ZBITGET(bstr,pos)
-//
-short Dzbitget(cstring *bstr, int pos)
-{ int len;
-  u_char byt, mask;
-
-  len = Dzbitlen(bstr);                         // check bit string
-  if (0 > len)
-    return len;
-  if (1 > pos)
-    return -(ERRMLAST+ERRZ74);                  // invalid arg
-  if (pos-- > len)                              // pos is larger than length
-    return 0;                                   //   assume 0
-  byt  = bstr->buf[1 + (pos >> 3)];             // byte storing the bit
-  mask = 1 << (7 - (pos & 7));                  // bit position mask
-  return byt & mask ? 1 : 0;
-}
-
-//***********************************************************************
-// $ZBITSET(bstr,pos,ff)
-//
-short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
-{ int len;
-  u_char byt, mask;
-  short retlen;
-
-  len = Dzbitlen(bstr);                         // check bit string
-  if (0 > len)
-    return len;
-  if (1 > pos)
-    return -(ERRMLAST+ERRZ74);                  // invalid arg
-  bcopy(&bstr->buf[0], &ret[0], bstr->len);     // copy old to new
-  retlen = bstr->len;
-  if (pos > len)                                // enlarge bitstr
-  { retlen = 1 + ((pos + 7) >> 3);              // calc. new len
-    if (retlen > bstr->len)                     // needs a larger one
-    { if (retlen > MAX_STR_LEN)                 // error, does not fit
-        return -ERRM75;
-      memset(ret + bstr->len, 0, retlen - bstr->len); // clear tail
-    }
-    ret[0] = pos & 7;                           // set trailing bit cnt
-  }
-  byt  = bstr->buf[1 + (--pos >> 3)];           // byte storing bit
-  mask = 1 << (7 - (pos & 7));                  // bit mask
-  byt &= ~mask;                                 // clear bit
-  if (ff) byt |= mask;                          // if 1, then set
-  ret[1 + (pos >> 3)] = byt;                    // write back result
-  return retlen;
-}
-
-//***********************************************************************
-// $BZITFIND(bstr,ff[,pos])
-//
-int Dzbitfind3(cstring *bstr, int ff, int pos)
-{ int i;
-  u_char byt, bit1pos, bit0pos;
-
-  if (pos-- < 1)                                // check pos
-    return -(ERRMLAST+ERRZ74); 
-  if (ff)                                       // search for 1
-  { if (pos & 7)                                // leading bits
-    { byt = bstr->buf[1 + (pos >> 3)] << (pos & 7); // shift byte left
-      bit1pos = Bits[byt].bit1pos;              // get leading '1's position
-      if (bit1pos)                              //   if has a '1'
-        return bit1pos + pos;                   // return pos after the '1'
-      pos += 8 - (pos & 7);                     // bump pos to nxt byte boundary
-    }
-    for (i = 1 + (pos >> 3); i < bstr->len - 1; i++) // check bytes
-    { byt = bstr->buf[i];
-      if (0 == byt)                             // all '0', so skip
-      { pos += 8;
-        continue;
-      }
-      return Bits[byt].bit1pos + pos;           // return leading '1's position
-    }
-    byt = bstr->buf[bstr->len - 1];             // trailing byte
-    bit1pos = Bits[byt].bit1pos;                // get leading '1's position
-    if (bit1pos)                                // if has a '1' return
-      return bit1pos + pos;                     //   pos after the '1'
-  }
-  else                                          // search for 0
-  { if (pos & 7)                                // handle leading bits
-    { byt = bstr->buf[1 + (pos >> 3)] << (pos & 7); // shift byte left
-      bit0pos = Bits[byt].bit0pos;              // get leading pos of '0'
-      if (bit0pos)                              // if it has a '0'
-        return bit0pos + pos;                   //   return next pos after '0'
-      pos += 8 - (pos & 7);                     // bump pos to byte boundary
-    }
-    for (i = 1 + (pos >> 3); i < bstr->len - 1; i++) // for each byte
-    { byt = bstr->buf[i];
-      if (255 == byt)                           // all '1's, skip
-      { pos += 8;
-        continue;
-      }
-      return Bits[byt].bit0pos + pos;           // return next pos after the '0'
-    }
-    byt = bstr->buf[bstr->len - 1];             // check trailing byte
-    bit0pos = Bits[byt].bit0pos;                // get leading pos of '0'
-    if (bit0pos)                                // if it has a '0'
-      return bit0pos + pos;                     //   return next pos after '0'
-  }
-  return 0;                                     // bit not found, return 0
-}
-
-int Dzbitfind2(cstring *bstr, int ff)
-{ return Dzbitfind3(bstr, ff, 1);
-}
-
-//***********************************************************************
-// $ZBITNOT(bstr)
-//
-short Dzbitnot(u_char *ret, cstring *bstr)
-{ int i;
-
-  bcopy(&bstr->buf[0], &ret[0], bstr->len);     // init result with arg
-
-  for (i = 1; i < bstr->len; i++)               // negate bits
-    ret[i] = ~ret[i];
-  ret[bstr->len - 1] &= BitMask[ret[0]];        // mask trailing byte
-
-  return bstr->len;
-}
-
-//***********************************************************************
-// $ZBITAND(bstr1,bstr2)
-//
-short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2)
-{ int i, bitlen, bitlen2;
-  short len;
-
-  len = bstr1->len;                             // assume bitstring 1 is shorter
-  bitlen = Dzbitlen(bstr1);                     // check bit string 1
-  if (0 > bitlen)
-    return bitlen;
-  bitlen2 = Dzbitlen(bstr2);                    // check bit string 2
-  if (0 > bitlen2)
-    return bitlen2;
-
-  if (bitlen2 < bitlen)                         // result length is smaller of
-  { bitlen = bitlen2;                           //   bit string 1 & bit string 2
-    len = bstr2->len;
-  }
-
-  for (i = 1; i < len; i++)
-    ret[i] = bstr1->buf[i] & bstr2->buf[i];     // result is bitwise AND of args
-
-  ret[0]        = bitlen & 7;                   // set result trailing count
-  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
-
-  return len;
-}
-
-//***********************************************************************
-// $ZBITOR(bstr1,bstr2)
-//
-short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2)
-{ int i, bitlen, bitlen2;
-  short len;
-
-  len    = bstr1->len;
-  bitlen = Dzbitlen(bstr1);                     // check bit string 1
-  if (0 > bitlen)
-    return bitlen;
-  bitlen2 = Dzbitlen(bstr2);                    // check bit string 2
-  if (0 > bitlen2)
-    return bitlen2;
-
-  if (bitlen2 > bitlen)                         // bit string 1 is shorter
-  { for (i = 1; i < len; i++)
-    { ret[i] = bstr1->buf[i] | bstr2->buf[i];
-    }
-    bcopy(&bstr2->buf[len], &ret[len], bstr2->len - len); // add trailing bits
-    len = bstr2->len;                           //  from bit string2
-    bitlen = bitlen2;                           // result length is the length
-                                                //   of bit string 2
-  }
-  else 
-  { len = bstr2->len;                           // bit string2 is shorter or eq.
-    for (i = 1; i < len; i++)
-      ret[i] = bstr1->buf[i] | bstr2->buf[i];
-    bcopy(&bstr1->buf[len], &ret[len], bstr1->len - len); // add trailing bits
-    len = bstr1->len;                           //  from bit string 1
-  }
-
-  ret[0]        = bitlen & 7;                   // set length
-  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
-
-  return len;
-}
-
-//***********************************************************************
-// $ZBITXOR(bstr1,bstr2)
-//
-short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
-{ int i, bitlen, bitlen2;
-  short len;
-
-  len    = bstr1->len;                          // assume bit string 1 shorter
-  bitlen = Dzbitlen(bstr1);                     // check bit string
-  if (0 > bitlen)
-    return bitlen;
-  bitlen2 = Dzbitlen(bstr2);                    // check bit string
-  if (0 > bitlen2)
-    return bitlen2;
-
-  if (bitlen2 < bitlen)                         // result length is smaller
-  { len = bstr2->len;                           //   bit string 1 & bit string 2
-    bitlen = bitlen2;
-  }
-
-  for (i = 1; i < len; i++)
-    ret[i] = bstr1->buf[i] ^ bstr2->buf[i];     // result is bitwise XOR of args
-
-  ret[0]        = bitlen & 7;                   // set result length
-  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
-
-  return len;
-}
-
-//***********************************************************************
-// $ZINCR[EMENT](variable[,expr])
-//
-short Dzincrement1(cstring *ret, mvar *var)
-{ u_char tmp[8];				// some space
-  cstring *cptr;				// for the call
-  cptr = (cstring *) tmp;			// point at the space
-  cptr->len = 1;				// zero length
-  cptr->buf[0] = '1';				// default one
-  cptr->buf[1] = '\0';				// null terminated
-  return Dzincrement2(ret, var, cptr); 	        // do it below
-}
-
-short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
-{ short s;					// for return values 
-  u_char num[128],temp[128];
-  u_char *p;
-
-  if (var->uci == UCI_IS_LOCALVAR)		// for a local var
-  { s = ST_Get(var, ret->buf);		        // attempt to get the data
-    if (s >= 0) goto gotit;			// if we got data, return it
-    if (s == -(ERRM6)) s = 0;			// flag undefined local var
-  }
-  else if (var->name.var_cu[0] == '$') 		// ssvn?
-    return (-ERRM38);				// no such
-  else						// for a global var
-  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-    s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
-    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
-    if (s >= 0) goto gotit;			// if we got data, return it
-    if (s == -(ERRM7)) s = 0;			// flag undefined global var
-  }
-  if (s != 0) goto errout;			// if an error, return it
-
-gotit:
-  ret->len = s;
-  ret->buf[ret->len] = '\0';
-  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
-  p = expr->buf;                                // make a number from expr
-  s = ncopy(&p, temp);
-  if (s < 0) goto errout;                       // got an error, bail out
-  p = ret->buf;                                 // make a number from ret
-  s = ncopy(&p, num);
-  if (s < 0) goto errout;                       // got an error, bail out
-  s = runtime_add((char *) num, (char *) temp); // add them together
-  if (s < 0) goto errout;                       // check for error
-  bcopy(num, ret->buf, s);                      // copy back the result
-  ret->buf[s] = '\0';                           // terminate with zero
-  ret->len = s;                                 // set length
-  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
-  if (var->uci == UCI_IS_LOCALVAR)              // set as local
-  { // fprintf(stderr, "Dincrement: set local\r\n");
-    s = ST_Set(var, ret);
-  }
-  else
-  { // fprintf(stderr, "Dincrement: set global\r\n");
-    s = DB_SetEx(var, ret, 1);                  // set as global
-    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
-  }
-  if (s < 0) goto errout;
-  s = ret->len;		                        // and return the length
-
-errout:
-  // if (s < 0) fprintf(stderr,"errout: %d\r\n", s);
-  if (curr_lock)
-    SemOp( SEM_GLOBAL, -curr_lock);
-  return s;
-}
-
-//***********************************************************************
 // $JUSTIFY(expr,int1[,int2])
 //
 short Djustify2(u_char *ret_buffer, cstring *expr, int size)
@@ -1648,3 +1300,424 @@ short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
     return ST_Set(var, vptr);			// set it back and return
   return DB_Set(var, vptr);			// set it back and return
 }
+
+//***********************************************************************
+// $ZBITSTR(len[,ff])
+//
+short Dzbitstr2(u_char *ret, int len, int ff)
+{ if (len < 0)                                  // invalid arg
+    return -(ERRMLAST+ERRZ74);
+  ret[0] = len & 7;                             // trailing bit count
+  len = (len + 7) >> 3;                         // round up to byte boundary
+  if (1 + len > MAX_STR_LEN)                    // bitstr does not fit
+    return -ERRM75;                             //   error
+  memset(&ret[1], ff ? 255 : 0, len);           // set/clear contents
+  return (short)(1 + len);                      // return length
+}
+
+short Dzbitstr(u_char *ret, int len)
+{ return Dzbitstr2(ret, len, 0);                // no flag, assume 0
+}
+
+//***********************************************************************
+// $ZBITLEN(bstr)
+//
+int Dzbitlen(cstring *bstr)
+{ int len;
+
+  if ((0 == bstr->len) || (7 < bstr->buf[0]))   // empty string, or invalid
+    return -(ERRMLAST+ERRZ75);                  //   trailing bit count
+  len = bstr->len - 1;
+  if (bstr->buf[0])
+    len--;
+  return (len << 3) + bstr->buf[0];
+}
+
+//***********************************************************************
+// $ZBITCOUNT(bstr)
+//
+int Dzbitcount(cstring *bstr)
+{ int i, len, count;
+  u_char byt;
+  static int initBits = 1;
+
+  if (initBits)
+  { Bits_Init();
+    initBits = 0;
+  }
+  len = Dzbitlen(bstr);                         // check bit string
+  if (0 > len)
+    return len;
+
+  count = 0;                                    // init counter
+  for (i = 1; i < bstr->len - 1; i++)
+  { byt = bstr->buf[i];
+    count += Bits[byt].bit1count;               // count 1s
+  }
+  byt = BitMask[bstr->buf[0]] & bstr->buf[bstr->len - 1]; // handle
+  count += Bits[byt].bit1count;                 //  trailing bits
+
+  return count;
+}
+
+//***********************************************************************
+// $ZBITGET(bstr,pos)
+//
+short Dzbitget(cstring *bstr, int pos)
+{ int len;
+  u_char byt, mask;
+
+  len = Dzbitlen(bstr);                         // check bit string
+  if (0 > len)
+    return len;
+  if (1 > pos)
+    return -(ERRMLAST+ERRZ74);                  // invalid arg
+  if (pos-- > len)                              // pos is larger than length
+    return 0;                                   //   assume 0
+  byt  = bstr->buf[1 + (pos >> 3)];             // byte storing the bit
+  mask = 1 << (7 - (pos & 7));                  // bit position mask
+  return byt & mask ? 1 : 0;
+}
+
+//***********************************************************************
+// $ZBITSET(bstr,pos,ff)
+//
+short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
+{ int len;
+  u_char byt, mask;
+  short retlen;
+
+  len = Dzbitlen(bstr);                         // check bit string
+  if (0 > len)
+    return len;
+  if (1 > pos)
+    return -(ERRMLAST+ERRZ74);                  // invalid arg
+  bcopy(&bstr->buf[0], &ret[0], bstr->len);     // copy old to new
+  retlen = bstr->len;
+  if (pos > len)                                // enlarge bitstr
+  { retlen = 1 + ((pos + 7) >> 3);              // calc. new len
+    if (retlen > bstr->len)                     // needs a larger one
+    { if (retlen > MAX_STR_LEN)                 // error, does not fit
+        return -ERRM75;
+      memset(ret + bstr->len, 0, retlen - bstr->len); // clear tail
+    }
+    ret[0] = pos & 7;                           // set trailing bit cnt
+  }
+  byt  = bstr->buf[1 + (--pos >> 3)];           // byte storing bit
+  mask = 1 << (7 - (pos & 7));                  // bit mask
+  byt &= ~mask;                                 // clear bit
+  if (ff) byt |= mask;                          // if 1, then set
+  ret[1 + (pos >> 3)] = byt;                    // write back result
+  return retlen;
+}
+
+//***********************************************************************
+// $BZITFIND(bstr,ff[,pos])
+//
+int Dzbitfind3(cstring *bstr, int ff, int pos)
+{ int i;
+  u_char byt, bit1pos, bit0pos;
+
+  if (pos-- < 1)                                // check pos
+    return -(ERRMLAST+ERRZ74); 
+  if (ff)                                       // search for 1
+  { if (pos & 7)                                // leading bits
+    { byt = bstr->buf[1 + (pos >> 3)] << (pos & 7); // shift byte left
+      bit1pos = Bits[byt].bit1pos;              // get leading '1's position
+      if (bit1pos)                              //   if has a '1'
+        return bit1pos + pos;                   // return pos after the '1'
+      pos += 8 - (pos & 7);                     // bump pos to nxt byte boundary
+    }
+    for (i = 1 + (pos >> 3); i < bstr->len - 1; i++) // check bytes
+    { byt = bstr->buf[i];
+      if (0 == byt)                             // all '0', so skip
+      { pos += 8;
+        continue;
+      }
+      return Bits[byt].bit1pos + pos;           // return leading '1's position
+    }
+    byt = bstr->buf[bstr->len - 1];             // trailing byte
+    bit1pos = Bits[byt].bit1pos;                // get leading '1's position
+    if (bit1pos)                                // if has a '1' return
+      return bit1pos + pos;                     //   pos after the '1'
+  }
+  else                                          // search for 0
+  { if (pos & 7)                                // handle leading bits
+    { byt = bstr->buf[1 + (pos >> 3)] << (pos & 7); // shift byte left
+      bit0pos = Bits[byt].bit0pos;              // get leading pos of '0'
+      if (bit0pos)                              // if it has a '0'
+        return bit0pos + pos;                   //   return next pos after '0'
+      pos += 8 - (pos & 7);                     // bump pos to byte boundary
+    }
+    for (i = 1 + (pos >> 3); i < bstr->len - 1; i++) // for each byte
+    { byt = bstr->buf[i];
+      if (255 == byt)                           // all '1's, skip
+      { pos += 8;
+        continue;
+      }
+      return Bits[byt].bit0pos + pos;           // return next pos after the '0'
+    }
+    byt = bstr->buf[bstr->len - 1];             // check trailing byte
+    bit0pos = Bits[byt].bit0pos;                // get leading pos of '0'
+    if (bit0pos)                                // if it has a '0'
+      return bit0pos + pos;                     //   return next pos after '0'
+  }
+  return 0;                                     // bit not found, return 0
+}
+
+int Dzbitfind2(cstring *bstr, int ff)
+{ return Dzbitfind3(bstr, ff, 1);
+}
+
+//***********************************************************************
+// $ZBITNOT(bstr)
+//
+short Dzbitnot(u_char *ret, cstring *bstr)
+{ int i;
+
+  bcopy(&bstr->buf[0], &ret[0], bstr->len);     // init result with arg
+
+  for (i = 1; i < bstr->len; i++)               // negate bits
+    ret[i] = ~ret[i];
+  ret[bstr->len - 1] &= BitMask[ret[0]];        // mask trailing byte
+
+  return bstr->len;
+}
+
+//***********************************************************************
+// $ZBITAND(bstr1,bstr2)
+//
+short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2)
+{ int i, bitlen, bitlen2;
+  short len;
+
+  len = bstr1->len;                             // assume bitstring 1 is shorter
+  bitlen = Dzbitlen(bstr1);                     // check bit string 1
+  if (0 > bitlen)
+    return bitlen;
+  bitlen2 = Dzbitlen(bstr2);                    // check bit string 2
+  if (0 > bitlen2)
+    return bitlen2;
+
+  if (bitlen2 < bitlen)                         // result length is smaller of
+  { bitlen = bitlen2;                           //   bit string 1 & bit string 2
+    len = bstr2->len;
+  }
+
+  for (i = 1; i < len; i++)
+    ret[i] = bstr1->buf[i] & bstr2->buf[i];     // result is bitwise AND of args
+
+  ret[0]        = bitlen & 7;                   // set result trailing count
+  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
+
+  return len;
+}
+
+//***********************************************************************
+// $ZBITOR(bstr1,bstr2)
+//
+short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2)
+{ int i, bitlen, bitlen2;
+  short len;
+
+  len    = bstr1->len;
+  bitlen = Dzbitlen(bstr1);                     // check bit string 1
+  if (0 > bitlen)
+    return bitlen;
+  bitlen2 = Dzbitlen(bstr2);                    // check bit string 2
+  if (0 > bitlen2)
+    return bitlen2;
+
+  if (bitlen2 > bitlen)                         // bit string 1 is shorter
+  { for (i = 1; i < len; i++)
+    { ret[i] = bstr1->buf[i] | bstr2->buf[i];
+    }
+    bcopy(&bstr2->buf[len], &ret[len], bstr2->len - len); // add trailing bits
+    len = bstr2->len;                           //  from bit string2
+    bitlen = bitlen2;                           // result length is the length
+                                                //   of bit string 2
+  }
+  else 
+  { len = bstr2->len;                           // bit string2 is shorter or eq.
+    for (i = 1; i < len; i++)
+      ret[i] = bstr1->buf[i] | bstr2->buf[i];
+    bcopy(&bstr1->buf[len], &ret[len], bstr1->len - len); // add trailing bits
+    len = bstr1->len;                           //  from bit string 1
+  }
+
+  ret[0]        = bitlen & 7;                   // set length
+  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
+
+  return len;
+}
+
+//***********************************************************************
+// $ZBITXOR(bstr1,bstr2)
+//
+short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
+{ int i, bitlen, bitlen2;
+  short len;
+
+  len    = bstr1->len;                          // assume bit string 1 shorter
+  bitlen = Dzbitlen(bstr1);                     // check bit string
+  if (0 > bitlen)
+    return bitlen;
+  bitlen2 = Dzbitlen(bstr2);                    // check bit string
+  if (0 > bitlen2)
+    return bitlen2;
+
+  if (bitlen2 < bitlen)                         // result length is smaller
+  { len = bstr2->len;                           //   bit string 1 & bit string 2
+    bitlen = bitlen2;
+  }
+
+  for (i = 1; i < len; i++)
+    ret[i] = bstr1->buf[i] ^ bstr2->buf[i];     // result is bitwise XOR of args
+
+  ret[0]        = bitlen & 7;                   // set result length
+  ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
+
+  return len;
+}
+
+//***********************************************************************
+// $ZINCR[EMENT](variable[,expr])
+//
+short Dzincrement1(cstring *ret, mvar *var)
+{ u_char tmp[8];				// some space
+  cstring *cptr;				// for the call
+  cptr = (cstring *) tmp;			// point at the space
+  cptr->len = 1;				// zero length
+  cptr->buf[0] = '1';				// default one
+  cptr->buf[1] = '\0';				// null terminated
+  return Dzincrement2(ret, var, cptr); 	        // do it below
+}
+
+short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
+{ short s;					// for return values 
+  u_char num[128],temp[128];
+  u_char *p;
+
+  if (var->uci == UCI_IS_LOCALVAR)		// for a local var
+  { s = ST_Get(var, ret->buf);		        // attempt to get the data
+    if (s >= 0) goto gotit;			// if we got data, return it
+    if (s == -(ERRM6)) s = 0;			// flag undefined local var
+  }
+  else if (var->name.var_cu[0] == '$') 		// ssvn?
+    return (-ERRM38);				// no such
+  else						// for a global var
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
+    s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
+    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
+    if (s >= 0) goto gotit;			// if we got data, return it
+    if (s == -(ERRM7)) s = 0;			// flag undefined global var
+  }
+  if (s != 0) goto errout;			// if an error, return it
+
+gotit:
+  ret->len = s;
+  ret->buf[ret->len] = '\0';
+  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
+  p = expr->buf;                                // make a number from expr
+  s = ncopy(&p, temp);
+  if (s < 0) goto errout;                       // got an error, bail out
+  p = ret->buf;                                 // make a number from ret
+  s = ncopy(&p, num);
+  if (s < 0) goto errout;                       // got an error, bail out
+  s = runtime_add((char *) num, (char *) temp); // add them together
+  if (s < 0) goto errout;                       // check for error
+  bcopy(num, ret->buf, s);                      // copy back the result
+  ret->buf[s] = '\0';                           // terminate with zero
+  ret->len = s;                                 // set length
+  // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
+  if (var->uci == UCI_IS_LOCALVAR)              // set as local
+  { // fprintf(stderr, "Dincrement: set local\r\n");
+    s = ST_Set(var, ret);
+  }
+  else
+  { // fprintf(stderr, "Dincrement: set global\r\n");
+    s = DB_SetEx(var, ret, 1);                  // set as global
+    // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
+  }
+  if (s < 0) goto errout;
+  s = ret->len;		                        // and return the length
+
+errout:
+  // if (s < 0) fprintf(stderr,"errout: %d\r\n", s);
+  if (curr_lock)
+    SemOp( SEM_GLOBAL, -curr_lock);
+  return s;
+}
+
+//***********************************************************************
+// $LIST(lst)
+//
+short Dlist3(u_char *ret, cstring *lst, int from, int to)
+{ return -1;
+}
+
+short Dlist2(u_char *ret, cstring *lst, int pos)
+{ return -1;
+}
+
+short Dlist(u_char *ret, cstring *lst)
+{ return -1;
+}
+
+//***********************************************************************
+// $LISTBUILD(...)
+//
+short Dlistbuild(u_char *ret, int i)
+{ return -1;
+}
+
+//***********************************************************************
+// $LISTDATA(lst[,pos])
+//
+short Dlistdata2(cstring *lst, int pos)
+{ return -1;
+}
+
+short Dlistdata(cstring *lst)
+{ return Dlistdata2(lst, 1);
+}
+
+//***********************************************************************
+// $LISTFIND(lst,pos[,after])
+//
+short Dlistfind3(cstring *lst, cstring *val, int after)
+{ return -1;
+}
+
+short Dlistfind2(cstring *lst, cstring *val)
+{ return Dlistfind3(lst, val, 0);
+}
+
+//***********************************************************************
+// $LISTGET(lst[,pos[,def])
+//
+short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def)
+{ return -1;
+}
+
+short Dlistget2(u_char *ret, cstring *lst, int pos)
+{ cstring *tmp;
+  char buf[16];
+
+  tmp = (cstring *)&buf[0];
+  tmp->len = 0;
+  tmp->buf[0] = '\0';
+  return Dlistget3(ret, lst, pos, tmp);
+}
+
+short Dlistget(u_char *ret, cstring *lst)
+{ return Dlistget2(ret, lst, 1);
+}
+
+//***********************************************************************
+// $LISTLENGTH(lst)
+//
+short Dlistlength(cstring *lst)
+{ return -1;
+}
+

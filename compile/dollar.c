@@ -669,7 +669,7 @@ function:					// function code starts here
         }
         else if (0 == strncasecmp(name, "zbitstr", 7)) // $ZBITSTR(len[,ff)
         { if (1 == args)                        // one arg form
-            *comp_ptr++ = FUNZBSTR;
+            *comp_ptr++ = FUNZBSTR1;
           else if (2 == args)                   // the 2 arg opcode
             *comp_ptr++ = FUNZBSTR2;
           else

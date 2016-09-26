@@ -202,6 +202,7 @@ short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
 
 short Dzincrement1(cstring *ret, mvar *var);
 short Dzincrement2(cstring *ret, mvar *var, cstring *expr);
+
 short Dzbitstr(u_char *ret, int len);
 short Dzbitstr2(u_char *ret, int len, int ff);
 int   Dzbitlen(cstring *bstr);
@@ -214,6 +215,19 @@ short Dzbitnot(u_char *ret, cstring *bstr);
 short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2);
 short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2);
 short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2);
+
+short Dlist(u_char *ret, cstring *lst);
+short Dlist2(u_char *ret, cstring *lst, int pos);
+short Dlist3(u_char *ret, cstring *lst, int from, int to);
+short Dlistbuild(u_char *ret, int i);
+short Dlistdata(cstring *lst);
+short Dlistdata2(cstring *lst, int pos);
+short Dlistfind2(cstring *lst, cstring *val);
+short Dlistfind3(cstring *lst, cstring *val, int after);
+short Dlistget(u_char *ret, cstring *lst);
+short Dlistget2(u_char *ret, cstring *lst, int pos);
+short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def);
+short Dlistlength(cstring *lst);
 
 
 
