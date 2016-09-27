@@ -1653,15 +1653,124 @@ errout:
 // $LIST(lst)
 //
 short Dlist3(u_char *ret, cstring *lst, int from, int to)
-{ return -1;
+{ short s, i, len;
+  u_char *eltpos, *frompos, *topos;
+
+  if (0 == from)                                // if from is zero, eff. is one
+    from = 1;
+  if ((-1 > from) || (-1 > to))                 // from/to is less than -1
+    return -(ERRMLAST+ERRZ74);                  //   flag error
+  if ((0 == lst->len) ||                        // empty list or
+      ((-1 != to) && (from > to)))              //   empty range
+  { ret[0] = '\0';                              //     return empty list
+    return 0;
+  }
+
+  i = 0; s = 0; frompos = 0; topos = 0;
+  while (i < lst->len)
+  { s++;
+    eltpos = &lst->buf[i];                       // remember elt pos
+    len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    if (from == s)                              // got to pos, flag as found
+      frompos = eltpos;
+    i += len;
+    if (to == s)
+    { topos = &lst->buf[i];
+      goto done;
+    }
+  }
+  if (i != lst->len)                            // check proper list
+    return -(ERRMLAST+ERRZ76);
+
+done:
+  if (-1 == from)                               // EOL specified, set
+  { from = s;                                   //   from/frompos
+    frompos = eltpos;
+  }
+  if (-1 == to)                                 // EOL specified, set
+  { to = s;                                     //   to/topos
+    topos = &lst->buf[i];
+  }
+  if (!topos)                                   // topos is past EOL
+  { to = s;                                     //   set to/topos
+    topos = &lst->buf[i];
+  }
+
+  if (!frompos || (from > to))                  // from is past EOL, or empty
+  { ret[0] = '\0';                              //   range, return empty list
+    return 0;
+  }
+
+  bcopy(frompos, ret, topos - frompos);         // copy sublist
+  return topos - frompos;
 }
 
 short Dlist2(u_char *ret, cstring *lst, int pos)
-{ return -1;
+{ short s, i, len;
+  short eltlen;
+  u_char *eltpos;
+  int found, undf;
+
+  if (0 == pos)
+    return -(ERRMLAST+ERRZ77);
+  if (-1 > pos)
+    return -(ERRMLAST+ERRZ74);
+
+  i = 0; s = 0; found = 0;
+  while (i < lst->len)
+  { s++; undf = 0;
+    len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+        undf = (0 == len);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    eltlen = undf ? VAR_UNDEFINED : len;
+    eltpos = &lst->buf[i];
+    if (pos == s)                               // got to pos, flag as found
+    { found = 1;
+      goto found;
+    }
+    i += len;
+  }
+  if (i != lst->len)                            // check proper list
+    return -(ERRMLAST+ERRZ76);
+
+  if (s && (-1 == pos))                         // have elts and requested last
+  { found = 1;                                  // mark as found
+    goto found;
+  }
+
+  return -(ERRMLAST+ERRZ77);                    // not found, flag undefined err
+
+found:
+  if (VAR_UNDEFINED == eltlen)                  // undefined?
+    return -(ERRMLAST+ERRZ77);                  //   return error
+
+  bcopy(eltpos, ret, eltlen);                   // copy elt
+  return eltlen;
 }
 
 short Dlist(u_char *ret, cstring *lst)
-{ return -1;
+{ return Dlist2(ret, lst, 1);
 }
 
 //***********************************************************************
@@ -1693,7 +1802,49 @@ short Dlistbuild(u_char *ret, cstring *arg)
 // $LISTDATA(lst[,pos])
 //
 short Dlistdata2(cstring *lst, int pos)
-{ return -1;
+{ short s, i, len;
+  short eltlen;
+  int undf;
+
+  if (0 == pos)                                 // pos is zero, return zero
+    return 0;
+
+  if (-1 > pos)                                 // give a range errror
+    return -(ERRMLAST+ERRZ74);
+
+  i = 0; s = 0;
+  while (i < lst->len)
+  { s++; undf = 0;
+    len = lst->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < lst->len)
+      { len += lst->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+        undf = (0 == len);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    eltlen = undf ? VAR_UNDEFINED : len;
+    if (pos == s)
+      goto found;
+    i += len;
+  }
+  if (i != lst->len)                            // check proper list
+    return -(ERRMLAST+ERRZ76);
+
+  if (s && (-1 == pos))                         // have elts and req. last
+    return VAR_UNDEFINED == eltlen ? 0 : 1;     //   undefined ? then zero
+                                                //   else one
+  return 0;                                     // elt not found, then zero
+
+found:
+  if (VAR_UNDEFINED == eltlen)                  // elt found
+    return 0;                                   //   undefined? then zero
+  return 1;                                     // else one
 }
 
 short Dlistdata(cstring *lst)
@@ -1756,12 +1907,12 @@ short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def)
 { short s, i, len;
   short eltlen;
   u_char *eltpos;
-  int undf;
+  int found, undf;
 
   if ((-1 != pos) && (1 > pos))
     return -(ERRMLAST+ERRZ74);
 
-  i = 0; s = 0;
+  i = 0; s = 0; found = 0;
   while (i < lst->len)
   { s++; undf = 0;
     len = lst->buf[i++];
@@ -1779,20 +1930,24 @@ short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def)
     }
     eltlen = undf ? VAR_UNDEFINED : len;
     eltpos = &lst->buf[i];
-    if (pos == s)
+    if (pos == s)                               // got to pos, flag as found
+    { found = 1;
       goto found;
+    }
     i += len;
   }
-  if (i != lst->len)
+  if (i != lst->len)                            // check proper list
     return -(ERRMLAST+ERRZ76);
+  if (s && (-1 == pos))                         // have elts and requested last
+    found = 1;                                  // mark as found
 
 found:
-  if (VAR_UNDEFINED == eltlen)
-  { bcopy(&def->buf[0], ret, def->len);
+  if (!found || (VAR_UNDEFINED == eltlen))      // not found or UNDF
+  { bcopy(&def->buf[0], ret, def->len);         //   copy default
     eltlen = def->len;
   }
   else
-    bcopy(eltpos, ret, eltlen);
+    bcopy(eltpos, ret, eltlen);                 // found and not UNDF, copy elt
   return eltlen;
 }
 

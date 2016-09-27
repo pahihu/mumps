@@ -188,6 +188,7 @@ static struct
   {ERRZ74+ERRMLAST,     "Invalid function argument"},
   {ERRZ75+ERRMLAST,     "Invalid bit string"},
   {ERRZ76+ERRMLAST,     "Invalid list"},
+  {ERRZ77+ERRMLAST,     "Undefined value"},
   {0,         NULL}
 };                                                      // merrtab[]
 

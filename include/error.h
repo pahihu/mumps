@@ -188,6 +188,7 @@
 #define ERRZ74		74	// Invalid function argument
 #define ERRZ75          75      // Invalid bit string
 #define ERRZ76          76      // Invalid list
+#define ERRZ77          77      // Undefined value
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors
