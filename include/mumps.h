@@ -38,7 +38,7 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#define MV1_SHSEM       1
+// #define MV1_SHSEM       1
 
 #include <stdint.h>
 #ifdef MV1_SHSEM
@@ -211,6 +211,10 @@
 
 #define SEM_MAX         7                       // total number of these
 #endif
+
+#define KILL_VAL        1                       // kill only value
+#define KILL_SUBS       2                       // kill only subscripts
+#define KILL_ALL        (KILL_VAL + KILL_SUBS)  // kill all
 
 #if defined(__sun__) || defined(__NetBSD__)
 union semun {

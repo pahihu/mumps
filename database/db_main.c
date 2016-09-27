@@ -358,6 +358,17 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
 //
 
 short DB_Kill(mvar *var)	                       	// remove sub-tree
+{ return DB_KillEx(var, KILL_ALL);
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_KillEx
+// Descript: Remove the sub-tree/value described by the passed in mvar
+// Input(s): Pointer to mvar to remove, what - what to remove
+// Return:   0 -> Ok, negative MUMPS error
+//
+
+short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
 { short s;						// for returns
 
   s = Copy2local(var,"DB_Kill");			// get local copy
@@ -414,7 +425,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
       }
     }
   }
-  s = Kill_data();					// do the kill
+  s = Kill_data_ex(what);				// do the kill
 
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

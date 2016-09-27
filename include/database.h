@@ -189,6 +189,7 @@ short Get_data(int dir);				// get db_var node
 
 // File: database/db_kill.c
 short Kill_data();					// remove tree
+short Kill_data_ex(int what);				// remove tree,selective
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key

@@ -142,7 +142,7 @@ void parse_goto(int runtime);			// GOTO
 void parse_hang();				// HANG
 void parse_if(int i);				// IF
 void parse_job(int runtime);			// JOB
-void parse_kill();				// KILL
+void parse_kill(int cmk);			// KILL
 void parse_lock();				// LOCK
 void parse_merge();				// MERGE
 void parse_new();				// NEW

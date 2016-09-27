@@ -278,7 +278,10 @@
 
 #define CMSETLI 224                             // SET $LI 3 arg
 
-//spare		225 -> 229
+#define CMKVAL  225                             // KVALUE
+#define CMKSUBS 226                             // KSUBSCRIPTS
+
+//spare		227 -> 229
 
 //spare		230 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()

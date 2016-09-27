@@ -71,6 +71,7 @@ short DB_Set(mvar *var, cstring *data);          // set global data
 short DB_SetEx(mvar *var, cstring *data, int wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()
 short DB_Kill(mvar *var);                        // remove sub-tree
+short DB_KillEx(mvar *var, int what);            // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key

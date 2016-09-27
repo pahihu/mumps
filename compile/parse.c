@@ -358,14 +358,15 @@ void parse_job(int runtime)			// JOB
 
 //***********************************************************************
 
-void parse_kill()				// KILL
+void parse_kill(int cmk)			// KILL
 { 
   short s;                                      // for functions
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
 
   if (*source_ptr == '(')			// exclusive kill
-  { args = 0;					// argument count
+  { if (cmk != CMKILL) SYNTX                    // KVAL/KSUBS not supported
+    args = 0;					// argument count
     source_ptr++;				// skip the (
     while (TRUE)				// now, get one or more args
     { ptr = comp_ptr;				// save for ron
@@ -413,14 +414,14 @@ void parse_kill()				// KILL
         *ptr = OPMVAR;				// change to a OPMVAR
       }
       if (*(comp_ptr - 1) != INDKILL)
-        *comp_ptr++ = CMKILL;			// and the opcode
+        *comp_ptr++ = cmk /*CMKILL*/;		// and the opcode
       if (*source_ptr != ',') break;		// done
       source_ptr++;				// point at next
     }
   }						// end while
   if (*source_ptr == ',')			// stupid A,A),...
   { source_ptr++;				// point past comma
-    parse_kill();				// and re-enter
+    parse_kill(cmk);				// and re-enter
   }
   return;
 }
@@ -1262,6 +1263,7 @@ void parse()                                    // MAIN PARSE LOOP
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
   u_char *jmp_eoc = NULL;			// jump to end of cmd reqd
+  u_char cmk = CMKILL;                          // def. KILL cmd variant
 
   while (TRUE)                                  // loop
   { c = toupper(*source_ptr++);                 // get next char in upper case
@@ -1513,8 +1515,32 @@ void parse()                                    // MAIN PARSE LOOP
 
       case 'K':                                 // KILL
         if (isalpha(*source_ptr) !=0)           // if the next is alpha
-        { if (strncasecmp((char *)source_ptr, "ill", 3) != 0) SYNTX
-          source_ptr += 3;                      // point past the "ill"
+        { switch (toupper(*source_ptr))
+          { case 'V':                           // check KVALUE
+              if (isalpha(source_ptr[1]))
+              { if (strncasecmp((char *)source_ptr, "value", 5)) SYNTX
+                source_ptr += 5;                // point past "value"
+              }
+              else
+                source_ptr++;                   // point past "v"
+              cmk = CMKVAL;                     // cmd is KVALUE
+              break;
+            case 'S':                           // check KSUBSCRIPTS
+              if (isalpha(source_ptr[1]))
+              { if (strncasecmp((char *)source_ptr, "subscripts", 10)) SYNTX
+                source_ptr += 10;               // point past "subscripts"
+              }
+              else
+                source_ptr++;                   // point past "s"
+              cmk = CMKSUBS;                    // cmd is KSUBSCRIPTS
+              break;
+            case 'I':
+              if (strncasecmp((char *)source_ptr, "ill", 3) != 0) SYNTX
+              source_ptr += 3;                  // point past the "ill"
+              cmk = CMKILL;                     // cmd is KILL
+            default:
+              SYNTX
+          }
         }
 	c = ' ';				// assume a space
 	if (*source_ptr != '\0') c = *source_ptr++; // get next char (if any)
@@ -1529,12 +1555,13 @@ void parse()                                    // MAIN PARSE LOOP
         if (c != ' ') SYNTX                     // must be a space
 	if (*source_ptr != '\0') c = *source_ptr++; // get next char (if any)
 	if (c == ' ')				// argless kill
-	{ *comp_ptr++ = CMKILLB;		// opcode
+	{ if (cmk != CMKILL) SYNTX              //   only for KILL
+          *comp_ptr++ = CMKILLB;		// opcode
 	  *comp_ptr++ = 0;			// number of args
 	}
 	else
 	{ --source_ptr;				// backup pointer
-	  parse_kill();
+	  parse_kill(cmk);
 	}
         break;                                  // end of KILL code
 

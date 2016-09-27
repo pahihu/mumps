@@ -53,7 +53,18 @@
 // Return:   0 -> Ok, negative MUMPS error
 //
 
-short Kill_data()					// remove tree
+short Kill_data()				        // remove tree
+{ return Kill_data_ex(KILL_ALL);
+}
+
+//-----------------------------------------------------------------------------
+// Function: Kill_data_ex
+// Descript: Remove the sub-tree described by db_var
+// Input(s): what - KILL_VAL/KILL_SUBS/KILL_ALL
+// Return:   0 -> Ok, negative MUMPS error
+//
+
+short Kill_data_ex(int what)				// remove tree
 { short s;						// for functs
   int i;						// a handy int
   int j;						// and another
@@ -123,7 +134,7 @@ cont:
     DoJournal(&jj, NULL);				// and do it
   }
 
-  if (db_var.slen == 0)					// full global kill?
+  if ((db_var.slen == 0) && (KILL_ALL == what))		// full global kill?
   { while (level)					// for each level
     { if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = NULL;			// clear it
@@ -207,6 +218,16 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
             chunk->buf[1]);				// fix the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if (0 == (KILL_VAL & what))                       // don't kill value
+      { if ((keybuf[0] == db_var.slen) &&               // if value, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     //   skip
+      }
+      else if (0 == (KILL_SUBS & what))                 // don't kill subs
+      { if ((keybuf[0] > db_var.slen) &&                // if subs, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     // skip
+      }
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
       { break;						// quit loop
@@ -257,6 +278,16 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if (0 == (KILL_VAL & what))                       // don't kill value
+      { if ((keybuf[0] == db_var.slen) &&               // if value, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     //   skip
+      }
+      else if (0 == (KILL_SUBS & what))                 // don't kill subs
+      { if ((keybuf[0] > db_var.slen) &&                // if subs, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     // skip
+      }
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
       { break;						// quit loop
@@ -295,6 +326,16 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if (0 == (KILL_VAL & what))                       // don't kill value
+      { if ((keybuf[0] == db_var.slen) &&               // if value, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     //   skip
+      }
+      else if (0 == (KILL_SUBS & what))                 // don't kill subs
+      { if ((keybuf[0] > db_var.slen) &&                // if subs, then
+            (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
+          continue;                                     // skip
+      }
       if ((keybuf[0] < db_var.slen) ||			// new key too small
 	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
       { break;						// quit loop

@@ -2874,6 +2874,44 @@ short run(int savasp, int savssp)		// run compiled code
 	if (s < 0) ERROR(s)			// complain on error
 	break;
 
+      case CMKVAL:				// kill value 1 var
+	partab.jobtab->commands++;		// count a command
+	var = (mvar *)astk[--asp];		// get the var
+	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
+	// { if (var->name.var_cu[0] == '$')
+	    ERROR(-ERRM8)			// can't do that
+	//   s = ST_Kill(var);			// do it - local
+	// }
+	else if (var->name.var_cu[0] == '$') 	// ssvn?
+	//   s = SS_Kill(var);			// do it - ssvn
+	    ERROR(-ERRM8)			// can't do that
+	else
+	{ bcopy(var, &(partab.jobtab->last_ref),
+	    MVAR_SIZE + var->slen);	        // update naked
+	    s = DB_KillEx(var,KILL_VAL);	// do it - global
+	}
+	if (s < 0) ERROR(s)			// complain on error
+	break;
+
+      case CMKSUBS:				// kill subscripts 1 var
+	partab.jobtab->commands++;		// count a command
+	var = (mvar *)astk[--asp];		// get the var
+	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
+	// { if (var->name.var_cu[0] == '$')
+	    ERROR(-ERRM8)			// can't do that
+	//   s = ST_Kill(var);			// do it - local
+	// }
+	else if (var->name.var_cu[0] == '$') 	// ssvn?
+	//   s = SS_Kill(var);			// do it - ssvn
+	    ERROR(-ERRM8)			// can't do that
+	else
+	{ bcopy(var, &(partab.jobtab->last_ref),
+	    MVAR_SIZE + var->slen);	        // update naked
+	    s = DB_KillEx(var,KILL_SUBS);	// do it - global
+	}
+	if (s < 0) ERROR(s)			// complain on error
+	break;
+
       case NEWBREF:				// push a null on astk[] etc.
 	var = (mvar *) astk[asp - 1];		// point at previous mvar
 	if (var->uci != UCI_IS_LOCALVAR)	// local?
@@ -3251,7 +3289,7 @@ short run(int savasp, int savssp)		// run compiled code
 	    parse_job(1);
 	    break;
 	  case INDKILL:				// KILL
-	    parse_kill();
+	    parse_kill(CMKILL);
 	    break;
 	  case INDLOCK:				// LOCK
 	    parse_lock();
