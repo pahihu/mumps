@@ -301,7 +301,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   { if (cblk[2]->dirty == (gbd *) 1)			// if reserved
     { cblk[2]->dirty = NULL;				// clear it
     }
-  cblk[2] = NULL;					// flag not used
+    cblk[2] = NULL;					// flag not used
   }
 
   s = New_block();					// new blk for trail

@@ -79,6 +79,7 @@ short Kill_data_ex(int what)				// remove tree
   cstring *c;						// and another
   u_int *ui;						// and another
   int qpos, wpos, rpos, qlen, qfree;
+  int killglb;                                          // spec. global KILL
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -135,7 +136,9 @@ cont:
   }
 
   if ((db_var.slen == 0) && (KILL_ALL == what))		// full global kill?
-  { while (level)					// for each level
+  { 
+FullGlobalKill:
+    while (level)					// for each level
     { if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = NULL;			// clear it
       }
@@ -213,6 +216,7 @@ cont:
   if (level == rlevel)					// all in 1 data block
 							// NEVER first one
   { i = Index;						// start here
+    fprintf(stderr, "AllInOne Index=%d\r\n", Index); fflush(stderr);
     while (i <= blk[level]->mem->last_idx)		// while in block
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
@@ -241,7 +245,22 @@ cont:
       i++;						// point at next
     }							// end removing recs
 
+    killglb = !db_var.slen && (0 == (KILL_SUBS & what));
     Tidy_block();					// tidy the block
+    if (killglb)                                        // KVALUE on global
+    { if (blk[level]->mem->last_idx < LOW_INDEX)        //   w/o subscripts
+      { blk[level]->mem->last_idx = LOW_INDEX;          // fix last_idx
+        s = Locate_next(0);                             // subscripted nodes ?
+        if ((0 > s) && (s != -ERRM7))                   // got an error
+          return s;                                     //   return
+        if (-ERRM7 == s)                                // no more nodes
+        { what = KILL_ALL;                              //   do a full kill
+          goto FullGlobalKill;                          
+        }
+      }
+      // XXX KVALUE of the global w/o subscripts the level 0 downlink
+      //     becomes invalid
+    }
 #ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
 #endif
@@ -255,7 +274,7 @@ cont:
       { blk[level]->dirty = NULL;			// yes, clear it
       }
     }
-    return 0;						// and exit
+    return 0;					        // and exit
   }							// end all in 1
 
 // We need to do a multi block kill - we now have:
@@ -266,6 +285,7 @@ cont:
 //	 and we will never point at Index LOW_INDEX in the left edge
 //       BUT, the RL may have to be changed.
 
+  fprintf(stderr, "MultiBlock Index=%d\r\n", Index); fflush(stderr);
   top = level;						// save for ron
   for (i = 0; i < top; i++)				// scan upper bit
   { if (blk[i]->dirty == (gbd *) 1)			// reserved?
