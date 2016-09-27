@@ -38,7 +38,7 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-// #define MV1_SHSEM       1
+#define MV1_SHSEM       1
 
 #include <stdint.h>
 #ifdef MV1_SHSEM

@@ -218,19 +218,23 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
             chunk->buf[1]);				// fix the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if ((keybuf[0] < db_var.slen) ||			// new key too small
+	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
+      { break;						// quit loop
+      }
       if (0 == (KILL_VAL & what))                       // don't kill value
       { if ((keybuf[0] == db_var.slen) &&               // if value, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
-          continue;                                     //   skip
+        { i++;                                          //   skip
+          continue;
+        }
       }
       else if (0 == (KILL_SUBS & what))                 // don't kill subs
       { if ((keybuf[0] > db_var.slen) &&                // if subs, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
-          continue;                                     // skip
-      }
-      if ((keybuf[0] < db_var.slen) ||			// new key too small
-	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
-      { break;						// quit loop
+        { i++;                                          // skip
+          continue;
+        }
       }
       record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at record
       record->len = NODE_UNDEFINED;			// mark not reqd
@@ -278,6 +282,10 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if ((keybuf[0] < db_var.slen) ||			// new key too small
+	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
+      { break;						// quit loop
+      }
       if (0 == (KILL_VAL & what))                       // don't kill value
       { if ((keybuf[0] == db_var.slen) &&               // if value, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
@@ -287,10 +295,6 @@ cont:
       { if ((keybuf[0] > db_var.slen) &&                // if subs, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
           continue;                                     // skip
-      }
-      if ((keybuf[0] < db_var.slen) ||			// new key too small
-	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
-      { break;						// quit loop
       }
       record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
 
@@ -326,19 +330,23 @@ cont:
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
+      if ((keybuf[0] < db_var.slen) ||			// new key too small
+	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
+      { break;						// quit loop
+      }
       if (0 == (KILL_VAL & what))                       // don't kill value
       { if ((keybuf[0] == db_var.slen) &&               // if value, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
-          continue;                                     //   skip
+        { Index++;                                      // skip
+          continue;
+        }
       }
       else if (0 == (KILL_SUBS & what))                 // don't kill subs
       { if ((keybuf[0] > db_var.slen) &&                // if subs, then
             (0 == bcmp(&keybuf[1], &db_var.key, db_var.slen)))
-          continue;                                     // skip
-      }
-      if ((keybuf[0] < db_var.slen) ||			// new key too small
-	  (bcmp(&keybuf[1], &db_var.key, db_var.slen)))	// or different
-      { break;						// quit loop
+        { Index++;                                      // skip
+          continue;
+        }
       }
       record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
       if (level != rlevel)				// if a pointer blk
