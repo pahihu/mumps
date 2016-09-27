@@ -276,7 +276,9 @@
 #define FUNLG3  222                             // $LISTGET 3 arg
 #define FUNLL   223                             // $LISTLENGTH
 
-//spare		224 -> 229
+#define CMSETLI 224                             // SET $LI 3 arg
+
+//spare		225 -> 229
 
 //spare		230 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()

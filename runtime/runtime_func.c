@@ -1779,7 +1779,7 @@ short Dlist(u_char *ret, cstring *lst)
 short Dlistbuild(u_char *ret, cstring *arg)
 { short len;
 
-  fprintf(stderr, "Dlistbuild(): len=%d\r\n", arg->len);
+  // fprintf(stderr, "Dlistbuild(): len=%d\r\n", arg->len);
   if (VAR_UNDEFINED == arg->len)
   { *ret++ = 128;
     *ret++ = 0;
@@ -1990,3 +1990,113 @@ short Dlistlength(cstring *lst)
   return (i == lst->len) ? s : -(ERRMLAST+ERRZ76);
 }
 
+//***********************************************************************
+// set $LIST
+//
+short DSetlist(u_char *tmp, cstring *cptr, mvar *var,
+		  int from, int to)		// Set $LIST()
+{ short s, i, len, eltcnt;
+  u_char *eltpos, *frompos, *topos;
+  cstring *vptr;
+  short var_undf = VAR_UNDEFINED;               // undefined var
+  int disp = 0;                                 // trailing bytes disp.
+  int trail = 0;                                // trail length
+
+  if (0 == from)                                // if from is zero, eff. is one
+    from = 1;
+  if ((-1 > from) || (-1 > to))                 // from/to is less than -1
+    return -(ERRMLAST+ERRZ74);                  //   flag error
+
+  vptr = (cstring *) tmp;			// where it goes
+  s = Dget1(vptr->buf, var);			// get current value
+  if (s < 0) return s;				// die on error
+  vptr->len = s;				// save the size
+
+  i = 0; eltcnt = 0; frompos = 0; topos = 0;
+  while (i < vptr->len)
+  { eltcnt++;
+    eltpos = &vptr->buf[i];                     // remember elt pos
+    len = vptr->buf[i++];
+    if (127 < len)
+    { len -= 128;
+      len <<= 8;
+      if (i < vptr->len)
+      { len += vptr->buf[i++];
+        if ((0 != len) && (len < 128))
+          return -(ERRMLAST+ERRZ76);
+      }
+      else
+        return -(ERRMLAST+ERRZ76);
+    }
+    if (from == eltcnt)                         // got to pos, flag as found
+      frompos = eltpos;
+    i += len;
+    if (to == eltcnt)
+    { topos = &vptr->buf[i];
+      goto done;
+    }
+  }
+  if (i != vptr->len)                           // check proper list
+    return -(ERRMLAST+ERRZ76);
+
+done:
+  if (-1 == from)
+  { from = eltcnt;
+    frompos = eltpos;
+  }
+  if (!frompos)
+  { frompos = &vptr->buf[vptr->len];
+  }
+  if ((-1 == to) || !topos)
+  { to = eltcnt;
+    topos = &vptr->buf[vptr->len];
+  }
+  trail = 0;                                    // assume empty trail
+  len = Dlistlength(cptr);                      // assume cptr is a list
+  if (topos < &vptr->buf[vptr->len])            // we have trailing bytes
+  { if (len < 0)                                // value is not a list
+    { disp = cptr->len;                         // calc. displacement
+      if (VAR_UNDEFINED == cptr->len) disp += 2;
+      else if (128 > cptr->len)       disp += 1;
+      else                            disp += 2;
+    }
+    else
+      disp += cptr->len;                        // else use the list length
+    if (eltcnt < from - 1)                      // check if padding necessary
+      disp += 2 * (from - eltcnt - 1);
+    if ((frompos - &vptr->buf[0]) + disp +      // check string length
+        (&vptr->buf[vptr->len] - topos) > MAX_STR_LEN)
+      return -ERRM75;
+    trail = &vptr->buf[vptr->len] - topos;      // calc. trail length
+    bcopy(topos, frompos + disp, trail);        // shift trailing bytes up
+  }
+  if (eltcnt < from - 1)                        // padding is necessary ?
+  { for ( ; eltcnt < from - 1; eltcnt++)        //   append UNDFs
+    { s = Dlistbuild(&vptr->buf[vptr->len], (cstring *)&var_undf);
+      if ((s < 0) || (vptr->len + s > MAX_STR_LEN)) // check string length
+        return -ERRM75;                         // if doesn't fit, error
+      vptr->len += s;                           // update result length
+    }
+  }
+  else
+    vptr->len = frompos - &vptr->buf[0];        // adjust result length
+  if (len < 0)                                  // value is not a list
+  { s = Dlistbuild(&vptr->buf[vptr->len], cptr);// form a list from
+    if ((s < 0) || (s + vptr->len > MAX_STR_LEN)) // check string length
+      return -ERRM75;                           // if doesn't fit, error
+    vptr->len += s;                             // update result length
+  }
+  else                                          // value is a list, append as is
+  { bcopy(&cptr->buf[0], &vptr->buf[vptr->len], cptr->len);
+    vptr->len += cptr->len;                     // update result length
+  }
+  if (trail)                                    // trail present ?
+  { if (vptr->len + trail > MAX_STR_LEN)        // check string length
+      return -ERRM75;                           // if doesn't fit, error
+    vptr->len += trail;                         // adjust result length
+  }
+
+  if (var->uci == UCI_IS_LOCALVAR)              // write back result
+    return ST_Set(var, vptr);			// set it back and return
+  return DB_Set(var, vptr);			// set it back and return
+}

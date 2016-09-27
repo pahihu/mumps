@@ -229,6 +229,8 @@ short Dlistget2(u_char *ret, cstring *lst, int pos);
 short Dlistget3(u_char *ret, cstring *lst, int pos, cstring *def);
 short Dlistlength(cstring *lst);
 
+short DSetlist(u_char *tmp, cstring *cptr, mvar *var,
+		  int from, int to);		// Set $LIST()
 
 
 

@@ -753,6 +753,7 @@ short run(int savasp, int savssp)		// run compiled code
 
       case CMSETE:				// set $E() - 3 args
       case CMSETP:				// set $P() - 4 args
+      case CMSETLI:                             // set $LI() - 3 args
 	partab.jobtab->commands++;		// count a command
 	p = &sstk[ssp];				// some workspace
 	j = cstringtoi((cstring *) astk[--asp]); // second numeric arg
@@ -764,14 +765,20 @@ short run(int savasp, int savssp)		// run compiled code
           if (((ptr1->len)*i > 32767 ) || ((ptr1->len)*j > 32767))
             ERROR(-ERRM75)
 	}
+        else if (opc == CMSETLI)
+        { if ((2*i > 32767) || (2*j > 32767))
+            ERROR(-ERRM75);
+        }
 	var = (mvar *) astk[--asp];		// the variable
 	cptr = (cstring *) astk[asp-1];		// source - leave asp alone
 	if (var->name.var_cu[0] == '$')		// can't do that
 	  ERROR(-ERRM8)				// complain
 	if (opc == CMSETP)			// need a delimiter?
 	  s = DSetpiece(p, cptr, var, ptr1, i, j); // do a SET $P
-	else					// must be set $E()
+	else if (opc == CMSETE)
 	  s = DSetextract(p, cptr, var,	i, j);	// do a SET $E
+        else                                    // must be a SET $LI
+	  s = DSetlist(p, cptr, var, i, j);	// do a SET $LI
 	if (s < 0) ERROR(s)			// complain on error
 	break;
 

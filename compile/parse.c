@@ -970,6 +970,7 @@ void parse_set()				// SET
   int i;					// a handy int
   int bracket;					// bracket flag
   int args = 0;					// number of args
+  int setli = 0;                                // flag for SET $LI() 
   u_char *p;                                    // a handy pointer
 
   while (TRUE)
@@ -1010,8 +1011,11 @@ void parse_set()				// SET
     { if ((strncasecmp((char *)source_ptr, "$e(", 3) == 0) ||
 	  (strncasecmp((char *)source_ptr, "$extract(", 9) == 0) ||
 	  (strncasecmp((char *)source_ptr, "$p(", 3) == 0) ||
-	  (strncasecmp((char *)source_ptr, "$piece(", 7) == 0))
+	  (strncasecmp((char *)source_ptr, "$piece(", 7) == 0) ||
+	  (strncasecmp((char *)source_ptr, "$li(", 4) == 0) ||
+	  (strncasecmp((char *)source_ptr, "$list(", 6) == 0))
       { args = (toupper(source_ptr[1]) == 'P'); // $P = 1, $E = 0
+        setli = (toupper(source_ptr[1]) == 'L');// $LI = 1
 	while ((*source_ptr != '(') && (*source_ptr))
 	  source_ptr++;				// skip to bracket
 	source_ptr++;				// skip opening bracket
@@ -1064,7 +1068,7 @@ void parse_set()				// SET
 	  eval();				// eval the second numeric arg
 	}
 	if (*source_ptr++ != ')') SYNTX		// ensure there is a )
-	*comp_ptr++ = args ? CMSETP : CMSETE; 	// set the opcode
+	*comp_ptr++ = args ? CMSETP : setli ? CMSETLI : CMSETE;// set the opcode
       }						// end SET $E/$P
       else if (*source_ptr == '@')		// indirection ?
       { source_ptr++;				// skip the @
