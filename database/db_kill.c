@@ -79,7 +79,7 @@ short Kill_data_ex(int what)				// remove tree
   cstring *c;						// and another
   u_int *ui;						// and another
   int qpos, wpos, rpos, qlen, qfree;
-  int killglb;                                          // spec. global KILL
+  int save_level;                                       // save level 
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -168,8 +168,7 @@ FullGlobalKill:
       Tidy_block();					// and tidy it
     }
     else
-    { ((u_int *) record)[1] &= ~GL_TOP_DEFINED;         // clear top node
-    }
+      ((u_int *) record)[1] &= ~GL_TOP_DEFINED;         // clear top node
 
 #ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
@@ -179,9 +178,23 @@ FullGlobalKill:
       Queit();						// and que for write
     }
     if (KILL_ALL == what)
-    { Garbit(blknum);					// garbage the block
-      bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+      Garbit(blknum);					// garbage the block
+    else
+    { save_level = level;
+      level = 0;
+      s = Get_data(0);
+      if ((s < 0) && (s != -ERRM7))
+        return s;
+      chunk = (cstring *) &iidx[idx[LOW_INDEX]];	// point at the chunk
+      record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at record
+      record->len = 0;			                // mark empty
+      if (blk[level]->dirty == (gbd *) 1)
+      { blk[level]->dirty = blk[level];
+        Queit();
+      }
+      level = save_level;
     }
+    bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
     level--;						// backup a level
 
     return 0;						// and exit
@@ -247,11 +260,7 @@ FullGlobalKill:
         }
       }
       record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at record
-      if (i == LOW_INDEX)                               // spec. LOW_INDEX
-      { record->len = 0;                                // delete, clear only
-      }
-      else
-        record->len = NODE_UNDEFINED;			// mark not reqd
+      record->len = NODE_UNDEFINED;			// mark not reqd
       i++;						// point at next
     }							// end removing recs
 
@@ -289,7 +298,6 @@ FullGlobalKill:
 //	 and we will never point at Index LOW_INDEX in the left edge
 //       BUT, the RL may have to be changed.
 
-  fprintf(stderr, "MultiBlock Index=%d\r\n", Index); fflush(stderr);
   top = level;						// save for ron
   for (i = 0; i < top; i++)				// scan upper bit
   { if (blk[i]->dirty == (gbd *) 1)			// reserved?

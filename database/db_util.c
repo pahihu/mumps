@@ -752,11 +752,11 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
-  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d dQw=%d dQr=%d\r\n",
-          file, line, curr_lock, seconds,
-          systab->vol[volnum - 1]->dirtyQw,
-          systab->vol[volnum - 1]->dirtyQr);
-  fflush(stderr);
+  // fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d dQw=%d dQr=%d\r\n",
+  //         file, line, curr_lock, seconds,
+  //         systab->vol[volnum - 1]->dirtyQw,
+  //         systab->vol[volnum - 1]->dirtyQr);
+  // fflush(stderr);
   return MSleep(1000 * seconds);
 }
 
