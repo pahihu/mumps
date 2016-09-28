@@ -135,7 +135,7 @@ cont:
     DoJournal(&jj, NULL);				// and do it
   }
 
-  if ((db_var.slen == 0) && (KILL_ALL == what))		// full global kill?
+  if ((db_var.slen == 0) && (KILL_VAL & what))	        // full global kill?
   { 
 FullGlobalKill:
     while (level)					// for each level
@@ -163,8 +163,13 @@ FullGlobalKill:
     }
     Allign_record();					// align
     blknum = *(u_int *) record;				// remember the block
-    *(u_int *) record = PTR_UNDEFINED;			// mark as junk
-    Tidy_block();					// and tidy it
+    if (KILL_ALL == what)
+    { *(u_int *) record = PTR_UNDEFINED;		// mark as junk
+      Tidy_block();					// and tidy it
+    }
+    else
+    { ((u_int *) record)[1] &= ~GL_TOP_DEFINED;         // clear top node
+    }
 
 #ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
@@ -173,8 +178,10 @@ FullGlobalKill:
     { blk[level]->dirty = blk[level];			// set it
       Queit();						// and que for write
     }
-    Garbit(blknum);					// garbage the block
-    bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+    if (KILL_ALL == what)
+    { Garbit(blknum);					// garbage the block
+      bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+    }
     level--;						// backup a level
 
     return 0;						// and exit
@@ -216,7 +223,6 @@ FullGlobalKill:
   if (level == rlevel)					// all in 1 data block
 							// NEVER first one
   { i = Index;						// start here
-    fprintf(stderr, "AllInOne Index=%d\r\n", Index); fflush(stderr);
     while (i <= blk[level]->mem->last_idx)		// while in block
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
@@ -241,25 +247,23 @@ FullGlobalKill:
         }
       }
       record = (cstring *) &chunk->buf[chunk->buf[1] + 2]; // point at record
-      record->len = NODE_UNDEFINED;			// mark not reqd
+      if (i == LOW_INDEX)                               // spec. LOW_INDEX
+      { record->len = 0;                                // delete, clear only
+      }
+      else
+        record->len = NODE_UNDEFINED;			// mark not reqd
       i++;						// point at next
     }							// end removing recs
 
-    killglb = !db_var.slen && (0 == (KILL_SUBS & what));
     Tidy_block();					// tidy the block
-    if (killglb)                                        // KVALUE on global
-    { if (blk[level]->mem->last_idx < LOW_INDEX)        //   w/o subscripts
-      { blk[level]->mem->last_idx = LOW_INDEX;          // fix last_idx
-        s = Locate_next(0);                             // subscripted nodes ?
-        if ((0 > s) && (s != -ERRM7))                   // got an error
-          return s;                                     //   return
-        if (-ERRM7 == s)                                // no more nodes
-        { what = KILL_ALL;                              //   do a full kill
-          goto FullGlobalKill;                          
-        }
+    if (!db_var.slen)                                   // KVALUE on global
+    { s = Locate_next(0);                               // subscripted nodes ?
+      if ((0 > s) && (s != -ERRM7))                     // got an error
+        return s;                                       //   return
+      if (-ERRM7 == s)                                  // no more nodes
+      { what = KILL_ALL;                                //   do a full kill
+        goto FullGlobalKill;                          
       }
-      // XXX KVALUE of the global w/o subscripts the level 0 downlink
-      //     becomes invalid
     }
 #ifdef XMV1_BLKVER
     blk[level]->blkver_low++;
