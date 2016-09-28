@@ -185,6 +185,10 @@ short ST_Create(chr_x *var)                     // var name in a quad
 //**  Function: ST_Kill - KILL a variable                        ***
 //**  returns nothing                                            ***
 short ST_Kill(mvar *var)                        // var name in a quad
+{ return ST_KillEx(var, KILL_ALL);
+}
+
+short ST_KillEx(mvar *var, int what)            // var name in a quad
 { short ptr;                                    // for the pointer
   ST_data *data;                                // and ptr to data block
   ST_depend *check;				// working dependent pointer
@@ -1024,6 +1028,10 @@ short ST_DumpV(mvar *global)
 
 //****************************************************************************
 short ST_KillAll(int count, var_u *keep)
+{ return ST_KillAllEx(count, keep, KILL_ALL);
+}
+
+short ST_KillAllEx(int count, var_u *keep, int what)
 // kill all local variables except those whose names appear in var_u *keep
 { 
   int i;					// generic counter

@@ -253,7 +253,10 @@ short ST_Set(mvar *var, cstring *data);         // set local data
 short ST_Data(mvar *var, u_char *buf);          // get $DATA()
 
 short ST_Kill(mvar *var);                       // remove sub-tree
+short ST_KillEx(mvar *var, int what);           // remove sub-tree, ALL/VAL/SUBS
 short ST_KillAll(int count, var_u *keep);	// kill all except spec in keep
+                                                // kill all except spec in keep
+short ST_KillAllEx(int count, var_u *keep, int what); // ALL/VAL/SUBS
 short ST_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short ST_Query(mvar *var, u_char *buf, int dir); // get next key
 short ST_QueryD(mvar *var, u_char *buf);	// get next key and data

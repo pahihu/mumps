@@ -280,8 +280,10 @@
 
 #define CMKVAL  225                             // KVALUE
 #define CMKSUBS 226                             // KSUBSCRIPTS
+#define CMKVALB 227                             // KVALUE but ()
+#define CMKSUBSB 228                            // KSUBSCRIPTS but ()
 
-//spare		227 -> 229
+//spare		229
 
 //spare		230 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()

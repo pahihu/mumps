@@ -2832,23 +2832,34 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
 
       case CMKILL:				// kill 1 var
+      case CMKVAL:
+      case CMKSUBS:
+        j = CMKVAL  == opc ? KILL_VAL :         // calc. flags
+            CMKSUBS == opc ? KILL_SUBS : KILL_VAL;
 	partab.jobtab->commands++;		// count a command
 	var = (mvar *)astk[--asp];		// get the var
 	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
 	{ if (var->name.var_cu[0] == '$')
 	    ERROR(-ERRM8)			// can't do that
-	  s = ST_Kill(var);			// do it - local
+	  s = ST_KillEx(var, j);		// do it - local
 	}
 	else if (var->name.var_cu[0] == '$') 	// ssvn?
-	  s = SS_Kill(var);			// do it - ssvn
+        { if (CMKILL != opc)
+            ERROR(-ERRM29); 
+          s = SS_Kill(var);			// do it - ssvn
+        }
 	else
 	{ bcopy(var, &(partab.jobtab->last_ref),
 	    MVAR_SIZE + var->slen);	        // update naked
-	    s = DB_Kill(var);			// do it - global
+	    s = DB_KillEx(var, j);		// do it - global
 	}
 	if (s < 0) ERROR(s)			// complain on error
 	break;
       case CMKILLB:				// kill but()
+      case CMKVALB:
+      case CMKSUBSB:
+        j = CMKVAL  == opc ? KILL_VAL :         // calc. flags
+            CMKSUBS == opc ? KILL_SUBS : KILL_VAL;
 	partab.jobtab->commands++;		// count a command
 	list = (var_u *) &sstk[ssp];		// where we put this
 	args = *mumpspc++;			// get arg count
@@ -2870,45 +2881,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  //list[i].var_qu = var->name.var_qu;	// get the name
 	  list[i].var_xu = var->name.var_xu;	// get the name
 	}
-	s = ST_KillAll(args, list);		// do it in symbol
-	if (s < 0) ERROR(s)			// complain on error
-	break;
-
-      case CMKVAL:				// kill value 1 var
-	partab.jobtab->commands++;		// count a command
-	var = (mvar *)astk[--asp];		// get the var
-	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
-	// { if (var->name.var_cu[0] == '$')
-	    ERROR(-ERRM8)			// can't do that
-	//   s = ST_Kill(var);			// do it - local
-	// }
-	else if (var->name.var_cu[0] == '$') 	// ssvn?
-	//   s = SS_Kill(var);			// do it - ssvn
-	    ERROR(-ERRM8)			// can't do that
-	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    MVAR_SIZE + var->slen);	        // update naked
-	    s = DB_KillEx(var,KILL_VAL);	// do it - global
-	}
-	if (s < 0) ERROR(s)			// complain on error
-	break;
-
-      case CMKSUBS:				// kill subscripts 1 var
-	partab.jobtab->commands++;		// count a command
-	var = (mvar *)astk[--asp];		// get the var
-	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
-	// { if (var->name.var_cu[0] == '$')
-	    ERROR(-ERRM8)			// can't do that
-	//   s = ST_Kill(var);			// do it - local
-	// }
-	else if (var->name.var_cu[0] == '$') 	// ssvn?
-	//   s = SS_Kill(var);			// do it - ssvn
-	    ERROR(-ERRM8)			// can't do that
-	else
-	{ bcopy(var, &(partab.jobtab->last_ref),
-	    MVAR_SIZE + var->slen);	        // update naked
-	    s = DB_KillEx(var,KILL_SUBS);	// do it - global
-	}
+	s = ST_KillAllEx(args, list, j);	// do it in symbol
 	if (s < 0) ERROR(s)			// complain on error
 	break;
 
@@ -3289,7 +3262,7 @@ short run(int savasp, int savssp)		// run compiled code
 	    parse_job(1);
 	    break;
 	  case INDKILL:				// KILL
-	    parse_kill(CMKILL);
+	    parse_kill(*mumpspc++);             //   supply stored CMK variant
 	    break;
 	  case INDLOCK:				// LOCK
 	    parse_lock();

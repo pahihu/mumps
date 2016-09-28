@@ -358,15 +358,14 @@ void parse_job(int runtime)			// JOB
 
 //***********************************************************************
 
-void parse_kill(int cmk)			// KILL
+void parse_kill(int opc)			// KILL
 { 
   short s;                                      // for functions
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
 
   if (*source_ptr == '(')			// exclusive kill
-  { if (cmk != CMKILL) SYNTX                    // KVAL/KSUBS not supported
-    args = 0;					// argument count
+  { args = 0;					// argument count
     source_ptr++;				// skip the (
     while (TRUE)				// now, get one or more args
     { ptr = comp_ptr;				// save for ron
@@ -386,7 +385,12 @@ void parse_kill(int cmk)			// KILL
       if (*source_ptr != ',') break;		// do it elsewhere
       source_ptr++;				// skip the comma
     }						// end 'get one or more args'
-    *comp_ptr++ = CMKILLB;			// opcode
+    if (CMKVAL == opc)                          // opcode
+      *comp_ptr++ = CMKVALB;
+    else if (CMKSUBS == opc)
+      *comp_ptr++ = CMKSUBSB;
+    else
+      *comp_ptr++ = CMKILLB;
     *comp_ptr++ = args;				// number of args
   }
   else 
@@ -413,15 +417,15 @@ void parse_kill(int cmk)			// KILL
         ptr = &ptr[s];				// point at the OPVAR
         *ptr = OPMVAR;				// change to a OPMVAR
       }
-      if (*(comp_ptr - 1) != INDKILL)
-        *comp_ptr++ = cmk /*CMKILL*/;		// and the opcode
+      // if (*(comp_ptr - 1) != INDKILL)        // always store the opcode
+        *comp_ptr++ = opc /*CMKILL*/;		// and the opcode XXX
       if (*source_ptr != ',') break;		// done
       source_ptr++;				// point at next
     }
   }						// end while
   if (*source_ptr == ',')			// stupid A,A),...
   { source_ptr++;				// point past comma
-    parse_kill(cmk);				// and re-enter
+    parse_kill(opc);				// and re-enter
   }
   return;
 }
@@ -1263,7 +1267,7 @@ void parse()                                    // MAIN PARSE LOOP
   int args = 0;					// number of args
   u_char *ptr;                                  // a handy pointer
   u_char *jmp_eoc = NULL;			// jump to end of cmd reqd
-  u_char cmk = CMKILL;                          // def. KILL cmd variant
+  u_char opc = CMKILL;                          // def. KILL cmd variant
 
   while (TRUE)                                  // loop
   { c = toupper(*source_ptr++);                 // get next char in upper case
@@ -1523,7 +1527,7 @@ void parse()                                    // MAIN PARSE LOOP
               }
               else
                 source_ptr++;                   // point past "v"
-              cmk = CMKVAL;                     // cmd is KVALUE
+              opc = CMKVAL;                     // cmd is KVALUE
               break;
             case 'S':                           // check KSUBSCRIPTS
               if (isalpha(source_ptr[1]))
@@ -1532,12 +1536,12 @@ void parse()                                    // MAIN PARSE LOOP
               }
               else
                 source_ptr++;                   // point past "s"
-              cmk = CMKSUBS;                    // cmd is KSUBSCRIPTS
+              opc = CMKSUBS;                    // cmd is KSUBSCRIPTS
               break;
             case 'I':
               if (strncasecmp((char *)source_ptr, "ill", 3) != 0) SYNTX
               source_ptr += 3;                  // point past the "ill"
-              cmk = CMKILL;                     // cmd is KILL
+              opc = CMKILL;                     // cmd is KILL
             default:
               SYNTX
           }
@@ -1555,13 +1559,17 @@ void parse()                                    // MAIN PARSE LOOP
         if (c != ' ') SYNTX                     // must be a space
 	if (*source_ptr != '\0') c = *source_ptr++; // get next char (if any)
 	if (c == ' ')				// argless kill
-	{ if (cmk != CMKILL) SYNTX              //   only for KILL
-          *comp_ptr++ = CMKILLB;		// opcode
+	{ if (CMKVAL == opc)
+            *comp_ptr++ = CMKVALB;		// opcode
+          else if (CMKSUBS == opc)
+            *comp_ptr++ = CMKSUBSB;
+          else
+            *comp_ptr++ = CMKILLB;
 	  *comp_ptr++ = 0;			// number of args
 	}
 	else
 	{ --source_ptr;				// backup pointer
-	  parse_kill(cmk);
+	  parse_kill(opc);
 	}
         break;                                  // end of KILL code
 
