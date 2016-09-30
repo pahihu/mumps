@@ -38,7 +38,11 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
+#if defined(__linux__) && defined(__PPC__)
+#undef MV1_SHSEM
+#else
 #define MV1_SHSEM       1
+#endif
 
 #include <stdint.h>
 #ifdef MV1_SHSEM
