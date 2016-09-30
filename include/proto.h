@@ -70,6 +70,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock);// get global data
 short DB_Set(mvar *var, cstring *data);          // set global data
 short DB_SetEx(mvar *var, cstring *data, int wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()
+short DB_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA(gvn,tgt)
 short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_KillEx(mvar *var, int what);            // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
@@ -161,6 +162,7 @@ short Dascii1(u_char *ret_buffer, cstring *expr);
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
 short Ddata(u_char *ret_buffer, mvar *var);
+short Ddata2(u_char *ret_buffer, mvar *var, mvar *target);
 short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop);
 short Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
 short Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start);
@@ -177,12 +179,14 @@ short Dname1(u_char *ret_buffer, mvar *var);
 short Dname2(u_char *ret_buffer, mvar *var, int sub);
 short Dorder1(u_char *ret_buffer, mvar *var);
 short Dorder2(u_char *ret_buffer, mvar *var, int dir);
+short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target);
 short Dpiece2(u_char *ret_buffer, cstring *expr, cstring *delim);
 short Dpiece3(u_char *ret_buffer, cstring *expr, cstring *delim, int i1);
 short Dpiece4(u_char *ret_buffer, cstring *expr,
 	cstring *delim, int i1, int i2);
 short Dquery1(u_char *ret_buffer, mvar *var);
 short Dquery2(u_char *ret_buffer, mvar *var, int dir);
+short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target);
 short Drandom(u_char *ret_buffer, int seed);
 short Dreverse(u_char *ret_buffer, cstring *expr);
 short Dstack1(u_char *ret_buffer, int level);
@@ -251,6 +255,7 @@ short ST_Get(mvar *var, u_char *buf);           // get local data
 short ST_GetAdd(mvar *var, cstring **add); 	// get local data address
 short ST_Set(mvar *var, cstring *data);         // set local data
 short ST_Data(mvar *var, u_char *buf);          // get $DATA()
+short ST_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA(lvn,tgt)
 
 short ST_Kill(mvar *var);                       // remove sub-tree
 short ST_KillEx(mvar *var, int what);           // remove sub-tree, ALL/VAL/SUBS

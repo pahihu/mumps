@@ -1335,6 +1335,16 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
+      case FUND2:				// $D[ATA] 2 arg
+	var2 = (mvar *) astk[--asp];		// get arg 2
+	var = (mvar *) astk[--asp];		// get the variable pointer
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Ddata2(cptr->buf, var, var2);	// doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
       case FUNE1:				// $E[XTRACT] 1 arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	s = Dextract(cptr->buf, (cstring *)astk[--asp], 1, 1); // doit
@@ -1778,6 +1788,17 @@ short run(int savasp, int savssp)		// run compiled code
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;
+      case FUNO3:				// $O[RDER] 3 arg
+	var2 = (mvar *) astk[--asp]; 		// get third arg
+	i = cstringtoi((cstring *)astk[--asp]); // get second arg
+	var = (mvar *) astk[--asp]; 		// get first arg
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Dorder3(cptr->buf, var, i, var2); 	// doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
       case FUNP2:				// $P[IECE] 2 arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	ptr1 = (cstring *) astk[--asp];		// get arg 2
@@ -1887,12 +1908,18 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case FUNQ1:				// $Q[UERY] 1 arg
       case FUNQ2:				// $Q[UERY] 2 arg
+      case FUNQ3:                               // $Q[UERY] 3 arg
 	i = 1;					// default direction
-	if (opc == FUNQ2)			// if 2 arg form
+        if (opc == FUNQ3)                       // if 3 arg form
+          var2 = (mvar *) astk[--asp];          // get third arg
+	if ((opc == FUNQ3) || (opc == FUNQ2))	// if 2 arg form
 	  i = cstringtoi((cstring *)astk[--asp]); // get second arg
 	var = (mvar *) astk[--asp]; 		// get first arg
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
-	s = Dquery2(cptr->buf, var, i); 	// doit
+        if (opc == FUNQ3)
+	  s = Dquery3(cptr->buf, var, i, var2);	// doit
+        else
+	  s = Dquery2(cptr->buf, var, i); 	// doit
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// the count
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it

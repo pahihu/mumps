@@ -63,6 +63,7 @@ void dodollar()					// parse var, funct etc
   int savecount;                                // number of bytes saved
   short errm4 = -ERRM4;                         // usefull error number
   int allowundf = 0;                            // enable UNDF function arg
+  int needvar = 0;                              // $D() 2nd, $O(), $Q() 3rd arg
   c = toupper(*source_ptr++);			// get the character in upper
   if (c == '$')					// extrinsic
   { ptr = comp_ptr;				// save compile pointer
@@ -384,6 +385,11 @@ function:					// function code starts here
     else
       eval();					// for other functions
   }
+  if (name[0] == 'D')                           // $DATA 2nd arg
+    needvar = 1;
+  if ((name[0] == 'O') ||                       // $ORDER, $QUERY 3rd arg
+      (name[0] == 'Q'))
+    needvar = 2;
   while (TRUE)
   { args++;					// count an argument
     if (args > 255) EXPRE			// too many args
@@ -400,7 +406,20 @@ function:					// function code starts here
         ((*source_ptr == ',') || (*source_ptr == ')')))
       *comp_ptr++ = VARUNDF;
     else
-      eval();					// get next argument
+    { if (needvar && (needvar == args))         // get next arg as var
+      { ptr = comp_ptr;
+        s = localvar();
+        if (s < 0)
+        { comperror(s);				// compile the error
+          return;			        // and exit
+        }
+        ptr = &ptr[s];				// point at the OPVAR
+        *ptr = OPMVAR;			        // change to a OPMVAR
+      }
+      else
+      { eval();					// get next arg
+      }
+    }
   }						// end of args loop
   switch (name[0])				// dispatch on initial
   { case 'A':					// $A[SCII]
@@ -425,8 +444,11 @@ function:					// function code starts here
     case 'D':					// $D[ATA]
       if (len > 1)				// check for extended name
         if (strncasecmp(name, "data", 4) != 0) EXPRE
-      if (args > 1) EXPRE			// check number of args
-      *comp_ptr++ = FUND;			// set the opcode
+      if (args == 1)                            // check number of args
+        *comp_ptr++ = FUND;			// one arg form
+      else if (args == 2)
+        *comp_ptr++ = FUND2;			// two arg form
+      else EXPRE			        //
       return;                             	// and give up
     case 'E':					// $E[XTRACT]
       if (len > 1)				// check for extended name
@@ -593,6 +615,8 @@ Length: if (args == 1)
 	*comp_ptr++ = FUNO1;			// 1 arg form
       else if (args == 2)
 	*comp_ptr++ = FUNO2;			// 2 arg form
+      else if (args == 3)
+	*comp_ptr++ = FUNO3;			// 3 arg form
       else EXPRE
       return;
     case 'P':					// $P[IECE]
@@ -614,9 +638,11 @@ Length: if (args == 1)
       if ((len == 1) ||
 	  (strncasecmp(name, "query", 5) == 0))	// $Q[UERY]
       { if (args == 1)
-	  *comp_ptr++ = FUNQ1;			// one arg form
+	  *comp_ptr++ = FUNQ1;			// 1 arg form
 	else if (args == 2)
-	  *comp_ptr++ = FUNQ2;			// two arg form
+	  *comp_ptr++ = FUNQ2;			// 2 arg form
+	else if (args == 3)
+	  *comp_ptr++ = FUNQ3;			// 3 arg form
 	else EXPRE
 	return;					// and exit
       }						// end $Q[UERY]

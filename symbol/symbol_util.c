@@ -469,7 +469,12 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
 //** Function: ST_Data - examine type of variable
 //** returns pointer to length of type of data
 short ST_Data(mvar *var, u_char *buf)		// put var type in buf
+{ return ST_DataEx(var, buf, 0);
+}
+
+short ST_DataEx(mvar *var, u_char *buf, cstring *dat)// put var type in buf
 // *buf is set to 0, 1, 10, 11 depending on the type of data *var is
+// if dat is not zero and var has a value, value is loaded into dat
 //returned is the length of *buf, not including the /0 terminator
 //                0 = The variable has no data and no descendants (ie. undef).
 //                1 = The variable has data but no descendants.
@@ -480,6 +485,8 @@ short ST_Data(mvar *var, u_char *buf)		// put var type in buf
   int i;
   ST_depend *depPtr;				// active pointer
   ST_depend *prevPtr;				// pointer to previous element
+  cstring *addr;                                // pointer to data
+
   if (var->volset)				// if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);	// get it this way
   }
@@ -567,7 +574,12 @@ short ST_Data(mvar *var, u_char *buf)		// put var type in buf
     }
   }  						// end if-going to dependents
   else						// operate on data block
-  { if ((symtab[ptr1].data->dbc != VAR_UNDEFINED) &&	// dbc defined
+  { if (dat && (symtab[ptr1].data->dbc != VAR_UNDEFINED))// dat given and has
+    { addr = (cstring *) &symtab[ptr1].data->dbc;     // a value, copy it
+      bcopy(addr->buf, dat->buf, addr->len);
+      dat->len = addr->len;
+    }
+    if ((symtab[ptr1].data->dbc != VAR_UNDEFINED) &&	// dbc defined
         (symtab[ptr1].data->deplnk == ST_DEPEND_NULL))	// data&no descendants
     { bcopy("1\0", buf, 2);
       return 1;

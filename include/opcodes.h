@@ -161,7 +161,7 @@
 #define FUNNA2	118				// $NA[ME] 1 arg
 #define FUNO1	119				// $O[RDER] 1 arg
 
-#define FUNO2	120				// $O[RDER] 1 arg
+#define FUNO2	120				// $O[RDER] 2 arg
 #define FUNP2	121				// $P[IECE] 2 arg
 #define FUNP3	122				// $P[IECE] 3 arg
 #define FUNP4	123				// $P[IECE] 4 arg
@@ -283,9 +283,11 @@
 #define CMKVALB 227                             // KVALUE but ()
 #define CMKSUBSB 228                            // KSUBSCRIPTS but ()
 
-//spare		229
+#define FUND2   229                             // $DATA 2 args
+#define FUNO3   230                             // $ORDER 3 args
+#define FUNQ3   231                             // $QUERY 3 args
 
-//spare		230 -> 233
+//spare		232 -> 233
 #define XCWAIT  234                             // Xcall $&%WAIT()
 #define XCCOMP	235				// Xcall $&%COMPRESS()
 #define XCSIG   236				// Xcall $&%SIGNAL()

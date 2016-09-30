@@ -92,14 +92,42 @@ short Dchar(u_char *ret_buffer, int i)
 }
 
 //***********************************************************************
-// $DATA(variable)
+// $DATA(variable[,target])
 //
 short Ddata(u_char *ret_buffer, mvar *var)
-{ if (var->uci == 255) return ST_Data(var, ret_buffer); // for a local var
-  if (var->name.var_cu[0] == '$') 		// ssvn?
-    return SS_Data(var, ret_buffer);		// yes
-  bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-  return DB_Data(var, ret_buffer);		// else it's global
+{ return Ddata2(ret_buffer, var, 0);            // use Data2()
+}
+
+short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
+{ cstring cstr, *dat;
+  short s;
+
+  dat = 0;
+  if (target)
+  { cstr.len = VAR_UNDEFINED;                   // setup dat ptr
+    dat = &cstr;
+  }
+  dat = target ? &cstr : 0;
+  if (var->uci == UCI_IS_LOCALVAR)              // for a local var
+    s = ST_DataEx(var, ret_buffer, dat);
+  else if (var->name.var_cu[0] == '$') 	        // ssvn?
+  { if (target)                                 // 3 arg form not allowed
+      return -ERRM29;
+    return SS_Data(var, ret_buffer);	        // yes
+  }
+  else
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
+    s = DB_DataEx(var, ret_buffer, dat);        // else it's global
+  }
+  if (s < 0)
+    return s;
+  if (target && (VAR_UNDEFINED != cstr.len))    // target given and has data
+  { if (target->uci == UCI_IS_LOCALVAR)
+      s = ST_Set(target, &cstr);                // set as local
+    else
+      s = DB_Set(target, &cstr);                // set as global
+  }
+  return s;
 }
 
 //***********************************************************************
@@ -647,13 +675,17 @@ short Dname2(u_char *ret_buffer, mvar *var, int sub)
 }
 
 //***********************************************************************
-// $ORDER(subscripted variable[,int])
+// $ORDER(subscripted variable[,int[,target]])
 //
 short Dorder1(u_char *ret_buffer, mvar *var)
-{ return Dorder2(ret_buffer, var, 1);           // use Dorder2()
+{ return Dorder3(ret_buffer, var, 1, 0);         // use Dorder3()
 }
 
 short Dorder2(u_char *ret_buffer, mvar *var, int dir)
+{ return Dorder3(ret_buffer, var, dir, 0);      // use Dorder3()
+}
+
+short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
 { int i = -1;					// dir patch flag
   short s;
   int realdir;
@@ -745,13 +777,17 @@ short Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
 }
 
 //***********************************************************************
-// $QUERY(variable[,int])
+// $QUERY(variable[,int[,target]])
 //
 short Dquery1(u_char *ret_buffer, mvar *var)
-{ return Dquery2(ret_buffer, var, 1);           // use Dquery2()
+{ return Dquery3(ret_buffer, var, 1, 0);        // use Dquery3()
 }
 
 short Dquery2(u_char *ret_buffer, mvar *var, int dir)
+{ return Dquery3(ret_buffer, var, dir, 0);      // use Dquery3()
+}
+
+short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
 { int i = -1;					// dir patch flag
   int nosubs = 0;                               // subs patch flag
   short s;

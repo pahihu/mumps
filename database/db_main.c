@@ -290,10 +290,15 @@ short DB_SetEx(mvar *var, cstring *data, int wrlock)    // set global data
 // Descript: Return $DATA() for the passed in mvar
 // Input(s): Pointer to mvar to check
 //	     Pointer to buffer for return result (0, 1, 10 or 11)
+//           Pointer to buffer for return value of mvar if defined
 // Return:   String length -> Ok, negative MUMPS error
 //
 
 short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
+{ return DB_DataEx(var, buf, 0);
+}
+
+short DB_DataEx(mvar *var, u_char *buf, cstring *dat)   // get $DATA()
 { short s;						// for returns
   int i;						// a handy int
 
@@ -320,6 +325,10 @@ short DB_Data(mvar *var, u_char *buf)	          	// get $DATA()
     { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
     }
     return s;						// and exit
+  }
+  if ((i) && (dat))                                     // save value if dat
+  { bcopy(record->buf, dat->buf, record->len);          //   present
+    dat->len = record->len;
   }
   if ((!db_var.slen) && (!i))				// pointing at 1st
   { Index++;
