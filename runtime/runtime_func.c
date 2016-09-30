@@ -805,9 +805,12 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
 { int i = -1;					// dir patch flag
   int nosubs = 0;                               // subs patch flag
-  short s;
+  short s, ret;
+  cstring cstr, *dat = 0;                       // cstring to store value
+
   if ((dir != 1) && (dir != -1))		// validate direction
     return -(ERRMLAST+ERRZ12);			// complain on error
+
   if (!var->slen)
   { nosubs = 1;
     var->key[0] = '\0';
@@ -817,6 +820,7 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
     var->subspos[0] = 0;
     var->subspos[1] = 2;
   }
+
   if (dir == -1)				// is it backwards?
     if ( var->slen &&
         (var->key[var->slen-1] == '\0') &&
@@ -824,19 +828,35 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
     { i = var->slen-2;				// posn of first 0
       var->key[i] = '\377';			// change to 255
     }
+
+  if (target)                                   // setup pointers
+  { cstr.len = VAR_UNDEFINED;
+    dat = &cstr;
+  }
+
   if (var->uci == UCI_IS_LOCALVAR)
-    return ST_Query(var, ret_buffer, dir); 	// for local var
-  if (var->name.var_cu[0] == '$') 		// ssvn?
+    ret = ST_QueryEx(var, ret_buffer, dir, dat);// for local var
+  else if (var->name.var_cu[0] == '$') 		// ssvn?
     return (-ERRM38);				// no such
-  bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-  if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-  s = DB_Query(var, ret_buffer, dir, 1);	// else it's global
+  else
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
+    if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
+    ret = DB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
+  }
   if (nosubs)
   { var->slen  = 0;
     var->nsubs = 0;
     var->subspos[0] = 0;
   }
-  return s;
+  if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
+  { if (target->uci == UCI_IS_LOCALVAR)
+      s = ST_Set(target, dat);                  // set as local
+    else
+      s = DB_Set(target, dat);                  // set as global
+    if (s < 0)                                  // check error
+      return s;
+  }
+  return ret;
 }
 
 //***********************************************************************

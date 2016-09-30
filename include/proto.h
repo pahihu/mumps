@@ -78,7 +78,9 @@ short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
                                                 // get next subscript and value
 short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
-short DB_QueryD(mvar *var, u_char *buf);	     // get next key and data
+short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
+                        int docvt, cstring *dat);       //   and value
+short DB_QueryD(mvar *var, u_char *buf);	        // get next key and data
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
 short DB_Compress(mvar *var, int flags);	     // on line compressor
 int DB_Free(int vol);                            // return total free blocks
@@ -268,6 +270,8 @@ short ST_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short ST_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
                                                 // get next subscript and value
 short ST_Query(mvar *var, u_char *buf, int dir); // get next key
+short ST_QueryEx(mvar *var, u_char *buf, int dir, cstring *Dat);
+                                                // get next key and value
 short ST_QueryD(mvar *var, u_char *buf);	// get next key and data
 short ST_Dump();				// dump the symbol table
 short ST_DumpV(mvar *global);			// dump symtab vars as subs

@@ -760,12 +760,18 @@ short ST_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat)
 //** Function: ST_Query - return next whole key in sequence, forward or reverse
 //** returns pointer to length of next key
 short ST_Query(mvar *var, u_char *buf, int dir)
+{ return ST_QueryEx(var, buf, dir, 0);
+}
+
+short ST_QueryEx(mvar *var, u_char *buf, int dir, cstring *dat)
 {
   int ptr1;					// position in symtab
   ST_depend *current = ST_DEPEND_NULL;		// active pointer
   ST_depend *prev = ST_DEPEND_NULL;		// pointer to previous element
   short askeylen = 0;				// length of *askey
   mvar outputVar = *var;			// copy of supplied mvar
+  cstring *addr;                                // data addr as cstring
+  int i, isdbc = 0;                             // flag as DBC
 
   if (var->volset)				// if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);	// get it this way
@@ -817,7 +823,20 @@ short ST_Query(mvar *var, u_char *buf, int dir)
   if ((current == symtab[ptr1].data->deplnk) && (prev != current) &&
       (dir == -1) && (var->slen > 0))		// previous is a data block
   { outputVar.slen = 0;				// flag is as such
+    isdbc = 1;
   }						// end if back to a data block
+  if (dat)                                      // dat given
+  { if (isdbc)
+    { addr = (cstring *) &symtab[ptr1].data->dbc;
+    }
+    else
+    { i = (int) current->keylen;		// get key length
+      if (i&1) i++;				// ensure even
+      addr = (cstring *) &(current->bytes[i]);	// data addr as cstring
+    }
+    bcopy(&addr->buf[0], &dat->buf[0], addr->len);
+    dat->len = addr->len;
+  }
   askeylen = UTIL_String_Mvar(&outputVar, buf, 255); // convert mvar
   return askeylen;				// return length of key
 }						// end ST_Query

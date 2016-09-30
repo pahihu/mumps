@@ -566,6 +566,11 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 //
 
 short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
+{ return DB_QueryEx(var, buf, dir, docvt, 0);
+}
+
+short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
+                        int docvt, cstring *dat)
 { short s;						// for returns
   int i;						// a handy int
 
@@ -670,6 +675,13 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
       (db_var.key[0] == 0 || db_var.key[0] == 255))     //   empty
   { buf[0] = '\0';
     return 0;
+  }
+  if (dat)                                              // dat given
+  { record = (cstring *) &chunk->buf[chunk->buf[1]+2];  //   point to data
+    if (record->len)                                    // has data,
+    { bcopy(&record->buf[0], &dat->buf[0], record->len);// then copy it
+      dat->len = record->len;
+    }
   }
   db_var.uci = var->uci;				// copy
   db_var.volset = var->volset;				//   original & new

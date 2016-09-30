@@ -2862,7 +2862,7 @@ short run(int savasp, int savssp)		// run compiled code
       case CMKVAL:
       case CMKSUBS:
         j = CMKVAL  == opc ? KILL_VAL :         // calc. flags
-            CMKSUBS == opc ? KILL_SUBS : KILL_VAL;
+            CMKSUBS == opc ? KILL_SUBS : KILL_ALL;
 	partab.jobtab->commands++;		// count a command
 	var = (mvar *)astk[--asp];		// get the var
 	if (var->uci == UCI_IS_LOCALVAR) 	// if it's local
