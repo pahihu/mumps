@@ -576,7 +576,7 @@ short ST_DataEx(mvar *var, u_char *buf, cstring *dat)// put var type in buf
   else						// operate on data block
   { if (dat && (symtab[ptr1].data->dbc != VAR_UNDEFINED))// dat given and has
     { addr = (cstring *) &symtab[ptr1].data->dbc;     // a value, copy it
-      bcopy(addr->buf, dat->buf, addr->len);
+      bcopy(&addr->buf[0], &dat->buf[0], addr->len);
       dat->len = addr->len;
     }
     if ((symtab[ptr1].data->dbc != VAR_UNDEFINED) &&	// dbc defined
@@ -601,6 +601,10 @@ short ST_DataEx(mvar *var, u_char *buf, cstring *dat)// put var type in buf
 //** Function: ST_Order - get next subscript in sequence, forward or reverse
 //** returns pointer to length of next subscript
 short ST_Order(mvar *var, u_char *buf, int dir)
+{ return ST_OrderEx(var, buf, dir, 0);
+}
+
+short ST_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat)
 {
   int ptr1;                                     // position in symtab
   ST_depend *current;                           // active pointer
@@ -618,6 +622,7 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   int index = 0;                                // where up to in key extract
   int upto = 0;                                 // max number of subs
   short ret = 0;                                // current position in key
+  cstring *addr;                                // points to data
 
   if (var->volset)                              // if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);       // get it this way
@@ -736,6 +741,16 @@ short ST_Order(mvar *var, u_char *buf, int dir)
   }                                             // end for-pieces to level reqd
                                                 // now have ascii key in
                                                 // desired position number
+  // fprintf(stderr, "keylen=%d index=%d upto=%d\r\n",
+  //                  current->keylen, index, upto);
+  // fflush(stderr);
+  if (dat && (current->keylen == index))        // dat given and has value
+  { i = (int) current->keylen;			// get key length
+    if (i&1) i++;				// ensure even
+    addr = (cstring *) &(current->bytes[i]);	// data addr as cstring
+    bcopy(&addr->buf[0], &dat->buf[0], addr->len);
+    dat->len = addr->len;
+  }
   return mcopy((u_char *)keysub, buf, ret);	// put the ascii value of
                                                 // that key in *buf
                                                 // return the length of it

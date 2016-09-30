@@ -447,11 +447,17 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
 // Descript: Return the next/prev subscript at the supplied level
 // Input(s): Pointer to mvar to search from
 //	     Pointer to buffer to hold result
+//           Pointer to dat to hold value if present
 //	     Direction, 1 = fwd, -1 = bck
 // Return:   String length -> Ok, negative MUMPS error
 //
 
 short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
+{ return DB_OrderEx(var, buf, dir, 0);
+}
+
+short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
+                 cstring *dat)                          //   and value
 { short s;						// for returns
   int i;						// a handy int
   int last_key;						// start of last key
@@ -534,6 +540,18 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
   }
   i = 0;						// clear flag
   s = UTIL_Key_Extract(&keybuf[last_key+1], buf, &i);	// extract the key
+  // fprintf(stderr, "DB_Order(): i=%d last_key=%d len=%d\r\n",
+  //                  i, last_key, keybuf[0]);
+  fflush(stderr);
+  if (dat &&                                            // dat given
+      (s >= 0) &&                                       //   extract was succ.
+      (keybuf[0] == last_key + i))                      // extracted the last
+  { record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
+    if (record->len)                                    //   and has value
+    { bcopy(&record->buf[0], &dat->buf[0], record->len);  //   copy it
+      dat->len = record->len;
+    }
+  }
   return s;						// return result
 }
 

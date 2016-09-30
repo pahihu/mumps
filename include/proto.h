@@ -70,11 +70,13 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock);// get global data
 short DB_Set(mvar *var, cstring *data);          // set global data
 short DB_SetEx(mvar *var, cstring *data, int wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()
-short DB_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA(gvn,tgt)
+short DB_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA() and value
 short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_KillEx(mvar *var, int what);            // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
+short DB_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
+                                                // get next subscript and value
 short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
 short DB_QueryD(mvar *var, u_char *buf);	     // get next key and data
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
@@ -255,7 +257,7 @@ short ST_Get(mvar *var, u_char *buf);           // get local data
 short ST_GetAdd(mvar *var, cstring **add); 	// get local data address
 short ST_Set(mvar *var, cstring *data);         // set local data
 short ST_Data(mvar *var, u_char *buf);          // get $DATA()
-short ST_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA(lvn,tgt)
+short ST_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA() and value
 
 short ST_Kill(mvar *var);                       // remove sub-tree
 short ST_KillEx(mvar *var, int what);           // remove sub-tree, ALL/VAL/SUBS
@@ -263,6 +265,8 @@ short ST_KillAll(int count, var_u *keep);	// kill all except spec in keep
                                                 // kill all except spec in keep
 short ST_KillAllEx(int count, var_u *keep, int what); // ALL/VAL/SUBS
 short ST_Order(mvar *var, u_char *buf, int dir); // get next subscript
+short ST_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
+                                                // get next subscript and value
 short ST_Query(mvar *var, u_char *buf, int dir); // get next key
 short ST_QueryD(mvar *var, u_char *buf);	// get next key and data
 short ST_Dump();				// dump the symbol table

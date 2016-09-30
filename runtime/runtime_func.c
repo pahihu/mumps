@@ -99,35 +99,35 @@ short Ddata(u_char *ret_buffer, mvar *var)
 }
 
 short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
-{ cstring cstr, *dat;
-  short s;
+{ cstring cstr, *dat = 0;
+  short s, ret;
 
-  dat = 0;
   if (target)
   { cstr.len = VAR_UNDEFINED;                   // setup dat ptr
     dat = &cstr;
   }
-  dat = target ? &cstr : 0;
   if (var->uci == UCI_IS_LOCALVAR)              // for a local var
-    s = ST_DataEx(var, ret_buffer, dat);
+    ret = ST_DataEx(var, ret_buffer, dat);
   else if (var->name.var_cu[0] == '$') 	        // ssvn?
   { if (target)                                 // 3 arg form not allowed
-      return -ERRM29;
+      return -(ERRM29);
     return SS_Data(var, ret_buffer);	        // yes
   }
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-    s = DB_DataEx(var, ret_buffer, dat);        // else it's global
+    ret = DB_DataEx(var, ret_buffer, dat);      // else it's global
   }
-  if (s < 0)
-    return s;
-  if (target && (VAR_UNDEFINED != cstr.len))    // target given and has data
+  if (ret < 0)
+    return ret;
+  if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)
-      s = ST_Set(target, &cstr);                // set as local
+      s = ST_Set(target, dat);                  // set as local
     else
-      s = DB_Set(target, &cstr);                // set as global
+      s = DB_Set(target, dat);                  // set as global
+    if (s < 0)                                  // check error
+      return s;
   }
-  return s;
+  return ret;
 }
 
 //***********************************************************************
@@ -687,14 +687,19 @@ short Dorder2(u_char *ret_buffer, mvar *var, int dir)
 
 short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
 { int i = -1;					// dir patch flag
-  short s;
+  short s, ret;
   int realdir;
+  cstring cstr, *dat = 0;
 
   if ((dir != 1) && (dir != -1)			// validate direction
     && ((dir != 2) && (systab->historic & HISTORIC_DNOK))) // for $NEXT
     return -(ERRMLAST+ERRZ12);			// complain on error
   if (0 == var->slen)                           // no subscripts
     return -(ERRMLAST+ERRZ74);
+  if (target)                                   // setup pointers
+  { cstr.len = VAR_UNDEFINED;
+    dat = &cstr;
+  }
   realdir = dir;
   if (dir == 2)
   { realdir = 1;
@@ -706,21 +711,31 @@ short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
       var->key[i] = '\377';			// change to 255
     }
   if (var->uci == UCI_IS_LOCALVAR)
-  { s = ST_Order(var, ret_buffer, realdir);	// for local var
+  { ret = ST_OrderEx(var, ret_buffer, realdir, dat);// for local var
   }
   else if (var->name.var_cu[0] == '$') 		// ssvn?
-  { s = SS_Order(var, ret_buffer, realdir);	// yes
+  { if (target)                                 // 3 arg form for ssvn
+      return -(ERRM29);                         //   not allowed
+    ret = SS_Order(var, ret_buffer, realdir);	// yes
   }
   else
-   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-     s = DB_Order(var, ret_buffer, realdir);	// else it's global
-   }
-   if ((dir == 2) && (s == 0))			// last for $NEXT
-   { bcopy("-1\0", ret_buffer, 3);		// change to -1
-     s = 2;
-   }
-   return s;
+  { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
+    if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
+    ret = DB_OrderEx(var, ret_buffer, realdir, dat);// else it's global
+  }
+  if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
+  { if (target->uci == UCI_IS_LOCALVAR)
+      s = ST_Set(target, dat);                  // set target as local
+    else
+      s = DB_Set(target, dat);                  // set target as global
+    if (s < 0)                                  // check error
+      return s;
+  }
+  if ((dir == 2) && (ret == 0))			// last for $NEXT
+  { bcopy("-1\0", ret_buffer, 3);		// change to -1
+    ret = 2;
+  }
+  return ret;
 }
 
 //***********************************************************************
