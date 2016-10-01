@@ -1,0 +1,34 @@
+What's new in MV1R2 ?
+=====================
+
+$D[ATA](glvn[,target])
+$O[RDER](glvn[,dir[,target]])
+$Q[UERY](glvn[,dir[,target]])
+
+KV[ALUE] glvn,...
+KV[ALUE] (lvn,...)
+KS[UBSCRIPTS] glvn,...
+KS[UBSCRIPTS] (lvn)
+
+$LIST(lst[,from[,to]])          $LI(...)
+$LISTBUILD(...)                 $LB(...)
+$LISTDATA(lst[,pos])            $LD(...)
+$LISTFIND(lst,val[,after])      $LF(...)
+$LISTGET(lst[,pos[,def]])       $LG(...)
+$LISTLENGTH(lst)                $LL(...)
+SET $LIST(lst[,from[,to]])=...  SET $LI(...)=...
+
+$ZBITAND(bstr1,bstr2)
+$ZBITCOUNT(bstr)
+$ZBITFIND(bstr,flag[,pos])
+$ZBITGET(bstr,pos)
+$ZBITLEN(bstr)
+$ZBITNOT(bstr)
+$ZBITOR(bstr1,bstr2)
+$ZBITSET(bstr,pos,flag)
+$ZBITSTR(len[,flag])
+$ZBITXOR(bstr1,bstr2)
+
+$ZINCR[EMENT](glvn[,expr])
+
+

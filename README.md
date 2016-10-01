@@ -3,17 +3,20 @@ MUMPS V1R2
 
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
 
+Changes:
+
+  * 31 character label/routine/local/global names
+  * numbers in keys stored as packed decimals
+  * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
+  * KVALUE and KSUBSCRIPTS commands
+  * $LIST functions
+  * $ZBIT functions
+  * $ZINCREMENT() function
+
 Fixes:
 
   * works on big-endian machines
   * works on OS X 10.10 Yosemite using clang
-
-Enhancement:
-
-  * 31 character label/routine/local/global names
-
-You can compile a MUMPS V1 compatible version if you define
-MAX_NAME_BYTES in include/mumps.h as 8.
 
 **NOTE**: The database format is not compatible with MUMPS V1, it 
 cannot open databases created with MUMPS V1.
