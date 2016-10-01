@@ -547,10 +547,8 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
       (s >= 0) &&                                       //   extract was succ.
       (keybuf[0] == last_key + i))                      // extracted the last
   { record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
-    if (record->len)                                    //   and has value
-    { bcopy(&record->buf[0], &dat->buf[0], record->len);  //   copy it
-      dat->len = record->len;
-    }
+    bcopy(&record->buf[0], &dat->buf[0], record->len);  //   copy it
+    dat->len = record->len;
   }
   return s;						// return result
 }
@@ -580,7 +578,14 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (dir < 0)						// if it's backward
-  { s = Get_data(-1);					// get the previous
+  { if (!db_var.slen)                                   // if not subscripted
+    { buf[0] = '\0';                                    // null terminate ret
+      if (curr_lock)                                    // if locked
+      { SemOp( SEM_GLOBAL, -curr_lock);                 // release global lock
+      }
+      return 0;                                         // and return
+    }
+    s = Get_data(-1);					// get the previous
     // fprintf(stderr, "DB_Query: Get_data(-1)=%d\r\n", s);
     // fflush(stderr);
     if ((s < 0) && (s != -ERRM7))			// check for errors
@@ -597,6 +602,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
       return 0;						// and return
     }
     Index--;                                          	// backup the Index
+#if 0
     if ((s == -ERRM7) && (Index < LOW_INDEX))           // glvn not subscripted
     { buf[0] = '\0';					// null terminate ret
       if (curr_lock)					// if locked
@@ -604,6 +610,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
       }
       return 0;					        // and return
     }
+#endif
     if (Index < LOW_INDEX)                             	// can't happen?
     { panic("DB_Query: Problem with negative direction");
     }
@@ -678,10 +685,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
   if (dat)                                              // dat given
   { record = (cstring *) &chunk->buf[chunk->buf[1]+2];  //   point to data
-    if (record->len)                                    // has data,
-    { bcopy(&record->buf[0], &dat->buf[0], record->len);// then copy it
-      dat->len = record->len;
-    }
+    bcopy(&record->buf[0], &dat->buf[0], record->len);  //     copy it
+    dat->len = record->len;
   }
   db_var.uci = var->uci;				// copy
   db_var.volset = var->volset;				//   original & new

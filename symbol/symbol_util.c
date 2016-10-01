@@ -773,6 +773,11 @@ short ST_QueryEx(mvar *var, u_char *buf, int dir, cstring *dat)
   cstring *addr;                                // data addr as cstring
   int i, isdbc = 0;                             // flag as DBC
 
+  if (!var->slen && (dir == -1))                // not subscripted and backwards
+  { buf[0] = '\0';                              // null terminate ret
+    return 0;                                   // and return
+  }
+
   if (var->volset)				// if by index
   { ptr1 = ST_LocateIdx(var->volset - 1);	// get it this way
   }
