@@ -457,9 +457,9 @@ K I KEY=42!(KEY=45) G DOIT
 DOIT W:P'>($L(CMD)+%PMT) $&V($L(CMD)+%PMT\WID+1+BL,1) W !
 INT S CMD=$&E(CMD,"B"),CCL=$P(CMD," ",2,999),C=$&E($P(CMD," ")) Q:C=""
  I $G(CS(+$G(CS)))'=CMD S CS=$G(CS)+1,CS(CS)=CMD
- I C?1U D:C="K"  X CMD Q
+ I C?1U!(C?2U&($E(C)="K")) D:$E(C)="K"  X CMD Q
  .Q:CMD["("!($E(CCL)'="^")  I $&E(CCL)="^$J" W "Use ^SSD please.",! S CMD="Q" Q
- .W "KILL entire global: N> "
+ .W "KILL global: N> "
  .R %,! I $E($&E(%))'="Y" S CMD="Q"
  I C=$E("EXIT",1,$L(C)) S CMD="EXIT" Q
  I C=$E("HELP",1,$L(C)) G ^%MH

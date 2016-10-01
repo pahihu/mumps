@@ -804,24 +804,11 @@ short Dquery2(u_char *ret_buffer, mvar *var, int dir)
 
 short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
 { int i = -1;					// dir patch flag
-  int nosubs = 0;                               // subs patch flag
   short s, ret;
   cstring cstr, *dat = 0;                       // cstring to store value
 
   if ((dir != 1) && (dir != -1))		// validate direction
     return -(ERRMLAST+ERRZ12);			// complain on error
-
-#if 0
-  if (!var->slen)
-  { nosubs = 1;
-    var->key[0] = '\0';
-    var->key[1] = '\0';
-    var->slen   = 2;
-    var->nsubs  = 1;
-    var->subspos[0] = 0;
-    var->subspos[1] = 2;
-  }
-#endif
 
   if (dir == -1)				// is it backwards?
     if ( var->slen &&
@@ -845,13 +832,6 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
     ret = DB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
   }
-#if 0
-  if (nosubs)
-  { var->slen  = 0;
-    var->nsubs = 0;
-    var->subspos[0] = 0;
-  }
-#endif
   if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)
       s = ST_Set(target, dat);                  // set as local

@@ -193,6 +193,7 @@ short ST_KillEx(mvar *var, int what)            // var name in a quad
   ST_data *data;                                // and ptr to data block
   ST_depend *check;				// working dependent pointer
   ST_depend *checkprev = ST_DEPEND_NULL;	// previous dependent pointer
+  int doremove;                                 // flag to remove
 
   if (var->volset)				// if by index
   { ptr = ST_LocateIdx(var->volset - 1);	// get it this way
@@ -204,15 +205,18 @@ short ST_KillEx(mvar *var, int what)            // var name in a quad
   if (ptr < 0) return 0;			// just return if no such
   data = symtab[ptr].data;                      // get pointer to the data
   if (data != ST_DATA_NULL)			// data block exists
-  { if (var->slen == 0)				// killing a data block
-    { check = data->deplnk;			// point at 1st dp block
-      while (check != NULL)			// for all dp blocks
-      { checkprev = check;			// save a copy
-        check = check->deplnk;			// get next
-        dlfree(checkprev);			// free this one
+  { if (var->slen == 0)                         // killing a data block
+    { if (KILL_SUBS & what)                     //   kill subscripts ?
+      { check = data->deplnk;			// point at 1st dp block
+        while (check != NULL)			// for all dp blocks
+        { checkprev = check;			// save a copy
+          check = check->deplnk;		// get next
+          dlfree(checkprev);			// free this one
+        }
+        data->deplnk = NULL;			// clear pointer
       }
-      data->deplnk = NULL;			// clear pointer
-      data->dbc = VAR_UNDEFINED;		// dong it
+      if (KILL_VAL & what)
+        data->dbc = VAR_UNDEFINED;		// dong it
     }						// end if killing a data block
     else					// killing a dep block
     { check = data->deplnk;			// get first dep if any
@@ -222,10 +226,27 @@ short ST_KillEx(mvar *var, int what)            // var name in a quad
         { checkprev = check;			// save current to previous
           check = check->deplnk;		// go to next
         }					// end if we go past it, or end
-        if ((check != ST_DEPEND_NULL) &&
-           (bcmp(check->bytes, var->key, var->slen) == 0)) // valid remove
-        { ST_RemDp(data, checkprev, check, var); // get rid of it
-        }					// end if valid remove found
+        if (check != ST_DEPEND_NULL)            // if check not NULL
+        { doremove = 0;                         // assume we remove
+          if ((check->keylen == var->slen) &&   // if subscript matches
+              (0 == bcmp(check->bytes, var->key, var->slen))) // exactly
+          { doremove = KILL_VAL & what;
+            if (!doremove)                      // if we don't remove
+            { checkprev = check;                // save current to prev
+              check = check->deplnk;            // go to next
+            }
+          }
+          if ((!doremove) &&                    // if we don't remove
+              (check != ST_DEPEND_NULL) &&      // and check not NULL
+              (check->keylen > var->slen) &&    // and subscript matches
+              (0 == bcmp(check->bytes, var->key, var->slen))) // partially
+          { doremove = KILL_SUBS & what;
+          }
+          if (doremove)                         // if we remove
+          // (bcmp(check->bytes, var->key, var->slen) == 0)) // and valid
+          { ST_RemDp(data, checkprev, check, var, what); // get rid of it
+          }					// end if valid remove found
+        }                                       // end if check not NULL
       }						// end if dep exists
     }						// end else killing a dep blk
     if ((data->deplnk == ST_DEPEND_NULL) && (data->attach < 2) &&
@@ -244,19 +265,25 @@ short ST_KillEx(mvar *var, int what)            // var name in a quad
 //****************************************************************************
 //**  Function: ST_RemDp - Free a dependent block, if appropriate
 //**  returns nothing
-void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
-{
+void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp,
+                             mvar *mvardr, int what)
+{ int doremove;                                 // flag to do remove
+
   if (dp == ST_DEPEND_NULL) return;		// no dependents to check
-  if ((dp->deplnk != ST_DEPEND_NULL) && (mvardr->slen == 0)) // kill DT more dep
-  { ST_RemDp(dblk, dp, dp->deplnk, mvardr);	// try to get rid of next one
+  if ((dp->deplnk != ST_DEPEND_NULL) &&         // kill DT more dep
+      (mvardr->slen == 0) &&                    // mvar has no subscripts
+      (KILL_SUBS & what))                       // and kill subscripts
+  { ST_RemDp(dblk, dp, dp->deplnk, mvardr, what);// try to remove next one
   }						// end if more to do
   else						// kill DP or run out of deps
   { if ((dp->deplnk != ST_DEPEND_NULL) &&	// next dep, has part match key
+        (KILL_SUBS & what) &&                   // and kill subscripts
         (bcmp(dp->bytes, mvardr->key, mvardr->slen) == 0))
-    { ST_RemDp(dblk, dp, dp->deplnk, mvardr);	// try to get rid of next one
+    { ST_RemDp(dblk, dp, dp->deplnk, mvardr, what);// try to remove next one
     }						// end if keys part match
   }						// end if more to do
-  if (mvardr->slen == 0)			// killing a data block
+  if ((mvardr->slen == 0) &&			// killing a data block
+      (KILL_VAL & what))
   { if (prev != ST_DEPEND_NULL)			// prev is defined
     { prev->deplnk = ST_DEPEND_NULL;		// unlink all deps regardless
       dlfree(dp);				// get rid of dep
@@ -267,7 +294,15 @@ void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr)
     }						// end if prev not defined
   }						// end if killing a data block
   else						// killing a dep tree
-  { if (bcmp(dp->bytes, mvardr->key, mvardr->slen) == 0) // keys match to slen
+  { doremove = 0;                               // assume we don't remove
+    if ((KILL_VAL & what) &&                    // kill value and exact match
+        (dp->keylen == mvardr->slen))
+      doremove = 1;
+    else if ((KILL_SUBS & what) &&              // kill subscripts and
+             (dp->keylen > mvardr->slen))       // partial match
+      doremove = 1;
+    if ((doremove) &&                           // we remove and
+        (bcmp(dp->bytes, mvardr->key, mvardr->slen) == 0))// keys match to slen
     { if (prev != ST_DEPEND_NULL)		// if not removing first dep
       { prev->deplnk = dp->deplnk;		// bypass a dep killee
       }						// end if !removing first dep
@@ -1103,7 +1138,7 @@ short ST_KillAllEx(int count, var_u *keep, int what)
     if (j < count) continue;			// continue if we want it
     //partab.src_var.name.var_qu = symtab[i].varnam.var_qu; // init varnam
     partab.src_var.name.var_xu = symtab[i].varnam.var_xu; // init varnam
-    ST_Kill(&partab.src_var);			// kill it and all under
+    ST_KillEx(&partab.src_var, what);		// kill what is needed
   }						// end for all in symtab
   return 0;					// finished OK
 }						// end ST_KillAll

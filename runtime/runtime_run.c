@@ -2886,7 +2886,7 @@ short run(int savasp, int savssp)		// run compiled code
       case CMKVALB:
       case CMKSUBSB:
         j = CMKVAL  == opc ? KILL_VAL :         // calc. flags
-            CMKSUBS == opc ? KILL_SUBS : KILL_VAL;
+            CMKSUBS == opc ? KILL_SUBS : KILL_ALL;
 	partab.jobtab->commands++;		// count a command
 	list = (var_u *) &sstk[ssp];		// where we put this
 	args = *mumpspc++;			// get arg count

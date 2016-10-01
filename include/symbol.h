@@ -114,7 +114,8 @@ short ST_LocateIdx(int idx);			// locate in symtab by index
 //short ST_Create(chr_q var);                     // create and/or locate a var
 short ST_Create(chr_x *var);                    // create and/or locate a var
 
-void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp, mvar *mvardr);
+void ST_RemDp(ST_data *dblk, ST_depend *prev, ST_depend *dp,
+                             mvar *mvardr, int what);
 
 void ST_Restore(ST_newtab *newtab);
 
