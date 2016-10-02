@@ -760,7 +760,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 #ifdef MV1_CCC
   bcopy(&keybuf[1], var->key, (int) keybuf[0]);		// copy in the key
 #else
-  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
+  // chunk = (cstring *) &iidx[idx[Index]];            	// point at the chunk
   bcopy(&chunk->buf[2], var->key, chunk->buf[1]);	// update the key
   keybuf[0] = chunk->buf[0] + chunk->buf[1];
 #endif

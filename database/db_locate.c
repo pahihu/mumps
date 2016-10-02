@@ -368,13 +368,14 @@ short Locate_next(u_char *out)				// point at next key
     }
   }							// end new block
 
+  chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
   if (out)
-  { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
+  { 
     bcopy(&chunk->buf[2], &out[chunk->buf[0]+1],
 	chunk->buf[1]);					// update the key
     out[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-    record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
   }
+  record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
   return 0;						// all done
 }
 
