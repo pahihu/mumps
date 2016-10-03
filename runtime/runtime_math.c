@@ -74,7 +74,7 @@ typedef long long int64;
 
 int64 aa, bb, cc;
 
-short strton(char *a, int64 *ret)
+int strton(char *a, int64 *ret)
 {
   char *ptr;
 
@@ -86,6 +86,29 @@ short strton(char *a, int64 *ret)
 
   return 0;
 }
+
+int ntostr(char *buf, int64 n)
+{ static char tmp[64];
+  char *p;
+  int neg = 0;
+
+  if (n < 0)
+  { neg = 1;
+    n = -n;
+  }
+
+  tmp[63] = '\0';
+  p = &tmp[62];
+  do
+  { *--p = '0' + (n % 10);
+    n = n / 10;
+  } while (n);
+  if (neg) *--p = '-';
+
+  strcpy(buf, p);
+  return &tmp[63] - p;
+}
+
 #endif
 
 
@@ -122,7 +145,7 @@ short runtime_add(char *a, char *b)		// add b to a
 
 #ifdef MV1_INTMATH
     if (!strton(a, &aa) && !strton(b, &bb))
-      return sprintf(a, "%lld", aa + bb);
+      return ntostr(a, aa + bb);
 #endif
 
     {
@@ -397,7 +420,7 @@ short runtime_mul(char *a, char *b)             // multiply a by b
 
 #ifdef MV1_INTMATH
     if (!strton(a, &aa) && !strton(b, &bb))
-      return sprintf(a, "%lld", aa * bb);
+      return ntostr(a, aa * bb);
 #endif
 
 /* if zero or one there's not much to do */
@@ -635,6 +658,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     int j;
     int k;
     int carry = 0;
+    int ulast;
 
     if (uu[0] == ZERO)
         return 1;
@@ -689,7 +713,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
           break;
       }
       if (done)
-        return sprintf(uu, "%lld", cc);
+        return ntostr(uu, cc);
     }
 #endif
 
@@ -759,6 +783,27 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     }
 /*      u[ulen=i]=0; u[i+1]=0; u[i+2]=0;        */
     ulen = i;
+    // fprintf(stderr, "dpu=%d ulen=%d u[last]=%d mi=%d dpv=%d vlen=%d v[1]=%d\r\n",
+    //                  dpu, ulen, u[ulen-2], mi, dpv, vlen, v[1]);
+    if ((OPMOD == typ) &&       // modulo
+        (dpv <= 0) &&           // no frac in v
+        (ulen == dpu + 1) &&    // no frac in u
+        (1 == vlen) &&          // frac is 1 digit
+        (2 == v[1])
+)
+    { ulast = u[ulen - 2];
+      if (0 == (ulast & 1))
+      { uu[0] = '0';
+        uu[1] = '\0';
+        return 1;
+      }
+      i = 0;
+      if (mi)
+        uu[i++] = '-';
+      uu[i++] = '0' + (ulast & 1);
+      uu[i] = '\0';
+      return i;
+    }
     while (i < (2*MAX_NUM_BYTES))
         u[i++] = 0;
     i = ulen;            /* somehow that's necessary - sometimes I check why */

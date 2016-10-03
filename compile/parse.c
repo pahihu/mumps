@@ -1542,6 +1542,7 @@ void parse()                                    // MAIN PARSE LOOP
               if (strncasecmp((char *)source_ptr, "ill", 3) != 0) SYNTX
               source_ptr += 3;                  // point past the "ill"
               opc = CMKILL;                     // cmd is KILL
+              break;
             default:
               SYNTX
           }
