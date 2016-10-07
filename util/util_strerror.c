@@ -189,6 +189,9 @@ static struct
   {ERRZ75+ERRMLAST,     "Invalid bit string"},
   {ERRZ76+ERRMLAST,     "Invalid list"},
   {ERRZ77+ERRMLAST,     "Undefined value"},
+  {ERRZ78+ERRMLAST,     "Circular dependency in parents"},
+  {ERRZ79+ERRMLAST,     "Too deep parents tree"},
+  {ERRZ80+ERRMLAST,     "Too many parents"},
   {0,         NULL}
 };                                                      // merrtab[]
 

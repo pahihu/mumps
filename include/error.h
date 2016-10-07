@@ -189,6 +189,9 @@
 #define ERRZ75          75      // Invalid bit string
 #define ERRZ76          76      // Invalid list
 #define ERRZ77          77      // Undefined value
+#define ERRZ78          78      // Circular dependency in parents
+#define ERRZ79          79      // Too deep parents tree
+#define ERRZ80          80      // Too many parents
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

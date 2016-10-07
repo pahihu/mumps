@@ -166,21 +166,194 @@ short cstringset(cstring *dst, cstring *src)
   return dst->len;
 }
 
-short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
-{ u_char tmp1[2 +   MAX_NAME_BYTES];            // cls buffer
+#define MAX_PARENTS     64
+
+int   nVisitedClasses;
+char *VisitedClasses[2*MAX_PARENTS];
+
+short CheckVisitedClasses(char *cls)
+{ int i;
+
+  for (i = nVisitedClasses; i; i--)
+  { if (0 == strcmp(VisitedClasses[i-1], cls))
+      return -(ERRMLAST+ERRZ78);                // complain on circular dep.
+  }
+  return 0;
+}
+
+short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
+{ char *classes[MAX_PARENTS]; 
+  u_char tmp1[2 + 3*MAX_NAME_BYTES];
   u_char tmp2[2 + 3*MAX_NAME_BYTES];
-  u_char tmp3[2 + 3*MAX_NAME_BYTES];
-  cstring *cls, *cptr, *tgt;
+  cstring *cptr, *parent;
   cstring parents, line;
-  int i, j;
-  int sav_entlen, sav_nsubs, sav_slen;
+  int i, found;
+  int sav_nsubs, sav_slen;
   mvar var;
   short s;
   char *ptr;
 
+  ////////////////////////////////////////////////
+  // 0) check circular dependency
+  //
+  if (nVisitedClasses == 2*MAX_PARENTS)         // too deep parents tree
+    return -(ERRMLAST+ERRZ79);
+  s = CheckVisitedClasses(cls);
+  if (s < 0) return s;
+  VisitedClasses[nVisitedClasses++] = cls;
+
+  cptr   = (cstring *)&tmp1; cptr->len = 0;     // setup pointers
+  parent = (cstring *)&tmp2; parent->len = 0;
+
+  ////////////////////////////////////////////////
+  // 1) check %ZSEND cache for (cls,entry)
+  //
+  var.nsubs = 255;                              // get %ZSEND(cls,entry)
+  var.volset = 0;
+  var.uci = UCI_IS_LOCALVAR;
+  X_set("%ZSEND", &var.name.var_cu[0], 7);
+  cstringcpy(cptr, cls);
+  s = UTIL_Key_BuildEx(&var, cptr, &var.key[0]);
+  if (s < 0) return s;
+  var.slen += s;
+  sav_nsubs = var.nsubs;                        // save position of %ZSEND(cls,
+  sav_slen  = var.slen;
+  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
+  if (s < 0) return s;
+  var.slen += s;
+  s = ST_Get(&var, &tgt->buf[0]);               // get it
+  if (s > 0)                                    // found it, set back to rou
+  { tgt->len = s;
+    nVisitedClasses--;
+    return tgt->len;
+  }
+  if (s == -(ERRM6)) s = 0;                     // not found, OK
+  if (s < 0) return s;                          // complain
+
+  ////////////////////////////////////////////////
+  // 2) not found in %ZSEND cache
+  //                    check current cls
+  //
+  found = 0;                                    // flag not found
+  cstringset(cptr, entry);                      // construct entryref
+  cstringcat(cptr, "^");                        //   entry^cls
+  cstringcat(cptr, cls);
+  s = Dtext(&line.buf[0], cptr);                // check $TEXT(entry^cls)
+  if (s > 0)                                    // if found,
+  { found = 1;
+    cstringcpy(tgt, cls);                       //   set target to cls
+    goto Set_ZSEND_cls_entry;                   //   set %ZSEND(cls,entry)=tgt
+  }
+
+  ////////////////////////////////////////////////
+  // 3) try to get (cls,"%Parents") from cache
+  //
+  var.nsubs = sav_nsubs;                        // get %ZSEND(cls,"%Parents")
+  var.slen  = sav_slen;
+  cstringcpy(cptr, "%Parents");
+  s = UTIL_Key_BuildEx(&var, cptr, &var.key[var.slen]);
+  if (s < 0) return s;
+  var.slen += s;
+  s = ST_Get(&var, &parents.buf[0]);            // get it
+  if (s > 0)                                    // found, continue with search
+  { parents.len = s;
+    goto SearchParents;
+  }
+  if (s == -(ERRM6)) s = 0;                     // not found, OK
+  if (s < 0) return s;                          // complain on error
+
+  ////////////////////////////////////////////////
+  // 4) no (cls,"%Parents") entry in cache, get
+  //                    the line from cls
+  cstringcpy(cptr, "%Parents^");                // no parent, try to get it
+  cstringcat(cptr, cls);
+  s = Dtext(&parents.buf[0], cptr);             // from the routine
+  if (s <  0) return s;                         // complain on error
+  if (s == 0)                                   // not found, default
+  {
+NoParents:
+    cstringcpy(&parents, "%Object");            //   parent is %Object
+    goto Set_ZSEND_cls_Parents;
+  }
+
+  ////////////////////////////////////////////////
+  // 5) found %Parents line, write back to cache
+  //
+  parents.len = s;
+  ptr = strstr((char *) &parents.buf[0], ";;"); // find delimiter
+  if (ptr == 0) goto NoParents;                 //   not found, no %Parents
+  i = ptr + 2 - (char *) &parents.buf[0];       // skip to delimiter end
+  while ((i < parents.len) &&                   // skip space
+         (parents.buf[i] < 33)) i++;
+  if (i == parents.len) goto NoParents;         // empty line, no %Parents
+  memcpy(&parents.buf[0], &parents.buf[i], parents.len - i); // align contents
+  parents.len -= i;
+
+Set_ZSEND_cls_Parents:
+  s = ST_Set(&var, &parents);                   // set back
+  if (s < 0) return s;
+
+  ////////////////////////////////////////////////
+  // 6) search %Parents for the entry, recursive
+  //
+  // example line:
+  //    %Parents ;;Parent1,Parent2,...,ParentN
+  //
+  // search in reverse order:
+  //    ParentN,Parent(N-1),...,Parent2,Parent1
+  //
+SearchParents:                                  // check the parents
+  ptr = strtok((char *) &parents.buf[0], ",");  // tokenize %Parents line
+  i = 0;
+  while ((i < MAX_PARENTS) && (ptr))
+  { if (strlen(ptr) > MAX_NAME_BYTES)           // restrict to MAX_NAME_BYTES
+      ptr[MAX_NAME_BYTES] = '\0';
+    classes[i++] = ptr;                         // save in classes[]
+    ptr = strtok(NULL, ",");
+  }
+  if (i == MAX_PARENTS)                         // too many parents
+    return -(ERRMLAST+ERRZ80);
+  for (; i; i--)
+  { s = ResolveEntry(classes[i-1], entry, tgt);
+    if (s < 0) return s;
+    if (s > 0)
+    { cstringcpy(tgt, classes[i-1]);
+      found = 1;
+      goto Set_ZSEND_cls_entry;
+    }
+  }
+  
+  ////////////////////////////////////////////////
+  // 7) cannot resolve entry in cls
+  //                            and its parents
+  //
+  cstringcpy(tgt, "%Unknown");                  // set it to %Unknown
+
+Set_ZSEND_cls_entry:                            // SET %ZSEND(cls,entry)=tgt
+  var.nsubs = sav_nsubs;
+  var.slen  = sav_slen;
+  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
+  if (s < 0) return s;
+  var.slen += s;
+  s = ST_Set(&var, tgt);
+  if (s < 0) return s;                          // complain on error
+  nVisitedClasses--;
+  return found ? s : 0;                         // return 0 if not found
+}
+
+short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
+{ u_char tmp1[2 +   MAX_NAME_BYTES];            // cls buffer
+  u_char tmp2[2 + 3*MAX_NAME_BYTES];
+  cstring *cls, *tgt;
+  int i, j;
+  int sav_entlen;
+  short s;
+
   fprintf(stderr, "\r\n>>> D I S P A T C H");
   fprintf(stderr, "\r\noref=%s entry=%s", &oref->buf[0], &entry->buf[0]);
   fflush(stderr);
+
+  nVisitedClasses = 0;
 
   if ((0 >= oref->len) || (0 >= entry->len))    // OREF/entry empty/UNDEF
     return -(ERRMLAST+ERRZ74);                  // complain
@@ -190,11 +363,9 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
   X_set(&entry->buf[0], tag, entry->len);       //   set tag
 
   cls  = (cstring *)&tmp1; cls->len  = 0;       // setup pointers
-  cptr = (cstring *)&tmp2; cptr->len = 0;
-  tgt  = (cstring *)&tmp3; tgt->len  = 0;
+  tgt  = (cstring *)&tmp2; tgt->len  = 0;
 
-  cls->len = 0;                                 // parse OREF
-  for (i = 0; i < oref->len; i++)
+  for (i = 0; i < oref->len; i++)               // parse OREF
   { if (oref->buf[i] != '@')                    // search for separator
       continue;
     i++;                                        // skip separator
@@ -213,100 +384,19 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
 
   fprintf(stderr,"\r\ncls=%s",cls->buf); fflush(stderr);
 
-  var.nsubs = 255;                              // get %ZSEND(cls,entry)
-  var.volset = 0;
-  var.uci = UCI_IS_LOCALVAR;
-  X_set("%ZSEND", &var.name.var_cu[0], 7);
-  s = UTIL_Key_BuildEx(&var, cls, &var.key[0]);
-  if (s < 0) goto ErrOut;
-  var.slen += s;
-  sav_nsubs = var.nsubs;
-  sav_slen  = var.slen;
-  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
-  if (s < 0) goto ErrOut;
-  var.slen += s;
-  s = ST_Get(&var, &tgt->buf[0]);               // get it
-  if (s > 0)                                    // found it, set back to rou
-  { tgt->len = s;
-    goto Set_rou;
+  s = ResolveEntry((char *) &cls->buf[0], entry, tgt);// resolve the entry
+  if (s < 0)                                    // complain if error
+  { entry->len = sav_entlen;                    // restore entry len
+    return s;
   }
-  if (s == -(ERRM6)) s = 0;                     // not found, OK
-  if (s < 0) goto ErrOut;                       // complain
 
-  var.nsubs = sav_nsubs;                        // get %ZSEND(cls,"%Parents")
-  var.slen  = sav_slen;
-  cstringcpy(cptr, "%Parents");
-  s = UTIL_Key_BuildEx(&var, cptr, &var.key[var.slen]);
-  if (s < 0) goto ErrOut;
-  var.slen += s;
-  s = ST_Get(&var, &parents.buf[0]);            // get it
-  if (s > 0)                                    // found, continue with search
-  { parents.len = s;
-    goto SearchParents;
-  }
-  if (s == -(ERRM6)) s = 0;                     // not found, OK
-  if (s < 0) goto ErrOut;                       // complain on error
-
-  cstringcpy(cptr, "%Parents^");                // no parent, try to get it
-  bcopy(&cls->buf[0], &cptr->buf[cptr->len], cls->len);
-  cptr->len += cls->len;
-  s = Dtext(&parents.buf[0], cptr);             // from the routine
-  if (s <  0) goto ErrOut;                      // complain on error
-  if (s == 0) goto NoParents;                   // no %Parents => use %Object
-
-  parents.len = s;
-  ptr = strstr((char *) &parents.buf[0], ";;"); // find delimiter
-  if (ptr == 0) goto NoParents;                 //   not found, no %Parents
-  i = ptr + 2 - (char *) &parents.buf[0];       // skip to delimiter end
-  while ((i < parents.len) &&                   // skip space
-         (parents.buf[i] < 33)) i++;
-  if (i == parents.len) goto NoParents;         // empty line, no %Parents
-  memcpy(&parents.buf[0], &parents.buf[i], parents.len - i); // align contents
-  parents.len -= i;
-  s = ST_Set(&var, &parents);                   // set back
-  if (s < 0) goto ErrOut;
-
-SearchParents:                                  // check the parents
-  ptr = strtok((char *) &parents.buf[0], ",");  // tokenize %Parents line
-  while (ptr)
-  { cstringset(cptr, entry);                    // construct entryref
-    cstringcat(cptr, "^");                      //   entry^parent
-    if (strlen(ptr) > MAX_NAME_BYTES)           // restrict to MAX_NAME_BYTES
-      ptr[MAX_NAME_BYTES] = '\0';
-    cstringcat(cptr, ptr);
-    s = Dtext(&line.buf[0], cptr);              // check $TEXT(entry^parent)
-    if (s > 0)                                  // if found,
-    { cstringcpy(tgt, ptr);                     //   set target to parent
-      goto Set_ZSEND_cls_entry;                 //   set %ZSEND(cls,entry)=tgt
-    }
-    ptr = strtok(NULL, ",");
-  }
-NoParents:                                      // either no %Parents, or
-  cstringcpy(tgt, "%Object");
-  
-Set_ZSEND_cls_entry:                            // SET %ZSEND(cls,entry)=tgt
-  var.nsubs = sav_nsubs;
-  var.slen  = sav_slen;
-  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
-  if (s < 0) goto ErrOut;
-  var.slen += s;
-  s = ST_Set(&var, tgt);
-  if (s < 0) goto ErrOut;
-
-Set_rou:
-  if (tgt->len > MAX_NAME_BYTES)                // set rou
-    tgt->len = MAX_NAME_BYTES;
   X_set(&tgt->buf[0], rou, tgt->len);
 
   fprintf(stderr,"\r\nrou=%s tag=%s",(char *) rou,(char *) tag);
   fprintf(stderr,"\r\n<<<");
   fflush(stderr);
 
-  return 0;
-
-ErrOut:
-  entry->len = sav_entlen;
-  return s;
+  return tgt->len;
 }
 
 //***********************************************************************
