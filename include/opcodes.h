@@ -287,7 +287,9 @@
 #define FUNO3   230                             // $ORDER 3 args
 #define FUNQ3   231                             // $QUERY 3 args
 
-//spare		232 -> 233
+#define FUNZSE  232                             // $ZSE[ND](oref,tag[,arg1...])
+
+//spare		233
 #define XCWAIT  234                             // Xcall $&%WAIT()
 #define XCCOMP	235				// Xcall $&%COMPRESS()
 #define XCSIG   236				// Xcall $&%SIGNAL()

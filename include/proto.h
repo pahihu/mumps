@@ -167,6 +167,7 @@ short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
 short Ddata(u_char *ret_buffer, mvar *var);
 short Ddata2(u_char *ret_buffer, mvar *var, mvar *target);
+short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag);
 short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop);
 short Dfind2(u_char *ret_buffer, cstring *expr1, cstring *expr2);
 short Dfind3(u_char *ret_buffer, cstring *expr1, cstring *expr2, int start);

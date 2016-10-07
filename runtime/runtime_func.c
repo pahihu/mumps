@@ -131,6 +131,185 @@ short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
 }
 
 //***********************************************************************
+// Dispatch routine:
+//
+short cstringcpy(cstring *dst, const char *str)
+{ if ((0 == str) || (0 == *str))                // either NULL or empty
+  { dst->len = 0;                               //   zero length
+  }
+  else
+  { dst->len = strlen(str);                     // get length of C string
+    bcopy(str, &dst->buf[0], dst->len);         //   copy to cstring
+  }
+  dst->buf[dst->len] = '\0';                    // null terminate JIC
+  return dst->len;                              // return length
+}
+
+short cstringcat(cstring *dst, const char *str)
+{ int len;
+
+  len = strlen(str);
+  if (len)
+  { bcopy(str, &dst->buf[dst->len], len);
+    dst->len += len;
+    dst->buf[dst->len] = '\0';
+  }
+  return dst->len;
+}
+
+short cstringset(cstring *dst, cstring *src)
+{ dst->len = src->len;
+  if (dst->len)
+  { bcopy(&src->buf[0], &dst->buf[0], dst->len);
+  }
+  dst->buf[dst->len] = '\0';
+  return dst->len;
+}
+
+short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
+{ u_char tmp1[2 +   MAX_NAME_BYTES];            // cls buffer
+  u_char tmp2[2 + 3*MAX_NAME_BYTES];
+  u_char tmp3[2 + 3*MAX_NAME_BYTES];
+  cstring *cls, *cptr, *tgt;
+  cstring parents, line;
+  int i, j;
+  int sav_entlen, sav_nsubs, sav_slen;
+  mvar var;
+  short s;
+  char *ptr;
+
+  fprintf(stderr, "\r\n>>> D I S P A T C H");
+  fprintf(stderr, "\r\noref=%s entry=%s", &oref->buf[0], &entry->buf[0]);
+  fflush(stderr);
+
+  if ((0 >= oref->len) || (0 >= entry->len))    // OREF/entry empty/UNDEF
+    return -(ERRMLAST+ERRZ74);                  // complain
+
+  sav_entlen = entry->len;                      // truncate to MAX_NAME_BYTES 
+  if (sav_entlen > MAX_NAME_BYTES) entry->len = MAX_NAME_BYTES;
+  X_set(&entry->buf[0], tag, entry->len);       //   set tag
+
+  cls  = (cstring *)&tmp1; cls->len  = 0;       // setup pointers
+  cptr = (cstring *)&tmp2; cptr->len = 0;
+  tgt  = (cstring *)&tmp3; tgt->len  = 0;
+
+  cls->len = 0;                                 // parse OREF
+  for (i = 0; i < oref->len; i++)
+  { if (oref->buf[i] != '@')                    // search for separator
+      continue;
+    i++;                                        // skip separator
+    if (i >= oref->len)                         // reached end of OREF
+      break;
+    j = oref->len - i;                          // truncate class name
+    if (j > MAX_NAME_BYTES - 1)                 //   to MAX_NAME_BYTES
+      j = MAX_NAME_BYTES - 1;
+    bcopy(&oref->buf[i], &cls->buf[0], j);      //   copy to class name
+    cls->len = j;                               // set length
+    cls->buf[cls->len] = '\0';                  // null terminate JIC
+  }
+
+  if (0 == cls->len)                            // empty class name
+    cstringcpy(cls, "%Object");                 //   use default
+
+  fprintf(stderr,"\r\ncls=%s",cls->buf); fflush(stderr);
+
+  var.nsubs = 255;                              // get %ZSEND(cls,entry)
+  var.volset = 0;
+  var.uci = UCI_IS_LOCALVAR;
+  X_set("%ZSEND", &var.name.var_cu[0], 7);
+  s = UTIL_Key_BuildEx(&var, cls, &var.key[0]);
+  if (s < 0) goto ErrOut;
+  var.slen += s;
+  sav_nsubs = var.nsubs;
+  sav_slen  = var.slen;
+  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
+  if (s < 0) goto ErrOut;
+  var.slen += s;
+  s = ST_Get(&var, &tgt->buf[0]);               // get it
+  if (s > 0)                                    // found it, set back to rou
+  { tgt->len = s;
+    goto Set_rou;
+  }
+  if (s == -(ERRM6)) s = 0;                     // not found, OK
+  if (s < 0) goto ErrOut;                       // complain
+
+  var.nsubs = sav_nsubs;                        // get %ZSEND(cls,"%Parents")
+  var.slen  = sav_slen;
+  cstringcpy(cptr, "%Parents");
+  s = UTIL_Key_BuildEx(&var, cptr, &var.key[var.slen]);
+  if (s < 0) goto ErrOut;
+  var.slen += s;
+  s = ST_Get(&var, &parents.buf[0]);            // get it
+  if (s > 0)                                    // found, continue with search
+  { parents.len = s;
+    goto SearchParents;
+  }
+  if (s == -(ERRM6)) s = 0;                     // not found, OK
+  if (s < 0) goto ErrOut;                       // complain on error
+
+  cstringcpy(cptr, "%Parents^");                // no parent, try to get it
+  bcopy(&cls->buf[0], &cptr->buf[cptr->len], cls->len);
+  cptr->len += cls->len;
+  s = Dtext(&parents.buf[0], cptr);             // from the routine
+  if (s <  0) goto ErrOut;                      // complain on error
+  if (s == 0) goto NoParents;                   // no %Parents => use %Object
+
+  parents.len = s;
+  ptr = strstr((char *) &parents.buf[0], ";;"); // find delimiter
+  if (ptr == 0) goto NoParents;                 //   not found, no %Parents
+  i = ptr + 2 - (char *) &parents.buf[0];       // skip to delimiter end
+  while ((i < parents.len) &&                   // skip space
+         (parents.buf[i] < 33)) i++;
+  if (i == parents.len) goto NoParents;         // empty line, no %Parents
+  memcpy(&parents.buf[0], &parents.buf[i], parents.len - i); // align contents
+  parents.len -= i;
+  s = ST_Set(&var, &parents);                   // set back
+  if (s < 0) goto ErrOut;
+
+SearchParents:                                  // check the parents
+  ptr = strtok((char *) &parents.buf[0], ",");  // tokenize %Parents line
+  while (ptr)
+  { cstringset(cptr, entry);                    // construct entryref
+    cstringcat(cptr, "^");                      //   entry^parent
+    if (strlen(ptr) > MAX_NAME_BYTES)           // restrict to MAX_NAME_BYTES
+      ptr[MAX_NAME_BYTES] = '\0';
+    cstringcat(cptr, ptr);
+    s = Dtext(&line.buf[0], cptr);              // check $TEXT(entry^parent)
+    if (s > 0)                                  // if found,
+    { cstringcpy(tgt, ptr);                     //   set target to parent
+      goto Set_ZSEND_cls_entry;                 //   set %ZSEND(cls,entry)=tgt
+    }
+    ptr = strtok(NULL, ",");
+  }
+NoParents:                                      // either no %Parents, or
+  cstringcpy(tgt, "%Object");
+  
+Set_ZSEND_cls_entry:                            // SET %ZSEND(cls,entry)=tgt
+  var.nsubs = sav_nsubs;
+  var.slen  = sav_slen;
+  s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
+  if (s < 0) goto ErrOut;
+  var.slen += s;
+  s = ST_Set(&var, tgt);
+  if (s < 0) goto ErrOut;
+
+Set_rou:
+  if (tgt->len > MAX_NAME_BYTES)                // set rou
+    tgt->len = MAX_NAME_BYTES;
+  X_set(&tgt->buf[0], rou, tgt->len);
+
+  fprintf(stderr,"\r\nrou=%s tag=%s",(char *) rou,(char *) tag);
+  fprintf(stderr,"\r\n<<<");
+  fflush(stderr);
+
+  return 0;
+
+ErrOut:
+  entry->len = sav_entlen;
+  return s;
+}
+
+//***********************************************************************
 // $EXTRACT(expr[,start[,stop]])
 //
 short Dextract(u_char *ret_buffer, cstring *expr, int start, int stop)

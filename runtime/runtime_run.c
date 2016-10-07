@@ -89,6 +89,7 @@ short run(int savasp, int savssp)		// run compiled code
   chr_x *vt;					// pointer for var tab
   struct ST_DATA *data;				// for direct symbol access
   int symbol_malloced;                          // symbol was malloc()-ed
+  int skipargs = 0;                             // no. of args to skip in $ZSEND
 
   asp = savasp;
   ssp = savssp;
@@ -2117,6 +2118,7 @@ short run(int savasp, int savssp)		// run compiled code
       case CMDORT:				// DO routine, tag
       case CMDORTO:				// DO routine, tag, off
       case CMDON:				// DO - no arguments
+      case FUNZSE:                              // $ZSEND(oref,tag,[,arg1...])
 	partab.jobtab->commands++;		// count a command
 	offset = 0;				// clear offset
         symbol_malloced = 0;                    // clear malloc flag
@@ -2164,6 +2166,29 @@ short run(int savasp, int savssp)		// run compiled code
 	args = 0;				// asume no args
 	if (opc != CMDON)			// if not argless type
 	  args = *mumpspc++;			// get the arg count
+
+        if (opc == FUNZSE)                      // $ZSEND
+        { j = 0;
+          // fprintf(stderr,"args=%d\r\n",args & 127);
+	  for (i = (args & 127) - 2; i >=0; --i)// for each supplied arg
+	  { cptr = (cstring *) astk[asp - ++j];	// get data ptr
+            //fprintf(stderr,"cptr=%p cptr->len=%d\r\n",cptr,cptr?cptr->len:-1);
+	    if (cptr == NULL)			// reference ?
+	    { p = astk[asp - ++j];		// the data pointer
+	      cptr = (cstring *) astk[asp - ++j];// get real data ptr
+              cptr = (cstring *) &((ST_data *)p)->dbc;
+	    }
+                 if (1 == i) ptr2 = cptr;       // get entry ref
+            else if (0 == i) ptr1 = cptr;       // get OREF
+	  }
+          // fprintf(stderr,"ptr1=%p ptr2=%p\r\n",ptr1,ptr2);
+          s = Ddispatch(ptr1, ptr2, &rou, &tag); // runtime dispatch
+          if (s < 0)                            // if error
+          { ERROR(s)                            //   complain
+          }
+          skipargs = 1;                         // skip entry resulting in
+                                                //   tag^rou(obj,arg1,...)
+        }
 
 	//if (((args) || (!tag)) && (offset))	// can't do that
 	if (((args) || (X_Empty(tag))) && (offset))	// can't do that
@@ -2262,8 +2287,8 @@ short run(int savasp, int savssp)		// run compiled code
 	curframe->estack = 
 	  partab.jobtab->dostk[partab.jobtab->cur_do - 1].estack;
 	curframe->line_num = 1;			// current routine line#
-	curframe->type =
-	  (args & 128) ? TYPE_EXTRINSIC : TYPE_DO; // how we got here
+	curframe->type = (args & 128) ?
+                      TYPE_EXTRINSIC : TYPE_DO; // how we got here
 	curframe->level = 0;			// no dots
 	if (opc == CMDON)			// argless do?
 	{ curframe->level = 
@@ -2308,7 +2333,8 @@ short run(int savasp, int savssp)		// run compiled code
 	    ERROR(s)				// complain
 	  }
 	  j = *mumpspc++;			// number of them
-	  if ((args - 1) > j)			// too many supplied?
+          // fprintf(stderr,"args=%d j=%d\r\n",args,j);
+	  if ((args - skipargs - 1) > j)	// too many supplied?
 	  { if (symbol_malloced)
 	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
@@ -2339,10 +2365,14 @@ short run(int savasp, int savssp)		// run compiled code
 	  var->slen = 0;			// no subscripts
 	  s = 0;				// clear error flag
 	  for (i = args-2; i >=0; --i)		// for each supplied arg
-	  { var->volset = mumpspc[i] + 1;	// get the index
+	  { s = i;                              // index is i
+            if ((i > 1) && (opc == FUNZSE)) s--;// $ZSEND 0->0,1 skip,2->1,...
+            var->volset = mumpspc[s] + 1;	// get the index
 	    cptr = (cstring *) astk[--asp];	// get data ptr
 	    if (cptr != NULL)			// normal data type?
-	    { if (cptr->len != VAR_UNDEFINED)
+	    { if ((i == 1) && (opc == FUNZSE))  // $ZSEND skip 2nd arg
+                continue;
+              if (cptr->len != VAR_UNDEFINED)
 	      { s = ST_Set(var, cptr); 		// set it
 	        if (s < 0)
 	        { if (symbol_malloced)
@@ -2357,6 +2387,8 @@ short run(int savasp, int savssp)		// run compiled code
 	    else				// must be by reference
 	    { p = astk[--asp];			// the data pointer
 	      cptr = (cstring *) astk[--asp];	// get real data ptr
+              if ((i == 1) && (opc == FUNZSE))  // $ZSEND skip 2nd arg
+                continue;
 	      var->name = ((mvar *) cptr)->name; // copy the name
 	      s = ST_ConData(var, p);		// connect them
 	      if (s < 0) 

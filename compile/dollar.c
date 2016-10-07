@@ -78,7 +78,9 @@ void dodollar()					// parse var, funct etc
     if (i == -2) *ptr = CMDORT;			// just a routine
     if (i == -3) *ptr = CMDOROU;		// both
     if (*source_ptr == '(')			// any args?
-    { args--;					// back to 128
+    { 
+ExtrinsicArgs:
+      args--;					// back to 128
       savecount = comp_ptr - ptr;		// bytes that got compiled
       bcopy( ptr, save, savecount);		// save that lot
       comp_ptr = ptr;				// back where we started
@@ -320,6 +322,14 @@ void dodollar()					// parse var, funct etc
 function:					// function code starts here
   source_ptr++;					// incr past the bracket
   ptr = comp_ptr;				// remember where this goes
+  if (((len == 3) &&                            // special $ZSEND
+       (strncasecmp(name, "zse", 3) == 0)) ||
+      (strncasecmp(name, "zsend", 5) == 0))
+  { args = 129;                                 // set args
+    source_ptr--;                               // back to bracket
+    *comp_ptr++ = FUNZSE;
+    goto ExtrinsicArgs;
+  }
   sel = ((name[0] == 'S') && (toupper((int)name[1]) != 'T')); // is $SELECT
   allowundf = (name[0] == 'L') &&               // allow UNDF arg for $LIST
                 (toupper(name[1]) != 'E');      //   functions
@@ -756,7 +766,8 @@ Length: if (args == 1)
       EXPRE
     case 'Z':					// $ZINCR[EMENT](var[,expr])
       if (len > 1)
-      { if ((0 == strncasecmp(name, "zincr", 5)) ||
+      { if (((5 == len) &&
+             (0 == strncasecmp(name, "zincr", 5))) ||
             (0 == strncasecmp(name, "zincrement", 10)))
         { if (args == 1)
             *comp_ptr++ = FUNZINC1;		// one arg form
@@ -789,7 +800,7 @@ Length: if (args == 1)
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitget", 7))
+        else if (0 == strncasecmp(name, "zbitget", 7)) // $ZBITGET(bstr,pos)
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBGET;
           else
@@ -813,37 +824,35 @@ Length: if (args == 1)
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitnot", 7))
+        else if (0 == strncasecmp(name, "zbitnot", 7)) // $ZBITNOT(bstr)
         { if (1 == args)                        // one arg form
             *comp_ptr++ = FUNZBNOT;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitand", 7))
+        else if (0 == strncasecmp(name, "zbitand", 7)) // $ZBITAND(bstr1,bstr2)
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBAND;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitor", 6))
+        else if (0 == strncasecmp(name, "zbitor", 6)) // $ZBITOR(bstr1,bstr2)
         { if ( 2 == args)                       // two args form
             *comp_ptr++ = FUNZBOR;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitxor", 7))
+        else if (0 == strncasecmp(name, "zbitxor", 7)) // $ZBITXOR(bstr1,bstr2)
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBXOR;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        
       }
-      EXPRE
     default: 
 	EXPRE
   }						// end of switch

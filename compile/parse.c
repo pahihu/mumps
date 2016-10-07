@@ -108,10 +108,30 @@ void parse_do(int runtime)				// DO
   u_char *p;                                    // a handy pointer
   u_char save[1024];                            // a usefull save area
   int savecount;                                // number of bytes saved
+  u_char opc;                                   // opcode
 
+  opc = CMDOTAG;                                // assume a do tag
   while (TRUE)					// loop thru the arguments
   { ptr = comp_ptr;				// save compile pointer
-    *comp_ptr++ = CMDOTAG;			// assume a do tag
+    if (*source_ptr == '$')                     // $ZSEND in DO command
+    { source_ptr++;
+      if ((source_ptr[3] == '(') &&             // check 'ZSE('
+          (strncasecmp((char *) source_ptr, "zse", 3) == 0))
+      { opc = FUNZSE;
+        source_ptr += 3;                        // position to '('
+      }
+      else if ((source_ptr[5] == '(') &&        // check 'ZSEND('
+               (strncasecmp((char *) source_ptr, "zsend", 5) == 0))
+      { opc = FUNZSE;
+        source_ptr += 5;                        // position to '('
+      }
+      else                                      // else complain
+        SYNTX
+      *comp_ptr++ = FUNZSE;                     // compile opcode
+      args = 0;
+      goto CompileArgs;
+    }
+    *comp_ptr++ = CMDOTAG;		        // assume a do tag
     i = routine(runtime);			// parse the rouref
     if (i == 0)					// if it's indirect
     { *ptr = OPNOP;				// ignore previous opcode
@@ -122,6 +142,7 @@ void parse_do(int runtime)				// DO
       if (i == -2) *ptr = CMDORT;		// just a routine
       if (i == -3) *ptr = CMDOROU;		// both
       if (i == -4) *ptr = CMDORTO;		// and an offset
+CompileArgs:
       if (*source_ptr == '(')			// any args?
       { savecount = comp_ptr - ptr;		// bytes that got compiled
         bcopy( ptr, save, savecount);		// save that lot
