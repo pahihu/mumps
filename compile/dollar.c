@@ -48,7 +48,11 @@
 #include "opcodes.h"				// and the opcodes
 #include "compile.h"				// compiler stuf
 
-void dodollar()					// parse var, funct etc
+void dodollar()					// parse var/funct etc
+{ dodollarx(0);
+}
+
+void dodollarx(int chain)			// parse var/funct etc, chaining
 { int len;					// length of name
   short s, ss;
   int i = 0;					// a handy int
@@ -64,6 +68,7 @@ void dodollar()					// parse var, funct etc
   short errm4 = -ERRM4;                         // usefull error number
   int allowundf = 0;                            // enable UNDF function arg
   int needvar = 0;                              // $D() 2nd, $O(), $Q() 3rd arg
+
   c = toupper(*source_ptr++);			// get the character in upper
   if (c == '$')					// extrinsic
   { ptr = comp_ptr;				// save compile pointer
@@ -212,12 +217,31 @@ ExtrinsicArgs:
     return;					// end of xcalls
   }
   name[0] = c;					// save first char
-  for (len = 0; isalpha(source_ptr[len]) != 0; len++) // scan string
-    name[len+1] = source_ptr[len];		// copy alphas
+  if (chain)                                    // allow names like "Entry1"
+  { for (len = 0; isalnum(source_ptr[len]) != 0; len++) // scan string
+      name[len+1] = source_ptr[len];		// copy alnums
+  }
+  else
+    for (len = 0; isalpha(source_ptr[len]) != 0; len++) // scan string
+      name[len+1] = source_ptr[len];		// copy alphas
   source_ptr = source_ptr + len;		// move source along
   len++;					// add in first character
   name[len] = '\0';				// null terminate name
+  if (chain)                                    // chaining
+  { *comp_ptr++ = OPSTR;                        // save name as string
+    s = (short) len;                            //   length
+    bcopy(&s, comp_ptr, sizeof(short));
+    comp_ptr += sizeof(short);
+    bcopy(&name[0], comp_ptr, len);             //   name[]
+    comp_ptr += len;
+    *comp_ptr++ = '\0';                         // null terminate it
+  }
   if (*source_ptr == '(') goto function;	// check for a function
+  if (chain)                                    // chaining, no args
+  { *comp_ptr++ = FUNZSE;                       //   $ZSEND
+    *comp_ptr++ = 128 + 2+1;                    //   extrinsic 2 args
+    return;
+  }
   switch (name[0])				// dispatch on initial
   { case 'D':					// $D[EVICE]
       if (len > 1)				// check for extended name
@@ -324,8 +348,11 @@ function:					// function code starts here
   ptr = comp_ptr;				// remember where this goes
   if (((len == 3) &&                            // special $ZSEND
        (strncasecmp(name, "zse", 3) == 0)) ||
-      (strncasecmp(name, "zsend", 5) == 0))
-  { args = 129;                                 // set args
+      (strncasecmp(name, "zsend", 5) == 0) ||
+      (chain))
+  { // in a chain, the 1st arg already compiled by eval()
+    // the 2nd just compiled (the name[])
+    args = 129 + (chain ? 2 : 0);               // set args
     source_ptr--;                               // back to bracket
     *comp_ptr++ = FUNZSE;
     goto ExtrinsicArgs;

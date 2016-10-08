@@ -1,0 +1,96 @@
+MV1R2 OOP FAQ
+=============
+
+Q: How does MV1R2 supports OOP ?
+A: It uses a simple mapping: classes are implemented in routines,
+   methods are tags within routines.
+
+   It uses a single function $ZSEND:
+
+        SET VAL=$ZSEND(OBJ,"TAG"[,A1,A2...])
+
+   or
+
+        DO $ZSEND(OBJ,"TAG"[,A1,A2...])
+
+
+Q: How does it work ?
+A: $ZSEND() dynamically calls TAG in the class of OBJ.
+   The method should have the following format in the
+   routine:
+
+        TAG(OBJ[,A1,A2...])
+
+   The first argument is OBJ itself. This can be called
+   SELF, THIS or whatever you want.
+
+   The class of OBJ is determined by the value of OBJ.
+   The class of OBJ is $PIECE(OBJ,"@",2). If the result
+   is empty it will use "%Object" as the class.
+
+
+Q: Which TAG^CLS will be called ?
+A: The following algorithm is used:
+
+   1. If OBJ has class CLS, then it will check $TEXT(TAG^CLS).
+      If it is not empty, then it will be called.
+
+   2. It checks $TEXT(%Parents^CLS), if it is not empty and has
+      the format:
+
+                %Parents ;;Parent1[,Parent2...]
+
+      Then it recursively check for TAG in the reverse order
+      of the parents specified. Thus it will check ParentN,
+      then Parent(N-1) etc.
+
+   3. If there was no %Parents^CLS line in the routine, then it
+      will check the routine "%Object".
+
+   4. If no TAG was found, then it will call the TAG in the
+      routine "%Unknown".
+
+
+Q: Dynamic lookup is used every time ?
+A: No. $ZSEND() builds a cache in the local variable %ZSEND.
+   It has the format:
+
+        %ZSEND(cls,tag)=rtn
+        %ZSEND(cls,"%Parents")="Parent1[,Parent2...]"
+
+
+Q: What happens if I recompile a routine implementing a class ?
+A: Nothing happens. You should have to maintain the integrity
+   of the lookup cache.
+
+   The simplest solution is
+
+        KILL %ZSEND
+
+   which will clear the cache.
+
+
+Q: Should I use the ugly $ZSEND syntax all the time ?
+A: No. You can use method chaining, which is a syntactic
+   sugar for $ZSEND() using the dot operator.
+
+   So instead of
+
+        SET VAL=$ZSEND($ZSEND(OBJ,"TAG1",A1,A2),"TAG2")
+
+   you can write
+
+        SET VAL=OBJ.TAG1(A1,A2).TAG2
+
+   The same example with DO
+
+        DO $ZSEND($ZSEND(OBJ,"TAG1",A1,A2),"TAG2")
+
+   with the syntactic sugar is
+
+        DO OBJ.TAG1(A1,A2).TAG2
+
+   Note the following: only with $ZSEND() can you pass
+   OBJ by reference.
+
+   

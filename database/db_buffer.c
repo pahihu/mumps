@@ -49,6 +49,7 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include "rwlock.h"                                     // for barrier
 
 //typedef struct GBD                              	// global buf desciptor
 //{ int block;                                    	// block number

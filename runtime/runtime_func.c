@@ -137,9 +137,13 @@ short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
 #define CSBUF(x)        (&x.buf[0])
 #define CSBUFP(x)       (&(x)->buf[0])
 
+static int dolog = 0;
+
 int mv1log(int depth,const char *fmt,...)
 { int i;
   va_list ap;
+
+  if (!dolog) return 0;
 
   fprintf(stderr,"\r\n");
   for (i = 0; i < depth; i++)
@@ -384,9 +388,8 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
   int sav_entlen;
   short s;
 
-  fprintf(stderr, "\r\n>>> D I S P A T C H");
-  fprintf(stderr, "\r\noref=%s entry=%s", CSBUFP(oref), CSBUFP(entry));
-  fflush(stderr);
+  mv1log(0,">>> D I S P A T C H");
+  mv1log(0,"oref=%s entry=%s", CSBUFP(oref), CSBUFP(entry));
 
   nVisitedClasses = 0;
 
@@ -417,9 +420,9 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
   if (0 == cls->len)                            // empty class name
     cstringcpy(cls, "%Object");                 //   use default
 
-  fprintf(stderr,"\r\ncls=%s",cls->buf); fflush(stderr);
+  mv1log(0,"cls=%s",cls->buf); fflush(stderr);
 
-  s = ResolveEntry(0, (char *) CSBUFP(cls), entry, tgt);// resolve the entry
+  s = ResolveEntry(1, (char *) CSBUFP(cls), entry, tgt);// resolve the entry
   if (s < 0)                                    // complain if error
   { entry->len = sav_entlen;                    // restore entry len
     return s;
@@ -427,9 +430,8 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
 
   X_set(CSBUFP(tgt), rou, tgt->len);
 
-  fprintf(stderr,"\r\nrou=%s tag=%s",(char *) rou,(char *) tag);
-  fprintf(stderr,"\r\n<<<");
-  fflush(stderr);
+  mv1log(0,"rou=%s tag=%s",(char *) rou,(char *) tag);
+  mv1log(0,"<<<");
 
   return tgt->len;
 }

@@ -115,7 +115,7 @@ short routine(int runtime)			// parse routine ref
   // append tag to stack as a string.
   if (runtime == -2)				// if $TEXT() compile
   //{ if ((!isinder) && (tag.var_qu != 0))       //if not indirected & tag is defined
-  { if ((!isinder) && (!X_Empty(tag.var_xu)))       //if not indirected & tag is defined
+  { if ((!isinder) && (!X_Empty(tag.var_xu)))   //if not indirected & tag is defined
     { *comp_ptr++ = OPSTR;			// string follows
       s = (short) i;                            // the size
       bcopy(&s, comp_ptr, sizeof(short));

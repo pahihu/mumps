@@ -12,6 +12,7 @@ Changes:
   * $LIST functions
   * $ZBIT functions
   * $ZINCREMENT() function
+  * $ZSEND() function and method chaining with dot operator (see README.OOP)
 
 Fixes:
 

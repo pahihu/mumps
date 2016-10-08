@@ -99,7 +99,7 @@ void parse_close()				// CLOSE
 
 //***********************************************************************
 
-void parse_do(int runtime)				// DO
+void parse_do(int runtime)			// DO
 {
   short s;                                      // for functions
   int i;					// a handy int
@@ -109,6 +109,7 @@ void parse_do(int runtime)				// DO
   u_char save[1024];                            // a usefull save area
   int savecount;                                // number of bytes saved
   u_char opc;                                   // opcode
+  u_char *sav_comp_ptr, *sav_source_ptr;        // save source/comp ptr
 
   opc = CMDOTAG;                                // assume a do tag
   while (TRUE)					// loop thru the arguments
@@ -131,6 +132,24 @@ void parse_do(int runtime)				// DO
       args = 0;
       goto CompileArgs;
     }
+    if ((isalpha(*source_ptr) ||                // check chaining
+        ('%' == *source_ptr)))
+    { sav_source_ptr = source_ptr;              // save position
+      sav_comp_ptr = comp_ptr;
+      atom();                                   // try to compile an atom
+      if (*source_ptr == '.')                   // check dot
+      { source_ptr++;
+        if (isalpha(*source_ptr) || '%' == *source_ptr) // followed by id
+        { source_ptr = sav_source_ptr;          // restore source/comp ptrs
+          comp_ptr   = sav_comp_ptr;
+          evalx(2);                             // compile a DO chain
+          goto Postcond;                        // continue with postcond
+        }
+      }
+      source_ptr = sav_source_ptr;              // failed, restore
+      comp_ptr = sav_comp_ptr;                  //   source/comp ptrs
+    }
+
     *comp_ptr++ = CMDOTAG;		        // assume a do tag
     i = routine(runtime);			// parse the rouref
     if (i == 0)					// if it's indirect
@@ -195,6 +214,7 @@ CompileArgs:
       }						// end of argument decode
       *comp_ptr++ = (u_char) args;		// store number of args
     }
+Postcond:
     if (*source_ptr == ':')			// postcond arg?
     { savecount = comp_ptr - ptr;		// bytes that got compiled
       bcopy( ptr, save, savecount);		// save that lot

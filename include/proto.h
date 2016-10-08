@@ -130,8 +130,10 @@ short SQ_Force(cstring *device,
 //
 short Compile_Routine(mvar *rou, mvar *src, u_char *stack); // whole routine
 void eval();					// compiler
+void evalx(int chain);				// compiler, chaining
 void parse();					// ditto
-void dodollar();				// parse var, funct etc
+void dodollar();				// parse var/funct etc
+void dodollarx(int chain);			// parse var/funct etc, chaining
 short routine(int runtime);			// parse routine ref
 
 //****************************************************************************

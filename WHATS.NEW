@@ -1,6 +1,8 @@
 What's new in MV1R2 ?
 =====================
 
+$ZSEND(obj,"tag"[arg1,arg2...])
+
 $D[ATA](glvn[,target])
 $O[RDER](glvn[,dir[,target]])
 $Q[UERY](glvn[,dir[,target]])

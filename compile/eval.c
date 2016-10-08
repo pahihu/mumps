@@ -42,6 +42,7 @@
 #include <errno.h>                              // error stuf
 #include <limits.h>                     	// for LONG_MAX etc
 #include <math.h>
+#include <assert.h>                             // for assert()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // and the error defs
@@ -257,6 +258,8 @@ int operator()                                  // extract an operator
       return not ? OPNFOL : OPFOL;              // follows or not
     case '?':                                   // question
       return not ? OPNPAT : OPPAT;              // matches or not
+    case '.':                                   // chain
+      return FUNZSE;
     default:                                    // stuffed up
       return 0;                                 // clear op
   }                                             // end of switch for operators
@@ -266,7 +269,16 @@ int operator()                                  // extract an operator
 // function eval entered with source_ptr pointing at the source
 // expression to evaluate and comp_ptr pointing at where to put the code.
 //
-void eval()                                     // evaluate source
+void eval(int chain)                            // evaluate source
+{ evalx(0);
+}
+
+// call chaining
+//      0 - no chain
+//      1 - x.F1(a1...).F2(b1...)
+//      2 - x.F1(a1...).P2(b1...) last is an extrinsic routine call
+
+void evalx(int chain)                           // evaluate source
 { int op;                                       // operator
   int q;					// in quotes indicator
   int patmat = 0;				// for pattern match funnee
@@ -335,14 +347,24 @@ void eval()                                     // evaluate source
       ptr->len = comp_ptr - ptr->buf;		// get the length
       *comp_ptr++ = '\0';			// null terminate its
     }
+    else if (op == FUNZSE)                      // chaining
+      dodollarx(chain ? chain : 1);             //   already provided, or flag
     else atom();                                // else get next operand
-    *comp_ptr++ = (u_char) op;                  // store the operator
+    if (op != FUNZSE)
+      *comp_ptr++ = (u_char) op;                // store the operator
     if ((*source_ptr == ')') ||                 // do it at a higher level
         (*source_ptr == ',') ||                 // ditto
         (*source_ptr == ':') ||                 // ditto
         (*source_ptr == '\0') ||                // end of string
         (*source_ptr == '^') ||			// start of routine ref
         (*source_ptr == ' '))                   // end of command
+    { // in a DO chain all but the last is an extrinsic call
+      // the last is just a DO
+      if ((chain == 2) && (op == FUNZSE))       // DO chain, last was $ZSEND
+      { assert(comp_ptr[-1] > 127);
+        comp_ptr[-1] -= 128;
+      }
       return;                                   // exit
+    }
   }
 }
