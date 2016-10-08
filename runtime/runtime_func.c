@@ -42,6 +42,7 @@
 #include <errno.h>                              // error stuf
 #include <limits.h>                     	// for LONG_MAX etc
 #include <math.h>
+#include <stdarg.h>                             // for va macros
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // standard errors
@@ -133,13 +134,32 @@ short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
 //***********************************************************************
 // Dispatch routine:
 //
+#define CSBUF(x)        (&x.buf[0])
+#define CSBUFP(x)       (&(x)->buf[0])
+
+int mv1log(int depth,const char *fmt,...)
+{ int i;
+  va_list ap;
+
+  fprintf(stderr,"\r\n");
+  for (i = 0; i < depth; i++)
+     fprintf(stderr,"  ");
+
+  va_start(ap, fmt);
+  i = vfprintf(stderr,fmt,ap);
+  va_end(ap);
+
+  fflush(stderr);
+  return i;
+}
+
 short cstringcpy(cstring *dst, const char *str)
 { if ((0 == str) || (0 == *str))                // either NULL or empty
   { dst->len = 0;                               //   zero length
   }
   else
   { dst->len = strlen(str);                     // get length of C string
-    bcopy(str, &dst->buf[0], dst->len);         //   copy to cstring
+    bcopy(str, CSBUFP(dst), dst->len);          //   copy to cstring
   }
   dst->buf[dst->len] = '\0';                    // null terminate JIC
   return dst->len;                              // return length
@@ -160,7 +180,7 @@ short cstringcat(cstring *dst, const char *str)
 short cstringset(cstring *dst, cstring *src)
 { dst->len = src->len;
   if (dst->len)
-  { bcopy(&src->buf[0], &dst->buf[0], dst->len);
+  { bcopy(CSBUFP(src), CSBUFP(dst), dst->len);
   }
   dst->buf[dst->len] = '\0';
   return dst->len;
@@ -181,7 +201,7 @@ short CheckVisitedClasses(char *cls)
   return 0;
 }
 
-short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
+short ResolveEntry(int depth,char *cls, cstring *entry, cstring *tgt)
 { char *classes[MAX_PARENTS]; 
   u_char tmp1[2 + 3*MAX_NAME_BYTES];
   u_char tmp2[2 + 3*MAX_NAME_BYTES];
@@ -192,6 +212,9 @@ short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
   mvar var;
   short s;
   char *ptr;
+
+  mv1log(depth,">>> R E S O L V E E N T R Y");
+  mv1log(depth,"cls=%s entry=%s", cls, CSBUFP(entry));
 
   ////////////////////////////////////////////////
   // 0) check circular dependency
@@ -215,16 +238,17 @@ short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
   cstringcpy(cptr, cls);
   s = UTIL_Key_BuildEx(&var, cptr, &var.key[0]);
   if (s < 0) return s;
-  var.slen += s;
+  var.slen  = s;
   sav_nsubs = var.nsubs;                        // save position of %ZSEND(cls,
   sav_slen  = var.slen;
   s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
   if (s < 0) return s;
   var.slen += s;
-  s = ST_Get(&var, &tgt->buf[0]);               // get it
+  s = ST_Get(&var, CSBUFP(tgt));                // get it
   if (s > 0)                                    // found it, set back to rou
   { tgt->len = s;
     nVisitedClasses--;
+    mv1log(depth,"found in %%ZSEND, tgt=%s", CSBUFP(tgt));
     return tgt->len;
   }
   if (s == -(ERRM6)) s = 0;                     // not found, OK
@@ -238,10 +262,11 @@ short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
   cstringset(cptr, entry);                      // construct entryref
   cstringcat(cptr, "^");                        //   entry^cls
   cstringcat(cptr, cls);
-  s = Dtext(&line.buf[0], cptr);                // check $TEXT(entry^cls)
+  s = Dtext(CSBUF(line), cptr);                 // check $TEXT(entry^cls)
   if (s > 0)                                    // if found,
   { found = 1;
     cstringcpy(tgt, cls);                       //   set target to cls
+    mv1log(depth,"found in current rtn(%s), tgt=%s", cls, CSBUFP(tgt));
     goto Set_ZSEND_cls_entry;                   //   set %ZSEND(cls,entry)=tgt
   }
 
@@ -254,9 +279,10 @@ short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
   s = UTIL_Key_BuildEx(&var, cptr, &var.key[var.slen]);
   if (s < 0) return s;
   var.slen += s;
-  s = ST_Get(&var, &parents.buf[0]);            // get it
+  s = ST_Get(&var, CSBUF(parents));             // get it
   if (s > 0)                                    // found, continue with search
   { parents.len = s;
+    mv1log(depth,"found %%Parents in %%ZSEND, parents=%s", CSBUF(parents));
     goto SearchParents;
   }
   if (s == -(ERRM6)) s = 0;                     // not found, OK
@@ -267,27 +293,31 @@ short ResolveEntry(char *cls, cstring *entry, cstring *tgt)
   //                    the line from cls
   cstringcpy(cptr, "%Parents^");                // no parent, try to get it
   cstringcat(cptr, cls);
-  s = Dtext(&parents.buf[0], cptr);             // from the routine
+  s = Dtext(CSBUF(parents), cptr);              // from the routine
   if (s <  0) return s;                         // complain on error
   if (s == 0)                                   // not found, default
   {
 NoParents:
     cstringcpy(&parents, "%Object");            //   parent is %Object
+    mv1log(depth,"no %%Parents line in rtn, use %%Objects");
     goto Set_ZSEND_cls_Parents;
   }
 
   ////////////////////////////////////////////////
   // 5) found %Parents line, write back to cache
   //
+  mv1log(depth,"parse parents=%s", CSBUF(parents));
   parents.len = s;
-  ptr = strstr((char *) &parents.buf[0], ";;"); // find delimiter
+  ptr = strstr((char *) CSBUF(parents), ";;");  // find delimiter
   if (ptr == 0) goto NoParents;                 //   not found, no %Parents
-  i = ptr + 2 - (char *) &parents.buf[0];       // skip to delimiter end
+  i = ptr + 2 - (char *) CSBUF(parents);        // skip to delimiter end
   while ((i < parents.len) &&                   // skip space
          (parents.buf[i] < 33)) i++;
   if (i == parents.len) goto NoParents;         // empty line, no %Parents
-  memcpy(&parents.buf[0], &parents.buf[i], parents.len - i); // align contents
-  parents.len -= i;
+  memcpy(CSBUF(parents), &parents.buf[i], parents.len - i); // shift contents
+  parents.len -= i;                             // adjust length
+  parents.buf[parents.len] = '\0';              // null terminate
+  mv1log(depth,"parsed parents=%s", CSBUF(parents));
 
 Set_ZSEND_cls_Parents:
   s = ST_Set(&var, &parents);                   // set back
@@ -303,7 +333,7 @@ Set_ZSEND_cls_Parents:
   //    ParentN,Parent(N-1),...,Parent2,Parent1
   //
 SearchParents:                                  // check the parents
-  ptr = strtok((char *) &parents.buf[0], ",");  // tokenize %Parents line
+  ptr = strtok((char *) CSBUF(parents), ",");   // tokenize %Parents line
   i = 0;
   while ((i < MAX_PARENTS) && (ptr))
   { if (strlen(ptr) > MAX_NAME_BYTES)           // restrict to MAX_NAME_BYTES
@@ -311,14 +341,17 @@ SearchParents:                                  // check the parents
     classes[i++] = ptr;                         // save in classes[]
     ptr = strtok(NULL, ",");
   }
+  mv1log(depth,"parents has %d classes",i);
   if (i == MAX_PARENTS)                         // too many parents
     return -(ERRMLAST+ERRZ80);
+  mv1log(depth,"--- B E G I N  R E C U R S I V E  R E S O L V E");
   for (; i; i--)
-  { s = ResolveEntry(classes[i-1], entry, tgt);
+  { s = ResolveEntry(depth+1,classes[i-1], entry, tgt);
     if (s < 0) return s;
     if (s > 0)
     { cstringcpy(tgt, classes[i-1]);
       found = 1;
+      mv1log(depth,"entry=%s resolved by class=%s",CSBUFP(entry),CSBUFP(tgt));
       goto Set_ZSEND_cls_entry;
     }
   }
@@ -328,8 +361,10 @@ SearchParents:                                  // check the parents
   //                            and its parents
   //
   cstringcpy(tgt, "%Unknown");                  // set it to %Unknown
+  mv1log(depth,"entry=%s cannot be resolved, use tgt=%s",CSBUFP(entry),CSBUFP(tgt));
 
 Set_ZSEND_cls_entry:                            // SET %ZSEND(cls,entry)=tgt
+  mv1log(depth,"set %%ZSEND(%s,%s)=%s",cls,CSBUFP(entry),CSBUFP(tgt));
   var.nsubs = sav_nsubs;
   var.slen  = sav_slen;
   s = UTIL_Key_BuildEx(&var, entry, &var.key[var.slen]);
@@ -350,7 +385,7 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
   short s;
 
   fprintf(stderr, "\r\n>>> D I S P A T C H");
-  fprintf(stderr, "\r\noref=%s entry=%s", &oref->buf[0], &entry->buf[0]);
+  fprintf(stderr, "\r\noref=%s entry=%s", CSBUFP(oref), CSBUFP(entry));
   fflush(stderr);
 
   nVisitedClasses = 0;
@@ -360,7 +395,7 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
 
   sav_entlen = entry->len;                      // truncate to MAX_NAME_BYTES 
   if (sav_entlen > MAX_NAME_BYTES) entry->len = MAX_NAME_BYTES;
-  X_set(&entry->buf[0], tag, entry->len);       //   set tag
+  X_set(CSBUFP(entry), tag, entry->len);        //   set tag
 
   cls  = (cstring *)&tmp1; cls->len  = 0;       // setup pointers
   tgt  = (cstring *)&tmp2; tgt->len  = 0;
@@ -374,7 +409,7 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
     j = oref->len - i;                          // truncate class name
     if (j > MAX_NAME_BYTES - 1)                 //   to MAX_NAME_BYTES
       j = MAX_NAME_BYTES - 1;
-    bcopy(&oref->buf[i], &cls->buf[0], j);      //   copy to class name
+    bcopy(&oref->buf[i], CSBUFP(cls), j);       //   copy to class name
     cls->len = j;                               // set length
     cls->buf[cls->len] = '\0';                  // null terminate JIC
   }
@@ -384,13 +419,13 @@ short Ddispatch(cstring *oref, cstring *entry, chr_x *rou, chr_x *tag)
 
   fprintf(stderr,"\r\ncls=%s",cls->buf); fflush(stderr);
 
-  s = ResolveEntry((char *) &cls->buf[0], entry, tgt);// resolve the entry
+  s = ResolveEntry(0, (char *) CSBUFP(cls), entry, tgt);// resolve the entry
   if (s < 0)                                    // complain if error
   { entry->len = sav_entlen;                    // restore entry len
     return s;
   }
 
-  X_set(&tgt->buf[0], rou, tgt->len);
+  X_set(CSBUFP(tgt), rou, tgt->len);
 
   fprintf(stderr,"\r\nrou=%s tag=%s",(char *) rou,(char *) tag);
   fprintf(stderr,"\r\n<<<");
