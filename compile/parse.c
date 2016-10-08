@@ -132,8 +132,8 @@ void parse_do(int runtime)			// DO
       args = 0;
       goto CompileArgs;
     }
-    if ((isalpha(*source_ptr) ||                // check chaining
-        ('%' == *source_ptr)))
+    // if ((isalpha(*source_ptr) ||             // check chaining
+    //     ('%' == *source_ptr)))
     { sav_source_ptr = source_ptr;              // save position
       sav_comp_ptr = comp_ptr;
       atom();                                   // try to compile an atom

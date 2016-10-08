@@ -353,7 +353,8 @@ SearchParents:                                  // check the parents
   { s = ResolveEntry(depth+1,classes[i-1], entry, tgt);
     if (s < 0) return s;
     if (s > 0)
-    { cstringcpy(tgt, classes[i-1]);
+    { // target is the resolved class
+      // cstringcpy(tgt, classes[i-1]);
       found = 1;
       mv1log(depth,"entry=%s resolved by class=%s",CSBUFP(entry),CSBUFP(tgt));
       goto Set_ZSEND_cls_entry;
