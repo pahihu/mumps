@@ -339,6 +339,15 @@ ExtrinsicArgs:
       if (len > 1) UNVAR			// check for extended name
       *comp_ptr++ = VARY;			// add the opcode
       return;					// and exit
+    case 'Z':                                   // $Z...
+      if (len < 2) UNVAR                        // at least 2 characters
+      switch (toupper((int)name[1]))
+      { case 'H':				// $H[OROLOG]
+        if (len > 2)				// check for extended name
+          if (strncasecmp(name, "zhorolog", 8) != 0) UNVAR
+        *comp_ptr++ = VARZH;			// add the opcode
+        return;				        // and exit
+      }
     default:					// an error
       UNVAR
   }						// end of vars switch

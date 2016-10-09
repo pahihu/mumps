@@ -13,6 +13,8 @@ Changes:
   * $ZBIT functions
   * $ZINCREMENT() function
   * $ZSEND() function and method chaining with dot operator (see README.OOP)
+  * HANG supports fractional seconds
+  * $ZHOROLOG special variable, returns fractional seconds
 
 Fixes:
 

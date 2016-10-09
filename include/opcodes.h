@@ -289,7 +289,8 @@
 
 #define FUNZSE  232                             // $ZSE[ND](oref,tag[,arg1...])
 
-//spare		233
+#define VARZH   233                             // $ZH[OROLOG]
+
 #define XCWAIT  234                             // Xcall $&%WAIT()
 #define XCCOMP	235				// Xcall $&%COMPRESS()
 #define XCSIG   236				// Xcall $&%SIGNAL()

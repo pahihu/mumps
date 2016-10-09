@@ -161,6 +161,27 @@ short Vy(u_char *ret_buffer)                    // $Y
 }
 
 //***********************************************************************
+// $ZHOROLOG
+//
+short Vzhorolog(u_char *ret_buffer)             // $ZHOROLOG
+{ struct timeval tv;                            // struct for gettimeofday()
+  time_t sec;                                   // seconds
+  struct tm *buf;                               // struct for localtime()
+  int day;                                      // number of days
+
+  gettimeofday(&tv, NULL);
+  sec = tv.tv_sec;
+  buf = localtime(&sec);                        // get GMT-localtime
+#if !defined __CYGWIN__ && !defined __sun__
+  sec += buf->tm_gmtoff;                        // adjust to local
+#endif
+  day = sec/SECDAY+YRADJ;                       // get number of days
+  sec = sec%SECDAY;                             // and number of seconds
+  return sprintf( (char *)ret_buffer, "%d,%f", day, // return count and $ZH
+                  (double) sec + tv.tv_usec / 1000000.0);
+}
+
+//***********************************************************************
 // Set special variables - those that may be set are:
 //	$EC[ODE]
 //	$ET[RAP]

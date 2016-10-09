@@ -1,6 +1,9 @@
 What's new in MV1R2 ?
 =====================
 
+HANG expr                       supports fractional seconds
+$ZH[OROLOG]                     special variable returns days,fracsec
+
 $ZSEND(obj,"tag"[arg1,arg2...])
 
 $D[ATA](glvn[,target])

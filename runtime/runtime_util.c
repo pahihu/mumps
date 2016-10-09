@@ -98,6 +98,69 @@ int cstringtoi(cstring *str)                    // convert cstring to int
   return ret;                                   // return the value
 }                                               // end cstringtoi()
 
+double cstringtod(cstring *str)                 // convert cstring to double
+{ double ret = 0.0;                             // return value
+  int i;                                        // for loops
+  int minus = FALSE;                            // sign check
+  double frac = 0.0;                            // fraction
+  double scale = 1.0;                           // no. of fraction digits
+
+  for (i=0; (i < (int)str->len)&&
+            ((str->buf[i] == '-') ||
+             (str->buf[i] == '+')); i++)        // check leading characters
+    if (str->buf[i] == '-') minus = !minus;     // count minus signs
+  for (i = i; i < (int)str->len; i++)           // for each character
+  { if ((str->buf[i] > '9')||(str->buf[i] < '0')) break; // check for digit
+    ret = (ret * 10.0) + ((int)str->buf[i] - '0'); // Cvt to int
+  }                                             // end convert loop
+  if ((i < str->len - 1) &&                     // check for dot, and a digit
+      (str->buf[i] == '.') &&
+      (isdigit(str->buf[i+1])))
+  { i++;
+    for (i = i; i < (int)str->len; i++)         // for each character
+    { if (!isdigit(str->buf[i])) break;         // check for digit
+      frac = (frac * 10.0) + ((int)str->buf[i] - '0'); // Cvt to int
+      scale *= 10.0;                            // adjust scale
+    }
+    ret += frac / scale;
+  }
+  if ((systab->historic & HISTORIC_EOK)
+     && (i < (str->len - 1)) && (str->buf[i] == 'E'))
+  { int exp = 0;				// an exponent
+    int expsgn = 1;				// and the sign
+    int j = 10;					// for E calc
+
+    i++;					// point past the 'E'
+    if (str->buf[i] == '-')			// if a minus
+    { expsgn = -1;				// flag it
+      i++;					// and increment i
+    }
+    else if (str->buf[i] == '+')		// if a plus
+    { i++;					// just increment i
+    }
+    for (i = i; i < str->len; i++)		// scan remainder
+    { if ((str->buf[i] < '0') || (str->buf[i] > '9'))
+      { break;					// quit when done
+      }
+      exp = (exp * 10) + (str->buf[i] - '0');	// add to exponent
+    }
+    if (exp)					// if there was an exponent
+    { while (exp > 1)				// for each
+      { j = j * 10;				// multiply
+        exp--;					// and count it
+      }
+      if (expsgn > 0)				// if positive
+      { ret = ret * j;				// hope it fits
+      }
+      else					// if negative
+      { ret = ret / j;				// do this
+      }
+    }
+  }
+  if (minus) ret = -ret;                        // change sign if reqd
+  return ret;                                   // return the value
+}                                               // end cstringtod()
+
 int cstringtob(cstring *str)                    // convert cstring to boolean
 { int ret = 0;                                  // return value
   int i;                                        // for loops

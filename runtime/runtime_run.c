@@ -92,6 +92,7 @@ short run(int savasp, int savssp)		// run compiled code
   int skip2ndarg = 0;                           // skip 2nd arg in $ZSEND
   cstring *unkrou;                              // "%Unknown"
   u_char unktmp[sizeof(short)+MAX_NAME_BYTES];  // buffer for unkrou cstring
+  double d;                                     // a handy double
 
 
   unkrou = (cstring *) &unktmp;                 // setup "%Unknown" cstring
@@ -588,12 +589,12 @@ short run(int savasp, int savssp)		// run compiled code
 
       case OPHANG:				// hang
 	partab.jobtab->commands++;		// count a command
-	i = cstringtoi((cstring *)astk[--asp]); // get the arg
-	if (i < 1)				// zero value
+	d = cstringtod((cstring *)astk[--asp]); // get the arg
+	if (d < 0.001)				// less than 1ms
 	{ SchedYield();				// give up slice
 	  break;				// done
 	}
-	i = sleep(i);				// sleep for i secs
+	i = MSleep((u_int) 1000 * d);		// sleep for d millisecs
 	break;					// done
 
       case OPNEQL:				// not equals
@@ -1298,6 +1299,14 @@ short run(int savasp, int savssp)		// run compiled code
       case VARY:				// $Y
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	s = Vy(cptr->buf);			// get the info
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// the count
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
+      case VARZH:				// $ZH[OROLOG]
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Vzhorolog(cptr->buf);		// get the info
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// the count
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it

@@ -141,6 +141,7 @@ short routine(int runtime);			// parse routine ref
 //
 // Runtime Utilities
 int cstringtoi(cstring *str);                   // convert cstring to int
+double cstringtod(cstring *str);                // convert cstring to double
 int cstringtob(cstring *str);                   // convert cstring to boolean
 short itocstring(u_char *buf, int n);		// convert int to string
 short uitocstring(u_char *buf, u_int n);	// convert u_int to string
@@ -255,6 +256,7 @@ short Vreference(u_char *ret_buffer);
 short Vsystem(u_char *ret_buffer);
 short Vx(u_char *ret_buffer);
 short Vy(u_char *ret_buffer);
+short Vzhorolog(u_char *ret_buffer);
 short Vset(mvar *var, cstring *cptr);		// set a special variable
 
 // Symbol Table prototypes
