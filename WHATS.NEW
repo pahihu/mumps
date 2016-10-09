@@ -1,6 +1,9 @@
 What's new in MV1R2 ?
 =====================
 
+ZZcmd a1:a2...                  calls ZZcmd^ZZCMD(a1,a2...)
+$ZZfn(a1,a2...)                 calls ZZfn^ZZFN(a1,a2...)
+
 HANG expr                       supports fractional seconds
 $ZH[OROLOG]                     special variable returns days,fracsec
 

@@ -41,6 +41,7 @@
 #include <ctype.h>
 #include <errno.h>                              // error stuf
 #include <time.h>                               // for $H
+#include <sys/time.h>                           // for $ZH
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // standard errors

@@ -79,9 +79,10 @@ void dodollarx(int chain)			// parse var/funct etc, chaining
     { comperror(i);				// complain
       return;					// and exit
     }
+ExtrinsicFn:
     args = 129;					// number of args (128=$$)
-    if (i == -2) *ptr = CMDORT;			// just a routine
-    if (i == -3) *ptr = CMDOROU;		// both
+    if (i == -2) *ptr = CMDORT;			// routine and tag
+    if (i == -3) *ptr = CMDOROU;		// just a routine
     if (*source_ptr == '(')			// any args?
     { 
 ExtrinsicArgs:
@@ -235,6 +236,17 @@ ExtrinsicArgs:
     bcopy(&name[0], comp_ptr, len);             //   name[]
     comp_ptr += len;
     *comp_ptr++ = '\0';                         // null terminate it
+  }
+  if ((len > 2) &&                              // $ZZfn ?
+      (strncasecmp(name, "zz", 2) == 0))
+  { for (i = 0; i < len; i++)                   // always upper case
+      name[i] = toupper((int)name[i]);
+    ptr = comp_ptr;                             // remember where it goes
+    *comp_ptr++ = CMDORT;                       // ZZfn^ZZFN
+    comp_ptr += X_put((chr_x *) "ZZFN", comp_ptr); // save ZZFN as rou
+    comp_ptr += X_put((chr_x *) name, comp_ptr);// save name as tag
+    i = -2;                                     // mark as tag^rou
+    goto ExtrinsicFn;                           // compile an extrinsic fn
   }
   if (*source_ptr == '(') goto function;	// check for a function
   if (chain)                                    // chaining, no args

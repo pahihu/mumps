@@ -15,6 +15,7 @@ Changes:
   * $ZSEND() function and method chaining with dot operator (see README.OOP)
   * HANG supports fractional seconds
   * $ZHOROLOG special variable, returns fractional seconds
+  * ZZ commands and functions (calls tags in ZZCMD and ZZFN)
 
 Fixes:
 

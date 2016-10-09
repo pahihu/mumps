@@ -2212,6 +2212,7 @@ short run(int savasp, int savssp)		// run compiled code
             }
           }                           
         }
+        // fprintf(stderr,"rou=%s tag=%s\r\n", &rou, &tag); fflush(stderr);
 
 	//if (((args) || (!tag)) && (offset))	// can't do that
 	if (((args) || (X_Empty(tag))) && (offset))	// can't do that

@@ -99,7 +99,11 @@ void parse_close()				// CLOSE
 
 //***********************************************************************
 
-void parse_do(int runtime)			// DO
+void parse_do(int runtime)
+{ parse_dox(runtime, NULL);
+}
+
+void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
 {
   short s;                                      // for functions
   int i;					// a handy int
@@ -108,23 +112,24 @@ void parse_do(int runtime)			// DO
   u_char *p;                                    // a handy pointer
   u_char save[1024];                            // a usefull save area
   int savecount;                                // number of bytes saved
-  u_char opc;                                   // opcode
   u_char *sav_comp_ptr, *sav_source_ptr;        // save source/comp ptr
+  u_char argsep = ',', argsend = ')';           // DO arg and cmdsep
 
-  opc = CMDOTAG;                                // assume a do tag
+  if (zzcmd)
+  { argsep  = ':';
+    argsend = ',';
+  }
   while (TRUE)					// loop thru the arguments
   { ptr = comp_ptr;				// save compile pointer
     if (*source_ptr == '$')                     // $ZSEND in DO command
     { source_ptr++;
       if ((source_ptr[3] == '(') &&             // check 'ZSE('
           (strncasecmp((char *) source_ptr, "zse", 3) == 0))
-      { opc = FUNZSE;
-        source_ptr += 3;                        // position to '('
+      { source_ptr += 3;                        // position to '('
       }
       else if ((source_ptr[5] == '(') &&        // check 'ZSEND('
                (strncasecmp((char *) source_ptr, "zsend", 5) == 0))
-      { opc = FUNZSE;
-        source_ptr += 5;                        // position to '('
+      { source_ptr += 5;                        // position to '('
       }
       else                                      // else complain
         SYNTX
@@ -149,33 +154,45 @@ void parse_do(int runtime)			// DO
       source_ptr = sav_source_ptr;              // failed, restore
       comp_ptr = sav_comp_ptr;                  //   source/comp ptrs
     }
-
-    *comp_ptr++ = CMDOTAG;		        // assume a do tag
-    i = routine(runtime);			// parse the rouref
-    if (i == 0)					// if it's indirect
-    { *ptr = OPNOP;				// ignore previous opcode
-      *comp_ptr++ = INDDO;			// store the opcode
+    i = 0;
+    if (zzcmd)
+    { *comp_ptr++ = CMDORT;                     // ZZcmd^ZZCMD
+      comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr); // save ZZCMD rou
+      comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);   // save ZZcmd tag
+      i = -2;                                   // mark as tag^rou
     }
     else
+    { *comp_ptr++ = CMDOTAG;		        // assume a do tag
+      i = routine(runtime);			// parse the rouref
+      if (i == 0)				// if it's indirect
+      { *ptr = OPNOP;				// ignore previous opcode
+        *comp_ptr++ = INDDO;			// store the opcode
+      }
+    }
+    if ((i))                                    // not indirect
     { args = 0;					// number of args
-      if (i == -2) *ptr = CMDORT;		// just a routine
-      if (i == -3) *ptr = CMDOROU;		// both
-      if (i == -4) *ptr = CMDORTO;		// and an offset
+      if (i == -2) *ptr = CMDORT;		// tag^rou
+      if (i == -3) *ptr = CMDOROU;		// just a ^rou
+      if (i == -4) *ptr = CMDORTO;		// tag+offs^rou
 CompileArgs:
-      if (*source_ptr == '(')			// any args?
+      if ((zzcmd) ||                            // ZZcmd ?
+          ((!zzcmd) && (*source_ptr == '(')))   // DO    any args?
       { savecount = comp_ptr - ptr;		// bytes that got compiled
         bcopy( ptr, save, savecount);		// save that lot
         comp_ptr = ptr;				// back where we started
-        source_ptr++;				// skip the (
+        if (!zzcmd) source_ptr++;		// skip the (
         while (TRUE)				// while we have args
         { args++;				// count an argument
 	  if (args > 127) SYNTX			// too many
-          if (*source_ptr == ')')		// trailing bracket ?
-          { source_ptr++;			// skip the )
+          if (*source_ptr == argsend /*')'*/)	// trailing bracket ?
+          { if (!zzcmd) source_ptr++;	        // skip the )
             break;				// and exit
           }
-	  if ((*source_ptr == ',') ||
-	      (*source_ptr == ')'))		// if empty argument
+          if ((zzcmd) &&                        // ZZcmd eol ?
+              (*source_ptr == '\0'))
+            break;                              // exit
+	  if ((*source_ptr == argsep /*','*/) ||
+	      (*source_ptr == argsend /*')'*/))		// if empty argument
 	  { *comp_ptr++ = VARUNDF;		// flag it
 	  }
           else if ((*source_ptr == '.') &&	// by reference?
@@ -201,9 +218,12 @@ CompileArgs:
           else					// by value
           { eval();				// leave the value on the stack
           }
-          if (*source_ptr == ')')		// trailing bracket ?
+          if ((zzcmd) &&                        // ZZcmd eol ?
+              (*source_ptr == '\0'))
+            continue;                           // do it above
+          if (*source_ptr == argsend /*')'*/)	// trailing bracket ?
 	    continue;				// do it above
-          if (*source_ptr == ',')		// a comma ?
+          if (*source_ptr == argsep /*','*/)	// a comma ?
           { source_ptr++;			// skip the ,
             continue;				// go for more
           }
@@ -215,7 +235,7 @@ CompileArgs:
       *comp_ptr++ = (u_char) args;		// store number of args
     }
 Postcond:
-    if (*source_ptr == ':')			// postcond arg?
+    if ((!zzcmd) && (*source_ptr == ':'))	// postcond arg?
     { savecount = comp_ptr - ptr;		// bytes that got compiled
       bcopy( ptr, save, savecount);		// save that lot
       comp_ptr = ptr;				// back where we started
@@ -1309,6 +1329,7 @@ void parse()                                    // MAIN PARSE LOOP
   u_char *ptr;                                  // a handy pointer
   u_char *jmp_eoc = NULL;			// jump to end of cmd reqd
   u_char opc = CMKILL;                          // def. KILL cmd variant
+  u_char zzcmd[2+3*MAX_NAME_BYTES];             // ZZcmd name
 
   while (TRUE)                                  // loop
   { c = toupper(*source_ptr++);                 // get next char in upper case
@@ -1839,6 +1860,35 @@ void parse()                                    // MAIN PARSE LOOP
         if (c != ' ') SYNTX                     // must be a space
 	parse_xecute();
         break;                                  // end of XECUTE
+
+      case 'Z':					// ZZcmd
+        if (strncasecmp((char *)source_ptr, "z", 1) != 0) SYNTX
+        zzcmd[0] = 'Z';                         // save first char
+        for (i = 0; isalpha(source_ptr[i]) != 0; i++) // scan string
+          zzcmd[i+1] = toupper(source_ptr[i]);  // copy alphas
+        source_ptr = source_ptr + i;		// move source along
+        i++;					// add in first character
+        zzcmd[i] = '\0';			// null terminate zzcmd
+        // fprintf(stderr,"\r\nzzcmd=%s",zzcmd);
+        c = *source_ptr++;                      // get next char
+        if (c == ':')                           // postcondition
+        { eval();				// evaluate the tve
+	  *comp_ptr++ = JMP0;			// store the opcode
+	  jmp_eoc = comp_ptr;			// save the location
+	  comp_ptr = comp_ptr + sizeof(short);	// leave space for offset
+	  c = *source_ptr++;                    // get next char
+        }
+	if ((c != ' ') && (c != '\0')) SYNTX	// space or eol reqd
+	if (c == '\0') source_ptr--;		// point back at eol
+
+	if ((*source_ptr == ' ') || (*source_ptr == '\0')) // argumentless form?
+        { *comp_ptr++ = CMDORT;                 // tag^rou
+          comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr);
+          comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);
+          *comp_ptr++ = (u_char) 0;             // no args
+        }
+	else parse_dox(0, zzcmd);
+	break;					// end of ZZcmd
 
       default:                                  // we didn't understand that
         comperror(-(ERRZ13+ERRMLAST));          // give an error

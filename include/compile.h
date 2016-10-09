@@ -138,6 +138,7 @@ typedef struct __attribute__ ((__packed__)) RBD // define routine buf desciptor
 
 void parse_close();				// CLOSE
 void parse_do(int runtime);			// DO
+void parse_dox(int runtime, u_char *zzcmd);	// ZZcmd
 void parse_goto(int runtime);			// GOTO
 void parse_hang();				// HANG
 void parse_if(int i);				// IF
