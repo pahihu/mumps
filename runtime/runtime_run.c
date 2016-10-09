@@ -89,7 +89,14 @@ short run(int savasp, int savssp)		// run compiled code
   chr_x *vt;					// pointer for var tab
   struct ST_DATA *data;				// for direct symbol access
   int symbol_malloced;                          // symbol was malloc()-ed
-  int skipargs = 0;                             // no. of args to skip in $ZSEND
+  int skip2ndarg = 0;                           // skip 2nd arg in $ZSEND
+  cstring *unkrou;                              // "%Unknown"
+  u_char unktmp[sizeof(short)+MAX_NAME_BYTES];  // buffer for unkrou cstring
+
+
+  unkrou = (cstring *) &unktmp;                 // setup "%Unknown" cstring
+  X_set("%Unknown", &unkrou->buf[0], 8);
+  unkrou->len = 8;
 
   asp = savasp;
   ssp = savssp;
@@ -2168,7 +2175,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  args = *mumpspc++;			// get the arg count
 
         if (opc == FUNZSE)                      // $ZSEND
-        { j = 0;
+        { j = 0; skip2ndarg = 0;                // assume don't skip 2nd arg
           // fprintf(stderr,"args=%d\r\n",args & 127);
 	  for (i = (args & 127) - 2; i >=0; --i)// for each supplied arg
 	  { cptr = (cstring *) astk[asp - ++j];	// get data ptr
@@ -2186,8 +2193,15 @@ short run(int savasp, int savssp)		// run compiled code
           if (s < 0)                            // if error
           { ERROR(s)                            //   complain
           }
-          skipargs = 1;                         // skip entry resulting in
-                                                //   tag^rou(obj,arg1,...)
+          if (_X_NE(&rou, (chr_x *) &unkrou->buf[0]))// not %Unknown ?
+          { skip2ndarg = 1;                     //   call tag^rou(obj,arg1...)
+          }
+          else                        // call %Unknown^rou(obj,entry[,arg1...])
+          { s = Ddispatch(ptr1, unkrou, &rou, &tag);
+            if (s < 0)                          // if error
+            { ERROR(s)                          //   complain
+            }
+          }                           
         }
 
 	//if (((args) || (!tag)) && (offset))	// can't do that
@@ -2334,7 +2348,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	  j = *mumpspc++;			// number of them
           // fprintf(stderr,"args=%d j=%d\r\n",args,j);
-	  if ((args - skipargs - 1) > j)	// too many supplied?
+	  if ((args - skip2ndarg - 1) > j)	// too many supplied?
 	  { if (symbol_malloced)
 	    { dlfree(curframe->symbol);
 	      curframe->symbol = NULL;
@@ -2366,11 +2380,11 @@ short run(int savasp, int savssp)		// run compiled code
 	  s = 0;				// clear error flag
 	  for (i = args-2; i >=0; --i)		// for each supplied arg
 	  { s = i;                              // index is i
-            if ((i > 1) && (opc == FUNZSE)) s--;// $ZSEND 0->0,1 skip,2->1,...
+            if ((skip2ndarg) && (i > 1)) s--;     // $ZSEND 0->0,1 skip,2->1,...
             var->volset = mumpspc[s] + 1;	// get the index
 	    cptr = (cstring *) astk[--asp];	// get data ptr
 	    if (cptr != NULL)			// normal data type?
-	    { if ((i == 1) && (opc == FUNZSE))  // $ZSEND skip 2nd arg
+	    { if ((skip2ndarg) && (i == 1))     // $ZSEND skip 2nd arg
                 continue;
               if (cptr->len != VAR_UNDEFINED)
 	      { s = ST_Set(var, cptr); 		// set it
@@ -2387,7 +2401,7 @@ short run(int savasp, int savssp)		// run compiled code
 	    else				// must be by reference
 	    { p = astk[--asp];			// the data pointer
 	      cptr = (cstring *) astk[--asp];	// get real data ptr
-              if ((i == 1) && (opc == FUNZSE))  // $ZSEND skip 2nd arg
+              if ((skip2ndarg) && (i == 1))     // $ZSEND skip 2nd arg
                 continue;
 	      var->name = ((mvar *) cptr)->name; // copy the name
 	      s = ST_ConData(var, p);		// connect them

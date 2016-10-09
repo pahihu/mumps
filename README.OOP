@@ -35,20 +35,27 @@ A: The following algorithm is used:
    1. If OBJ has class CLS, then it will check $TEXT(TAG^CLS).
       If it is not empty, then it will be called.
 
-   2. It checks $TEXT(%Parents^CLS), if it is not empty and has
+   2. If CLS is "%Object" and $TEXT(TAG^CLS) was empty, then
+      the search stop with the routine set to "%Unknown".
+
+   3. It checks $TEXT(%Parents^CLS), if it is not empty and has
       the format:
 
-                %Parents ;;Parent1[,Parent2...]
+                %Parents ;;ParentCls1[,ParentCls2...]
 
       Then it recursively check for TAG in the reverse order
-      of the parents specified. Thus it will check ParentN,
-      then Parent(N-1) etc.
+      of the parents specified. Thus it will check ParentClsN,
+      then ParentCls(N-1) etc.
 
-   3. If there was no %Parents^CLS line in the routine, then it
+   4. If there was no %Parents^CLS line in the routine, then it
       will check the routine "%Object".
 
-   4. If no TAG was found, then it will call the TAG in the
-      routine "%Unknown".
+   5. If no TAG was found, then the search stops with the routine
+      set to "%Unknown".
+
+   If the resulting routine is "%Unknown" it will call the tag
+
+                %Unknown(OBJ,TAG[,A1,A2...])
 
 
 Q: Dynamic lookup is used every time ?
@@ -56,7 +63,7 @@ A: No. $ZSEND() builds a cache in the local variable %ZSEND.
    It has the format:
 
         %ZSEND(cls,tag)=rtn
-        %ZSEND(cls,"%Parents")="Parent1[,Parent2...]"
+        %ZSEND(cls,"%Parents")="ParentCls1[,ParentCls2...]"
 
 
 Q: What happens if I recompile a routine implementing a class ?

@@ -275,7 +275,13 @@ short ResolveEntry(int depth,char *cls, cstring *entry, cstring *tgt)
   }
 
   ////////////////////////////////////////////////
-  // 3) try to get (cls,"%Parents") from cache
+  // 3) if class is %Object, then terminate with
+  //                    %Unknown
+  if (0 == strcmp("%Object", cls))
+    goto Set_ZSEND_cls_entry_Unknown;
+
+  ////////////////////////////////////////////////
+  // 4) try to get (cls,"%Parents") from cache
   //
   var.nsubs = sav_nsubs;                        // get %ZSEND(cls,"%Parents")
   var.slen  = sav_slen;
@@ -293,7 +299,7 @@ short ResolveEntry(int depth,char *cls, cstring *entry, cstring *tgt)
   if (s < 0) return s;                          // complain on error
 
   ////////////////////////////////////////////////
-  // 4) no (cls,"%Parents") entry in cache, get
+  // 5) no (cls,"%Parents") entry in cache, get
   //                    the line from cls
   cstringcpy(cptr, "%Parents^");                // no parent, try to get it
   cstringcat(cptr, cls);
@@ -308,7 +314,7 @@ NoParents:
   }
 
   ////////////////////////////////////////////////
-  // 5) found %Parents line, write back to cache
+  // 6) found %Parents line, write back to cache
   //
   mv1log(depth,"parse parents=%s", CSBUF(parents));
   parents.len = s;
@@ -328,7 +334,7 @@ Set_ZSEND_cls_Parents:
   if (s < 0) return s;
 
   ////////////////////////////////////////////////
-  // 6) search %Parents for the entry, recursive
+  // 7) search %Parents for the entry, recursive
   //
   // example line:
   //    %Parents ;;Parent1,Parent2,...,ParentN
@@ -362,9 +368,10 @@ SearchParents:                                  // check the parents
   }
   
   ////////////////////////////////////////////////
-  // 7) cannot resolve entry in cls
+  // 8) cannot resolve entry in cls
   //                            and its parents
   //
+Set_ZSEND_cls_entry_Unknown:
   cstringcpy(tgt, "%Unknown");                  // set it to %Unknown
   mv1log(depth,"entry=%s cannot be resolved, use tgt=%s",CSBUFP(entry),CSBUFP(tgt));
 
