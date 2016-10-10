@@ -2183,8 +2183,9 @@ short run(int savasp, int savssp)		// run compiled code
 	if (opc != CMDON)			// if not argless type
 	  args = *mumpspc++;			// get the arg count
 
+        skip2ndarg = 0;                         // assume don't skip 2nd arg
         if (opc == FUNZSE)                      // $ZSEND
-        { j = 0; skip2ndarg = 0;                // assume don't skip 2nd arg
+        { j = 0;
           // fprintf(stderr,"args=%d\r\n",args & 127);
 	  for (i = (args & 127) - 2; i >=0; --i)// for each supplied arg
 	  { cptr = (cstring *) astk[asp - ++j];	// get data ptr
