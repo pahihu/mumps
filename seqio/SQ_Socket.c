@@ -55,6 +55,10 @@
 #include	"error.h"
 #include	"seqio.h"
 
+#if defined(__linux__)
+#define SO_NOSIGPIPE    0
+#endif
+
 #define		BACKLOG		3		// Connections to queue
 
 int SQ_Socket_Create ( int nonblock );
@@ -86,6 +90,9 @@ int SQ_Socket_Create (int nonblock)
 
   sid = socket ( PF_INET, SOCK_STREAM, 0 );
   if ( sid == -1 ) return ( getError ( SYS, errno ) );
+
+  flag = 1;
+  setsockopt(sid, SOL_SOCKET, SO_REUSEADDR | SO_NOSIGPIPE, &flag, sizeof(int));
 
   if (nonblock)
   { flag = fcntl ( sid, F_GETFL, 0 );
