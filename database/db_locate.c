@@ -267,10 +267,9 @@ short LocateEx(u_char *key, int frominsert)		// find key
 
   LastIndex = R + 1;                                    // setup LastIndex
   KeyBufBuilt = 0;
-#if 0
-  if (wr_flag)                                          // writing, chk last
+  if (frominsert)                                       // writing, chk last
   { Index = R;
-    // Build_KeyBuf();                                     // build keybuf
+    // Build_KeyBuf();                                  // build keybuf
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
     i = UTIL_Key_KeyCmp(&chunk->buf[2], &key[1], chunk->buf[1], key[0]); // cmp
     if (i == K2_GREATER)                                // key > last key
@@ -279,7 +278,6 @@ short LocateEx(u_char *key, int frominsert)		// find key
       return -ERRM7;
     }
   }
-#endif
 
   // fprintf(stderr,"L=%d R=%d\n",L,R);
   while (L <= R)                                        // loop

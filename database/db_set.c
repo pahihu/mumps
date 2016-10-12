@@ -115,6 +115,51 @@
 
 extern void UpdateLocateCache();
 
+short DoSimpleInsert(short s, cstring *data)
+{ int i;
+
+  if (s < 0)
+  { s = Insert(&db_var.slen, data);			// try it
+    if (s != -(ERRMLAST+ERRZ62))			// if it did fit
+    { if (s < 0)
+      { return s;					// exit on error
+      }
+#ifdef XMV1_BLKVER
+      blk[level]->blkver_low++;
+#endif
+      if (blk[level]->dirty == (gbd *) 1)		// if reserved
+      { blk[level]->dirty = blk[level];			// point at self
+        Queit();					// que for write
+        UpdateLocateCache();                            // update Locate()
+      }
+      level = 0;
+      return data->len;					// and return length
+    }
+  }			// end new node code
+
+  else							// it's a replacement
+  { i = chunk->len - chunk->buf[1] - 6;			// available size
+    if (data->len <= i)					// if it will fit
+    { if (data->len < record->len)			// if new record smaller
+      { blk[level]->mem->flags |= BLOCK_DIRTY;		// block needs tidy
+      }
+      record->len = data->len;				// copy length
+      bcopy(data->buf, record->buf, data->len);		// and the data
+#ifdef XMV1_BLKVER
+      blk[level]->blkver_low++;
+#endif
+      if (blk[level]->dirty == (gbd *) 1)		// if reserved
+      { blk[level]->dirty = blk[level];			// point at self
+        Queit();					// que for write
+      }
+      level = 0;
+      return data->len;					// and return length
+    }
+  }  
+
+  return -1;
+}
+
 short Set_data(cstring *data)				// set a record
 { short s;						// for returns
   int i, j;						// a handy int
@@ -130,9 +175,52 @@ short Set_data(cstring *data)				// set a record
   int trailings;					// ptr to orig trail
   int this_level;					// to save level
   DB_Block *btmp;					// ditto
+  gbd *gptr;
 
   if (!curr_lock)
     Ensure_GBDs();
+
+#if 0
+  if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
+      (!db_var.slen))
+  { last_blk_written = 0;                               // zot this
+  }
+  else
+  { i = last_blk_written;                               // get last written
+    if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
+							// if one there
+    { // systab->vol[volnum-1]->stats.lasttry++;	// count a try
+      gptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)];// get listhead
+      while (gptr != NULL)				// for each in list
+      { if (gptr->block == i)				// found it
+        { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
+          if ((X_NE(gptr->mem->global, 
+                                db_var.name.var_xu)) || // wrong global or
+	      (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
+	      (gptr->last_accessed == (time_t) 0))	// not available
+          { break;					// exit the loop
+	  }
+	  level = LAST_USED_LEVEL;			// use this level
+	  blk[level] = gptr;				// point at it
+	  s = LocateEx(&db_var.slen, 1);		// check for the key
+	  if ((s == -ERRM7) &&				// not found and
+	      (Index == 1 + blk[level]->mem->last_idx) &&// just over the blk
+	      (Index > LOW_INDEX))			// not at begining
+	  { // systab->vol[volnum-1]->stats.lastok++;	// count success
+            s = DoSimpleInsert(s, data);                // try a simple insert
+            if (s >= 0)
+              return s;
+	  }
+	  blk[level] = NULL;				// clear this
+	  level = 0;					// and this
+	  break;					// and exit loop
+        }						// end found block
+        gptr = gptr->next;				// get next
+      }							// end while gptr
+    }							// end last used stuff
+    last_blk_written = 0;                               // zot it
+  }
+#endif
 
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
@@ -294,6 +382,7 @@ short Set_data(cstring *data)				// set a record
 	}
 	level--;					// previous
       }
+      last_blk_written = blk[level]->block;             // remember this
       return data->len;					// and return length
     }
   }			// end new node code

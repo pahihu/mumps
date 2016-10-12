@@ -52,6 +52,8 @@
 #include <assert.h>
 
 
+u_int last_blk_written = 0;                             // last blk wrt
+
 int curr_lock;						// lock on globals
 mvar db_var;						// local copy of var
 int volnum;                                             // current volume

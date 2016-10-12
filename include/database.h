@@ -156,6 +156,8 @@ extern int gbd_expired;
 extern mvar db_var;					// local copy of var
 extern int volnum;					// current volume
 
+extern u_int last_blk_written;                          // last blk wrt
+
 extern gbd *blk[MAXTREEDEPTH];				// current tree
 extern int level;					// level in above
 							// 0 = global dir
