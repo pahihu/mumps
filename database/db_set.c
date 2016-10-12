@@ -115,49 +115,26 @@
 
 extern void UpdateLocateCache();
 
-short DoSimpleInsert(short s, cstring *data)
-{ int i;
+short DoSimpleInsert(cstring *data)
+{ int s;
 
-  if (s < 0)
-  { s = Insert(&db_var.slen, data);			// try it
-    if (s != -(ERRMLAST+ERRZ62))			// if it did fit
-    { if (s < 0)
-      { return s;					// exit on error
-      }
-#ifdef XMV1_BLKVER
-      blk[level]->blkver_low++;
-#endif
-      if (blk[level]->dirty == (gbd *) 1)		// if reserved
-      { blk[level]->dirty = blk[level];			// point at self
-        Queit();					// que for write
-        UpdateLocateCache();                            // update Locate()
-      }
-      level = 0;
-      return data->len;					// and return length
+  s = Insert(&db_var.slen, data);			// try it
+  if (s != -(ERRMLAST+ERRZ62))			        // if it did fit
+  { if (s < 0)
+    { return s;					        // exit on error
     }
-  }			// end new node code
-
-  else							// it's a replacement
-  { i = chunk->len - chunk->buf[1] - 6;			// available size
-    if (data->len <= i)					// if it will fit
-    { if (data->len < record->len)			// if new record smaller
-      { blk[level]->mem->flags |= BLOCK_DIRTY;		// block needs tidy
-      }
-      record->len = data->len;				// copy length
-      bcopy(data->buf, record->buf, data->len);		// and the data
 #ifdef XMV1_BLKVER
-      blk[level]->blkver_low++;
+    blk[level]->blkver_low++;
 #endif
-      if (blk[level]->dirty == (gbd *) 1)		// if reserved
-      { blk[level]->dirty = blk[level];			// point at self
-        Queit();					// que for write
-      }
-      level = 0;
-      return data->len;					// and return length
+    if (blk[level]->dirty == (gbd *) 1)		        // if reserved
+    { blk[level]->dirty = blk[level];			// point at self
+      Queit();					        // que for write
+      UpdateLocateCache();                              // update Locate()
     }
-  }  
+    return data->len;		                        // and return length
+  }
 
-  return -1;
+  return s;
 }
 
 short Set_data(cstring *data)				// set a record
@@ -194,22 +171,26 @@ short Set_data(cstring *data)				// set a record
       while (gptr != NULL)				// for each in list
       { if (gptr->block == i)				// found it
         { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
-          if ((X_NE(gptr->mem->global, 
-                                db_var.name.var_xu)) || // wrong global or
+          if ((gptr->mem->right_ptr) ||                 // has a right ptr
+	      (gptr->last_accessed == (time_t) 0) ||  	// not available
 	      (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
-	      (gptr->last_accessed == (time_t) 0))	// not available
+              (X_NE(gptr->mem->global, 
+                                db_var.name.var_xu)))   // wrong global
           { break;					// exit the loop
 	  }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = gptr;				// point at it
 	  s = LocateEx(&db_var.slen, 1);		// check for the key
 	  if ((s == -ERRM7) &&				// not found and
-	      (Index == 1 + blk[level]->mem->last_idx) &&// just over the blk
+	      (Index == 1 + blk[level]->mem->last_idx) && // next to last
 	      (Index > LOW_INDEX))			// not at begining
 	  { // systab->vol[volnum-1]->stats.lastok++;	// count success
-            s = DoSimpleInsert(s, data);                // try a simple insert
-            if (s >= 0)
+            s = DoSimpleInsert(data);                   // try a simple insert
+            if (s > 0)
               return s;
+            if ((s != -(ERRMLAST+ERRZ62)) && (s < 0))	// if it did fit
+            { return s;					// exit on error
+            }
 	  }
 	  blk[level] = NULL;				// clear this
 	  level = 0;					// and this
@@ -373,6 +354,9 @@ short Set_data(cstring *data)				// set a record
         UpdateLocateCache();                            // update Locate()
       }
 
+      if (db_var.slen)                                  // if has subscripts
+        last_blk_written = blk[level]->block;           // remember this
+
       level--;						// point up a level
       while (level >= 0)				// for each
       { if (blk[level] != NULL)				// if one there
@@ -382,7 +366,6 @@ short Set_data(cstring *data)				// set a record
 	}
 	level--;					// previous
       }
-      last_blk_written = blk[level]->block;             // remember this
       return data->len;					// and return length
     }
   }			// end new node code

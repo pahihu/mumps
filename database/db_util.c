@@ -74,7 +74,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
   locate_used = 0;
   if (blk[level]->mem->last_idx > LOW_INDEX - 1)	// if some data
   { locate_used = 1;
-    s = LocateEx(key, 1);			        // search for it
+    s = Locate(key);			                // search for it
     if (s >= 0)						// if found
     { return -(ERRMLAST+ERRZ61);                        // database stuffed
     }
