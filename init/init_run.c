@@ -240,6 +240,9 @@ start:
 
   systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;
 						// clear last global block
+  systab->last_blk_written[partab.jobtab - systab->jobtab] = 0;
+						// clear last global blk written
+
   partab.debug = 0;				// clear debug flag
   partab.sstk_start = &sstk[0];			// address of sstk
   partab.sstk_last =  &sstk[MAX_SSTK];		// and the last char

@@ -74,11 +74,6 @@ int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 int wanna_writing;                                      // 
-#ifdef MV1_RSVD
-extern int nrsvd_gbds;
-#endif
-
-int hash_start = 0;					// start searching here
 
 //-----------------------------------------------------------------------------
 // Function: Copy2local
@@ -110,9 +105,6 @@ short Copy2local(mvar *var, char *rtn)
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
   wanna_writing = 0;
-#ifdef MV1_RSVD
-  nrsvd_gbds = 0;
-#endif
   level = -1;						// no claimed gbds yet
   bcopy(var, &db_var, MVAR_SIZE+var->slen);	        // copy the data
   if (db_var.volset == 0)				// if volset is zero
@@ -199,7 +191,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
 
   if (wrlock)
-  { Ensure_GBDs();
+  { Ensure_GBDs(0);
     writing = 1;
   }
 

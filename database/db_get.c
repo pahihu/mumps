@@ -89,7 +89,7 @@ short Get_data(int dir)					// locate a record
   { i = systab->last_blk_used[partab.jobtab - systab->jobtab]; // get last used
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
-    { systab->vol[volnum-1]->stats.lasttry++;		// count a try
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
       ptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
@@ -107,7 +107,8 @@ short Get_data(int dir)					// locate a record
 	      ((s = -ERRM7) &&				// not found and
 	       (Index <= blk[level]->mem->last_idx) &&	// still in block
 	       (Index > LOW_INDEX)))			// not at begining
-	  { systab->vol[volnum-1]->stats.lastok++;	// count success
+	  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastok);
+                                                        // count success
 	    blk[level]->last_accessed = MTIME(0);	// accessed
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok
@@ -224,7 +225,7 @@ short Get_data(int dir)					// locate a record
   { return -(ERRMLAST+ERRZ61);				// database stuffed
   }
   s = Locate(&db_var.slen);				// locate key in data
-  if (dir < 1)						// if not a pointer
+  if (dir < 1)					        // if not a pointer
   { systab->last_blk_used[partab.jobtab - systab->jobtab] = i; // set last used
   }
   if ((!db_var.slen) && (!s) &&

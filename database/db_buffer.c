@@ -265,15 +265,14 @@ short New_block()					// get new block
 //	     When it completes, it returns with a write lock held.
 //
 
-#ifdef MV1_RSVD
-       int nrsvd_gbds;                                  // cleared in Copy2local
-static gbd* rsvd_gbds[2 * MAXTREEDEPTH];
-#endif
-
 #define GBD_TRIES_PER_SEC	(4 * 1000)
 #define GBD_TRIES		(60 * GBD_TRIES_PER_SEC)
 
 void Get_GBDs(int greqd)				// get n free GBDs
+{ return Get_GBDsEx(greqd, 0);
+}
+
+void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 { int i;						// a handy int
   int curr;						// current count
   gbd *ptr;						// and pointer
@@ -281,25 +280,11 @@ void Get_GBDs(int greqd)				// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int hash_start_sav;
-#ifdef MV1_FORCE
-  int gfree;                                            // no. of free GBDs
-  int force_clear;                                      // force clear of refd
-#endif
 
 start:
-#ifdef MV1_FORCE
-  force_clear = 0;
-#endif
-  while (SemOp(SEM_GLOBAL, WRITE));                     // get write lock
-#ifdef MV1_FORCE
-retry:
-#endif
-#ifdef MV1_RSVD
-  nrsvd_gbds = 0;
-#endif
-#ifdef MV1_FORCE
-  gfree = 0;                                            // clear no. of free
-#endif
+  if (!haslock)
+    while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  haslock = 0;                                          // clear for next turns
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
   curr = 0;						// clear current  
   while (ptr != NULL)					// while some there
@@ -312,10 +297,10 @@ retry:
   now = MTIME(0) + 1;					// get current time +
 
 #ifdef MV1_CACHE
-  i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  i = (systab->hash_start + 1) & (GBD_HASH - 1);	// where to start
 #else
-  hash_start_sav = hash_start;
-  i = hash_start & (GBD_HASH - 1);		        // where to start
+  hash_start_sav = systab->hash_start;
+  i = systab->hash_start & (GBD_HASH - 1);		// where to start
 #endif
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
@@ -331,13 +316,13 @@ retry:
 	ptr->next = systab->vol[volnum-1]->gbd_hash [GBD_HASH]; // hook to free
 	systab->vol[volnum-1]->gbd_hash [GBD_HASH] = ptr; // and this
 	ptr->dirty = NULL;				// ensure clear
-	ptr->last_accessed = (time_t) 0;		// and this
+	ptr->last_accessed = (time_t) 0;		// ensure no time
 #ifdef MV1_REFD
-        ptr->referenced = 0;
+        ptr->referenced = 0;                            // not refd
 #endif
 	curr++;						// count this
         if (curr >= greqd)				// if enough there
-        { hash_start = hash_start_sav;
+        { systab->hash_start = hash_start_sav;
           return;					// just exit
         }
 	if (last == NULL)				// if first one
@@ -353,39 +338,24 @@ retry:
 	  (ptr->last_accessed < now) &&			// and time expired
 	  (ptr->last_accessed > 0))			// and there is a time
       { curr++;						// count that
-#ifdef MV1_RSVD
-        rsvd_gbds[nrsvd_gbds++] = ptr;
-#endif
         if (curr >= greqd)				// if enough there
         { return;					// just exit
         }
       }
 #else
       if ((ptr->dirty == NULL) &&			// if free
-          (ptr->last_accessed < now) &&
+          (ptr->last_accessed < now) &&                 // and not viewed
 	  (ptr->last_accessed > 0))			// and there is a time
       { 
-#ifdef MV1_FORCE
-        if (force_clear)
-          ptr->referenced = 0;
-        else
-#endif
-        if (ptr->referenced)
+        if (ptr->referenced)                            // if refd, clear it
           ptr->referenced--;
         if (0 == ptr->referenced)
         { curr++;					// count that
-#ifdef MV1_RSVD
-          rsvd_gbds[nrsvd_gbds++] = ptr;
-#endif
           if (curr >= greqd)				// if enough there
-          { hash_start = hash_start_sav;
+          { systab->hash_start = hash_start_sav;
             return;					// just exit
           }
         }
-#ifdef MV1_FORCE
-        else
-          gfree++;
-#endif
       }
 #endif
 
@@ -394,16 +364,10 @@ retry:
     }							// end 1 hash list
 
     i = (i + 1) & (GBD_HASH - 1);			// next hash entry
-    if (i == hash_start)				// where we started
+    if (i == systab->hash_start)			// where we started
     { break;						// done
     }
   }							// end while (TRUE)
-#ifdef MV1_FORCE
-  if ((0 == force_clear) && (gfree + curr >= greqd))
-  { force_clear = 1;
-    goto retry;
-  }
-#endif
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   // Sleep(1);
@@ -440,6 +404,7 @@ void Get_GBD()						// get a GBD
   gbd *last;						// points to ptr
   static time_t old_last_accessed = (time_t) 0;
   int pass;
+  int clean;                                            // flag clean blk
 
   pass = 0;
 start:
@@ -451,84 +416,66 @@ start:
     goto exit;						// common exit code
   }
 
-  now = MTIME(0);					// get current time
-  old = now + 1;					// remember oldest
-  exp = now - gbd_expired;				// expired time
-
-#ifdef MV1_RSVD
-  if (nrsvd_gbds)
-  { while (nrsvd_gbds)
-    { ptr = rsvd_gbds[--nrsvd_gbds];
-      if ((ptr->dirty == NULL) &&			// if free
-          (ptr->last_accessed < now) &&                 // and time expired
-	  (ptr->last_accessed > 0))			// and there is a time
-      { old = ptr->last_accessed;			// save time
-        oldptr = ptr;					// save the ptr
-        hash = ptr->block & (GBD_HASH - 1);		// and the hash
-        hash_start = hash;
-        systab->vol[volnum-1]->stats.gbrsvd++;
-        goto quite_old;
-      }
-    }
-  }
-#endif
+  now = MTIME(0) + 1;					// get current time
+  old = now;					        // remember oldest
+  exp = now - gbd_expired + 1;				// expired time
 
 #ifdef MV1_CACHE
-  i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  i = (systab->hash_start + 1) & (GBD_HASH - 1);	// where to start
 #else
-  i = hash_start & (GBD_HASH - 1);		        // where to start
+  i = systab->hash_start & (GBD_HASH - 1);		// where to start
 #endif
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
     while (ptr != NULL)					// while we have some
-    { if ((ptr->block == 0) ||				// if no block OR
-	  ((ptr->dirty == NULL) &&			// if free
-	   (ptr->last_accessed < exp) &&		// and time expired
-	   (ptr->last_accessed > 0)))			// and there is a time
+    { clean = (ptr->dirty == NULL) &&                   // not dirty
+              (ptr->last_accessed < now) &&             //   and not viewed
+              (ptr->last_accessed > 0);                 //   and not being read
+      if ((ptr->block == 0) ||				// if no block OR
+	  (
+#ifdef MV1_CACHE
+	   (ptr->last_accessed < exp) &&		// time expired
+#endif
+#ifdef MV1_REFD
+           (ptr->referenced == 0) &&                    //   and not refd
+#endif
+	   (clean)))			                // blk clean
       { if (last == NULL)				// first one?
 	{ systab->vol[volnum-1]->gbd_hash[i] = ptr->next; // unlink from hash
 	}
 	else						// subsequent
 	{ last->next = ptr->next;			// unlink
 	}
-	hash_start = i;					// remember this
+	systab->hash_start = i;				// remember this
 	blk[level] = ptr;				// store where reqd
 	goto exit;					// common exit code
       }							// end found expired
 #ifdef MV1_CACHE
-      if ((ptr->dirty == NULL) &&
-          (ptr->last_accessed <= old_last_accessed) &&
-          (ptr->last_accessed > 0))
+      if ((clean) &&                                    // blk clean
+          (ptr->last_accessed <= old_last_accessed))    // and older th. lastold
       { old = ptr->last_accessed;			// save time
 	oldptr = ptr;					// save the ptr
 	hash = i;					// and the hash
-        hash_start = i;
+        systab->hash_start = i;
         goto quite_old;
       }
-      if ((ptr->dirty == NULL) &&			// if free
-	  (ptr->last_accessed < old) &&			// and less than oldest
-	  (ptr->last_accessed > 0))			// and there is a time
+      if ((clean) &&                                    // blk clean
+	  (ptr->last_accessed < old))    		// and less than oldest
       { old = ptr->last_accessed;			// save time
 	oldptr = ptr;					// save the ptr
 	hash = i;					// and the hash
       }
 #else
-      if ((ptr->dirty == NULL) &&
-          (ptr->last_accessed > 0))
-      { if (ptr->referenced)
+      if (clean)                                        // blk clean
+      { if (ptr->referenced)                            // if refd, clear refd
           ptr->referenced--;
-        if (0 == ptr->referenced)
-        { old = ptr->last_accessed;			// save time
-	  oldptr = ptr;					// save the ptr
-	  hash = i;					// and the hash
-          hash_start = i;
+        else // if (0 == ptr->referenced)               // else use it
+        { old = ptr->last_accessed;			//   save time
+	  oldptr = ptr;					//   save the ptr
+	  hash = i;					//   and the hash
+          systab->hash_start = i;
           goto quite_old;
-        }
-        else if (ptr->last_accessed < old)
-        { old = ptr->last_accessed;
-          oldptr = ptr;
-          hash = i;
         }
       }
 #endif
@@ -546,7 +493,7 @@ start:
     }							// end 1 hash list
     i = (i + 1) & (GBD_HASH - 1);			// next hash entry
 #ifndef MV1_REFD
-    if (i == hash_start)				// where we started
+    if (i == systab->hash_start)			// where we started
     { break;						// done
     }
 #endif
@@ -589,6 +536,9 @@ exit:
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = NULL;				// clear dirty
   blk[level]->last_accessed = (time_t) 0;		// and time
+#ifdef MV1_REFD
+  blk[level]->referenced = 1;                           // mark refd
+#endif
   idx = (u_short *) blk[level]->mem;			// set this up
   iidx = (int *) blk[level]->mem;			// and this
   return;						// return

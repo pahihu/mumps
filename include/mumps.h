@@ -322,6 +322,9 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int lasttry;                                // Search Last Tries
   u_int lastok;                                 // Search Last Successes
 
+  u_int lastwrtry;                              // Write Last Tries
+  u_int lastwrok;                               // Write Last Successes
+
   u_int logrd;                                  // Logical Block Reads
   u_int phyrd;                                  // Physical Block Reads
 
@@ -513,6 +516,8 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;
 #endif
+  int hash_start;                               // GBD search starts here
+  u_int *last_blk_written;                      // actually setup for real jobs
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs
 } systab_struct;                                // end of systab

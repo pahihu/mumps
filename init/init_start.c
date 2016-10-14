@@ -178,6 +178,7 @@ int INIT_Start( char *file,                     // database
 
   sjlt_size = sizeof(systab_struct)		// size of Systab
 	    + (sizeof(u_int) * (jobs - 1))	// adj for last_blk_used[1]
+            + (sizeof(u_int) * (jobs))          // adj for last_blk_written
             + (sizeof(jobtab) * jobs)		// size of JOBTAB
             + locksize;				// size of LOCKTAB
 
@@ -244,8 +245,12 @@ int INIT_Start( char *file,                     // database
   bzero(systab, share_size);			// zot the lot
   systab->address = systab;                     // store the address for ron
 
+  systab->last_blk_written =
+     (u_int*)&systab->last_blk_used[jobs];      // setup last_blk_written
+  // systab->jobtab =
+  //   (jobtab *)&systab->last_blk_used[jobs + 1]; // setup jobtab pointer
   systab->jobtab =
-    (jobtab *)&systab->last_blk_used[jobs + 1]; // setup jobtab pointer
+     (jobtab *)&systab->last_blk_written[jobs]; // setup jobtab pointer
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
@@ -291,6 +296,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->shm_id = shar_mem_id;		// set up share id
   systab->sem_id = sem_id;			// set up semaphore id
   systab->vol[0]->map_dirty_flag = 0;		// clear dirty map flag
+  systab->hash_start = 0;                       // start searching here
 
   bzero(semtab, sizeof(semtab));
 

@@ -195,6 +195,7 @@ FullGlobalKill:
       level = save_level;
     }
     bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+    bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int));// zot all
     level--;						// backup a level
 
     return 0;						// and exit
@@ -508,6 +509,7 @@ FullGlobalKill:
   }							// end right edge stuff
 
   bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+  bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int)); // zot all
 
   return Re_key();					// re-key and return
 }

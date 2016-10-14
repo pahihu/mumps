@@ -56,7 +56,8 @@
 // Input(s): Pointer the the key and data to insert
 // Return:   String length -> Ok, negative MUMPS error -(ERRMLAST+ERRZ62)
 //
-extern int KeyBufBuilt;                                 // see db_locate.c
+
+extern int KeyLocated;                                  // flag key located
 
 short Insert(u_char *key, cstring *data)                // insert a node
 { int i;						// a handy int
@@ -73,13 +74,15 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
   locate_used = 0;
   if (blk[level]->mem->last_idx > LOW_INDEX - 1)	// if some data
-  { locate_used = 1;
-    s = Locate(key);			                // search for it
-    if (s >= 0)						// if found
-    { return -(ERRMLAST+ERRZ61);                        // database stuffed
-    }
-    else if (s != -ERRM7)				// for any other error
-    { return s;                                         // exit
+  { if (!KeyLocated)                                    // key not located yet
+    { locate_used = 1;                                  // flag using Locate()
+      s = Locate(key);			                // search for it
+      if (s >= 0)					// if found
+      { return -(ERRMLAST+ERRZ61);                      // database stuffed
+      }
+      else if (s != -ERRM7)				// for any other error
+      { return s;                                       // exit
+      }
     }
   }
   else							// empty block
@@ -95,7 +98,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
     partab.jobtab->last_block_flags = flags;
   }
 
-  if (!locate_used || !KeyBufBuilt)
+  if (!locate_used)
   { keybuf[0] = 0;					// clear keybuf
 #ifdef MV1_CCC
     for (i = LOW_INDEX; i < Index; i++)			// for all prev Indexes
@@ -765,14 +768,15 @@ int MSleep(u_int mseconds)
   return usleep(1000 * mseconds);
 }
 
-void Ensure_GBDs(void)
+void Ensure_GBDs(int haslock)
 {
   int j;
   int qpos, wpos, rpos, qlen, qfree;
   int MinSlots;
 
 start:
-  Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  Get_GBDsEx(MAXTREEDEPTH * 2, haslock);		// ensure this many
+  haslock = 0;                                          // clear for next turns
 
   j = 0;                                                // clear counter
   MinSlots = 3 * MAXTREEDEPTH;

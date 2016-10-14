@@ -180,6 +180,7 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   blk[level]->mem->last_idx = LOW_INDEX - 1;		// say no index
   Garbit(gb);						// garbage it
   bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
+  bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int)); // zot all
   SemOp( SEM_GLOBAL, -curr_lock);
   return 0;						// exit
 }

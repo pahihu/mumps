@@ -17,6 +17,8 @@
 #include "proto.h"
 #include "d_rwlock.h"
 
+// #define MV1_PROFILE     1
+
 
 static u_int          semop_time;
 
@@ -166,6 +168,11 @@ short TrySemLock(int sem_num, int numb)
   short s;
   int dosemop;
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
+#ifdef MV1_PROFILE
+  struct timeval st, et;
+
+  gettimeofday(&st, NULL);
+#endif
 
   s = 0;
 #ifdef MV1_SHSEM
@@ -191,6 +198,11 @@ short TrySemLock(int sem_num, int numb)
     buf.sem_op = (short) numb;                  // and the number of them
     s = Semop(systab->sem_id, &buf, 1);         // doit
   }
+#ifdef MV1_PROFILE
+  gettimeofday(&et, NULL);
+  semop_time = 1000000 * (et.tv_sec  - st.tv_sec) +
+                         (et.tv_usec - st.tv_usec);
+#endif
   return s;
 }
 
@@ -214,7 +226,6 @@ short SemLock(int sem_num, int numb)
     s = Semop(systab->sem_id, &buf, 1);         // doit
   }
 
-// #define MV1_PROFILE 1
 #ifdef MV1_PROFILE
   if (s == 0)
   { semtab[x].semop_time += semop_time_sav;

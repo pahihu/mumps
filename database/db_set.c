@@ -113,25 +113,47 @@
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-extern void UpdateLocateCache();
+extern int KeyLocated;                                  // flag key located
 
-short DoSimpleInsert(cstring *data)
-{ int s;
+short TrySimpleSet(short s, cstring *data)
+{ int i;
 
-  s = Insert(&db_var.slen, data);			// try it
-  if (s != -(ERRMLAST+ERRZ62))			        // if it did fit
-  { if (s < 0)
-    { return s;					        // exit on error
-    }
+  if (s < 0)                                            // it's a new node
+  { KeyLocated = 1;
+    s = Insert(&db_var.slen, data);			// try it
+    KeyLocated = 0;
+    if (s != -(ERRMLAST+ERRZ62))		        // if it did fit
+    { if (s < 0)
+      { return s;				        // exit on error
+      }
 #ifdef XMV1_BLKVER
-    blk[level]->blkver_low++;
+      blk[level]->blkver_low++;
 #endif
-    if (blk[level]->dirty == (gbd *) 1)		        // if reserved
-    { blk[level]->dirty = blk[level];			// point at self
-      Queit();					        // que for write
-      UpdateLocateCache();                              // update Locate()
+      if (blk[level]->dirty == (gbd *) 1)	        // if reserved
+      { blk[level]->dirty = blk[level];			// point at self
+        Queit();				        // que for write
+      }
+      return data->len;		                        // and return length
     }
-    return data->len;		                        // and return length
+  }
+  else							// it's a replacement
+  { i = chunk->len - chunk->buf[1] - 6;			// available size
+    if (data->len <= i)					// if it will fit
+    { if (data->len < record->len)			// if new record smaller
+      { blk[level]->mem->flags |= BLOCK_DIRTY;		// block needs tidy
+      }
+      record->len = data->len;				// copy length
+      bcopy(data->buf, record->buf, data->len);		// and the data
+#ifdef XMV1_BLKVER
+      blk[level]->blkver_low++;
+#endif
+      if (blk[level]->dirty == (gbd *) 1)		// if reserved
+      { blk[level]->dirty = blk[level];			// point at self
+        Queit();					// que for write
+      }
+      return data->len;					// and return length
+    }
+    s = -(ERRMLAST+ERRZ62);		                // did not fit
   }
 
   return s;
@@ -155,53 +177,67 @@ short Set_data(cstring *data)				// set a record
   gbd *gptr;
 
   if (!curr_lock)
-    Ensure_GBDs();
+    while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
 
-#if 0
-  if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
-      (!db_var.slen))
+  if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0)// if ^$G
   { last_blk_written = 0;                               // zot this
   }
   else
   { i = last_blk_written;                               // get last written
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
-    { // systab->vol[volnum-1]->stats.lasttry++;	// count a try
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrtry); // count a try
       gptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)];// get listhead
       while (gptr != NULL)				// for each in list
-      { if (gptr->block == i)				// found it
-        { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
-          if ((gptr->mem->right_ptr) ||                 // has a right ptr
-	      (gptr->last_accessed == (time_t) 0) ||  	// not available
-	      (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
-              (X_NE(gptr->mem->global, 
-                                db_var.name.var_xu)))   // wrong global
-          { break;					// exit the loop
-	  }
-	  level = LAST_USED_LEVEL;			// use this level
-	  blk[level] = gptr;				// point at it
-	  s = LocateEx(&db_var.slen, 1);		// check for the key
-	  if ((s == -ERRM7) &&				// not found and
-	      (Index == 1 + blk[level]->mem->last_idx) && // next to last
-	      (Index > LOW_INDEX))			// not at begining
-	  { // systab->vol[volnum-1]->stats.lastok++;	// count success
-            s = DoSimpleInsert(data);                   // try a simple insert
-            if (s > 0)
-              return s;
-            if ((s != -(ERRMLAST+ERRZ62)) && (s < 0))	// if it did fit
-            { return s;					// exit on error
+      { if (gptr->block != i)                           // not found
+        { gptr = gptr->next;                            // get next
+          continue;                                     //   and continue
+        }
+        //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
+        if ((gptr->last_accessed == (time_t) 0) ||  	// not available
+	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
+            (X_NE(gptr->mem->global, 
+                              db_var.name.var_xu)))     // wrong global
+        { break;					// exit the loop
+	}
+	level = LAST_USED_LEVEL;			// use this level
+	blk[level] = gptr;				// point at it
+	s = LocateEx(&db_var.slen, 1);		        // check for the key
+	if ((Index > LOW_INDEX) &&                      // not at beginning
+            ((s == 0) ||                                // found it
+             ((s == -ERRM7) &&				// not found
+              (gptr->mem->right_ptr == 0) &&            // has no right_ptr
+              (Index > gptr->mem->last_idx))))          // and append
+	{ s = TrySimpleSet(s, data);                    // try a simple set
+          if (s > 0)                                    // success ?
+          { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
+            if ((systab->vol[volnum - 1]->vollab->journal_available) &&
+                (systab->vol[volnum - 1]->vollab->journal_requested) &&
+                (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+            { jrnrec jj;				// jrn structure
+              jj.action = JRN_SET;			// doing set
+              jj.uci = db_var.uci;			// copy UCI
+              //jj.name.var_qu = db_var.name.var_qu;	// global name
+              jj.name.var_xu = db_var.name.var_xu;	// global name
+              jj.slen = db_var.slen;			// subs length
+              bcopy(db_var.key, jj.key, jj.slen);	// copy key
+              DoJournal(&jj, data);			// and do it
             }
-	  }
-	  blk[level] = NULL;				// clear this
-	  level = 0;					// and this
-	  break;					// and exit loop
-        }						// end found block
-        gptr = gptr->next;				// get next
+            return s;                                   //   done
+          }
+          if ((s != -(ERRMLAST+ERRZ62)) && (s < 0))	// complain on error
+          { return s;					//   except did not fit
+          }
+	}
+	blk[level] = NULL;				// clear this
+	level = 0;					// and this
+	break;					        // and exit loop
       }							// end while gptr
     }							// end last used stuff
     last_blk_written = 0;                               // zot it
   }
-#endif
+
+  Ensure_GBDs(1);                                       // reserve GBDs w/ lock
 
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
@@ -351,11 +387,9 @@ short Set_data(cstring *data)				// set a record
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
-        UpdateLocateCache();                            // update Locate()
       }
 
-      if (db_var.slen)                                  // if has subscripts
-        last_blk_written = blk[level]->block;           // remember this
+      last_blk_written = blk[level]->block;             // remember this
 
       level--;						// point up a level
       while (level >= 0)				// for each
@@ -385,6 +419,9 @@ short Set_data(cstring *data)				// set a record
       { blk[level]->dirty = blk[level];			// point at self
         Queit();					// que for write
       }
+
+      last_blk_written = blk[level]->block;             // remember this
+
       level--;						// point up a level
       while (level >= 0)				// for each
       { if (blk[level] != NULL)				// if one there

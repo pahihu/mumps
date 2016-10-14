@@ -51,7 +51,7 @@
 
 #define NUM_CHUNK       (256 * 1024)
 
-        int     KeyBufBuilt;
+        int     KeyLocated;                             // flag key located
 static  int     locate_init = 1;
 static  u_short LastIndex;
 static  u_short wPrevChunk[ 32*1024];                   // write cache
@@ -195,11 +195,6 @@ void Build_KeyBuf(void)
 //		(u_char)	keybuf	the current full key
 //
 
-void UpdateLocateCache(void)
-{
-  return;
-}
-
 short LocateEx(u_char *key, int frominsert)		// find key
 { int i;						// a handy int
   int L, R;                                             // bin.search limits
@@ -266,7 +261,7 @@ short LocateEx(u_char *key, int frominsert)		// find key
 #endif
 
   LastIndex = R + 1;                                    // setup LastIndex
-  KeyBufBuilt = 0;
+  KeyLocated = 0;
   if (frominsert)                                       // writing, chk last
   { Index = R;
     // Build_KeyBuf();                                  // build keybuf
@@ -274,7 +269,6 @@ short LocateEx(u_char *key, int frominsert)		// find key
     i = UTIL_Key_KeyCmp(&chunk->buf[2], &key[1], chunk->buf[1], key[0]); // cmp
     if (i == K2_GREATER)                                // key > last key
     { Index = R + 1;                                    // early exit
-      // KeyBufBuilt = 1;
       return -ERRM7;
     }
   }
@@ -286,7 +280,6 @@ short LocateEx(u_char *key, int frominsert)		// find key
     //   Build_KeyBuf();
     //   return LocateLin(key, R);
     // }
-    KeyBufBuilt = 0;
     Index = (L + R) >> 1;                               // find middle
 #ifdef MV1_CCC
     Build_KeyBuf();
@@ -307,7 +300,6 @@ short LocateEx(u_char *key, int frominsert)		// find key
 #endif
     if (i == K2_GREATER)                                // not reached, adj. L
     { L = Index + 1;
-      // KeyBufBuilt = 1;
       continue;
     }
     else if (i == K2_LESSER)                            // passed, adj. R

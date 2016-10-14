@@ -104,8 +104,6 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 // #define MV1_CACHE	1
 #define MV1_REFD	1
 #undef MV1_BLKVER
-#undef MV1_RSVD
-#undef MV1_FORCE
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
@@ -184,6 +182,7 @@ short Get_block(u_int blknum);				// Get block
 short New_block();					// get new block
 void Get_GBD();						// get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
+void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(gbd *free);				// Free a GBD
 
 // File: database/db_get.c
@@ -217,7 +216,7 @@ void Queit();						// que a gbd for write
 void Tidy_block();					// tidy current blk
 void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
-void Ensure_GBDs();                                     // wait for GBDs
+void Ensure_GBDs(int haslock);                          // wait for GBDs
 
 //*****************************************************************************
 
