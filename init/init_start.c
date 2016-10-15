@@ -450,6 +450,10 @@ int INIT_Start( char *file,                     // database
     { gptr[i].next = NULL;			// end of list
     }
     systab->vol[0]->gbd_hash[ GBD_HASH ] = gptr; // head of free list
+#ifdef MV1_REFD
+    gptr[i].prev = NULL;                        // no prev in free list
+    gptr[i].hash = GBD_HASH;                    // store hash
+#endif
   }						// end setup gbds
 
   Routine_Init();				// and the routine junk
