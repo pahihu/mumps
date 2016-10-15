@@ -87,6 +87,7 @@ short Kill_data_ex(int what)				// remove tree
   SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
   systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
 
+  writing = 1;						// say we are killing
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
   wpos = systab->vol[volnum - 1]->garbQw;
@@ -116,11 +117,16 @@ start:
   goto start;
 
 cont:
-  writing = 1;						// say we are killing
   level = 0;						// reset level
   s = Get_data(0);					// attempt to get it
   if ((s < 0) && (s != -ERRM7))				// error, not undef
-  { return s;						// return it
+  { while (level)					// for each level
+    { if (blk[level]->dirty == (gbd *) 1)		// if reserved
+      { blk[level]->dirty = NULL;			// clear it
+      }
+      level--;						// up a level
+    }
+    return s;						// return it
   }
   if ((systab->vol[volnum - 1]->vollab->journal_available) &&
       (systab->vol[volnum - 1]->vollab->journal_requested) &&

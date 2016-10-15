@@ -509,10 +509,10 @@ short Compress1()
   short s;
   u_char gtmp[2*MAX_NAME_BYTES];			// to find glob
 
+  writing = 1;						// flag writing
   Get_GBDs(MAXTREEDEPTH * 2);                           // ensure this many
 
   curlevel = level;
-  writing = 1;						// flag writing
   s = Get_data(curlevel);				// get the data
   if ((s == -ERRM7) && (!db_var.slen))			// if top
   { s = 0;						// it does exist

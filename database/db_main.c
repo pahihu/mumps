@@ -148,6 +148,7 @@ short Copy2local(mvar *var, char *rtn)
   { return (-ERRM26);					// error
   }
   volnum = db_var.volset;				// save this for ron
+#ifndef NDEBUG
   if (db_var.nsubs != 255)
   { int actsubs;
     UTIL_Key_Chars_In_Subs((char *)db_var.key, (int)db_var.slen,
@@ -156,6 +157,7 @@ short Copy2local(mvar *var, char *rtn)
       BAD_MVAR();
     assert(db_var.nsubs == actsubs);
   }
+#endif
   return 0;						// else return ok
 }
 
@@ -191,8 +193,8 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
 
   if (wrlock)
-  { Ensure_GBDs(0);
-    writing = 1;
+  { writing = 1;
+    Ensure_GBDs(0);
   }
 
   s = Get_data(0);					// attempt to get it
