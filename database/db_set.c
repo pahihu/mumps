@@ -180,10 +180,11 @@ short Set_data(cstring *data)				// set a record
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
 
   if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0)// if ^$G
-  { last_blk_written = 0;                               // zot this
+  { systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot this
   }
   else
-  { i = last_blk_written;                               // get last written
+  { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
+                                                        // get last written
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrtry); // count a try
@@ -203,17 +204,22 @@ short Set_data(cstring *data)				// set a record
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
 	s = LocateEx(&db_var.slen, 1);		        // check for the key
-	if ((Index > LOW_INDEX) &&                      // not at beginning
-            ((s == 0) ||                                // found it
-             ((s == -ERRM7) &&				// not found
-              (gptr->mem->right_ptr == 0) &&            // has no right_ptr
-              (Index > gptr->mem->last_idx))))          // and append
+	if (((Index == LOW_INDEX) &&                    // at the beginning
+             (partab.jobtab->last_written_flags         //   and top defined
+                                     & GL_TOP_DEFINED)) || // --- OR ---
+            ((Index > LOW_INDEX) &&                     // not at beginning
+             ((s == 0) ||                               //   and found it
+                                                        // --- OR ---
+              ((s == -ERRM7) &&				// not found
+               (gptr->mem->right_ptr == 0) &&           //   has no right_ptr
+               (Index > gptr->mem->last_idx)))))        //   and append
 	{ s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
             if ((systab->vol[volnum - 1]->vollab->journal_available) &&
                 (systab->vol[volnum - 1]->vollab->journal_requested) &&
-                (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+                (partab.jobtab->last_written_flags & GL_JOURNAL))
+                                                        // if journaling
             { jrnrec jj;				// jrn structure
               jj.action = JRN_SET;			// doing set
               jj.uci = db_var.uci;			// copy UCI
@@ -234,7 +240,7 @@ short Set_data(cstring *data)				// set a record
 	break;					        // and exit loop
       }							// end while gptr
     }							// end last used stuff
-    last_blk_written = 0;                               // zot it
+    systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot it
   }
 
   Ensure_GBDs(1);                                       // reserve GBDs w/ lock
@@ -389,7 +395,10 @@ short Set_data(cstring *data)				// set a record
 	Queit();					// que for write
       }
 
-      last_blk_written = blk[level]->block;             // remember this
+      partab.jobtab->last_written_flags =               // remember flags
+              partab.jobtab->last_block_flags;
+      systab->last_blk_written[partab.jobtab - systab->jobtab] =
+                                blk[level]->block;      //   and block
 
       level--;						// point up a level
       while (level >= 0)				// for each
@@ -420,7 +429,10 @@ short Set_data(cstring *data)				// set a record
         Queit();					// que for write
       }
 
-      last_blk_written = blk[level]->block;             // remember this
+      partab.jobtab->last_written_flags =               // remember flags
+              partab.jobtab->last_block_flags;
+      systab->last_blk_written[partab.jobtab - systab->jobtab] =
+                                blk[level]->block;      //   and block
 
       level--;						// point up a level
       while (level >= 0)				// for each

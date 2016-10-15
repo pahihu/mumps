@@ -448,6 +448,7 @@ typedef struct __attribute__ ((__packed__)) JOBTAB
   u_int commands;                               // commands executed
   u_int grefs;                                  // global references
   u_int last_block_flags;                       // journal etc of last db block
+  u_int last_written_flags;                     // last written db blk flags
   short error_frame;                            // frame error happened in
   short etrap_at;                               // where $ET was invoked
   int trap;                                     // outstanding traps
