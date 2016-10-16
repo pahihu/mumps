@@ -167,7 +167,7 @@ short Get_block(u_int blknum)                           // Get block
   if (!writing)						// if reading
   { 
 #ifdef MV1_GBDLATCH
-    LatchUnlock(&systab->shmse[SEM_GLOBAL]);
+    LatchUnlock(&systab->shsem[SEM_GLOBAL]);
 #else
     SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
 #endif
@@ -308,7 +308,6 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   gbd *last;						// and another
   time_t now;						// current time
   int pass = 0;						// pass number
-  int hash_start_sav;
 
 start:
   if (!haslock)
@@ -343,7 +342,7 @@ start:
 	ptr->last_accessed = (time_t) 0;		// ensure no time
 	curr++;						// count this
         if (curr >= greqd)				// if enough there
-        { systab->hash_start = hash_start_sav;
+        { systab->hash_start = i;
           return;					// just exit
         }
 	if (last == NULL)				// if first one
@@ -479,8 +478,11 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
+#ifdef MV1_GBDLATCH
+    LatchUnlock(&systab->shsem[SEM_GLOBAL]);            // release latch
+#endif
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
-    // Sleep(1);						// wait
+    // Sleep(1);					// wait
     if (pass & 3)
       SchedYield();
     else
@@ -489,7 +491,12 @@ start:
     if (pass > GBD_TRIES)				// this is crazy!
     { panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
-    while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
+#ifdef MV1_GBDLATCH
+    while (SemOp(SEM_GLOBAL, READ));                    // re-get READ lock
+    LatchLock(&systab->shsem[SEM_GLOBAL]);              // lock latch
+#else
+    while (SemOp(SEM_GLOBAL, WRITE));			// re-get WRITE lock
+#endif
     goto start;						// and try again
   }
 
@@ -611,7 +618,7 @@ start:
         (ptr->last_accessed < now) &&                   // and not viewed
         (ptr->last_accessed > 0))			// and there is a time
     { if (ptr->referenced)                              // if refd, clear it
-          ptr->referenced--;
+        ptr->referenced--;
       else
       { // fprintf(stderr,"Get_GBDs(): ptr->hash=%d\r\n",ptr->hash);
         rsvd_gbd[nrsvd++] = ptr;                        // save as reserved
@@ -708,8 +715,11 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
+#ifdef MV1_GBDLATCH
+    LatchUnlock(&systab->shsem[SEM_GLOBAL]);            // release latch
+#endif
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
-    // Sleep(1);						// wait
+    // Sleep(1);					// wait
     if (pass & 3)
       SchedYield();
     else
@@ -718,7 +728,12 @@ start:
     if (pass > GBD_TRIES)				// this is crazy!
     { panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
+#ifdef MV1_GBDLATCH
+    while (SemOp(SEM_GLOBAL, READ));                    // re-get READ lock
+    LatchLock(&systab->shsem[SEM_GLOBAL]);
+#else
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
+#endif
     goto start;						// and try again
   }
   systab->hash_start = oldpos;                          // remember this

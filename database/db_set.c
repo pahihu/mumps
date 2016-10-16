@@ -529,7 +529,8 @@ short Set_data(cstring *data)				// set a record
   if (trailings <= blk[level]->mem->last_idx)		// if any point
   { 
 #ifdef MV1_CCC
-    for (i = LOW_INDEX; i < trailings; i++)		// scan front of blk
+    // for (i = LOW_INDEX; i < trailings; i++)		// scan front of blk
+    for (i = FindChunk0(trailings); i < trailings; i++)	// scan front of blk
     { chunk = (cstring *) &iidx[idx[i]];		// point at chunk
       bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
     }							// get fk[] correct

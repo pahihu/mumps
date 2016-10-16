@@ -512,7 +512,8 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     }
   }							// end forwards
 #ifdef MV1_CCC
-  for (i = LOW_INDEX; i <= Index; i++)			// scan to current
+  // for (i = LOW_INDEX; i <= Index; i++)		// scan to current
+  for (i = FindChunk0(Index + 1); i <= Index; i++)	// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
@@ -655,7 +656,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
 
 #ifdef MV1_CCC
-  for (i = LOW_INDEX; i <= Index; i++)			// scan to current
+  // for (i = LOW_INDEX; i <= Index; i++)		// scan to current
+  for (i = FindChunk0(Index + 1); i <= Index; i++)	// scan to current
   { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key

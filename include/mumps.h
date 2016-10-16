@@ -136,7 +136,8 @@
 #define MIN_GBD		40			// minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#define GBD_HASH        1024                    // hash size for global buffers
+// #define GBD_HASH        1024                 // hash size for global buffers
+#define GBD_HASH        4096                    // hash size for global buffers
 //#define NUM_DIRTY       1024                    // max queued dirty chains
 #define NUM_DIRTY       2048                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks

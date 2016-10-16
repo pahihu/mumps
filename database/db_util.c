@@ -59,6 +59,30 @@
 
 extern int KeyLocated;                                  // flag key located
 
+u_short FindChunk0(u_short from)
+{
+  cstring *tsunk;
+
+  for (from-- ; from >= LOW_INDEX; from--)              // search backward
+  { tsunk = (cstring *) &iidx[idx[from]];
+    if (tsunk->buf[0] == 0)                             // if prefix is zero
+      return from;                                      //   done
+  }
+  return LOW_INDEX;                                     // sentinel
+}
+
+u_short FindChunk(u_short from, u_char pfxlen)
+{
+  cstring *tsunk;
+
+  for (from-- ; from >= LOW_INDEX; from--)              // search backward
+  { tsunk = (cstring *) &iidx[idx[from]];
+    if (tsunk->buf[0] < pfxlen)                         // if prefix is shorter
+      return from;                                      //   done
+  }
+  return LOW_INDEX;                                     // sentinel
+}
+
 short Insert(u_char *key, cstring *data)                // insert a node
 { int i;						// a handy int
   int isdata;						// data/ptr flag
@@ -98,10 +122,11 @@ short Insert(u_char *key, cstring *data)                // insert a node
     partab.jobtab->last_block_flags = flags;
   }
 
-  if (!locate_used)
+  if (1 /*locate_used == 0*/)                           // XXX
   { keybuf[0] = 0;					// clear keybuf
 #ifdef MV1_CCC
-    for (i = LOW_INDEX; i < Index; i++)			// for all prev Indexes
+    // for (i = LOW_INDEX; i < Index; i++)		// for all prev Indexes
+    for (i = FindChunk0(Index); i < Index; i++)		// for all prev Indexes
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
@@ -112,7 +137,13 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
   ccc = 0;						// start here
 #ifdef MV1_CCC
-  if ((key[0]) && (keybuf[0]))				// if any there
+  // Key segmentation
+  //
+  //   To conserve space, we compress 7 keys, then 
+  //   store 1 w/o compression.
+  //
+  // if (((Index - LOW_INDEX) & 7) &&                      // not segment marker
+  if ((key[0]) && (keybuf[0]))			        //   and any there
   { while (key[ccc + 1] == keybuf[ccc + 1])		// while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))	// at end of either
       { break;						// done
@@ -385,7 +416,9 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
 
   keybuf[0] = 0;					// clear this
 #ifdef MV1_CCC
-  for (i = LOW_INDEX; i <= blk[level]->mem->last_idx; i++)// scan to end to blk
+  // for (i = LOW_INDEX; i <= blk[level]->mem->last_idx; i++)// scan to end to blk
+  for (i = FindChunk0(blk[level]->mem->last_idx + 1);   // scan to end to blk
+                  i <= blk[level]->mem->last_idx; i++)
   { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
     bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	  chunk->buf[1]);				// update the key
@@ -421,7 +454,9 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     }
     ccc = 0;						// start here
 #ifdef MV1_CCC
-    if ((fk[0]) && (keybuf[0]))				// if any there
+    // if (((blk[level]->mem->last_idx + 1 - LOW_INDEX) & 7) && // not seg. marker
+    // if (((i - LOW_INDEX) & 7) &&                     // not seg. marker
+    if ((fk[0]) && (keybuf[0]))			        // and if any there
     { while (fk[ccc + 1] == keybuf[ccc + 1])		// while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))	// at end of either
         { break;					// done

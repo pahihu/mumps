@@ -101,9 +101,16 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #define LOW_INDEX       26                              // 22
 #endif
 
-#define MV1_CACHE	1
-// #define MV1_REFD	1
-#undef MV1_BLKVER
+// #define MV1_CCC         1
+#ifdef MV1_CCC
+#define MV1_BLKVER      1
+#else
+#undef  MV1_BLKVER
+#endif
+
+// #define MV1_CACHE	1
+#define MV1_REFD	1
+// #define MV1_GBDLATCH    1
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
@@ -198,6 +205,9 @@ short Kill_data_ex(int what);				// remove tree,selective
 short Locate(u_char *key);				// find key
 short LocateEx(u_char *key, int frominsert);		//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
+u_short FindChunk(u_short from,u_char pfxlen);          // find less than pfxlen
+u_short FindChunk0(u_short from);                       // find zero length
+                                        // chunk backwards, not including from
 
 // File: database/db_rekey.c
 short Add_rekey(u_int block, int level);		// add to re-key table

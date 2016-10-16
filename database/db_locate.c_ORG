@@ -48,7 +48,7 @@
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
 
-int KeyBufBuilt = 0;
+int KeyLocated = 0;
 int locqry = 0;
 int lochit = 0;
 
