@@ -126,12 +126,15 @@ short Insert(u_char *key, cstring *data)                // insert a node
   { keybuf[0] = 0;					// clear keybuf
 #ifdef MV1_CCC
     // for (i = LOW_INDEX; i < Index; i++)		// for all prev Indexes
+#if 0
     for (i = FindChunk0(Index); i < Index; i++)		// for all prev Indexes
     { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
       bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
 	    chunk->buf[1]);				// update the key
       keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
     }							// we insert after this
+#endif
+    Build_KeyBuf(Index - 1, &keybuf[0]);
 #endif
   }
 
@@ -417,6 +420,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
   keybuf[0] = 0;					// clear this
 #ifdef MV1_CCC
   // for (i = LOW_INDEX; i <= blk[level]->mem->last_idx; i++)// scan to end to blk
+#if 0
   for (i = FindChunk0(blk[level]->mem->last_idx + 1);   // scan to end to blk
                   i <= blk[level]->mem->last_idx; i++)
   { chunk = (cstring *) &iidx[idx[i]];			// point at the chunk
@@ -424,6 +428,8 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
 	  chunk->buf[1]);				// update the key
     keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   }							// end update keybuf[]
+#endif
+  Build_KeyBuf(blk[level]->mem->last_idx, &keybuf[0]);
 #else
   chunk = (cstring *) &iidx[idx[blk[level]->mem->last_idx]];// point at to chunk
   bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],

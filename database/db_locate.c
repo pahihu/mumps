@@ -58,38 +58,55 @@ static int     KeyBufUpdated;                           // flag keybuf[] updated
 
 //-----------------------------------------------------------------------------
 // Function:    Build_KeyBuf
-// Descript:    build up keybuf[] for Index
+// Descript:    build up keybuf[] in pKeyBuf for pIndex
 //
 
-static
-u_char* Build_KeyBuf(void)
+void Build_KeyBuf(int pIndex, u_char *pKeyBuf)
 { int i;                                                // handy int
-  u_short pos, from;
-  u_char pfx;
-  u_short tidx[256];
-  int ntidx = 256;
+  u_short  pos, from;
+  u_char   pfx,nxtpfx;
+  int      ncptr = 256;
+  cstring *cptr[256];
+  u_char   stride[256];
+  u_char   last_ccc,last_ucc;
 
-  chunk = (cstring *) &iidx[idx[Index]];
+  chunk = (cstring *) &iidx[idx[pIndex]];
   pfx   = chunk->buf[0];
+  pKeyBuf[0] = pfx + chunk->buf[1];                     // set keybuf size
   if (pfx == 0)
   { // fprintf(stderr,"keybuf ptr\r\n");
-    chunk = (cstring *) &iidx[idx[Index]];              // point at the chunk
-    KeyBufUpdated = 0;                                  // keybuf[] not updated
-    return &chunk->buf[1];                              // return key ptr
+    bcopy(&chunk->buf[2], &pKeyBuf[chunk->buf[0]+1],    // update the keybuf
+	  chunk->buf[1]);			
+    return;
   }
 
-  tidx[--ntidx] = Index;
-  from = Index;
+  // last_ccc = chunk->buf[0];
+  // last_ucc = chunk->buf[1];
+
+  cptr[--ncptr] = chunk;                        // put chunk as last
+  stride[ncptr] = chunk->buf[1];                // chunk should point there
+
+  from = pIndex;
   do
   { pos = FindChunk(from, pfx);
-    tidx[--ntidx] = pos;
     chunk = (cstring *) &iidx[idx[pos]];
-    pfx = chunk->buf[0];
+    cptr[--ncptr] = chunk;
+    stride[ncptr] = pfx - (nxtpfx = chunk->buf[0]);
+    pfx = nxtpfx;
     from = pos;
   } while (pfx != 0);
 
+  //    0 ucc0  cpy  ccc1 - 0     from    0  to  0
+  // ccc1 ucc1  cpy  ccc2 - ccc1  from ccc1  to  ccc1
+  // ccc2 ucc2
+  //
+  //    0    3  abc
+  //    2    4  abxyzx
+  //    3    2  abxab
+  //    5
+
   // fprintf(stderr,"keybuf stride = %d\r\n",256 - ntidx);
-  keybuf[0] = 0;                                        // clear keybuf
+  // keybuf[0] = 0;                                     // clear keybuf
 #if 0
   fprintf(stderr,"keybuf stride = %d\r\n",Index-i);
   for (; i <= Index; i++)                               // for all collected idx
@@ -99,14 +116,14 @@ u_char* Build_KeyBuf(void)
     keybuf[0] = chunk->buf[0] + chunk->buf[1];          // and the keybuf size
   }
 #endif
-  for (; ntidx < 256; ntidx++)                          // for all collected idx
-  { chunk = (cstring *) &iidx[idx[tidx[ntidx]]];        // point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the keybuf
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];          // and the keybuf size
+  for (; ncptr < 256; ncptr++)                          // for all collected idx
+  { chunk = cptr[ncptr];                                // point at the chunk
+    // fprintf(stderr,"ccc=%d ucc=%d stride=%d\r\n",
+    //                 chunk->buf[0],chunk->buf[1],stride[ncptr]);
+    bcopy(&chunk->buf[2],
+          &pKeyBuf[chunk->buf[0]+1],
+	  stride[ncptr] /*chunk->buf[1]*/);		// update the keybuf
   }
-  KeyBufUpdated = 1;
-  return &keybuf[0];
 }
 
 //-----------------------------------------------------------------------------
@@ -140,15 +157,22 @@ short LocateEx(u_char *key, int frominsert)		// find key
   wr_flag = writing + wanna_writing;                    // flag a write
 
   KeyLocated = 0;
-  KeyBufUpdated = 0;
+  dbkey = &keybuf[0];
+  // fprintf(stderr,"--- LocateEx()\r\n",Index);
   if ((frominsert) &&                                   // insert: check last
       (blk[level]->mem->right_ptr == 0))                //   if no right_ptr
   { Index = R;
 #ifdef MV1_CCC
-    dbkey = Build_KeyBuf();                             // build keybuf
+    Build_KeyBuf(Index, &keybuf[0]);                    // build keybuf
 #else
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
     dbkey = &chunk->buf[1];
+#endif
+#if 0
+    fprintf(stderr," KeyBufUpdated=%d\r\n",KeyBufUpdated);
+    fprintf(stderr," Index=%d\r\n",Index);
+    fprintf(stderr," dbkey=[%s] %d\r\n",&dbkey[1],dbkey[0]);
+    fprintf(stderr,"   key=[%s] %d\r\n",&key[1],key[0]);
 #endif
     i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // cmp
     if (i == K2_GREATER)                                // key > last key
@@ -169,14 +193,13 @@ short LocateEx(u_char *key, int frominsert)		// find key
     // }
     Index = (L + R) >> 1;                               // find middle
 #ifdef MV1_CCC
-    dbkey = Build_KeyBuf();
+    Build_KeyBuf(Index, &keybuf[0]);
 #else
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
     dbkey = &chunk->buf[1];
 #endif
     i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // compare
 #if 0
-    fprintf(stderr,"--- LocateEx()\r\n",Index);
     fprintf(stderr," KeyBufUpdated=%d\r\n",KeyBufUpdated);
     fprintf(stderr," Index=%d\r\n",Index);
     fprintf(stderr," dbkey=[%s] %d\r\n",&dbkey[1],dbkey[0]);

@@ -205,6 +205,7 @@ short Kill_data_ex(int what);				// remove tree,selective
 short Locate(u_char *key);				// find key
 short LocateEx(u_char *key, int frominsert);		//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
+void Build_KeyBuf(int pIndex, u_char *pKeyBuf);         // pKeyBuf for pIndex
 u_short FindChunk(u_short from,u_char pfxlen);          // find less than pfxlen
 u_short FindChunk0(u_short from);                       // find zero length
                                         // chunk backwards, not including from
