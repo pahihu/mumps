@@ -114,16 +114,25 @@ short Get_block(u_int blknum)                           // Get block
   }							// end memory search
 
   if (!writing)						// if read mode
-  { SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
+  { 
+#ifdef MV1_GBDLATCH
+    LatchLock(&systab->shsem[SEM_GLOBAL]);
+#else
+    SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
     if (s < 0)						// on error
     { return s;						// return it
     }
+#endif
     ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
+#ifdef MV1_GBDLATCH
+        LatchUnlock(&systab->shsem[SEM_GLOBAL]);
+#else
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+#endif
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
           SchedYield();					// wait for it
@@ -135,7 +144,7 @@ short Get_block(u_int blknum)                           // Get block
     }							// end memory search
   }							// now have a write lck
   systab->vol[volnum-1]->stats.phyrd++;                 // update stats
-  Get_GBD();						// get a GBD
+  Get_GBD();					        // get a GBD
   blk[level]->block = blknum;				// set block number
 #ifdef MV1_REFD
   blk[level]->referenced    = 0;
@@ -156,7 +165,12 @@ short Get_block(u_int blknum)                           // Get block
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
   if (!writing)						// if reading
-  { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+  { 
+#ifdef MV1_GBDLATCH
+    LatchUnlock(&systab->shmse[SEM_GLOBAL]);
+#else
+    SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+#endif
   }
   file_off = (off_t) blknum - 1;			// block#
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)
@@ -383,7 +397,7 @@ start:
 // Note:     curr_lock MUST be WRITE when calling this function
 //
 
-void Get_GBD()						// get a GBD
+void Get_GBD()				                // get a GBD
 { int i;						// a handy int
   time_t now;						// current time
   time_t exp;						// expiry time

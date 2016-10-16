@@ -175,10 +175,12 @@ short Set_data(cstring *data)				// set a record
   int this_level;					// to save level
   DB_Block *btmp;					// ditto
   gbd *gptr;
+  int trysimple;                                        // flag a simple set
 
   if (!curr_lock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
 
+  trysimple = 0;
   if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0)// if ^$G
   { systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot this
   }
@@ -204,16 +206,19 @@ short Set_data(cstring *data)				// set a record
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
 	s = LocateEx(&db_var.slen, 1);		        // check for the key
-	if (((Index == LOW_INDEX) &&                    // at the beginning
+	if (((s == 0) &&                                // found it
+             (Index == LOW_INDEX) &&                    //   at the beginning
              (partab.jobtab->last_written_flags         //   and top defined
                                      & GL_TOP_DEFINED)) || // --- OR ---
             ((Index > LOW_INDEX) &&                     // not at beginning
              ((s == 0) ||                               //   and found it
                                                         // --- OR ---
               ((s == -ERRM7) &&				// not found
-               (gptr->mem->right_ptr == 0) &&           //   has no right_ptr
-               (Index > gptr->mem->last_idx)))))        //   and append
-	{ s = TrySimpleSet(s, data);                    // try a simple set
+               ((Index <= gptr->mem->last_idx) ||       //   insert
+                ((Index > gptr->mem->last_idx) &&       //   and append
+                 (gptr->mem->right_ptr == 0)))))))      //   has no right_ptr
+	{ trysimple = 1;
+          s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
             if ((systab->vol[volnum - 1]->vollab->journal_available) &&
@@ -381,11 +386,15 @@ short Set_data(cstring *data)				// set a record
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
   }
 
-  if (s < 0)						// a new node
-  { s = Insert(&db_var.slen, data);			// try it
+  if (s < 0)			                        // a new node
+  { 
+    if (trysimple)                                      // was a simple set ?
+      s = -(ERRMLAST+ERRZ62);                           //   return error
+    else
+      s = Insert(&db_var.slen, data);			// try it
     if (s != -(ERRMLAST+ERRZ62))			// if it did fit
     { if (s < 0)
-      { return s;					// exit on error
+      { return s;				        // exit on error
       }
 #ifdef XMV1_BLKVER
       blk[level]->blkver_low++;
@@ -415,7 +424,7 @@ short Set_data(cstring *data)				// set a record
 
   else							// it's a replacement
   { i = chunk->len - chunk->buf[1] - 6;			// available size
-    if (data->len <= i)					// if it will fit
+    if (data->len <= i)		                        // if it will fit
     { if (data->len < record->len)			// if new record smaller
       { blk[level]->mem->flags |= BLOCK_DIRTY;		// block needs tidy
       }

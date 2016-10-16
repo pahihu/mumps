@@ -182,7 +182,7 @@ extern int hash_start;					// start searching here
 // File: database/db_buffer.c
 short Get_block(u_int blknum);				// Get block
 short New_block();					// get new block
-void Get_GBD();						// get a GBD
+void Get_GBD();				                // get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
 void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(gbd *free);				// Free a GBD
