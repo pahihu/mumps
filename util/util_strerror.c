@@ -216,6 +216,7 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
 }
 
 extern int curr_lock;
+int dopanic = 0;                                        // flag doing panic()
 
 void panic(char *msg)					// print msg and exit
 { FILE *a;						// for freopen
@@ -224,6 +225,11 @@ void panic(char *msg)					// print msg and exit
   int j;						// and another
   time_t t;						// for time
   int errsv;
+
+  if (dopanic)                                          // recursive panic()
+    return;                                             //   done
+
+  dopanic = 1;
 
   if (curr_lock)
   { SemOp( SEM_GLOBAL, -curr_lock);

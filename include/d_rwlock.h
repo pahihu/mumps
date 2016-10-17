@@ -35,7 +35,7 @@ typedef struct _RWLOCK_T
 AO_t inter_add(volatile AO_t *ptr, AO_t incr);
 
 void LatchInit(LATCH_T *latch);
-void LatchLock(LATCH_T *latch);
+int  LatchLock(LATCH_T *latch);
 void LatchUnlock(LATCH_T *latch);
 
 void SemInit(SEM_T *sem);

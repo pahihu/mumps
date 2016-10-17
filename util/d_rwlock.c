@@ -3,11 +3,15 @@
 #include <strings.h>
 #include <assert.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sched.h>
 #include <sys/types.h>
 
 #include "d_rwlock.h"
 #include "mumps.h"
+
+extern void panic(char*);
+
 
 #ifdef USE_LIBATOMIC_OPS
 #define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
@@ -81,14 +85,14 @@ void LatchUnlock(LATCH_T *latch)
 }
 
 
-void LatchLock(LATCH_T *latch)
+int LatchLock(LATCH_T *latch)
 { int i, j;
-  AO_t slot;
+  u_int slot;
 
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
     { if (LatchTryLock(latch))
-        return;
+        return 0;
 #ifdef USE_EXPBACK
       slot = random() & ((1 << j) - 1);
       usleep(slot);
@@ -104,8 +108,9 @@ void LatchLock(LATCH_T *latch)
       usleep(1000 * LOCK_SLEEP);
 #endif
   }
-  fprintf(stderr, "lock_latch: timeout\n");
-  assert(0);
+  // fprintf(stderr, "lock_latch: timeout\n");
+  errno = ETIMEDOUT;
+  return -1;
 }
 
 
@@ -119,13 +124,16 @@ void SemInit(SEM_T *sem)
 
 
 void SemWait(SEM_T *sem)
-{ int i, j, done;
-  AO_t slot;
+{ int i, j, s, done;
+  u_int slot;
   
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
     { done = 0;
-      LatchLock(&sem->g_latch);
+      s = LatchLock(&sem->g_latch);
+      if (s < 0)
+      { panic("SemWait(): failed [g_latch]");
+      }
       if (sem->ntok)
       { sem->ntok--;
         done = 1;
@@ -148,15 +156,19 @@ void SemWait(SEM_T *sem)
       usleep(1000 * LOCK_SLEEP);
 #endif
   }
-  fprintf(stderr, "SemWait(): timeout\n");
-  fflush(stderr);
-  assert(0);
+  // fprintf(stderr, "SemWait(): timeout\n");
+  // fflush(stderr);
+  panic("SemWait(): failed");
 }
 
 
 void SemSignal(SEM_T *sem, int numb)
-{
-  LatchLock(&sem->g_latch);
+{ int s;
+
+  s = LatchLock(&sem->g_latch);
+  if (s < 0)
+  { panic("SemSignal(): failed [g_latch]");
+  }
   sem->ntok += numb;
   LatchUnlock(&sem->g_latch);
 }
@@ -180,10 +192,13 @@ int RWLockInit(RWLOCK_T *lok, int maxjob)
 
 
 void LockWriter(RWLOCK_T *lok)
-{ int dowait;
+{ int dowait, s;
 
   dowait = 0;
-  LatchLock(&lok->g_latch);
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("LockWriter(): failed [g_latch]");
+  }
   if (lok->readers || lok->writers)
   { dowait = 1;
   }
@@ -193,14 +208,21 @@ void LockWriter(RWLOCK_T *lok)
   if (dowait)
   { // fprintf(stderr, "LockWriter(): %d waiting...\n", getpid());
     // fflush(stderr);
-    LatchLock(&lok->wr_latch);
+    s = LatchLock(&lok->wr_latch);
+    if (s < 0)
+    { panic("LockWriter(): failed [wr_latch]");
+    }
   }
 }
 
 
 void UnlockWriter(RWLOCK_T *lok)
-{
-  LatchLock(&lok->g_latch);
+{ int s;
+
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockWriter(): failed [g_latch]");
+  }
   assert(0 == lok->readers);
   lok->writers--;
   if (lok->wait_to_read)
@@ -215,10 +237,13 @@ void UnlockWriter(RWLOCK_T *lok)
 
 
 void UnlockWriterToReader(RWLOCK_T *lok)
-{
+{ int s;
   AO_t wait_to_read;
 
-  LatchLock(&lok->g_latch);
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockWriterToReader(): failed [g_latch]");
+  }
   assert(0 == lok->readers);
   lok->writers--;
   wait_to_read = lok->wait_to_read;
@@ -230,9 +255,13 @@ void UnlockWriterToReader(RWLOCK_T *lok)
 
 void LockReader(RWLOCK_T *lok)
 { int dowait;
+  int i, s;
 
   dowait = 0;
-  LatchLock(&lok->g_latch);
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("LockReader(): failed [g_latch]");
+  }
   if (lok->writers)
   { dowait = 1;
     lok->wait_to_read++;
@@ -250,8 +279,12 @@ void LockReader(RWLOCK_T *lok)
 
 
 void UnlockReader(RWLOCK_T *lok)
-{
-  LatchLock(&lok->g_latch);
+{ int s;
+
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockReader(): failed [g_latch]");
+  }
   assert(0 != lok->readers);
   lok->readers--;
   if ((0 == lok->readers) && (0 < lok->writers))

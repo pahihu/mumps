@@ -189,7 +189,10 @@ short TrySemLock(int sem_num, int numb)
     }
   }
   else {
-    LatchLock(&systab->shsem[sem_num]);
+    s = LatchLock(&systab->shsem[sem_num]);
+    if (s < 0)
+    { panic("TrySemLock: failed");
+    }
   }
 
   if (dosemop)

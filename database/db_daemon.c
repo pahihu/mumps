@@ -160,7 +160,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  // { i = MSLEEP(1000);				// rest
+  // { i = MSLEEP(1000);			        // rest
   { i = MSLEEP(125);					// rest
     do_daemon();					// do something
   }
@@ -368,6 +368,7 @@ void do_write()						// write GBDs
   int i;						// a handy int
   gbd *gbdptr;						// for the gbd
   gbd *lastptr = NULL;					// for the gbd
+  short s;
 
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -380,7 +381,10 @@ void do_write()						// write GBDs
   { SemOp( SEM_GLOBAL, READ);				// take a read lock
   }
 #ifdef MV1_GBDLATCH
-  LatchLock(&systab->shsem[SEM_GLOBAL]);                // lock GBD
+  s = LatchLock(&systab->shsem[SEM_GLOBAL]);            // get GLOBAL mutex
+  if (s < 0)
+  { panic("do_write: failed to get GLOBAL mutex");
+  }
 #endif
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
@@ -414,6 +418,7 @@ void do_write()						// write GBDs
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
+      UTIL_Barrier();
       break;						// break from while
     }
     lastptr = gbdptr;					// remember this ptr
@@ -433,6 +438,7 @@ void do_write()						// write GBDs
     lastptr->blkver_low++;
 #endif
     lastptr->dirty = NULL;				// clear old dirtyptr
+    UTIL_Barrier();
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
   }							// end dirty write
@@ -489,6 +495,7 @@ int do_zot(u_int gb)					// zot block
   int typ;						// block type
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
+  short s;
 
   bptr = dlmalloc(systab->vol[volnum-1]->vollab->block_size); // get some memory
   if (bptr == NULL)					// if failed
@@ -503,13 +510,17 @@ int do_zot(u_int gb)					// zot block
 
   while(SemOp(SEM_GLOBAL, READ));			// take a global lock
 #ifdef MV1_GBDLATCH
-  LatchLock(&systab->shsem[SEM_GLOBAL]);                // lock GBD
+  s = LatchLock(&systab->shsem[SEM_GLOBAL]);            // get GLOBAL mutex
+  if (s < 0)
+  { panic("do_zot: failed to get GLOBAL mutex");
+  }
 #endif
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
+      UTIL_Barrier();
       break;						// exit
     }
     ptr = ptr->next;					// point at next
@@ -613,7 +624,6 @@ void do_free(u_int gb)					// free from map et al
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
-    // ;
     { break;						// it worked
     }
     MSLEEP(1000);					// wait a bit

@@ -37,7 +37,7 @@
 #define _MUMPS_DATABASE_H_
 
 #ifndef VOLATILE
-#define VOLATILE        volatile
+#define VOLATILE
 #endif
 
 
