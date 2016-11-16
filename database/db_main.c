@@ -1020,9 +1020,6 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { i = i | flags;					// set flags
   }
   ((int *)record)[1] = i;				// set back to GD
-#ifdef XMV1_BLKVER
-  blk[level]->blkver_low++;
-#endif
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = blk[level];			// terminate list
     Queit();						// que for write

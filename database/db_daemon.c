@@ -380,12 +380,6 @@ void do_write()						// write GBDs
   if (curr_lock == 0)					// if we need a lock
   { SemOp( SEM_GLOBAL, READ);				// take a read lock
   }
-#ifdef MV1_GBDLATCH
-  s = LatchLock(&systab->shsem[SEM_GLOBAL]);            // get GLOBAL mutex
-  if (s < 0)
-  { panic("do_write: failed to get GLOBAL mutex");
-  }
-#endif
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
     { gbdptr->block = 0;				// just zot the block
@@ -404,9 +398,6 @@ void do_write()						// write GBDs
 		 systab->vol[volnum-1]->vollab->block_size); // write it
       if (i < 0)
       { 
-#ifdef MV1_GBDLATCH
-        LatchUnlock(&systab->shsem[SEM_GLOBAL]);        // unlock GBD
-#endif
         systab->vol[volnum-1]->stats.diskerrors++;	// count an error
         panic("write failed in Write_Chain()!!");
       }
@@ -434,17 +425,11 @@ void do_write()						// write GBDs
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
     }
-#ifdef MV1_BLKVER
-    lastptr->blkver_low++;
-#endif
     lastptr->dirty = NULL;				// clear old dirtyptr
     UTIL_Barrier();
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
   }							// end dirty write
-#ifdef MV1_GBDLATCH
-  LatchUnlock(&systab->shsem[SEM_GLOBAL]);              // unlock GBD
-#endif
   SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   return;						// done
 
@@ -509,12 +494,6 @@ int do_zot(u_int gb)					// zot block
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
   while(SemOp(SEM_GLOBAL, READ));			// take a global lock
-#ifdef MV1_GBDLATCH
-  s = LatchLock(&systab->shsem[SEM_GLOBAL]);            // get GLOBAL mutex
-  if (s < 0)
-  { panic("do_zot: failed to get GLOBAL mutex");
-  }
-#endif
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -525,9 +504,6 @@ int do_zot(u_int gb)					// zot block
     }
     ptr = ptr->next;					// point at next
   }							// end memory search
-#ifdef MV1_GBDLATCH
-  LatchUnlock(&systab->shsem[SEM_GLOBAL]);              // unlock GBD
-#endif
   SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found

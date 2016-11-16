@@ -81,6 +81,49 @@
 // SEM_GBD is used for reading/writing GBDs and the hash table
 //
 
+#ifdef MV1_REFD
+
+void Unlink_GBD(gbd *oldptr)                            // unlink a GBD
+{ int hash;
+  gbd *ptr;
+
+  hash = oldptr->hash;                                  // the chain
+  // fprintf(stderr,"Unlink_GBD(): hash=%d\r\n",hash); fflush(stderr);
+  assert((0 <= hash) && (hash < GBD_HASH));
+  ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
+  if (ptr == oldptr)					// is this it
+  { systab->vol[volnum-1]->gbd_hash[hash] = oldptr->next;// unlink it
+    ptr = 0;                                            // removed
+  }
+  else							// inside the chain
+  { oldptr->prev->next = oldptr->next;                  // nxt of prev is my nxt
+    ptr = oldptr->prev;                                 // point to prev
+  }
+  if (oldptr->next)                                     // if not last
+    oldptr->next->prev = ptr;                           //   point to head/prev
+
+  oldptr->prev = NULL;                                  // clear chain ptrs
+  oldptr->next = NULL;
+  oldptr->hash = -1;                                    // out of hash chains
+}
+
+
+void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
+{ int hash;
+  gbd *ptr;
+
+  hash = blknum & (GBD_HASH - 1);                       // calc chain no
+  ptr = systab->vol[volnum-1]->gbd_hash[hash];          // get head
+  newptr->hash = hash;                                  // store chain no
+  newptr->prev = NULL;                                  // no prev
+  newptr->next = ptr;                                   // next is old head
+  if (ptr)                                              // not empty chain ?
+    ptr->prev = newptr;                                 // set prev
+  systab->vol[volnum-1]->gbd_hash[hash] = newptr;       // set as new head
+}
+
+#endif
+
 //-----------------------------------------------------------------------------
 // Function: Get_block
 // Descript: Get specified block into blk[level] - get GBD first
@@ -116,27 +159,16 @@ short Get_block(u_int blknum)                           // Get block
 
   if (!writing)						// if read mode
   { 
-#ifdef MV1_GBDLATCH
-    s = LatchLock(&systab->shsem[SEM_GLOBAL]);          // get mutex on GLOBAL
-    if (s < 0)                                          // on error
-    { return s;                                         // return it
-    }
-#else
     SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
     if (s < 0)						// on error
     { return s;						// return it
     }
-#endif
     ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
-#ifdef MV1_GBDLATCH
-        LatchUnlock(&systab->shsem[SEM_GLOBAL]);
-#else
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
-#endif
         UTIL_Barrier();
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
@@ -152,30 +184,20 @@ short Get_block(u_int blknum)                           // Get block
   Get_GBD();					        // get a GBD
   blk[level]->block = blknum;				// set block number
 #ifdef MV1_REFD
-  blk[level]->referenced    = 0;
-  blk[level]->prev = 0;
-#endif
-#ifdef MV1_BLKVER
-  blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
-  blk[level]->blkver_low  = 0;
+  blk[level]->referenced = 1;
 #endif
   blk[level]->last_accessed = (time_t) 0;		// clear last access
   UTIL_Barrier();
-  i = blknum & (GBD_HASH - 1);				// get hash entry
 #ifdef MV1_REFD
-  if (systab->vol[volnum-1]->gbd_hash[i])               // if already has entry
-    systab->vol[volnum-1]->gbd_hash[i]->prev = blk[level];// link it in: prev
-  blk[level]->hash = i;                                 // store chain no
-#endif
+  Link_GBD(blknum, blk[level]);
+#else
+  i = blknum & (GBD_HASH - 1);
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
+#endif
   if (!writing)						// if reading
   { 
-#ifdef MV1_GBDLATCH
-    LatchUnlock(&systab->shsem[SEM_GLOBAL]);
-#else
     SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
-#endif
   }
   file_off = (off_t) blknum - 1;			// block#
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)
@@ -259,26 +281,19 @@ short New_block()					// get new block
       { *c |= (1 << i);					// mark block as used
         systab->vol[volnum-1]->map_dirty_flag++;	// mark map dirty
         blk[level]->block = blknum;			// save in structure
+	blk[level]->dirty = (gbd *) 1;			// reserve it
+	blk[level]->last_accessed = MTIME(0);		// accessed
+#ifdef MV1_REFD
+        blk[level]->referenced = 1;                     // mark referenced
+        Link_GBD(blknum, blk[level]);
+#else
         hash = blknum & (GBD_HASH - 1);
         blk[level]->next                                // link it in
           = systab->vol[volnum-1]->gbd_hash[hash];
-#ifdef MV1_REFD
-        if (systab->vol[volnum-1]->gbd_hash[hash])      // double linked
-	  systab->vol[volnum-1]->gbd_hash[hash]->prev = blk[level];
-#endif
 	systab->vol[volnum-1]->gbd_hash[hash] = blk[level];
+#endif
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
-	blk[level]->dirty = (gbd *) 1;			// reserve it
-#ifdef MV1_BLKVER
-        blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
-        blk[level]->blkver_low = 0;
-#endif
-	blk[level]->last_accessed = MTIME(0);		// accessed
         UTIL_Barrier();
-#ifdef MV1_REFD
-        blk[level]->referenced = 1;                     // mark referenced
-        blk[level]->hash = hash;                        // save hash chain
-#endif
 	systab->vol[volnum-1]->first_free = c;		// save this
 	return 0;					// return success
       }
@@ -476,9 +491,6 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
-#ifdef MV1_GBDLATCH
-    LatchUnlock(&systab->shsem[SEM_GLOBAL]);            // release latch
-#endif
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
     if (pass & 3)
       SchedYield();                                     // yield
@@ -488,15 +500,7 @@ start:
     if (pass > GBD_TRIES)				// this is crazy!
     { panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
-#ifdef MV1_GBDLATCH
-    while (SemOp(SEM_GLOBAL, READ));                    // re-get READ lock
-    s = LatchLock(&systab->shsem[SEM_GLOBAL]);          // re-get GLOBAL mutex
-    if (s < 0)
-    { panic("Get_GBD: failed to get GLOBAL mutex");
-    }
-#else
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get WRITE lock
-#endif
     goto start;						// and try again
   }
 
@@ -544,25 +548,6 @@ exit:
        int  nrsvd;                                      // no. of rsvd blocks
 static gbd *rsvd_gbd[MAXTREEDEPTH * 2];                 // GBDs of rsvd blocks
 
-void Unlink_GBD(gbd *oldptr)                            // unlink a GBD
-{ int hash;
-  gbd *ptr;
-
-  hash = oldptr->hash;                                  // the chain
-  // fprintf(stderr,"Unlink_GBD(): hash=%d\r\n",hash); fflush(stderr);
-  assert((0 <= hash) && (hash < GBD_HASH));
-  ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
-  if (ptr == oldptr)					// is this it
-  { systab->vol[volnum-1]->gbd_hash[hash] = oldptr->next;// unlink it
-  }
-  else							// inside the chain
-  { oldptr->prev->next = oldptr->next;                  // nxt of prev is my nxt
-    ptr = oldptr->prev;                                 // point to prev
-  }
-  if (oldptr->next)                                     // if not last
-    oldptr->next->prev = ptr;                           //   point to head/prev
-}
-
 void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 { int i, j;						// a handy int
   int curr;						// current count
@@ -571,8 +556,8 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
 
-  nrsvd = 0;
 start:
+  nrsvd = 0;
   if (!haslock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
   haslock = 0;                                          // clear for next turns
@@ -595,7 +580,8 @@ start:
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if (ptr->hash == GBD_HASH)                          // on free list
       continue;                                         
-    if (ptr->block == 0)				// if no block
+    if ((ptr->block == 0) &&				// if no block
+        (ptr->dirty == NULL))
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
       // fprintf(stderr,"Get_GBDs(): before Unlink_GBD\r\n"); fflush(stderr);
       Unlink_GBD(ptr);                                  // unlink ptr
@@ -715,9 +701,6 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
-#ifdef MV1_GBDLATCH
-    LatchUnlock(&systab->shsem[SEM_GLOBAL]);            // release latch
-#endif
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
     if (pass & 3)
       SchedYield();                                     // yield
@@ -727,15 +710,7 @@ start:
     if (pass > GBD_TRIES)				// this is crazy!
     { panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
-#ifdef MV1_GBDLATCH
-    while (SemOp(SEM_GLOBAL, READ));                    // re-get READ lock
-    s = LatchLock(&systab->shsem[SEM_GLOBAL]);          // re-get GLOBAL mutex
-    if (s < 0)
-    { panic("Get_GBD: failed to get GLOBAL mutex");
-    }
-#else
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
-#endif
     goto start;						// and try again
   }
   systab->hash_start = oldpos;                          // remember this

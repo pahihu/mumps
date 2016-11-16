@@ -102,15 +102,8 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #endif
 
 // #define MV1_CCC         1
-#ifdef MV1_CCC
-#define MV1_BLKVER      1
-#else
-#undef  MV1_BLKVER
-#endif
-
 // #define MV1_CACHE	1
 #define MV1_REFD	1
-// #define MV1_GBDLATCH    1
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
@@ -121,10 +114,6 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   struct DB_BLOCK *mem;					// memory address of blk
   VOLATILE struct GBD* dirty;				// to write -> next
   VOLATILE time_t last_accessed;			// last time used
-#ifdef MV1_BLKVER
-  u_int  blkver_low;                                    // blk version LOW
-  u_int  blkver_high;                                   // blk version HIGH
-#endif
 #ifdef MV1_REFD
   u_int  referenced;                                    // block referenced
   int    hash;                                          // which chain?

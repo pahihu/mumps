@@ -176,9 +176,6 @@ FullGlobalKill:
     else
       ((u_int *) record)[1] &= ~GL_TOP_DEFINED;         // clear top node
 
-#ifdef XMV1_BLKVER
-    blk[level]->blkver_low++;
-#endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
       Queit();						// and que for write
@@ -281,9 +278,6 @@ FullGlobalKill:
         goto FullGlobalKill;                          
       }
     }
-#ifdef XMV1_BLKVER
-    blk[level]->blkver_low++;
-#endif
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
       Queit();						// and que for write
@@ -479,9 +473,6 @@ FullGlobalKill:
   blk[level] = NULL;					// clear this
   for (i = top; i <= rlevel; i++)			// scan left list
   { 
-#ifdef XMV1_BLKVER
-    blk[i]->blkver_low++;
-#endif
     if (blk[i]->dirty == (gbd *) 1)			// reserved?
     { if (blk[level] == NULL)				// if list not started
       { blk[i]->dirty = blk[i];				// point at self
@@ -495,9 +486,6 @@ FullGlobalKill:
   for (i = top + 1; i <= rlevel; i++)			// scan right list
   { if (rblk[i] != NULL)				// if anything there
     { 
-#ifdef XMV1_BLKVER
-      rblk[i]->blkver_low++;
-#endif
       if (rblk[i]->dirty == (gbd *) 1)			// reserved?
       { if (blk[level] == NULL)				// if list not started
         { rblk[i]->dirty = rblk[i];			// point at self

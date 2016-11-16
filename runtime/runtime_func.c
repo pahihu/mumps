@@ -533,6 +533,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   char *c2 = NULL;				// flag
   char *d1 = NULL;				// flag
   char *dp = NULL;				// decimal point pos
+  short s;
 
   ret_buffer[0] = '\0';
   a1 = strchr((const char *) &code->buf[0],'p');		// in code string ??
@@ -707,7 +708,10 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   dest->len = tempc->len;
   bcopy(dest->buf, ret_buffer, dest->len);
   ret_buffer[dest->len] = '\0';
-  return dest->len;
+  s = dest->len;
+  dlfree(dest);
+  dlfree(tempc);
+  return s;
 }						// end function $FNUMBER
 
 
@@ -722,7 +726,9 @@ short Dfnumber3(u_char *ret_buffer, cstring *numexp, cstring *code, int rnd)
   change = dlmalloc(sizeof(short) + s + 1);
   change->len = s;
   bcopy(ret_buffer, change->buf, s + 1);
-  return Dfnumber2(ret_buffer, change, code);
+  s = Dfnumber2(ret_buffer, change, code);
+  dlfree(change);
+  return s;
 }
 
 
