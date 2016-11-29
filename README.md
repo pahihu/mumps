@@ -2,6 +2,7 @@ MUMPS V1R2
 ==========
 
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
+These changes are not yet stable.
 
 Changes:
 
