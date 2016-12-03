@@ -383,7 +383,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   { while (i < rou->slen)			// for all subs
     { cnt = 0;					// flag no rabit ears
       if (nsubs > 0) return (-ERRM38);		// junk
-      if (rou->slen > 20) return (-ERRM38);	// ditto
+      // if (rou->slen > 20) return (-ERRM38);	// ditto
       s = UTIL_Key_Extract( &rou->key[i],	// key from here
 			    temp,		// where to put it
 			    &cnt);		// the count
