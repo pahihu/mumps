@@ -262,11 +262,13 @@ void CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
   
+#ifdef MV1_PROFILE
   fprintf(stderr,"--- CleanJob ---\r\n");
   fflush(stderr);
 
   SemStats();                                   // print sem stats
   mv1_log_flush();
+#endif
 
   j = job - 1;					// copy argument to int job form
   if (!job) j = partab.jobtab - systab->jobtab; // or get current int job#

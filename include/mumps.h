@@ -44,6 +44,8 @@
 #define MV1_SHSEM       1
 #endif
 
+// #define MV1_PROFILE     1
+
 #include <stdint.h>
 #ifdef MV1_SHSEM
 #include "d_rwlock.h"

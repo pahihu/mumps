@@ -17,9 +17,6 @@
 #include "proto.h"
 #include "d_rwlock.h"
 
-// #define MV1_PROFILE     1
-
-
 static u_int          semop_time;
 
 static u_int lrsucc = 0, lros = 0;
