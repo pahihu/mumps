@@ -1,3 +1,16 @@
+Documentation for new features
+==============================
+
+- KVALUE, KSUBSCRIPT see "The Annotated M[UMPS] Standards" by Ed de Moel
+- $DATA(),$ORDER(),$QUERY() see current Cache documentation
+- $LIST functions see documentation of MiniM or Cache 2.1
+- $ZBIT functions see documentation of GT.M or MiniM or Cache 2.1
+- $ZSEND() is similar to $ZMETHOD() of current Cache, but the inner
+  workings are entirely different. See README.OOP
+- $ZINCREMENT function see documentation of GT.M
+- ZZ commands and functions are similar to DTM, you can extend
+  MUMPS with commands/functions written in MUMPS
+
 What's new in MV1R2 ?
 =====================
 
