@@ -49,6 +49,8 @@
 #include <sys/ipc.h>                            // semaphore stuff
 #include <sys/sem.h>                            // semaphore stuff
 
+#define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
+
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
                         u_char *str)            // locn of dest string
@@ -85,7 +87,7 @@ short UTIL_String_Lock( locktab *var,         	// address of lock entry
     str[p++] = var->name.var_cu[i];             // copy a byte
   }
 
-  slen = var->byte_count - sizeof(var_u) - (2 * sizeof(u_char)); // subs len
+  slen = var->byte_count - LOCKTAB_VAR_SIZE;    // subs len
 
   if (slen != 0)                                // if there are subscripts
   { save = var->name.var_cu[MAX_NAME_BYTES-1];  // save that value
@@ -879,19 +881,19 @@ void Dump_lt()
   printf("Dump of Lockspace starting at %p\r\n", lptr);
   printf("Lock Head starts at %p\r\n", systab->lockhead);
   printf("Lock Free starts at %p\r\n", systab->lockfree);
-  printf("Lptr         Fwd_link  Size    Job  Lcnt Bcnt Vol  Uci  Var  Key\r\n");
+  printf("Lptr           Fwd_link       Size    Job  Lcnt Bcnt Vol  Uci  Var  Key\r\n");
 
   while (lptr != NULL)
   { keystr[0] = '\0';
-    if ( lptr->byte_count > 10 )
-    { workstr[0] = lptr->byte_count-10;
+    if ( lptr->byte_count > LOCKTAB_VAR_SIZE)
+    { workstr[0] = lptr->byte_count-LOCKTAB_VAR_SIZE;
       bcopy( lptr->key, &workstr[1], workstr[0] );
       x = UTIL_String_Key( workstr, keystr, 255 );
       if (x < 0)
       { sprintf( (char *) keystr, " ERROR: %d", x );
       }
     }
-    printf("%10p %10p %5d   %4d %4d %4d %4d %4d  %s%s\r\n",
+    printf("%14p %14p %5d   %4d %4d %4d %4d %4d  %s%s\r\n",
            lptr, lptr->fwd_link,
            lptr->size, lptr->job, lptr->lock_count, lptr->byte_count,
            lptr->vol, lptr->uci, lptr->name.var_cu, keystr);
