@@ -443,7 +443,7 @@ u_int ic_block(u_int block, u_int points_at,
   if ((blk[level]->mem->right_ptr) && (doing_full))	// if we have a RL
   { ic_bits(blk[level]->mem->right_ptr, 1, block);	// say so
   }
-  if (blk[level]->dirty == (gbd *) 3);			// if we reserved it
+  if (blk[level]->dirty == (gbd *) 3)			// if we reserved it
   { blk[level]->dirty = NULL;				// clear it
   }
 
