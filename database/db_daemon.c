@@ -577,7 +577,6 @@ void do_free(u_int gb)					// free from map et al
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
-      ;
     { break;						// it worked
     }
     MSLEEP(1);						// wait a bit
