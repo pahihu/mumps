@@ -298,11 +298,11 @@ int mumps_version(u_char *ret_buffer)           // return version string
   bcopy("MUMPS V", ret_buffer, 7);		// copy in MUMPS V
   i = 7;					// point past it
   if (VERSION_TEST)				// if an internal version
-  { i += sprintf((char *)&ret_buffer[i], "%dR2.%02d T%d for ",
+  { i += sprintf((char *)&ret_buffer[i], "%dR2DEV.%02d T%d for ",
 		 VERSION_MAJOR, VERSION_MINOR, VERSION_TEST);
   }
   else						// else normal release
-  { i += sprintf((char *)&ret_buffer[i], "%dR2.%02d for ",
+  { i += sprintf((char *)&ret_buffer[i], "%dR2DEV.%02d for ",
 		 VERSION_MAJOR, VERSION_MINOR);
   }
   j = 0;                                        // clear src ptr
