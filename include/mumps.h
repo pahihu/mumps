@@ -47,7 +47,7 @@
 #define MUMPS_SYSTEM    50                      // MDC assigned number
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
-#define VERSION_MINOR   66                      // Minor version number
+#define VERSION_MINOR   70                      // Minor version number
 #define VERSION_TEST	0                       // Test version number
 #define MBYTE           1048576                 // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
