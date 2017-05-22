@@ -116,7 +116,7 @@ short localvar()                                // evaluate local variable
     if (*source_ptr == '(') goto subs;		// go do subscripts
     return (-(ERRZ12+ERRMLAST));		// else it's junk
   }
-  isbp = (c == '$') && (0 == strncmp(source_ptr,"BP",2));
+  isbp = (c == '$') && (0 == strncasecmp(source_ptr,"BP",2));
   if ((isalpha((int)c) == 0) && (c != '%') && (c != '$'))// check for a variable
     return (-(ERRZ12+ERRMLAST));                // return the error
   if ((c == '$') && (type == TYPVARNAM) && !isbp)  // check $...
