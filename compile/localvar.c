@@ -86,6 +86,7 @@ short localvar()                                // evaluate local variable
   u_char *ptr;					// to save comp_ptr
   short type = TYPVARNAM;			// the type code
   short ret;					// the return
+  int isbp;                                     // flag for $BP 
 
   ptr = comp_ptr;				// save comp_ptr
   c = *source_ptr++;                            // get a character
@@ -115,9 +116,10 @@ short localvar()                                // evaluate local variable
     if (*source_ptr == '(') goto subs;		// go do subscripts
     return (-(ERRZ12+ERRMLAST));		// else it's junk
   }
-  if ((isalpha((int)c) == 0) && (c != '%') && (c != '$')) // check for a variable
+  if ((isalpha((int)c) == 0) && (c != '%') && (c != '$'))// check for a variable
     return (-(ERRZ12+ERRMLAST));                // return the error
-  if ((c == '$') && (type == TYPVARNAM))	// check $...
+  isbp = (c == '$') && (0 == strncasecmp(source_ptr,"BP",2));
+  if ((c == '$') && (type == TYPVARNAM) && !isbp)  // check $...
   { if (isalpha(*source_ptr) == 0)		// next must be alpha
     { return (-(ERRZ12+ERRMLAST));              // return the error
     }
