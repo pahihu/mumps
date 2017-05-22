@@ -1155,7 +1155,7 @@ short run(int savasp, int savssp)		// run compiled code
 	partab.jobtab->commands++;		// count a command
 	s = Debug(savasp, savssp, 1);		// go for it
 	if (s < 0) ERROR(s)			// complain on error
-    if (s == OPHALT) return OPHALT;
+        if (s == OPHALT) return OPHALT;
 	break;					// and exit
       case OPBRKN:				// modify breakpoints
 	partab.jobtab->commands++;		// count a command

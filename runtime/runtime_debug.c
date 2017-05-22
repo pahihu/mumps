@@ -75,15 +75,18 @@ short Debug_on(cstring *param)			// turn on/modify debug
   int j = 0;					// and another
   short s;
   int off = 1;					// line offset
-  cstring *ptr;					// string pointer
+  cstring *ptr, *cptr;				// string pointers
+  u_char temp[128];                             // temp buffer
 
   debug = NULL;					// clear auto debug
   X_set("$BP\0\0\0\0\0", &dvar.name.var_cu[0], 8);
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// assume no key - aka :code
-  dvar.key[0] = 128;				// setup for string key
+  // dvar.key[0] = 128;				// setup for string key
 
+  cptr = (cstring *) temp;                      // point to temp buffer
+  cptr->len = 0;                                // zero length
 
   if (param->buf[0] != ':')			// If not a : first
   { if (param->buf[i] == '+')			// offset?
@@ -98,29 +101,51 @@ short Debug_on(cstring *param)			// turn on/modify debug
     { if ((isalnum(param->buf[j + i]) == 0) &&
 	  ((param->buf[j + i] != '%') || (j != 0)))
         break;					// done
-      dvar.key[j + 1] = param->buf[j + i];	// copy it
+      // dvar.key[j + 1] = param->buf[j + i];	// copy it
+      cptr->buf[j] = param->buf[j + i];         // copy it
     }
-    dvar.key[j + 1] = '\0';			// null terminate it
-    dvar.slen = j + 2;				// save the length
+    // dvar.key[j + 1] = '\0';			// null terminate it
+    // dvar.slen = j + 2;			// save the length
+    cptr->len = j;                              // save length
+    cptr->buf[j] = '\0';                        // null terminate
+    s = UTIL_Key_BuildEx(&dvar, cptr, &dvar.key[0]); // build subscript
+    // fprintf(stderr,"--- DON subs1=%d\r\n",s);
+    if (s < 0) return s;                        // complain
+    dvar.slen = s;                              // set dvar len
     j = j + i;					// point to next char
     while (isalnum(param->buf[j])) j++;		// skip long names
     if ((param->buf[j] != ':') &&		// not :
         (param->buf[j] != '\0'))		// and not eol
 	  return -(ERRZ9+ERRMLAST);		// we don't like it
-    dvar.key[dvar.slen++] = 64;			// new key
-    s = itocstring(&dvar.key[dvar.slen], off);	// copy offset
-    dvar.key[dvar.slen - 1] |= s;		// fixup type byte
+    // dvar.key[dvar.slen++] = 64;		// new key
+    // s = itocstring(&dvar.key[dvar.slen], off);// copy offset
+    // dvar.key[dvar.slen - 1] |= s;		// fixup type byte
+    // dvar.slen += s;				// and count
+    // dvar.slen++;				// count the null
+    cptr->len = 0;
+    // fprintf(stderr,"--- DON off=%d\r\n",off);
+    s = itocstring(&cptr->buf[0], off);         // setup for subscript
+    // fprintf(stderr,"--- DON itocs=%d\r\n",s);
+    if (s < 0) return s;                        // complain
+    cptr->len = s;
+    // fprintf(stderr,"--- DON cstr=%s\r\n",&cptr->buf[0]);
+    s = UTIL_Key_BuildEx(&dvar, cptr, &dvar.key[dvar.slen]); // build subscript
+    // fprintf(stderr,"--- DON subs2=%d\r\n",s);
+    if (s < 0) return s;                        // complain
     dvar.slen += s;				// and count
-    dvar.slen++;				// count the null
   }						// end of +off^rou code
 
   if (param->buf[j++] == '\0')			// end of string?
+  {
+    // fprintf(stderr,"--- DON kill\r\n");
     return ST_Kill(&dvar);			// dong and exit
+  }
   partab.debug = -1;				// turn on debug
   if (param->buf[j] == '\0')			// end of string?
   { ptr = (cstring *) src;			// make a cstring
     ptr->len = 0;				// length
     ptr->buf[0] = '\0';				// null terminated
+    // fprintf(stderr,"--- DON emptystr\r\n");
     return ST_Set(&dvar, ptr);			// set and return
   }
   if ((param->len - j) > 255)
@@ -132,6 +157,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
   *comp_ptr++ = ENDLIN;				// eol
   *comp_ptr++ = ENDLIN;				// eor
   ptr->len = (comp_ptr - ptr->buf);		// save the length
+  // fprintf(stderr,"--- DON compiled=%d\r\n",dvar.slen);
   return ST_Set(&dvar, ptr);			// set and return
 }
 
@@ -145,8 +171,9 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
   int io;					// save current $IO
   short s = 0;					// for calls
   do_frame *curframe;				// a do frame pointer
-  cstring *ptr;					// a string pointer
+  cstring *ptr, *cptr;				// a string pointers
   mvar *var;					// and an mvar ptr
+  u_char temp[128];                             // temp buffer
 
   if (!partab.debug) partab.debug = -1;		// ensure it's on
 
@@ -158,23 +185,47 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
 
   curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
 
+  cptr = (cstring *) temp;                      // point to buffer
+  cptr->len = 0;
+
   if (dot == 0)					// a check type, setup mvar
   { if ((curframe->type != TYPE_DO) &&
         (curframe->type != TYPE_EXTRINSIC))
       return 0;					// ensure we have a routine
-    dvar.key[0] = 128;				// setup for string key
+    // dvar.key[0] = 128;			// setup for string key
     for (i = 0; i < MAX_NAME_BYTES; i++)
-      if (!(dvar.key[i + 1] = curframe->rounam.var_cu[i]))
+      // if (!(dvar.key[i + 1] = curframe->rounam.var_cu[i]))
+      if (!(cptr->buf[i] = curframe->rounam.var_cu[i]))
         break;
-    dvar.slen = i + 1;				// the length so far
-    dvar.key[dvar.slen++] = '\0';		// null terminate it
-    dvar.key[dvar.slen++] = 64;			// next key
-    s = itocstring(&dvar.key[dvar.slen],
+    // dvar.slen = i + 1;			// the length so far
+    cptr->len = i;                              // set length
+    cptr->buf[i] = '\0';                        // null terminate
+    s = UTIL_Key_BuildEx(&dvar, cptr, &dvar.key[0]); // build subscript
+    // fprintf(stderr,"--- DBG subs1=%d\r\n",s);
+    if (s < 0) return s;                        // complain
+    dvar.slen = s;                              // save length
+    // dvar.key[dvar.slen++] = '\0';		// null terminate it
+    // dvar.key[dvar.slen++] = 64;		// next key
+    // s = itocstring(&dvar.key[dvar.slen],
+    //			   curframe->line_num);	// setup second key
+    // dvar.key[dvar.slen - 1] |= s;		// fix type
+    // dvar.slen += s;				// and length
+    // dvar.slen++;				// count the null
+    cptr->len = 0;                              // clear temp
+    // fprintf(stderr,"--- DBG line_num=%d\r\n",curframe->line_num);
+    s = itocstring(&cptr->buf[0],
 			   curframe->line_num);	// setup second key
-    dvar.key[dvar.slen - 1] |= s;		// fix type
-    dvar.slen += s;				// and length
-    dvar.slen++;				// count the null
+    // fprintf(stderr,"--- DBG itocs=%d\r\n",s);
+    if (s < 0) return s;                        // complain
+    cptr->len = s;
+    // fprintf(stderr,"--- DBG cstr=%s\r\n",&cptr->buf[0]);
+    s = UTIL_Key_BuildEx(&dvar, cptr, &dvar.key[dvar.slen]); // build subscript
+    // fprintf(stderr,"--- DBG subs2=%d\r\n",s);
+    if (s < 0) return s;                        // complain
+    dvar.slen += s;                             // update length
+    // fprintf(stderr,"--- DBG slens=%d\r\n",s);
     s = ST_Get(&dvar, &cmp[sizeof(short)]);	// get whatever
+    // fprintf(stderr,"--- DBG itocs=%d\r\n",s);
     if (s < 0) return 0;			// just return if nothing
     (*(short *) cmp) = s;			// save the length
   }
