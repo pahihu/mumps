@@ -829,7 +829,9 @@ start:
   systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
 
-  Sleep(1);
+  // Sleep(1);
+  // MSleep(125);
+  MSleep(90);
   goto start;
 
 cont:
