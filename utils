@@ -610,7 +610,7 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
 INT(INT,%,O,N,EX,I,LS,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lasttry,lastok,logrd,phyrd,logwt,phywt,dqstall,gqstall,gbwait,rdwait"
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lasttry,lastok,logrd,phyrd,logwt,phywt,dqstall,gqstall,gbwait,rdwait,lastwrtry,lastwrok"
  W $&V(1,1),$C(27)_"[J" S:'INT INT=1
  D GET Q:EX  M O=N F  D GET Q:EX  D PRT M O=N Q:EX  R *%:INT
  W $&V(23,1),! Q
