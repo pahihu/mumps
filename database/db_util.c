@@ -826,7 +826,7 @@ start:
   haslock = 0;                                          // clear for next turns
 
   j = 0;                                                // clear counter
-  MinSlots = 3 * MAXTREEDEPTH;
+  MinSlots = 2 * MAXTREEDEPTH;
 #ifdef MV1_CKIT
   qfree = NUM_DIRTY - ck_ring_size(&systab->vol[volnum-1]->dirtyQ) - 1;
 #else
