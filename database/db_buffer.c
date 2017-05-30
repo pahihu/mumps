@@ -135,11 +135,18 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 // Return:   0 -> Ok, negative MUMPS error
 //
 
-short Get_block(u_int blknum)                           // Get block
+short GetBlock(u_int blknum,char *file,int line)        // Get block
 { int i;						// a handy int
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
+  char msg[128];                                        // msg buffer
+
+  if (blknum > systab->vol[volnum-1]->vollab->max_block)// check blknum
+  { sprintf((char *) msg, "invalid block (%u) in Get_block(%s:%d)!!",
+                                blknum, file, line);
+    panic((char *) msg);
+  }
 
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
   ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
@@ -663,9 +670,8 @@ start:
     goto exit;						// common exit code
   }
 
-  if (writing)                                          // writing ?
-  { assert(nrsvd > 0);
-    // fprintf(stderr,"Get_GBD(): from rsvd_gbd[]\r\n"); fflush(stderr);
+  if (writing && nrsvd)                                 // writing ?
+  { // fprintf(stderr,"Get_GBD(): from rsvd_gbd[]\r\n"); fflush(stderr);
     oldptr = rsvd_gbd[--nrsvd];                         // get from rsvd array
     goto unlink_gbd;                                    // needs unlink
   }

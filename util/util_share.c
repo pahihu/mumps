@@ -97,11 +97,12 @@ const  char *sem_file;
 pid_t mypid = 0;
 extern void mv1_log_init();
 
+extern int  nrsvd;                              // no. of rsvd blocks
+
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   char msg[128];
 
   sem_file = file;
@@ -133,11 +134,10 @@ short SemOpEx(int sem_num, int numb,
                   sem_num, numb, curr_sem[sem_num], file, line);
     panic(msg);
   }
-  // buf.sem_num = (u_short) sem_num;              // get the one we want
-  // buf.sem_op = (short) numb;                    // and the number of them
   for (i = 0; i < 5; i++)                       // try this many times
   { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
-    // s = semop(systab->sem_id, &buf, 1);         // doit
+    if (numb < 0)                               // unlock ?
+      nrsvd = 0;                                //   clear rsvd. blocks
     if (s == 0)					// if that worked
     { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
       return 0;					// exit success

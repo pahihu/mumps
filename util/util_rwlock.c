@@ -162,8 +162,9 @@ static struct timeval sem_start[SEM_MAX];
 short TrySemLock(int sem_num, int numb)
 {
   short s;
-  int dosemop;
+#ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
+#endif
 #ifdef MV1_PROFILE
   struct timeval st, et;
 
@@ -172,7 +173,6 @@ short TrySemLock(int sem_num, int numb)
 
   s = 0;
 #ifdef MV1_SHSEM
-  dosemop = 0;
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
       LockWriter(&systab->glorw);
@@ -192,13 +192,12 @@ short TrySemLock(int sem_num, int numb)
     { panic("TrySemLock: failed");
     }
   }
-
-  if (dosemop)
+#else
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+  s = Semop(systab->sem_id, &buf, 1);           // doit
 #endif
-  { buf.sem_num = (u_short) sem_num;            // get the one we want
-    buf.sem_op = (short) numb;                  // and the number of them
-    s = Semop(systab->sem_id, &buf, 1);         // doit
-  }
+
 #ifdef MV1_PROFILE
   gettimeofday(&et, NULL);
   semop_time = 1000000 * (et.tv_sec  - st.tv_sec) +
@@ -210,9 +209,11 @@ short TrySemLock(int sem_num, int numb)
 short SemLock(int sem_num, int numb)
 {
   short s;
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   int x;
   u_int semop_time_sav;
+#ifndef MV1_SHSEM
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+#endif
 
   x = 2*sem_num;
   if (-1 == numb)       // READ lock
@@ -221,11 +222,17 @@ short SemLock(int sem_num, int numb)
   semop_time = 0;
   s = TrySemLock(sem_num, numb);
   semop_time_sav = semop_time; 
+#ifdef MV1_SHSEM
+  if (s < 0)
+  { panic("TrySemLock: failed");
+  }
+#else
   if (s != 0)
   { buf.sem_num = (u_short) sem_num;            // get the one we want
     buf.sem_op = (short) numb;                  // and the number of them
     s = Semop(systab->sem_id, &buf, 1);         // doit
   }
+#endif
 
 #ifdef MV1_PROFILE
   if (s == 0)
@@ -239,16 +246,17 @@ short SemLock(int sem_num, int numb)
 short SemUnlock(int sem_num, int numb)
 {
   struct timeval tv;
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
   short s;
   u_int curr_held_time;
-  int x, dosemop;
+  int x;
+#ifndef MV1_SHSEM
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+#endif
 
   x = 2*sem_num + (1 == abs(numb) ? 1 : 0);
 
   s = 0;
 #ifdef MV1_SHSEM
-  dosemop = 0;
   if (SEM_GLOBAL == sem_num)
   { if (numb == -WRITE)
       UnlockWriter(&systab->glorw);
@@ -265,13 +273,11 @@ short SemUnlock(int sem_num, int numb)
   else {
     LatchUnlock(&systab->shsem[sem_num]);
   }
-
-  if (dosemop)
+#else
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+  s = Semop(systab->sem_id, &buf, 1);
 #endif
-  { buf.sem_num = (u_short) sem_num;            // get the one we want
-    buf.sem_op = (short) numb;                  // and the number of them
-    s = Semop(systab->sem_id, &buf, 1);
-  }
 
 #ifdef MV1_PROFILE
   gettimeofday(&tv, NULL);
@@ -294,10 +300,3 @@ void UTIL_Barrier(void)
   return;
 #endif
 }
-
-//	struct sembuf {
-//		   u_short sem_num;        /* semaphore # */
-//		   short   sem_op;         /* semaphore operation */
-//		   short   sem_flg;        /* operation flags */
-//	};
-

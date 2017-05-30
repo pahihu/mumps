@@ -176,7 +176,8 @@ extern int hash_start;					// start searching here
 //**** Function Prototypes*****************************************************
 
 // File: database/db_buffer.c
-short Get_block(u_int blknum);				// Get block
+short GetBlock(u_int blknum,char *file,int line);	// Get block
+#define Get_block(u)    GetBlock(u,__FILE__,__LINE__)
 short New_block();					// get new block
 void Get_GBD();				                // get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
