@@ -153,6 +153,8 @@ short TrySimpleSet(short s, cstring *data)
   return s;
 }
 
+static int last_written_failed = 0;                     // penalty for last wrtn
+
 short Set_data(cstring *data)				// set a record
 { short s;						// for returns
   int i, j;						// a handy int
@@ -180,8 +182,11 @@ short Set_data(cstring *data)				// set a record
   }
   else
   { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
-    // XXX i = 0;
                                                         // get last written
+    if (last_written_failed)                            // failed recently?
+    { last_written_failed--;                            //   decrement counter
+      i = 0;                                            //   clear last_written
+    }
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrtry); // count a try
@@ -196,7 +201,8 @@ short Set_data(cstring *data)				// set a record
 	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
             (X_NE(gptr->mem->global, 
                               db_var.name.var_xu)))     // wrong global
-        { break;					// exit the loop
+        { last_written_failed = 10;                     // add penalty 
+          break;					// exit the loop
 	}
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
@@ -214,7 +220,6 @@ short Set_data(cstring *data)				// set a record
                  (gptr->mem->right_ptr == 0)))))))      //   has no right_ptr
 	{ trysimple = 1;
           s = TrySimpleSet(s, data);                    // try a simple set
-          // XXX s = 0;
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
             if ((systab->vol[volnum - 1]->vollab->journal_available) &&
@@ -236,6 +241,7 @@ short Set_data(cstring *data)				// set a record
           { return s;					//   except did not fit
           }
 	}
+        last_written_failed = 10;                       // add penalty
 	blk[level] = NULL;				// clear this
 	level = 0;					// and this
 	break;					        // and exit loop
