@@ -562,6 +562,7 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
+  int oldrefd;                                          // first referenced
 
 start:
   nrsvd = 0;
@@ -602,7 +603,7 @@ start:
       ptr->referenced = 0;                              // not refd
       curr++;						// count this
       if (curr >= greqd)				// if enough there
-      { systab->hash_start = i;
+      { // XXX systab->hash_start = i;
         return;					        // just exit
       }
       continue;					        // next ptr
@@ -614,14 +615,22 @@ start:
         ptr->referenced--;
       else
       { // fprintf(stderr,"Get_GBDs(): ptr->hash=%d\r\n",ptr->hash);
-        rsvd_gbd[nrsvd++] = ptr;                        // save as reserved
+        // XXX rsvd_gbd[nrsvd++] = ptr;                        // save as reserved
+        if (-1 == oldrefd)
+          oldrefd = i;
         curr++;					        // count that
         if (curr >= greqd)				// if enough there
-        { systab->hash_start = i;
+        { // XXX systab->hash_start = i;
           return;					// just exit
         }
       }
     }
+  }
+  // NB. empty buffers already added to the free list !
+  if (-1 != oldrefd)                                    // reposition before
+  { if (--oldrefd == 1)                                 //   first referenced
+      oldrefd = num_gbd - 1;
+    systab->hash_start = oldrefd;
   }
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
@@ -631,7 +640,7 @@ start:
     MSleep(GBD_SLEEP);                                  // wait
   pass++;						// increment a pass
   if (pass > GBD_TRIES)					// this is crazy!
-  { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
+  { panic("Get_GBDs: Can't get enough GBDs after 60 seconds");
   }
   // fprintf(stderr,"Get_GBDs(): goto start\r\n"); fflush(stderr);
   goto start;						// try again
@@ -670,11 +679,17 @@ start:
     goto exit;						// common exit code
   }
 
-  if (writing && nrsvd)                                 // writing ?
+#if 0
+  if (writing)                                          // writing ?
   { // fprintf(stderr,"Get_GBD(): from rsvd_gbd[]\r\n"); fflush(stderr);
+    if (!nrsvd)
+    {  SemOp(SEM_GLOBAL, -curr_lock);
+       panic("no reserved GBDs in Get_GBD()!!");
+    }
     oldptr = rsvd_gbd[--nrsvd];                         // get from rsvd array
     goto unlink_gbd;                                    // needs unlink
   }
+#endif
 
   now = MTIME(0) + 1;				        // get current time
 
