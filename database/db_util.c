@@ -219,6 +219,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
 void Queit()						// que a gbd for write
 { int i;						// a handy int
   gbd *ptr;						// a handy ptr
+  bool result;
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
@@ -236,19 +237,23 @@ void Queit()						// que a gbd for write
     sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+#ifdef MV1_CKIT
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[volnum-1]->dirtyQ,
+                &systab->vol[volnum-1]->dirtyQBuffer[0],
+                blk[level]);
+  if (false == result)
+  { panic("Queit(): dirtyQ overflow");
+  }
+#else
   // we have the WRITE lock, at least NUM_DIRTY/2 is free
   i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
-#if 0
-  while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
-  { // Sleep(1);						// wait a bit
-    i = (i + 1) & (NUM_DIRTY - 1);
-  }				// NOTE: The above CAN'T work!!!
-#endif
   if (systab->vol[volnum - 1]->dirtyQ[i] != NULL)
   { panic("Queit(): dirtyQ overflow");
   }
   systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
   systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
+#endif
 
   return;						// and exit
 }
@@ -264,6 +269,10 @@ void Queit()						// que a gbd for write
 void Garbit(int blknum)					// que a blk for garb
 { int i;						// a handy int
   int j;						// for loop
+#ifdef MV1_CKIT
+  void *qentry;                                         // queue entry
+  bool result;                                          // ck result
+#endif
 
   if (curr_lock != WRITE)
   { char msg[32];
@@ -271,27 +280,24 @@ void Garbit(int blknum)					// que a blk for garb
     panic(msg);
   }
 
+#ifdef MV1_CKIT
+  qentry = (void*) blknum;
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[volnum-1]->garbQ,
+                &systab->vol[volnum-1]->garbQBuffer[0],
+                qentry);
+  if (result == false)
+  { panic("Garbit(): garbQ overflow");
+  }
+#else
   // we have the WRITE lock
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
-#if 0
-  for (j = 0; ; j++)
-  { if (systab->vol[volnum - 1]->garbQ[i] == 0)		// if slot avbl
-    { break;						// exit
-    }
-    if (j == 9)
-    { panic("Garbit: could not get a garbage slot after 10 seconds");
-    }
-    Sleep(1);						// wait a bit
-  }				// NOTE: I don't think this can work either
-#endif
-  // while (systab->vol[volnum - 1]->garbQ[i] != 0)
-  // { i = (i + 1) & (NUM_GARB - 1);
-  // }
   if (systab->vol[volnum - 1]->garbQ[i] != 0)
   { panic("Garbit(): garbQ overflow");
   }
   systab->vol[volnum - 1]->garbQ[i] = blknum;		// stuff it in
   systab->vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1); // reset ptr
+#endif
   return;						// and exit
 }
 
@@ -792,10 +798,14 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
-  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d dQw=%d dQr=%d\r\n",
+  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
            file, line, curr_lock, seconds,
-           systab->vol[volnum - 1]->dirtyQw,
-           systab->vol[volnum - 1]->dirtyQr);
+#ifdef MV1_CKIT
+           NUM_DIRTY - ck_ring_size(&systab->vol[volnum-1]->dirtyQ) - 1
+#else
+           abs(systab->vol[volnum - 1]->dirtyQw - systab->vol[volnum - 1]->dirtyQr)
+#endif
+  );
   fflush(stderr);
   return MSleep(1000 * seconds);
 }
@@ -817,12 +827,16 @@ start:
 
   j = 0;                                                // clear counter
   MinSlots = 3 * MAXTREEDEPTH;
+#ifdef MV1_CKIT
+  qfree = NUM_DIRTY - ck_ring_size(&systab->vol[volnum-1]->dirtyQ) - 1;
+#else
   wpos = systab->vol[volnum - 1]->dirtyQw;
   rpos = systab->vol[volnum - 1]->dirtyQr;
   if (rpos <= wpos) qlen = wpos - rpos;
   else
     qlen = NUM_DIRTY + wpos - rpos;
   qfree = NUM_DIRTY - qlen;
+#endif
   if (qfree >= MinSlots)
     goto cont;
 

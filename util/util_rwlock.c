@@ -15,7 +15,6 @@
 #include "mumps.h"
 #include "database.h"
 #include "proto.h"
-#include "d_rwlock.h"
 
 static u_int          semop_time;
 
@@ -186,7 +185,9 @@ short TrySemLock(int sem_num, int numb)
     }
   }
   else {
-    s = LatchLock(&systab->shsem[sem_num]);
+    // s = LatchLock(&systab->shsem[sem_num]);
+    LatchLock(&systab->shsem[sem_num]);
+    s = 0;
     if (s < 0)
     { panic("TrySemLock: failed");
     }

@@ -179,8 +179,8 @@ short Set_data(cstring *data)				// set a record
   { systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot this
   }
   else
-  { // XXX i = systab->last_blk_written[partab.jobtab - systab->jobtab];
-    i = 0;
+  { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
+    // XXX i = 0;
                                                         // get last written
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
@@ -213,8 +213,8 @@ short Set_data(cstring *data)				// set a record
                 ((Index > gptr->mem->last_idx) &&       //   and append
                  (gptr->mem->right_ptr == 0)))))))      //   has no right_ptr
 	{ trysimple = 1;
-          // XXX s = TrySimpleSet(s, data);             // try a simple set
-          s = 0;
+          s = TrySimpleSet(s, data);                    // try a simple set
+          // XXX s = 0;
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
             if ((systab->vol[volnum - 1]->vollab->journal_available) &&

@@ -90,27 +90,19 @@ short Kill_data_ex(int what)				// remove tree
   writing = 1;						// say we are killing
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+#ifdef MV1_CKIT
+  qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
+#else
   wpos = systab->vol[volnum - 1]->garbQw;
   rpos = systab->vol[volnum - 1]->garbQr;
   if (rpos <= wpos) qlen = wpos - rpos;
   else
     qlen = NUM_GARB + wpos - rpos;
   qfree = NUM_GARB - qlen;
+#endif
   if (qfree >= NUM_GARB/2)
     goto cont;
-#if 0
-  j = 0;                                                // clear counter
-  qpos = systab->vol[volnum - 1]->garbQw;
-  for (i = 0; i < NUM_GARB; i++)
-  {
-    if (systab->vol[volnum - 1]->garbQ[qpos] == 0)
-    { if (j++ >= NUM_GARB/2) goto cont;                 // ensure we have 1/2 table
-    }
-    else
-      break;
-    qpos = (qpos + 1) & (NUM_GARB - 1);
-  }
-#endif
+
   systab->vol[volnum - 1]->stats.gqstall++;             // count garbQ stall
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
   Sleep(1);

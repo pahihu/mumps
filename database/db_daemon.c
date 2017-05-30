@@ -179,6 +179,9 @@ void do_daemon()					// do something
   int j;						// and another
   off_t file_off;					// for lseek()
   time_t t;						// for ctime()
+#ifdef MV1_CKIT
+  void *qentry;                                         // queue entry
+#endif
 
 start:
 
@@ -201,11 +204,18 @@ start:
     }							// end map write
     if ((!myslot) && (systab->vol[volnum-1]->writelock < 0)) // check wrtlck
     { while (TRUE)					// loop
-      { i = (systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr]
+      { 
+#ifdef MV1_CKIT
+        i = (0 < ck_ring_size(&systab->vol[volnum-1]->dirtyQ));
+        i = (i) ||
+                (0 < ck_ring_size(&systab->vol[volnum-1]->garbQ));
+#else
+        i = (systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr]
 	     != NULL);					// check dirty que
 	i = ((i) ||
 	     (systab->vol[volnum-1]->garbQ[systab->vol[volnum-1]->garbQr]
 	      != 0));					// and garbQ
+#endif
 	for (j = 1; j < systab->vol[volnum-1]->num_of_daemons; j++) // each one
 	{ i = ((i) || (systab->vol[volnum-1]->wd_tab[myslot].doing != 0));
 	}
@@ -219,6 +229,23 @@ start:
       systab->vol[volnum-1]->writelock = abs(systab->vol[volnum-1]->writelock);
       // Set the writelock to a positive value when all quiet
     }							// end wrtlock
+#ifdef MV1_CKIT
+    if (ck_ring_dequeue_spmc(                           // any writes?
+                &systab->vol[volnum-1]->dirtyQ,
+                &systab->vol[volnum-1]->dirtyQBuffer[0],
+                &qentry))
+    { systab->vol[volnum-1]->wd_tab[myslot].currmsg.gbddata
+        = qentry;                                       // get
+      systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_WRITE;
+    } else if (ck_ring_dequeue_spmc(                    // any garbage?
+                &systab->vol[volnum-1]->garbQ,
+                &systab->vol[volnum-1]->garbQBuffer[0],
+                &qentry))
+    { systab->vol[volnum-1]->wd_tab[myslot].currmsg.intdata
+        = (u_int) qentry;                               // get
+      systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_GARB;
+    }
+#else
     while (SemOp(SEM_WD, WRITE));			// lock WD
     if (systab->vol[volnum-1]->dirtyQ
 	[systab->vol[volnum-1]->dirtyQr] != NULL)	// any writes?
@@ -239,6 +266,7 @@ start:
       systab->vol[volnum-1]->garbQr &= (NUM_GARB - 1);	// do wrap
     }
     SemOp( SEM_WD, -WRITE);				// release WD lock
+#endif
   }							// end looking for work
 
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_NOTHING)
@@ -369,6 +397,8 @@ void do_write()						// write GBDs
   gbd *gbdptr;						// for the gbd
   gbd *lastptr = NULL;					// for the gbd
   short s;
+  u_int blkno;                                          // block#
+  char *msg[128];                                       // message buffer
 
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -385,7 +415,13 @@ void do_write()						// write GBDs
     { gbdptr->block = 0;				// just zot the block
     }
     else						// do a write
-    { file_off = (off_t) gbdptr->block - 1;		// block#
+    { blkno = gbdptr->block;
+      if (blkno > systab->vol[volnum-1]->vollab->max_block)
+      { sprintf((char *) msg, "invalid block (%u) in Write_Chain()!!",
+                                        blkno);
+        panic((char *) msg);
+      }
+      file_off = (off_t) blkno - 1;		        // block#
       file_off = (file_off * (off_t)
     			systab->vol[volnum-1]->vollab->block_size)
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;

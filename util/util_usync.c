@@ -7,7 +7,6 @@
 #include <sched.h>
 #include <sys/types.h>
 
-#include "d_rwlock.h"
 #include "mumps.h"
 
 extern void panic(char*);

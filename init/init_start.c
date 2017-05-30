@@ -351,9 +351,16 @@ int INIT_Start( char *file,                     // database
   RWLockInit(&systab->glorw, systab->maxjob);
 #endif
 
+  volnum = 1;
+
+#ifdef MV1_CKIT
+  ck_ring_init(&systab->vol[volnum-1]->dirtyQ, NUM_DIRTY);
+  ck_ring_init(&systab->vol[volnum-1]->garbQ, NUM_GARB);
+#endif
+
   while (SemOp( SEM_WD, WRITE));		// lock WD
   for (indx=0; indx<jobs; indx++)		// for each required daemon
-  { i = DB_Daemon(indx, 1);			// start each daemon (volume 1)
+  { i = DB_Daemon(indx, volnum);		// start each daemon (volume 1)
     if (i != 0)                                 // in case of error
     { fprintf( stderr, "**** Died on error - %s ***\n\n", // complain
               strerror(errno));                 // what was returned

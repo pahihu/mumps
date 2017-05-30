@@ -44,11 +44,20 @@
 #define MV1_SHSEM       1
 #endif
 
+// #define MV1_CKIT        1
+#ifdef MV1_CKIT
+#include <ck_ring.h>
+#endif
+
 // #define MV1_PROFILE     1
 
 #include <stdint.h>
 #ifdef MV1_SHSEM
-#include "d_rwlock.h"
+#ifdef MV1_CKIT
+#include "usync_ck.h"
+#else
+#include "usync_mv1.h"
+#endif
 #endif
 
 #ifndef VOLATILE
@@ -375,12 +384,19 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   VOLATILE int writelock;                       // MUMPS write lock
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
+#ifdef MV1_CKIT
+  ck_ring_t dirtyQ;
+  ck_ring_buffer_t dirtyQBuffer[NUM_DIRTY];
+  ck_ring_t garbQ;
+  ck_ring_buffer_t garbQBuffer[NUM_GARB];
+#else
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   VOLATILE int dirtyQw;                         // write ptr for dirty que
   VOLATILE int dirtyQr;                         // read ptr for dirty que
   u_int garbQ[NUM_GARB];                        // garbage que (for daemons)
   VOLATILE int garbQw;                          // write ptr for garbage que
   VOLATILE int garbQr;                          // read ptr for garbage que
+#endif
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
