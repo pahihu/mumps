@@ -646,7 +646,7 @@ void do_free(u_int gb)					// free from map et al
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
-    { if (ptr->dirty < (gbd *) 3)			// not in use
+    { if (ptr->dirty < (gbd *) 5)			// not in use
       { Free_GBD(ptr);					// free it
       }
       else						// in use or not locked
