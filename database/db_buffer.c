@@ -135,12 +135,79 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 // Return:   0 -> Ok, negative MUMPS error
 //
 
+gbd *ro_gbds[NUM_GBDRO];
+int  nro_gbds = 0;
+
+#ifdef MV1_GBDRO
+gbd* Get_GBDRO()
+{
+  gbd *ret = 0;
+  void *qentry;
+  bool result;
+
+  result = ck_ring_dequeue_spmc(
+                &systab->vol[volnum-1]->rogbdQ,
+                &systab->vol[volnum-1]->rogbdQBuffer[0],
+                &qentry);
+  if (result)
+  { ret = (gbd *) qentry;
+  }
+  return ret;
+}
+
+void Free_GBDROs(gbd **ptrs, int nptrs)
+{
+  int  i;
+  bool result;
+
+  SemOp(SEM_GBDRO, WRITE);
+  for (i = 0; i < nptrs; i++)
+  { result = ck_ring_enqueue_spmc(
+                &systab->vol[volnum-1]->rogbdQ,
+                &systab->vol[volnum-1]->rogbdQBuffer[0],
+                ptrs[i]);
+    if (!result)
+    { SemOp(SEM_GBDRO, -WRITE);
+      panic("cannot release ROGBD!!");
+    }
+  }
+  SemOp(SEM_GBDRO, -WRITE);
+}
+
+void Free_GBDRO(gbd *ptr)
+{
+  bool result;
+
+  SemOp(SEM_GBDRO, WRITE);
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[volnum-1]->rogbdQ,
+                &systab->vol[volnum-1]->rogbdQBuffer[0],
+                ptr);
+  if (!result)
+  { SemOp(SEM_GBDRO, -WRITE);
+    panic("cannot release ROGBD!!");
+  }
+  SemOp(SEM_GBDRO, -WRITE);
+}
+#endif
+
+void DB_Unlocked(void)
+{
+#ifdef MV1_GBDRO
+  if (nro_gbds)
+  { Free_GBDROs(ro_gbds, nro_gbds);
+    nro_gbds = 0;
+  }
+#endif
+}
+
 short GetBlock(u_int blknum,char *file,int line)        // Get block
 { int i;						// a handy int
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
   char msg[128];                                        // msg buffer
+  int  rdonly = 0;                                      // flag for R/O GBD
 
   if (blknum > systab->vol[volnum-1]->vollab->max_block)// check blknum
   { sprintf((char *) msg, "invalid block (%u) in Get_block(%s:%d)!!",
@@ -166,11 +233,22 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
 
   if (!writing)						// if read mode
   { 
+#ifdef MV1_GBDRO
+    if (!wanna_writing)                                 // not pre-write mode ?
+    { ptr = Get_GBDRO();                                // get a R/O GBD
+      if (ptr)                                          // got it ?
+      { blk[level] = ptr;                               //   use it
+        rdonly   = 1;                                   //   mark as R/O
+        goto ReadBlock;
+      }
+    }
+#endif
     SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
     if (s < 0)						// on error
     { return s;						// return it
     }
+    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
     ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
@@ -189,22 +267,27 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   }							// now have a write lck
   systab->vol[volnum-1]->stats.phyrd++;                 // update stats
   Get_GBD();					        // get a GBD
+ReadBlock:
   blk[level]->block = blknum;				// set block number
 #ifdef MV1_REFD
   blk[level]->referenced = 1;
 #endif
   blk[level]->last_accessed = (time_t) 0;		// clear last access
   UTIL_Barrier();
+  if (!rdonly)
+  {
 #ifdef MV1_REFD
-  Link_GBD(blknum, blk[level]);
+    Link_GBD(blknum, blk[level]);
 #else
-  i = blknum & (GBD_HASH - 1);
-  blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
-  systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
+    i = blknum & (GBD_HASH - 1);
+    blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
+    systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
 #endif
+  }
   if (!writing)						// if reading
   { 
-    SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+    if (!rdonly)
+      SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
   }
   file_off = (off_t) blknum - 1;			// block#
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)

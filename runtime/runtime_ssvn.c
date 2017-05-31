@@ -426,6 +426,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.lastwrok);
 	if (strncasecmp( (char *) subs[2]->buf, "lastwrtry\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.lastwrtry);
+	if (strncasecmp( (char *) subs[2]->buf, "eventcnt\0", 9) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.eventcnt);
 	if (strncasecmp( (char *) subs[2]->buf, "logrd\0", 6) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.logrd);
 	if (strncasecmp( (char *) subs[2]->buf, "logwt\0", 6) == 0)

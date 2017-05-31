@@ -97,6 +97,8 @@ const  char *sem_file;
 pid_t mypid = 0;
 extern void mv1_log_init();
 
+extern void DB_Unlocked();
+
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
@@ -134,8 +136,10 @@ short SemOpEx(int sem_num, int numb,
   }
   for (i = 0; i < 5; i++)                       // try this many times
   { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
+    if (sem_num == SEM_GLOBAL && 0 < numb)
+      DB_Unlocked();
     if (s == 0)					// if that worked
-    { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
+    { if (sem_num == SEM_GLOBAL)curr_lock += numb; // adjust curr_lock
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add

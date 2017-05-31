@@ -72,7 +72,10 @@ union semun {
 extern int rwlock_init();
 
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
-void Routine_Init();                    // proto for routine setup
+void Routine_Init();                            // proto for routine setup
+#ifdef MV1_GBDRO
+void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
+#endif
 
 //****************************************************************************
 // Init an environment
@@ -156,11 +159,12 @@ int INIT_Start( char *file,                     // database
     return (EEXIST);				// exit with error
   }
 
-  n_gbd = (gmb * MBYTE) / hbuf[3];		// number of gbd
+  n_gbd  = (gmb * MBYTE) / hbuf[3];		// number of gbd
   while (n_gbd < MIN_GBD)			// if not enough
   { gmb++;					// increase it
     n_gbd = (gmb * MBYTE) / hbuf[3];		// number of gbd
   }
+  n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
@@ -185,7 +189,7 @@ int INIT_Start( char *file,                     // database
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
   volset_size = sizeof(vol_def)			// size of VOL_DEF (one for now)
 	      + hbuf[2]				// size of head and map block
-	      + (n_gbd * sizeof(struct GBD))	// the gbd
+	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + (rmb * MBYTE);		 	// mb of routine buffers
@@ -283,7 +287,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[0]->global_buf =
-    (void *) &systab->vol[0]->gbd_head[n_gbd]; 	//glob buffs
+    (void *) &systab->vol[0]->gbd_head[n_gbd + NUM_GBDRO];//glob buffs
   systab->vol[0]->zero_block =
     (void *)&(((u_char *)systab->vol[0]->global_buf)[gmb*MBYTE]);
 						     // pointer to zero blk
@@ -355,7 +359,8 @@ int INIT_Start( char *file,                     // database
 
 #ifdef MV1_CKIT
   ck_ring_init(&systab->vol[volnum-1]->dirtyQ, NUM_DIRTY);
-  ck_ring_init(&systab->vol[volnum-1]->garbQ, NUM_GARB);
+  ck_ring_init(&systab->vol[volnum-1]->garbQ,  NUM_GARB);
+  ck_ring_init(&systab->vol[volnum-1]->rogbdQ, NUM_GBDRO);
 #endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
@@ -462,6 +467,12 @@ int INIT_Start( char *file,                     // database
     gptr[i].hash = GBD_HASH;                    // store hash
 #endif
   }						// end setup gbds
+#ifdef MV1_GBDRO
+  for (i = 0; i < NUM_GBDRO - 1; i++)           // setup R/O GBDs at the tail
+  { gptr[i].mem = (struct DB_BLOCK *) ptr;
+    Free_GBDRO(&gptr[i]);
+  }
+#endif
 
   Routine_Init();				// and the routine junk
   i = shmdt(systab);                            // detach the shared mem

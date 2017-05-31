@@ -144,12 +144,13 @@
 #define SHMAT_SEED      (void *)0
 #endif
 
-#define MIN_GBD		40			// minumum number GBDs
+#define NUM_GBDRO       32                      // no. of R/O GBDs
+#define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
-// #define GBD_HASH        1024                 // hash size for global buffers
+// #define GBD_HASH     1024                    // hash size for global buffers
 #define GBD_HASH        4096                    // hash size for global buffers
-//#define NUM_DIRTY       1024                    // max queued dirty chains
+//#define NUM_DIRTY     1024                    // max queued dirty chains
 #define NUM_DIRTY       2048                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 
@@ -218,14 +219,15 @@
 #define SEM_GLOBAL      2                       // global database module
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
+#define SEM_GBDRO       5                       // read-only GBDs
 
 #ifndef MV1_SHSEM
-#define SEM_MAX         5                       // total number of these
+#define SEM_MAX         6                       // total number of these
 #else
-#define SEM_GLOBAL_RD   5
-#define SEM_GLOBAL_WR   6
+#define SEM_GLOBAL_RD   6
+#define SEM_GLOBAL_WR   7
 
-#define SEM_MAX         7                       // total number of these
+#define SEM_MAX         8                       // total number of these
 #endif
 
 #define KILL_VAL        1                       // kill only value
@@ -336,6 +338,7 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
 
   u_int lastwrtry;                              // Write Last Tries
   u_int lastwrok;                               // Write Last Successes
+  u_int eventcnt;                               // Event Count
 
   u_int logrd;                                  // Logical Block Reads
   u_int phyrd;                                  // Physical Block Reads
@@ -386,9 +389,11 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   int shm_id;                                   // GBD share mem id
 #ifdef MV1_CKIT
   ck_ring_t dirtyQ;
-  ck_ring_buffer_t dirtyQBuffer[NUM_DIRTY];
+  ck_ring_buffer_t dirtyQBuffer[NUM_DIRTY];     // dirty queue (for daemons)
   ck_ring_t garbQ;
-  ck_ring_buffer_t garbQBuffer[NUM_GARB];
+  ck_ring_buffer_t garbQBuffer[NUM_GARB];       // garbage queue (for daemons)
+  ck_ring_t rogbdQ;
+  ck_ring_buffer_t rogbdQBuffer[NUM_GBDRO];     // R/O GBD queue (for readers)
 #else
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   VOLATILE int dirtyQw;                         // write ptr for dirty que
