@@ -144,7 +144,8 @@
 #define SHMAT_SEED      (void *)0
 #endif
 
-#define NUM_GBDRO       32                      // no. of R/O GBDs
+// #define NUM_GBDRO       32                      // no. of R/O GBDs
+#define NUM_GBDRO        0                      // no. of R/O GBDs
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
@@ -393,7 +394,9 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   ck_ring_t garbQ;
   ck_ring_buffer_t garbQBuffer[NUM_GARB];       // garbage queue (for daemons)
   ck_ring_t rogbdQ;
+#ifdef MV1_GBDRO
   ck_ring_buffer_t rogbdQBuffer[NUM_GBDRO];     // R/O GBD queue (for readers)
+#endif
 #else
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   VOLATILE int dirtyQw;                         // write ptr for dirty que

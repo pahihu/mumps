@@ -360,7 +360,9 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_CKIT
   ck_ring_init(&systab->vol[volnum-1]->dirtyQ, NUM_DIRTY);
   ck_ring_init(&systab->vol[volnum-1]->garbQ,  NUM_GARB);
+#ifdef MV1_GBDRO
   ck_ring_init(&systab->vol[volnum-1]->rogbdQ, NUM_GBDRO);
+#endif
 #endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
