@@ -100,10 +100,15 @@ char* ltoa(char *buf, long n)
       n = -n;
     }
     
-         if (n <    10) ptr = &buf[2 + sign];
-    else if (n <   100) ptr = &buf[3 + sign];
-    else if (n <  1000) ptr = &buf[4 + sign];
-    else if (n < 10000) ptr = &buf[5 + sign];
+         if (n <         10) ptr = &buf[ 2 + sign];
+    else if (n <        100) ptr = &buf[ 3 + sign];
+    else if (n <       1000) ptr = &buf[ 4 + sign];
+    else if (n <      10000) ptr = &buf[ 5 + sign];
+    else if (n <     100000) ptr = &buf[ 6 + sign];
+    else if (n <    1000000) ptr = &buf[ 7 + sign];
+    else if (n <   10000000) ptr = &buf[ 8 + sign];
+    else if (n <  100000000) ptr = &buf[ 9 + sign];
+    else if (n < 1000000000) ptr = &buf[10 + sign];
     else
     { ptr = &tmp[32];
       docpy = 1;
@@ -118,7 +123,7 @@ char* ltoa(char *buf, long n)
     if (sign)
       *--ptr = '-';
 
-    return docpy ? strcpy(buf, ptr) : ptr;
+    return docpy ? memmove(buf, ptr, &tmp[31] - ptr + 1) : ptr;
 }
 
 #endif
@@ -765,6 +770,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             m_apm_set_long(aa, laa);
           if (lbbq)
             m_apm_set_long(bb, lbb);
+
           m_apm_divide(cc, partab.jobtab->precision, aa, bb);
           m_apmtom(uu, cc);
         }
@@ -795,7 +801,12 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
           done = 1;
         }
         if (!done)
-        { m_apm_absolute_value(dummy, bb);
+        { if (laaq)
+            m_apm_set_long(aa, laa);
+          if (lbbq)
+            m_apm_set_long(bb, lbb);
+
+          m_apm_absolute_value(dummy, bb);
           if (0 == m_apm_compare(dummy, MM_Two))
           { m_apm_copy(cc, m_apm_is_odd(aa) ? MM_One : MM_Zero);
             if (-1 == m_apm_sign(bb))
