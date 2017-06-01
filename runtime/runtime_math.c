@@ -49,8 +49,12 @@ void roundit (char *a, int digits);
 
 #ifdef MV1_MAPM
 
+#define MV1_LONG_DIGITS         (8 == sizeof(long) ? 19 : 9)
+
 #include "m_apm.h"
-static M_APM aa, bb, cc, dummy;                  // MAPM args
+static M_APM aa, bb, cc, dummy;                 // MAPM args
+static long laa, lbb;                           // long args
+static int  laaq, lbbq;
 
 static
 void m_apmtom(char *buf, M_APM cc)
@@ -65,6 +69,56 @@ void m_apmtom(char *buf, M_APM cc)
         dplaces = partab.jobtab->precision;
       m_apm_to_fixpt_string(buf, dplaces, cc);
     }
+}
+
+static
+int m_mtoapm(M_APM out, long *lout, char *buf)
+{
+    int len;
+
+    len = strlen(buf);
+    if (1 == len)
+    { *lout = (*buf) - '0';
+      return len;
+    }
+    else if ((len < 10) && (0 == strchr(buf,'.')))
+    { *lout = atol(buf);
+      return len;
+    }
+    else
+      m_apm_set_string(out, buf);
+    return 0;
+}
+
+char* ltoa(char *buf, long n)
+{
+    int   sign = 0, docpy = 0;
+    char  *ptr, tmp[32];
+
+    if (n < 0)
+    { sign = 1;
+      n = -n;
+    }
+    
+         if (n <    10) ptr = &buf[2 + sign];
+    else if (n <   100) ptr = &buf[3 + sign];
+    else if (n <  1000) ptr = &buf[4 + sign];
+    else if (n < 10000) ptr = &buf[5 + sign];
+    else
+    { ptr = &tmp[32];
+      docpy = 1;
+    }
+
+    *--ptr = '\0';
+    do
+    { *--ptr = '0' + (n % 10);
+      n /= 10;
+    } while (n);
+    
+    if (sign)
+      *--ptr = '-';
+
+    return docpy ? strcpy(buf, ptr) : ptr;
 }
 
 #endif
@@ -126,6 +180,8 @@ void runtime_math_init(void)
 
 short runtime_add(char *a, char *b)		// add b to a
 {
+    int done = 0;
+
     if (b[0] == ZERO)
 	return strlen(a);
     if (a[0] == ZERO) {
@@ -134,11 +190,24 @@ short runtime_add(char *a, char *b)		// add b to a
     }
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
-    m_apm_set_string(bb, b);
+    laaq = m_mtoapm(aa, &laa, a);
+    lbbq = m_mtoapm(bb, &lbb, b);
+    if (laaq && lbbq)
+    { if ((laaq < MV1_LONG_DIGITS) && (lbbq < MV1_LONG_DIGITS))
+      { ltoa(a, laa + lbb);
+        done = 1;
+      }
+    }
+    if (!done)
+    { if (laaq)
+        m_apm_set_long(aa, laa);
+      if (lbbq)
+        m_apm_set_long(bb, lbb);
+   
+      m_apm_add(cc, aa, bb);
+      m_apmtom(a, cc);
+    }
 
-    m_apm_add(cc, aa, bb);
-    m_apmtom(a, cc);
 
     return strlen(a);
 #endif
@@ -407,13 +476,25 @@ short runtime_mul(char *a, char *b)             // multiply a by b
     int bcur;
     int ccur;
     int carry;
+    int done = 0;
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
-    m_apm_set_string(bb, b);
-
-    m_apm_multiply(cc, aa, bb);
-    m_apmtom(a, cc);
+    laaq = m_mtoapm(aa, &laa, a);
+    lbbq = m_mtoapm(bb, &lbb, b);
+    if (laaq && lbbq)
+    { if (laaq + lbbq < MV1_LONG_DIGITS + 1)
+      { ltoa(a, laa * lbb);
+        done = 1;
+      }
+    }
+    if (!done)
+    { if (laaq)
+        m_apm_set_long(aa, laa);
+      if (lbbq)
+        m_apm_set_long(bb, lbb);
+      m_apm_multiply(cc, aa, bb);
+      m_apmtom(a, cc);
+    }
 
     return strlen(a);
 #endif
@@ -659,6 +740,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     int k;
     int carry = 0;
     int ulast;
+    int done = 0;
 
     if (uu[0] == ZERO)
         return 1;
@@ -666,30 +748,71 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
 	return -ERRM9;
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, uu);
-    m_apm_set_string(bb,  v);
+    laaq = m_mtoapm(aa, &laa, uu);
+    lbbq = m_mtoapm(bb, &lbb,  v);
 
     switch (typ)
-    { case OPDIV: m_apm_divide(cc, partab.jobtab->precision, aa, bb); break;
-      case OPINT: m_apm_integer_divide(cc, aa, bb); break;
-      case OPMOD: 
-        m_apm_absolute_value(dummy, bb);
-        if (0 == m_apm_compare(dummy, MM_Two))
-        { m_apm_copy(cc, m_apm_is_odd(aa) ? MM_One : MM_Zero);
-          if (-1 == m_apm_sign(bb))
-          { m_apm_copy(dummy, cc);
-            m_apm_negate(cc, dummy);
+    { case OPDIV: 
+        if (laaq && lbbq)
+        { if (((2 == lbb) && (0 == (laa & 1))) ||
+              (0 == laa % lbb))
+          { ltoa(uu, laa / lbb);
+            done = 1;
           }
         }
-        else
-        { // aa - bb * floor(aa / bb)
-          m_apm_divide(dummy, partab.jobtab->precision, aa, bb);
-          m_apm_floor(cc, dummy);
-          m_apm_multiply(dummy, bb, cc);
-          m_apm_subtract(cc, aa, dummy);
+        if (!done)
+        { if (laaq)
+            m_apm_set_long(aa, laa);
+          if (lbbq)
+            m_apm_set_long(bb, lbb);
+          m_apm_divide(cc, partab.jobtab->precision, aa, bb);
+          m_apmtom(uu, cc);
+        }
+        break;
+      case OPINT:
+        if (laaq && lbbq)
+        { ltoa(uu, laa / lbb);
+          done = 1;
+        }
+        if (!done)
+        { if (laaq)
+            m_apm_set_long(aa, laa);
+          if (lbbq)
+            m_apm_set_long(bb, lbb);
+
+          m_apm_integer_divide(cc, aa, bb);
+          m_apmtom(uu, cc);
+        }
+        break;
+      case OPMOD: 
+        if (laaq && lbbq)
+        { if (2 == lbb)
+            ltoa(uu, laa & 1);
+          else if (4 == lbb)
+            ltoa(uu, laa & 3);
+          else
+            ltoa(uu, laa % lbb);
+          done = 1;
+        }
+        if (!done)
+        { m_apm_absolute_value(dummy, bb);
+          if (0 == m_apm_compare(dummy, MM_Two))
+          { m_apm_copy(cc, m_apm_is_odd(aa) ? MM_One : MM_Zero);
+            if (-1 == m_apm_sign(bb))
+            { m_apm_copy(dummy, cc);
+              m_apm_negate(cc, dummy);
+            }
+          }
+          else
+          { // aa - bb * floor(aa / bb)
+            m_apm_divide(dummy, partab.jobtab->precision, aa, bb);
+            m_apm_floor(cc, dummy);
+            m_apm_multiply(dummy, bb, cc);
+            m_apm_subtract(cc, aa, dummy);
+          }
+          m_apmtom(uu, cc);
         }
     }
-    m_apmtom(uu, cc);
 
     return strlen(uu);
 #endif
@@ -1103,8 +1226,12 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
     }
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
-    m_apm_set_string(bb, b);
+    laaq = m_mtoapm(aa, &laa, a);
+    if (laaq)
+      m_apm_set_long(aa, laa);
+    lbbq = m_mtoapm(bb, &lbb, b);
+    if (lbbq)
+      m_apm_set_long(bb, lbb);
 
     m_apm_pow(cc, partab.jobtab->precision, aa, bb);
     m_apmtom(a, cc);
@@ -1285,10 +1412,21 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
 
 #ifdef MV1_MAPM
     int ret;
-    m_apm_set_string(aa, s);
-    m_apm_set_string(bb, t);
 
-    ret = m_apm_compare(bb, aa);
+    laaq = m_mtoapm(aa, &laa, s);
+    lbbq = m_mtoapm(bb, &lbb, t);
+
+    if (laaq && lbbq)
+    { ret = lbb > laa ? 1 : 0;
+    }
+    else
+    { if (laaq)
+        m_apm_set_long(aa, laa);
+      if (lbbq)
+        m_apm_set_long(bb, lbb);
+
+      ret = m_apm_compare(bb, aa);
+    }
 
     return ret > 0 ? TRUE : FALSE;
 #endif
@@ -1355,7 +1493,9 @@ short g_sqrt (char *a)			/* square root */
     }
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
+    laaq = m_mtoapm(aa, &laa, a);
+    if (laaq)
+      m_apm_set_long(aa, laa);
     m_apm_sqrt(cc, partab.jobtab->precision, aa);
     m_apmtom(a, cc);
 
@@ -1414,7 +1554,9 @@ short root (char *a, int n)		/* n.th root */
     }
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
+    laaq = m_mtoapm(aa, &laa, a);
+    if (laaq)
+      m_apm_set_long(aa, laa);
     m_apm_set_double(bb, 1.0 / (double) n);
 
     m_apm_pow(cc, partab.jobtab->precision, aa, bb);
@@ -1521,7 +1663,9 @@ void roundit (char *a, int digits)
             lena;
 
 #ifdef MV1_MAPM
-    m_apm_set_string(aa, a);
+    laaq = m_mtoapm(aa, &laa, a);
+    if (laaq)
+      m_apm_set_long(aa, laa);
     m_apm_round(cc, digits, aa);
 
     m_apmtom(a, cc);
