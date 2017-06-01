@@ -62,6 +62,8 @@
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or journaling is on and writing
 
+static int last_used_failed = 0;                        // penalty for last used
+
 short Get_data(int dir)					// locate a record
 { int i;						// a handy int
   short s;						// for function returns
@@ -87,6 +89,10 @@ short Get_data(int dir)					// locate a record
 			// NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
   else
   { i = systab->last_blk_used[partab.jobtab - systab->jobtab]; // get last used
+    if (last_used_failed)                               // last try failed ?
+    { last_used_failed--;                               //   decr penalty
+      i = 0;                                            //   clear blk
+    }
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
@@ -98,7 +104,8 @@ short Get_data(int dir)					// locate a record
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
 	      (ptr->last_accessed == (time_t) 0))	// not available
-          { break;					// exit the loop
+          { last_used_failed = 5;                       // add penalty
+            break;					// exit the loop
 	  }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = ptr;				// point at it
@@ -123,6 +130,7 @@ short Get_data(int dir)					// locate a record
 	    }
 	    return s;					// and return
 	  }
+          last_used_failed = 5;                         // add penalty
 	  blk[level] = NULL;				// clear this
 	  level = 0;					// and this
 	  break;					// and exit loop
