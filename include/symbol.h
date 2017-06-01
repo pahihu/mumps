@@ -51,9 +51,13 @@ typedef struct __attribute__ ((__packed__)) NEW_STACK // define new stack
 } new_stack;                                    // end of struct new_stack
 
 //** SYMTAB definitions **
-#define ST_HASH         1023                    // hash size of symtab
+// #define ST_HASH         1023                    // hash size of symtab
+// #define ST_FREE         ST_HASH                 // head of free list
+// #define ST_MAX          ((ST_HASH + 1) * 3)     // max number of ST entries
+
+#define ST_HASH         1024                    // hash size of symtab
 #define ST_FREE         ST_HASH                 // head of free list
-#define ST_MAX          ((ST_HASH + 1) * 3)     // max number of ST entries
+#define ST_MAX          ((ST_HASH) * 3)         // max number of ST entries
 
 // structures for symbol table data
 

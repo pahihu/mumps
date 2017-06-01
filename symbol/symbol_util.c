@@ -53,8 +53,8 @@ symtab_struct symtab[ST_MAX+1];                 // and symbol table
 //**  returns hash number                                        ***
 short ST_Hash(var_u *var)                       // var name in a quad
 { int i;                                        // for the loop
+#if 0
   int ret = 0;                                  // return value
-  //int p[8] = {3,5,7,11,13,17,19,23};          // primes
   int p[MAX_NAME_BYTES] = {                     // primes
       3,  5,  7, 11, 13, 17, 19, 23,
      29, 31, 37, 41, 43, 47, 53, 59,
@@ -63,7 +63,15 @@ short ST_Hash(var_u *var)                       // var name in a quad
   for (i = 0; var->var_cu[i] && (i < MAX_NAME_BYTES); i++) // for each character
   { ret = ((var->var_cu[i] * p[i]) + ret);
   }
-  return (short)(ret % ST_HASH);                // return mod hash value
+  return (short)(ret & (ST_HASH - 1));          // return mod hash value
+#else
+  uint32_t h = 2166136261UL;                    // FNV-1a hash
+  for (i = 0; var->var_cu[i] && (i < MAX_NAME_BYTES); i++)
+  { h ^= (unsigned char) var->var_cu[i];
+    h *= 16777619UL;
+  }
+  return h & (ST_HASH - 1);
+#endif
 }						// end of ST_Hash
 //****************************************************************************
 //**  Function: ST_Init - initialize an empty symbol table       ***
