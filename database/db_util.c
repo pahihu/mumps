@@ -851,3 +851,22 @@ start:
 cont:
   return;
 }
+
+
+void Check_BlockNo(u_int blkno, char *where, char *file, int lno)
+{
+  char msg[128];
+  u_char *bitmap = (u_char *) systab->vol[volnum-1]->map;
+
+  if ((blkno > systab->vol[volnum-1]->vollab->max_block) || // out of range?
+      (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7)))))     //   or free ?
+  { if (file)
+      sprintf((char *) msg, "invalid block (%u) in %s(%s:%d)!!",
+                                  blkno, where, file, lno);
+    else
+      sprintf((char *) msg, "invalid block (%u) in %s()!!",
+                                blkno, where);
+    panic((char *) msg);
+  }
+}
+

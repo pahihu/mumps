@@ -398,7 +398,6 @@ void do_write()						// write GBDs
   gbd *lastptr = NULL;					// for the gbd
   short s;
   u_int blkno;                                          // block#
-  char *msg[128];                                       // message buffer
 
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -416,11 +415,7 @@ void do_write()						// write GBDs
     }
     else						// do a write
     { blkno = gbdptr->block;
-      if (blkno > systab->vol[volnum-1]->vollab->max_block)
-      { sprintf((char *) msg, "invalid block (%u) in Write_Chain()!!",
-                                        blkno);
-        panic((char *) msg);
-      }
+      Check_BlockNo(blkno, "Write_Chain", 0, 0);        // check blkno validity
       file_off = (off_t) blkno - 1;		        // block#
       file_off = (file_off * (off_t)
     			systab->vol[volnum-1]->vollab->block_size)

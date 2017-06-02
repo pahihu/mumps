@@ -208,13 +208,8 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
-  char msg[128];                                        // msg buffer
 
-  if (blknum > systab->vol[volnum-1]->vollab->max_block)// check blknum
-  { sprintf((char *) msg, "invalid block (%u) in Get_block(%s:%d)!!",
-                                blknum, file, line);
-    panic((char *) msg);
-  }
+  Check_BlockNo(blknum, "Get_block", file, line);       // check blknum validity
 
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
   ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
@@ -234,6 +229,7 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
 
   if (!writing)						// if read mode
   { 
+#if 0
     if (!wanna_writing)                                 // not pre-write mode ?
     { SemOp( SEM_GBDRO, WRITE);
       ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
@@ -251,12 +247,12 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
         }
         ptr = ptr->next;				// point at next
       }							// end memory search
-      systab->vol[volnum-1]->stats.phyrd++;             // update stats
       ptr = Get_RdGBD();			        // get a GBD
       if (!ptr)
       { SemOp( SEM_GBDRO, -WRITE);
         goto writelock;
       }
+      systab->vol[volnum-1]->stats.phyrd++;             // update stats
       blk[level]->block = blknum;			// set block number
 #ifdef MV1_REFD
       blk[level]->referenced = 1;
@@ -273,6 +269,7 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
       SemOp( SEM_GBDRO, -WRITE);			// drop to read lock
       goto unlocked;
     }
+#endif
 writelock:
     SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
@@ -668,9 +665,10 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  int oldrefd;                                          // first referenced
+  int oldunrefd;                                        // first unreferenced
 
 start:
+  oldunrefd = -1;                                       // clear unreferenced
   if (!haslock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
   haslock = 0;                                          // clear for next turns
@@ -708,7 +706,7 @@ start:
       ptr->referenced = 0;                              // not refd
       curr++;						// count this
       if (curr >= greqd)				// if enough there
-      { // XXX systab->hash_start = i;
+      { systab->hash_start = i;
         return;					        // just exit
       }
       continue;					        // next ptr
@@ -720,21 +718,21 @@ start:
         ptr->referenced--;
       else
       { // fprintf(stderr,"Get_GBDs(): ptr->hash=%d\r\n",ptr->hash);
-        if (-1 == oldrefd)
-          oldrefd = i;
         curr++;					        // count that
         if (curr >= greqd)				// if enough there
-        { // XXX systab->hash_start = i;
+        { systab->hash_start = i;
           return;					// just exit
         }
+        if (-1 == oldunrefd)                            // remember 1st unrefd
+          oldunrefd = i;
       }
     }
   }
   // NB. empty buffers already added to the free list !
-  if (-1 != oldrefd)                                    // reposition before
-  { if (--oldrefd == 1)                                 //   first referenced
-      oldrefd = num_gbd - 1;
-    systab->hash_start = oldrefd;
+  if (-1 != oldunrefd)                                  // reposition before
+  { if (--oldunrefd == 1)                               //   first unreferenced
+      oldunrefd = num_gbd - 1;
+    systab->hash_start = oldunrefd;
   }
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
@@ -769,8 +767,6 @@ void Get_GBD()						// get a GBD
   int pass;
   int clean;                                            // flag clean blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  int oldpos;                                           // pos of oldptr
-  short s;
 
   pass = 0;
 start:
@@ -788,18 +784,14 @@ start:
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    clean = (ptr->dirty == NULL) &&                     // not dirty
-            (ptr->last_accessed < now) &&               //   and not viewed
-            (ptr->last_accessed > 0);                   //   and not being read
-    if ((ptr->block == 0) ||				// if no block OR
-        ((ptr->referenced == 0) &&                      //   and not refd
-         (clean)))			                // blk clean
+    if (0 == ptr->block) 				// no block ?
     { oldptr = ptr;                                     // mark this
       systab->hash_start = i;				// remember this
       // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
+#if 0
     if ((clean) && (ptr->referenced))                   // blk clean, but refd
     { ptr->referenced--;                                //   clear it
       if (!oldptr)
@@ -807,9 +799,22 @@ start:
         oldpos = i;                                     //   and its position
       }
     }
+#endif
+    clean = (NULL == ptr->dirty) &&                     // not dirty
+            (ptr->last_accessed < now) &&               //   and not viewed
+            (ptr->last_accessed > 0);                   //   and not being read
+    if (clean)
+    { if (ptr->referenced)
+        ptr->referenced--;
+      else
+      { oldptr = ptr;
+        systab->hash_start = i;
+        goto unlink_gbd;
+      }
+    }
     i = (i + 1) % num_gbd;			        // next GBD entry
   }							// end for every GBD
-  if (oldptr == NULL)
+  if (NULL == oldptr)
   { if (writing)				        // SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
@@ -826,7 +831,6 @@ start:
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }
-  systab->hash_start = oldpos;                          // remember this
 
 unlink_gbd:
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
@@ -856,7 +860,6 @@ gbd *Get_RdGBD()					        // get a GBD
   gbd *oldptr = NULL;					// remember last unrefd
   int clean;                                            // flag clean blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  int oldpos;                                           // pos of oldptr
 
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
@@ -872,18 +875,14 @@ gbd *Get_RdGBD()					        // get a GBD
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    clean = (ptr->dirty == NULL) &&                     // not dirty
-            (ptr->last_accessed < now) &&               //   and not viewed
-            (ptr->last_accessed > 0);                   //   and not being read
-    if ((ptr->block == 0) ||				// if no block OR
-        ((ptr->referenced == 0) &&                      //   and not refd
-         (clean)))			                // blk clean
+    if (0 == ptr->block)				// no block ?
     { oldptr = ptr;                                     // mark this
       systab->hash_start = i;				// remember this
       // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
+#if 0
     if ((clean) && (ptr->referenced))                   // blk clean, but refd
     { ptr->referenced--;                                //   clear it
       if (!oldptr)
@@ -891,11 +890,23 @@ gbd *Get_RdGBD()					        // get a GBD
         oldpos = i;                                     //   and its position
       }
     }
+#endif
+    clean = (NULL == ptr->dirty) &&                     // not dirty
+            (ptr->last_accessed < now) &&               //   and not viewed
+            (ptr->last_accessed > 0);                   //   and not being read
+    if (clean)
+    { if (ptr->referenced)
+        ptr->referenced--;
+      else
+      { oldptr = ptr;
+        systab->hash_start = i;
+        goto unlink_gbd;
+      }
+    }
     i = (i + 1) % num_gbd;			        // next GBD entry
   }							// end for every GBD
   if (oldptr == NULL)
     return 0;
-  systab->hash_start = oldpos;                          // remember this
 
 unlink_gbd:
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);

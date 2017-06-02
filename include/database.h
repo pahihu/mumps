@@ -220,6 +220,7 @@ void Tidy_block();					// tidy current blk
 void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
+void Check_BlockNo(u_int blkno,char *where,char *file,int lno); // chk blkno
 
 //*****************************************************************************
 
