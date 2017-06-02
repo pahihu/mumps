@@ -100,15 +100,31 @@ char* ltoa(char *buf, long n)
       n = -n;
     }
     
-         if (n <         10) ptr = &buf[ 2 + sign];
-    else if (n <        100) ptr = &buf[ 3 + sign];
-    else if (n <       1000) ptr = &buf[ 4 + sign];
-    else if (n <      10000) ptr = &buf[ 5 + sign];
-    else if (n <     100000) ptr = &buf[ 6 + sign];
-    else if (n <    1000000) ptr = &buf[ 7 + sign];
-    else if (n <   10000000) ptr = &buf[ 8 + sign];
-    else if (n <  100000000) ptr = &buf[ 9 + sign];
-    else if (n < 1000000000) ptr = &buf[10 + sign];
+         if (n <         10L) ptr = &buf[ 2 + sign];
+    else if (n <        100L) ptr = &buf[ 3 + sign];
+    else if (n <       1000L) ptr = &buf[ 4 + sign];
+    else if (n <      10000L) ptr = &buf[ 5 + sign];
+    else if (n <     100000L) ptr = &buf[ 6 + sign];
+    else if (n <    1000000L) ptr = &buf[ 7 + sign];
+    else if (n <   10000000L) ptr = &buf[ 8 + sign];
+    else if (n <  100000000L) ptr = &buf[ 9 + sign];
+    else if (n < 1000000000L) ptr = &buf[10 + sign];
+    else if (8 == sizeof(long))
+    {
+           if (n <         10000000000L) ptr = &buf[11 + sign];
+      else if (n <        100000000000L) ptr = &buf[12 + sign];
+      else if (n <       1000000000000L) ptr = &buf[13 + sign];
+      else if (n <      10000000000000L) ptr = &buf[14 + sign];
+      else if (n <     100000000000000L) ptr = &buf[15 + sign];
+      else if (n <    1000000000000000L) ptr = &buf[16 + sign];
+      else if (n <   10000000000000000L) ptr = &buf[17 + sign];
+      else if (n <  100000000000000000L) ptr = &buf[18 + sign];
+      else if (n < 1000000000000000000L) ptr = &buf[19 + sign];
+      else
+      { ptr = &tmp[32];
+        docpy = 1;
+      }
+    }
     else
     { ptr = &tmp[32];
       docpy = 1;
