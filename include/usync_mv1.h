@@ -12,10 +12,6 @@ typedef AO_TS_t LATCH_T;
 
 #else
 
-#include <ck_pr.h>
-#include <ck_spinlock.h>
-#include <ck_rwlock.h>
-
 typedef uint32_t AO_t;
 typedef volatile uint32_t LATCH_T;
 

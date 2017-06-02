@@ -219,7 +219,9 @@ short Insert(u_char *key, cstring *data)                // insert a node
 void Queit()						// que a gbd for write
 { int i;						// a handy int
   gbd *ptr;						// a handy ptr
+#ifdef MV1_CKIT
   bool result;
+#endif
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
