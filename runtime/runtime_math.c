@@ -57,7 +57,7 @@ static long laa, lbb;                           // long args
 static int  laaq, lbbq;
 
 static
-void m_apmtom(char *buf, M_APM cc)
+int m_apmtom(char *buf, M_APM cc, int needlen)
 {
     int dplaces;
 
@@ -69,6 +69,7 @@ void m_apmtom(char *buf, M_APM cc)
         dplaces = partab.jobtab->precision;
       m_apm_to_fixpt_string(buf, dplaces, cc);
     }
+    return needlen ? strlen(buf) : 0;
 }
 
 static
@@ -257,7 +258,7 @@ void runtime_math_init(void)
 
 short runtime_add(char *a, char *b)		// add b to a
 {
-    int done = 0;
+    int done = 0, lena;
 
     if (b[0] == ZERO)
 	return strlen(a);
@@ -271,7 +272,7 @@ short runtime_add(char *a, char *b)		// add b to a
     lbbq = m_mtoapm(bb, &lbb, b);
     if (laaq && lbbq)
     { if ((laaq < MV1_LONG_DIGITS) && (lbbq < MV1_LONG_DIGITS))
-      { ltoa(a, laa + lbb);
+      { lena = ltoa(a, laa + lbb);
         done = 1;
       }
     }
@@ -282,11 +283,10 @@ short runtime_add(char *a, char *b)		// add b to a
         m_apm_set_long(bb, lbb);
    
       m_apm_add(cc, aa, bb);
-      m_apmtom(a, cc);
+      lena = m_apmtom(a, cc, 1);
     }
 
-
-    return strlen(a);
+    return lena;
 #endif
 
 #ifdef MV1_INTMATH
@@ -553,14 +553,14 @@ short runtime_mul(char *a, char *b)             // multiply a by b
     int bcur;
     int ccur;
     int carry;
-    int done = 0;
+    int done = 0, lena;
 
 #ifdef MV1_MAPM
     laaq = m_mtoapm(aa, &laa, a);
     lbbq = m_mtoapm(bb, &lbb, b);
     if (laaq && lbbq)
     { if (laaq + lbbq < MV1_LONG_DIGITS + 1)
-      { ltoa(a, laa * lbb);
+      { lena = ltoa(a, laa * lbb);
         done = 1;
       }
     }
@@ -570,10 +570,10 @@ short runtime_mul(char *a, char *b)             // multiply a by b
       if (lbbq)
         m_apm_set_long(bb, lbb);
       m_apm_multiply(cc, aa, bb);
-      m_apmtom(a, cc);
+      lena = m_apmtom(a, cc, 1);
     }
 
-    return strlen(a);
+    return lena;
 #endif
 
 #ifdef MV1_INTMATH
@@ -817,7 +817,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     int k;
     int carry = 0;
     int ulast;
-    int done = 0;
+    int done = 0, lena;
 
     if (uu[0] == ZERO)
         return 1;
@@ -833,7 +833,7 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
         if (laaq && lbbq)
         { if (((2 == lbb) && (0 == (laa & 1))) ||
               (0 == laa % lbb))
-          { ltoa(uu, laa / lbb);
+          { lena = ltoa(uu, laa / lbb);
             done = 1;
           }
         }
@@ -844,12 +844,12 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             m_apm_set_long(bb, lbb);
 
           m_apm_divide(cc, partab.jobtab->precision, aa, bb);
-          m_apmtom(uu, cc);
+          lena = m_apmtom(uu, cc, 1);
         }
         break;
       case OPINT:
         if (laaq && lbbq)
-        { ltoa(uu, laa / lbb);
+        { lena = ltoa(uu, laa / lbb);
           done = 1;
         }
         if (!done)
@@ -859,17 +859,17 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             m_apm_set_long(bb, lbb);
 
           m_apm_integer_divide(cc, aa, bb);
-          m_apmtom(uu, cc);
+          lena = m_apmtom(uu, cc, 1);
         }
         break;
       case OPMOD: 
         if (laaq && lbbq)
         { if (2 == lbb)
-            ltoa(uu, laa & 1);
+            lena = ltoa(uu, laa & 1);
           else if (4 == lbb)
-            ltoa(uu, laa & 3);
+            lena = ltoa(uu, laa & 3);
           else
-            ltoa(uu, laa % lbb);
+            lena = ltoa(uu, laa % lbb);
           done = 1;
         }
         if (!done)
@@ -893,11 +893,11 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
             m_apm_multiply(dummy, bb, cc);
             m_apm_subtract(cc, aa, dummy);
           }
-          m_apmtom(uu, cc);
+          lena = m_apmtom(uu, cc, 1);
         }
     }
 
-    return strlen(uu);
+    return lena;
 #endif
 
 #ifdef MV1_INTMATH
@@ -1317,9 +1317,8 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
       m_apm_set_long(bb, lbb);
 
     m_apm_pow(cc, partab.jobtab->precision, aa, bb);
-    m_apmtom(a, cc);
 
-    return strlen(a);
+    return m_apmtom(a, cc, 1);
 #endif
 
     if (b[0] == MINUS) {
@@ -1580,9 +1579,8 @@ short g_sqrt (char *a)			/* square root */
     if (laaq)
       m_apm_set_long(aa, laa);
     m_apm_sqrt(cc, partab.jobtab->precision, aa);
-    m_apmtom(a, cc);
 
-    return strlen(a);
+    return m_apmtom(a, cc, 1);
 #endif
 
     {
@@ -1643,9 +1641,8 @@ short root (char *a, int n)		/* n.th root */
     m_apm_set_double(bb, 1.0 / (double) n);
 
     m_apm_pow(cc, partab.jobtab->precision, aa, bb);
-    m_apmtom(a, cc);
 
-    return strlen(a);
+    return m_apmtom(a, cc, 1);
 #endif
 
     {
@@ -1751,9 +1748,7 @@ void roundit (char *a, int digits)
       m_apm_set_long(aa, laa);
     m_apm_round(cc, digits, aa);
 
-    m_apmtom(a, cc);
-
-    return;
+    m_apmtom(a, cc, 0);
 #endif
 
     pointpos = -1;
