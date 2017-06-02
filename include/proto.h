@@ -143,10 +143,18 @@ short routine(int runtime);			// parse routine ref
 int cstringtoi(cstring *str);                   // convert cstring to int
 double cstringtod(cstring *str);                // convert cstring to double
 int cstringtob(cstring *str);                   // convert cstring to boolean
-short itocstring(u_char *buf, int n);		// convert int to string
-short uitocstring(u_char *buf, u_int n);	// convert u_int to string
 int mumps_version(u_char *ret_buffer);          // return version string
 short Set_Error(int err, cstring *user, cstring *space); // Set $ECODE
+short mv1_itocstring(u_char *buf, int n);	// convert int to string
+short mv1_uitocstring(u_char *buf, u_int n);	// convert u_int to string
+
+#ifdef MV1_MAPM
+#define itocstring(x,y)      ltoa((char*) (x), (long) (y))
+#define uitocstring(x,y)     ultoa((char*) (x), (unsigned long) (y))
+#else
+#define itocstring(x,y)      mv1_itocstring(x,y)
+#define uitocstring(x,y)     mv1_uitocstring(x,y)
+#endif
 
 short run(int asp, int ssp);			// run compiled code
 short buildmvar(mvar *var, int nul_ok, int asp); // build an mvar
@@ -163,6 +171,8 @@ short runtime_mul(char *a, char *b);		// mul a by b
 short runtime_div(char *uu, char *v, short typ); // divide string arithmetic
 short runtime_power(char *a, char *b); 		// raise a to the b-th power
 short runtime_comp (char *s, char *t);		// compare
+short ltoa(char *buf, long n);                  // long to string
+short ultoa(char *buf, unsigned long n);        // u_long to string
 
 // Runtime Functions
 short Dascii1(u_char *ret_buffer, cstring *expr);

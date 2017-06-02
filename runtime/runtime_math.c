@@ -90,9 +90,12 @@ int m_mtoapm(M_APM out, long *lout, char *buf)
     return 0;
 }
 
-char* ltoa(char *buf, long n)
+
+short ltoa(char *buf, long n)
 {
-    int   sign = 0, docpy = 0;
+    int   sign = 0;
+    short len;
+    int   docpy = 0;
     char  *ptr, tmp[32];
 
     if (n < 0)
@@ -100,26 +103,26 @@ char* ltoa(char *buf, long n)
       n = -n;
     }
     
-         if (n <         10L) ptr = &buf[ 2 + sign];
-    else if (n <        100L) ptr = &buf[ 3 + sign];
-    else if (n <       1000L) ptr = &buf[ 4 + sign];
-    else if (n <      10000L) ptr = &buf[ 5 + sign];
-    else if (n <     100000L) ptr = &buf[ 6 + sign];
-    else if (n <    1000000L) ptr = &buf[ 7 + sign];
-    else if (n <   10000000L) ptr = &buf[ 8 + sign];
-    else if (n <  100000000L) ptr = &buf[ 9 + sign];
-    else if (n < 1000000000L) ptr = &buf[10 + sign];
+         if (n <         10L) ptr = &buf[len = 2 + sign];
+    else if (n <        100L) ptr = &buf[len = 3 + sign];
+    else if (n <       1000L) ptr = &buf[len = 4 + sign];
+    else if (n <      10000L) ptr = &buf[len = 5 + sign];
+    else if (n <     100000L) ptr = &buf[len = 6 + sign];
+    else if (n <    1000000L) ptr = &buf[len = 7 + sign];
+    else if (n <   10000000L) ptr = &buf[len = 8 + sign];
+    else if (n <  100000000L) ptr = &buf[len = 9 + sign];
+    else if (n < 1000000000L) ptr = &buf[len =10 + sign];
     else if (8 == sizeof(long))
     {
-           if (n <         10000000000L) ptr = &buf[11 + sign];
-      else if (n <        100000000000L) ptr = &buf[12 + sign];
-      else if (n <       1000000000000L) ptr = &buf[13 + sign];
-      else if (n <      10000000000000L) ptr = &buf[14 + sign];
-      else if (n <     100000000000000L) ptr = &buf[15 + sign];
-      else if (n <    1000000000000000L) ptr = &buf[16 + sign];
-      else if (n <   10000000000000000L) ptr = &buf[17 + sign];
-      else if (n <  100000000000000000L) ptr = &buf[18 + sign];
-      else if (n < 1000000000000000000L) ptr = &buf[19 + sign];
+           if (n <         10000000000L) ptr = &buf[len =11 + sign];
+      else if (n <        100000000000L) ptr = &buf[len =12 + sign];
+      else if (n <       1000000000000L) ptr = &buf[len =13 + sign];
+      else if (n <      10000000000000L) ptr = &buf[len =14 + sign];
+      else if (n <     100000000000000L) ptr = &buf[len =15 + sign];
+      else if (n <    1000000000000000L) ptr = &buf[len =16 + sign];
+      else if (n <   10000000000000000L) ptr = &buf[len =17 + sign];
+      else if (n <  100000000000000000L) ptr = &buf[len =18 + sign];
+      else if (n < 1000000000000000000L) ptr = &buf[len =19 + sign];
       else
       { ptr = &tmp[32];
         docpy = 1;
@@ -139,8 +142,61 @@ char* ltoa(char *buf, long n)
     if (sign)
       *--ptr = '-';
 
-    return docpy ? memmove(buf, ptr, &tmp[31] - ptr + 1) : ptr;
+    if (docpy)
+      memmove(buf, ptr, len = &tmp[31] - ptr + 1);
+
+    return --len;
 }
+
+
+short ultoa(char *buf, unsigned long n)
+{
+    short len;
+    int   docpy = 0;
+    char  *ptr, tmp[32];
+
+         if (n <         10L) ptr = &buf[len =  2];
+    else if (n <        100L) ptr = &buf[len =  3];
+    else if (n <       1000L) ptr = &buf[len =  4];
+    else if (n <      10000L) ptr = &buf[len =  5];
+    else if (n <     100000L) ptr = &buf[len =  6];
+    else if (n <    1000000L) ptr = &buf[len =  7];
+    else if (n <   10000000L) ptr = &buf[len =  8];
+    else if (n <  100000000L) ptr = &buf[len =  9];
+    else if (n < 1000000000L) ptr = &buf[len = 10];
+    else if (8 == sizeof(long))
+    {
+           if (n <         10000000000L) ptr = &buf[len = 11];
+      else if (n <        100000000000L) ptr = &buf[len = 12];
+      else if (n <       1000000000000L) ptr = &buf[len = 13];
+      else if (n <      10000000000000L) ptr = &buf[len = 14];
+      else if (n <     100000000000000L) ptr = &buf[len = 15];
+      else if (n <    1000000000000000L) ptr = &buf[len = 16];
+      else if (n <   10000000000000000L) ptr = &buf[len = 17];
+      else if (n <  100000000000000000L) ptr = &buf[len = 18];
+      else if (n < 1000000000000000000L) ptr = &buf[len = 19];
+      else
+      { ptr = &tmp[32];
+        docpy = 1;
+      }
+    }
+    else
+    { ptr = &tmp[32];
+      docpy = 1;
+    }
+
+    *--ptr = '\0';
+    do
+    { *--ptr = '0' + (n % 10);
+      n /= 10;
+    } while (n);
+    
+    if (docpy)
+      memmove(buf, ptr, len = &tmp[31] - ptr + 1);
+
+    return --len;
+}
+
 
 #endif
 

@@ -183,7 +183,7 @@ int cstringtob(cstring *str)                    // convert cstring to boolean
   return ret;                                   // return the value
 }                                               // end cstringtob()
 
-short itocstring(u_char *buf, int n)		// convert int to string
+short mv1_itocstring(u_char *buf, int n)	// convert int to string
 { int i = 0;					// array index
   int p = 0;					// string index
   int a[12];					// array for digits
@@ -202,7 +202,7 @@ short itocstring(u_char *buf, int n)		// convert int to string
   return (short) p;				// and exit
 }
 
-short uitocstring(u_char *buf, u_int n)		// convert u_int to string
+short mv1_uitocstring(u_char *buf, u_int n)	// convert u_int to string
 { int i = 0;					// array index
   int p = 0;					// string index
   int a[12];					// array for digits
