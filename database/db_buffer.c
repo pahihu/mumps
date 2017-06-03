@@ -652,12 +652,6 @@ exit:
 //	     When it completes, it returns with a write lock held.
 //
 
-// Reserved blocks
-//
-// They are not free (ie. has block data), but otherwise not dirty.
-// When a writer want GBDs it is first satisfied from the free list
-// then fromm the reserved blocks.
-
 void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 { int i, j;						// a handy int
   int curr;						// current count
@@ -665,10 +659,8 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  int oldunrefd;                                        // first unreferenced
 
 start:
-  oldunrefd = -1;                                       // clear unreferenced
   if (!haslock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
   haslock = 0;                                          // clear for next turns
@@ -691,8 +683,8 @@ start:
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if (ptr->hash == GBD_HASH)                          // on free list
       continue;                                         
-    if ((ptr->block == 0) &&				// if no block
-        (ptr->dirty == NULL))
+    if ((0    == ptr->block) &&				// if no block
+        (NULL == ptr->dirty))                           //   and not dirty
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
       // fprintf(stderr,"Get_GBDs(): before Unlink_GBD\r\n"); fflush(stderr);
       Unlink_GBD(ptr);                                  // unlink ptr
@@ -706,33 +698,16 @@ start:
       ptr->referenced = 0;                              // not refd
       curr++;						// count this
       if (curr >= greqd)				// if enough there
-      { systab->hash_start = i;
         return;					        // just exit
-      }
       continue;					        // next ptr
     }							// end - no block
-    if ((ptr->dirty == NULL) &&			        // if free
-        (ptr->last_accessed < now) &&                   // and not viewed
-        (ptr->last_accessed > 0))			// and there is a time
-    { if (ptr->referenced)                              // if refd, clear it
-        ptr->referenced--;
-      else
-      { // fprintf(stderr,"Get_GBDs(): ptr->hash=%d\r\n",ptr->hash);
-        curr++;					        // count that
-        if (curr >= greqd)				// if enough there
-        { systab->hash_start = i;
+    if ((NULL == ptr->dirty) &&			        // if free
+        (now > ptr->last_accessed) &&                   // and not viewed
+        (0   < ptr->last_accessed))			// and there is a time
+    { curr++;					        // count that
+      if (curr >= greqd)				// if enough there
           return;					// just exit
-        }
-        if (-1 == oldunrefd)                            // remember 1st unrefd
-          oldunrefd = i;
-      }
     }
-  }
-  // NB. empty buffers already added to the free list !
-  if (-1 != oldunrefd)                                  // reposition before
-  { if (-1 == --oldunrefd)                              //   prev is -1 ?
-      oldunrefd = num_gbd - 1;                          //   choose last
-    systab->hash_start = oldunrefd;
   }
 
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
@@ -768,11 +743,11 @@ void Get_GBD()						// get a GBD
   int pass;
   int clean;                                            // flag clean blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  u_int nstep;
+  int oldpos;
 
   pass = 0;
 start:
-  nstep = 0;
+  oldptr = NULL;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
@@ -785,33 +760,30 @@ start:
   now = MTIME(0) + 1;				        // get current time
 
   i = (systab->hash_start + 1) % num_gbd;		// where to start
-  for (j = 0; j < num_gbd; nstep++, j++)                // for each GBD
+  for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (0 == ptr->block) 				// no block ?
+    if ((0 == ptr->block) && 				// no block ?
+        (NULL == ptr->dirty))                           //   and not dirty ?
     { oldptr = ptr;                                     // mark this
-      systab->hash_start = i;				// remember this
+      oldpos = i;				        // remember this
       // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
-#if 0
-    if ((clean) && (ptr->referenced))                   // blk clean, but refd
-    { ptr->referenced--;                                //   clear it
-      if (!oldptr)
-      { oldptr = ptr;                                   //   remember GBD
-        oldpos = i;                                     //   and its position
-      }
-    }
-#endif
     clean = (NULL == ptr->dirty) &&                     // not dirty
-            (ptr->last_accessed < now) &&               //   and not viewed
-            (ptr->last_accessed > 0);                   //   and not being read
+            (now > ptr->last_accessed) &&               //   and not viewed
+            (0   < ptr->last_accessed);                 //   and not being read
     if (clean)
     { if (ptr->referenced)
-        ptr->referenced--;
+      { ptr->referenced--;
+        if (NULL == oldptr)
+        { oldptr = ptr;
+          oldpos = i;
+        }
+      }
       else
       { oldptr = ptr;
-        systab->hash_start = i;
+        oldpos = i;
         goto unlink_gbd;
       }
     }
@@ -822,7 +794,6 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
 
-    inter_add(&systab->vol[volnum-1]->stats.eventcnt,nstep);
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
     if (pass & 3)
@@ -838,7 +809,8 @@ start:
   }
 
 unlink_gbd:
-  inter_add(&systab->vol[volnum-1]->stats.eventcnt,nstep);
+  systab->hash_start = oldpos;
+
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
   Unlink_GBD(oldptr);                                   // unlink oldptr
   // fprintf(stderr,"Get_GBD(): after Unlink_GBD\r\n"); fflush(stderr);
