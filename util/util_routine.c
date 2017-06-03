@@ -217,7 +217,8 @@ void Routine_Free(rbd *pointer)			// call internally, rbd locked
 void Routine_Collect(time_t off)		// collect based on time
 { rbd *ptr;					// a pointer
 
-  off = time(0) - off;				// get compare time
+  // off = time(0) - off;				// get compare time
+  off = MTIME(0) - off;				// get compare time
   ptr = (rbd *) systab->vol[0]->rbd_head;	// head of rbds
   while (TRUE)					// scan whole list
   { if ((ptr->attached < 1) &&			// nothing attached
@@ -385,7 +386,8 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   else p->fwd_link = ptr;			// or here
   ptr->fwd_link = NULL;				// ensure this is null
   ptr->attached = 1;				// count the attach
-  ptr->last_access = time(0);			// and the current time
+  // ptr->last_access = time(0);			// and the current time
+  ptr->last_access = MTIME(0);			// and the current time
   //ptr->rnam.var_qu = routine;			// the routine name
   ptr->rnam.var_xu = routine;			// the routine name
   ptr->uci = uci;				// the uci

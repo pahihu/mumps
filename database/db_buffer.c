@@ -276,7 +276,7 @@ writelock:
     if (s < 0)						// on error
     { return s;						// return it
     }
-    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
+    // ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
     ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?

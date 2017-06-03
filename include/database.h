@@ -71,9 +71,6 @@
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
 
-// MUMPS time
-#define MTIME(x)        systab->Mtime                   // updated by daemon 0
-
 // #include <libkern/OSAtomic.h>
 // #define ATOMIC_INCREMENT(x)     OSAtomicIncrement32((volatile int32_t*)&(x))
 #define ATOMIC_INCREMENT(x)        __sync_add_and_fetch(&(x), 1)

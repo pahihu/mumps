@@ -49,7 +49,11 @@
 #include <sys/ipc.h>                            // semaphore stuff
 #include <sys/sem.h>                            // semaphore stuff
 
+#include "database.h"
+
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
+
+#define LCK_SLEEP       250
 
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
@@ -428,6 +432,7 @@ short LCK_Old(int count, cstring *list, int to)	// old style lock
 //****************************************************************
 
 typedef struct _lck_add {
+  int _pass;
   int _count;
   int _to;
   int _done;
@@ -438,6 +443,7 @@ typedef struct _lck_add {
   locktab *_lptr;
 } lck_add_ctx;
 
+#define pass      pctx->_pass
 #define count     pctx->_count
 #define to        pctx->_to
 #define done      pctx->_done
@@ -455,13 +461,20 @@ int failed(lck_add_ctx *pctx)                 // common code
       tryagain = 0;                           // flag as if timeout expired
 
   if (to > 0)                                 // if timeout value specified
-  { currtime = time((time_t *) NULL);         // get current time
+  // { currtime = time((time_t *) NULL);         // get current time
+  { currtime = MTIME(0);                      // get current time
     if (strttime + to < currtime) tryagain = 0; // flag if time expired
   }                                           // end if timeout specified
 
   if (tryagain == 1)
   { x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
-    sleep(1);
+    // sleep(1);
+    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
+    if (pass & 3)
+      SchedYield();
+    else
+      MSleep(LCK_SLEEP);
+    pass++;
   }
         
   if (tryagain == 0)
@@ -499,13 +512,15 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
   //short x;                                    // for SEM's
   lck_add_ctx ctx,*pctx;
 
+  ctx._pass = 0;
   ctx._count = p_count;
   ctx._to = p_to;
   pctx = &ctx;
   done = 0;
   tryagain = 1;
 
- strttime = time((time_t *) NULL);              // save op start time
+ // strttime = time((time_t *) NULL);              // save op start time
+ strttime = MTIME(0);                           // save op start time
  while (tryagain)                               // while we should give it a go
  {tryagain = 0;                                 // reset retry flag
   if (to > -1)
@@ -780,6 +795,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
  return 0;                                      // finished OK
 }                                               // end function LCK_Add()
 
+#undef pass
 #undef count
 #undef to
 #undef done

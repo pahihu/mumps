@@ -557,6 +557,9 @@ extern sem_stat semtab[2*SEM_MAX];
 extern int sem_id;                              // global semaphore id
 
 
+// MUMPS time
+#define MTIME(x)        systab->Mtime           // updated by daemon 0
+
 //** process memory structures ***/
 //** PARTAB definitions **
 
