@@ -75,16 +75,26 @@ int m_apmtom(char *buf, M_APM cc, int needlen)
 static
 int m_mtoapm(M_APM out, long *lout, char *buf)
 {
-    int len;
+    int ndigits;
+    int sign = 0;
+    long ret;
 
-    len = strlen(buf);
-    if (1 == len)
-    { *lout = (*buf) - '0';
-      return len;
+    if ('-' == *buf)
+    { buf++;
+      sign = 1;
     }
-    else if ((len < 10) && (0 == strchr(buf,'.')))
-    { *lout = atol(buf);
-      return len;
+    else if ('+' == *buf)
+      buf++;
+    ndigits = strlen(buf);
+    if (1 == ndigits)
+    { ret = (*buf) - '0';
+      *lout = sign ? -ret : ret;
+      return ndigits;
+    }
+    else if ((ndigits < 1 + MV1_LONG_DIGITS) && (0 == strchr(buf,'.')))
+    { ret = atol(buf);
+      *lout = sign ? -ret : ret;
+      return ndigits;
     }
     else
       m_apm_set_string(out, buf);
