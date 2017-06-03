@@ -562,7 +562,7 @@ void ic_map(int flag, int dbfd)				// check the map
       if (block > systab->vol[volnum - 1]->vollab->max_block)
       { continue;
       }
-      ptr = systab->vol[volnum-1]->gbd_hash[block & (GBD_HASH - 1)];
+      ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(block)];
       while (ptr != NULL)				// scan for block
       { if (ptr->block == block)			// if found
 	{ type_byte = ptr->mem->type;			// save this

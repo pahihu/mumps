@@ -525,7 +525,7 @@ int do_zot(u_int gb)					// zot block
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
   while(SemOp(SEM_GLOBAL, READ));			// take a global lock
-  ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
+  ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(gb)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
@@ -638,7 +638,7 @@ void do_free(u_int gb)					// free from map et al
   
   Free_block(gb);					// free the block
 
-  ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get listhead
+  ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(gb)];// get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
     { if (ptr->dirty < (gbd *) 5)			// not in use

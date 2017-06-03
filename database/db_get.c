@@ -96,7 +96,7 @@ short Get_data(int dir)					// locate a record
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
-      ptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)]; // get listhead
+      ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
         { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or

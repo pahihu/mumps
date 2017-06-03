@@ -112,7 +112,7 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 { int hash;
   gbd *ptr;
 
-  hash = blknum & (GBD_HASH - 1);                       // calc chain no
+  hash = GBD_BUCKET(blknum);                            // calc chain no
   ptr = systab->vol[volnum-1]->gbd_hash[hash];          // get head
   newptr->hash = hash;                                  // store chain no
   newptr->prev = NULL;                                  // no prev
@@ -212,7 +212,7 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   Check_BlockNo(blknum, "Get_block", file, line);       // check blknum validity
 
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
-  ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
+  ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
@@ -277,7 +277,7 @@ writelock:
     { return s;						// return it
     }
     // ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
-    ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
+    ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
@@ -304,7 +304,7 @@ writelock:
 #ifdef MV1_REFD
   Link_GBD(blknum, blk[level]);
 #else
-  i = blknum & (GBD_HASH - 1);
+  i = GBD_BUCKET(blknum);
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
 #endif
@@ -400,7 +400,7 @@ short New_block()					// get new block
         blk[level]->referenced = 1;                     // mark referenced
         Link_GBD(blknum, blk[level]);
 #else
-        hash = blknum & (GBD_HASH - 1);
+        hash = GBD_BUCKET(blknum);
         blk[level]->next                                // link it in
           = systab->vol[volnum-1]->gbd_hash[hash];
 	systab->vol[volnum-1]->gbd_hash[hash] = blk[level];
@@ -459,7 +459,7 @@ start:
   }							// end while
   now = MTIME(0) + 1;					// get current time +
 
-  i = (systab->hash_start + 1) & (GBD_HASH - 1);	// where to start
+  i = GBD_BUCKET(systab->hash_start + 1);	        // where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -501,7 +501,7 @@ start:
       ptr = ptr->next;					// point at next
     }							// end 1 hash list
 
-    i = (i + 1) & (GBD_HASH - 1);			// next hash entry
+    i = GBD_BUCKET(i + 1);			        // next hash entry
     if (i == systab->hash_start)			// where we started
     { break;						// done
     }
@@ -557,7 +557,7 @@ start:
   old = now;					        // remember oldest
   exp = now - gbd_expired + 1;				// expired time
 
-  i = (systab->hash_start + 1) & (GBD_HASH - 1);	// where to start
+  i = GBD_BUCKET(systab->hash_start + 1);	        // where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -594,7 +594,7 @@ start:
       last = ptr;					// save last
       ptr = ptr->next;					// point at next
     }							// end 1 hash list
-    i = (i + 1) & (GBD_HASH - 1);			// next hash entry
+    i = GBD_BUCKET(i + 1);			        // next hash entry
     if (i == systab->hash_start)			// where we started
     { break;						// done
     }
@@ -730,10 +730,11 @@ start:
   }
   // NB. empty buffers already added to the free list !
   if (-1 != oldunrefd)                                  // reposition before
-  { if (--oldunrefd == 1)                               //   first unreferenced
-      oldunrefd = num_gbd - 1;
+  { if (-1 == --oldunrefd)                              //   prev is -1 ?
+      oldunrefd = num_gbd - 1;                          //   choose last
     systab->hash_start = oldunrefd;
   }
+
   systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   if (pass & 3)
@@ -767,9 +768,11 @@ void Get_GBD()						// get a GBD
   int pass;
   int clean;                                            // flag clean blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
+  u_int nstep;
 
   pass = 0;
 start:
+  nstep = 0;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
@@ -782,7 +785,7 @@ start:
   now = MTIME(0) + 1;				        // get current time
 
   i = (systab->hash_start + 1) % num_gbd;		// where to start
-  for (j = 0; j < num_gbd; j++)                         // for each GBD
+  for (j = 0; j < num_gbd; nstep++, j++)                // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if (0 == ptr->block) 				// no block ?
     { oldptr = ptr;                                     // mark this
@@ -818,6 +821,8 @@ start:
   { if (writing)				        // SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
+
+    inter_add(&systab->vol[volnum-1]->stats.eventcnt,nstep);
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
     if (pass & 3)
@@ -833,6 +838,7 @@ start:
   }
 
 unlink_gbd:
+  inter_add(&systab->vol[volnum-1]->stats.eventcnt,nstep);
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
   Unlink_GBD(oldptr);                                   // unlink oldptr
   // fprintf(stderr,"Get_GBD(): after Unlink_GBD\r\n"); fflush(stderr);
@@ -943,9 +949,9 @@ void Free_GBD(gbd *free)				// Free a GBD
   if (free->block)					// if there is a blk#
   { 
 #ifdef MV1_CACHE
-    ptr = systab->vol[volnum-1]->gbd_hash[free->block & (GBD_HASH -1)];
+    ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(free->block)];
     if (ptr == free)					// if this one
-    { systab->vol[volnum-1]->gbd_hash[free->block & (GBD_HASH -1)]
+    { systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(free->block)]
         = free->next;					// unlink it
     }
     else						// look for it

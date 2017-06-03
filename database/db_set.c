@@ -190,7 +190,7 @@ short Set_data(cstring *data)				// set a record
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrtry); // count a try
-      gptr = systab->vol[volnum-1]->gbd_hash[i & (GBD_HASH - 1)];// get listhead
+      gptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)];// get listhead
       while (gptr != NULL)				// for each in list
       { if (gptr->block != i)                           // not found
         { gptr = gptr->next;                            // get next

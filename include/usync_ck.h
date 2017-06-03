@@ -12,7 +12,6 @@ typedef uint32_t AO_t;
 // --- interlocked increment -------------------------------
 #define inter_add(x,y)  ck_pr_add_32(x,y)
 
-
 // --- latch -----------------------------------------------
 #define LATCH_T         ck_spinlock_ticket_t
 
