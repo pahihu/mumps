@@ -80,7 +80,7 @@
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
-#define STORAGE         1024                    // what $STORAGE returns
+// #define STORAGE         1024                    // what $STORAGE returns
 #ifdef  __APPLE__
 #define PRVGRP          80                      // admin in OSX
 #else

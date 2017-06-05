@@ -1259,7 +1259,7 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case VARS:				// $S[TORAGE]
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
-	cptr->len = itocstring(cptr->buf, STORAGE);
+	cptr->len = itocstring(cptr->buf, (int) ST_Storage());
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;

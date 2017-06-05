@@ -49,6 +49,19 @@ short st_hash[ST_HASH+1];                       // allocate hashing table
 symtab_struct symtab[ST_MAX+1];                 // and symbol table
 
 //****************************************************************************
+//**  Function: ST_Storage - Return the number of free slots in symtab[]   ***
+short ST_Storage(void)
+{ short count = 0;
+  int   i;
+
+  for (i = 0; i < ST_MAX; i++)
+    if (symtab[i].data != ST_DATA_NULL)
+      count++;
+
+  return ST_MAX - count;
+}
+
+//****************************************************************************
 //**  Function: ST_Hash - Create a hash from a variable name     ***
 //**  returns hash number                                        ***
 short ST_Hash(var_u *var)                       // var name in a quad
