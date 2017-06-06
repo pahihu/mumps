@@ -49,7 +49,7 @@ void roundit (char *a, int digits);
 
 #ifdef MV1_MAPM
 
-#define MV1_LONG_DIGITS         (8 == sizeof(long) ? 19 : 9)
+#define MV1_LONG_DIGITS         (8 == sizeof(long) ? 18 : 9)
 
 #include "m_apm.h"
 static M_APM aa, bb, cc, dummy;                 // MAPM args
