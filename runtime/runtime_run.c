@@ -1019,7 +1019,7 @@ short run(int savasp, int savssp)		// run compiled code
 	//if (rou != 0)				// if a routine was sepcified
 	//{ partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu = rou;
 	if (!X_Empty(rou))			// if a routine was sepcified
-	{ partab.jobtab->seqio[partab.jobtab->io].namespace.var_xu = rou;
+	{ partab.jobtab->seqio[partab.jobtab->io].nmspace.var_xu = rou;
 	}
         break;
       case CMOPEN:				// open, ch, p1, p2, to, mnspc
@@ -1045,7 +1045,7 @@ short run(int savasp, int savssp)		// run compiled code
           }
 	}
 	//partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu = rou;
-        partab.jobtab->seqio[j].namespace.var_xu = rou;
+        partab.jobtab->seqio[j].nmspace.var_xu = rou;
 	break;					// done
       case CMCLOSE:				// close chanel
 	partab.jobtab->commands++;		// count a command
@@ -2142,7 +2142,7 @@ short run(int savasp, int savssp)		// run compiled code
 	X_Clear(tag);				// clear tag
 	if (opc == CMDOWRT)
 	//{ rou = partab.jobtab->seqio[partab.jobtab->io].namespace.var_qu;
-	{ rou = partab.jobtab->seqio[partab.jobtab->io].namespace.var_xu;
+	{ rou = partab.jobtab->seqio[partab.jobtab->io].nmspace.var_xu;
 	}
 	else
 	//{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu;

@@ -105,16 +105,16 @@ int Resolve_Subs(MV1DB *hnd, MV1VAR *var)
   var->resolved_uci_volset = 1;
   
   // extract subscript pos/len
-  var->nsubs = 0;
+  var->var_m.nsubs = 0;
   for (i = 0; i < var_m->slen; )
   { cnt = 0;
     s = UTIL_Key_Extract(&var_m->key[i], &tmp[0], &cnt);
     if (s < 0)
       return s;
-    var->spos[var->nsubs] = i;
-    var->slen[var->nsubs] = cnt;
-    var->nsubs++;
+    var->var_m.subspos[var->var_m.nsubs] = i;
+    var->var_m.nsubs++;
     i += cnt;
+    var->var_m.subspos[var->var_m.nsubs] = i;
   }
   return 0;
 }

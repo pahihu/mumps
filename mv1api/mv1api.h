@@ -40,6 +40,10 @@
 #include "error.h"
 #include "mumps.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _MV1DB
 { char *file;                                   // database file name
   int dbfd;                                     // database file descriptor
@@ -57,9 +61,6 @@ typedef struct _MV1VAR
   chr_x  volset;
   chr_x  env;
   u_char resolved_uci_volset;   // UCI,VOLSET resolved ie. put in var_m
-  u_char nsubs;                 // max. 63
-  u_char spos[64];              // subscript positions
-  u_char slen[64];              // subscript lengths
   mvar   var_m;                 // contains keys, keylen, varname
 } MV1VAR;
 
@@ -93,5 +94,9 @@ int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next);
 int mv1_global_next(MV1DB *hnd, MV1VAR *var, u_char *data, int *dlen);
 int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout);
 int mv1_global_unlock(MV1DB *hnd, MV1VAR *var);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif                                          // _MUMPS_MV1API_H_

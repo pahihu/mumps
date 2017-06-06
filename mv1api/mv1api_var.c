@@ -48,8 +48,6 @@ typedef struct _MV1VAR
   chr_x  volset[MAX_NAME_BYTES];
   chr_x  env[MAX_NAME_BYTES];
   u_char resolved_uci_volset;
-  u_char nsubs;                 // max. 63
-  u_char subsidx[64];  
   mvar   mvar;                  // contains keys, keylen, varname
 } MV1VAR;
 #endif
@@ -118,28 +116,33 @@ int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 
 int mv1_subs_clear(MV1VAR *var)
 {
-  var->nsubs = 0;                                       // clear subscripts
+  var->var_m.nsubs = 0;                                 // clear subscripts
   var->var_m.slen = 0;
   return 0;
 }
 
 int mv1_subs_count(MV1VAR *var, int *cnt)
 {
-  *cnt = var->nsubs;                                    // return #subscripts
+  *cnt = var->var_m.nsubs;                              // return #subscripts
   return 0;
 }
 
 int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
 {
   short s;
+  int   args;
 
-  if ((pos < 0) || (pos > var->nsubs - 1))
+  if ((pos < 0) || (pos > var->var_m.nsubs - 1))
     return EINVAL;
 
-  *len = 0;
-  s = UTIL_Key_Extract(&var->var_m.key[var->spos[pos]], val, len);
-  if (s < 0)
-    return s;
+  args = 0;
+  do
+  { *len = 0;
+    s = UTIL_Key_Extract(&var->var_m.key[args], val, len);
+    if (s < 0)
+      return s;
+    args += s;
+  } while (0 < --pos);
 
   return 0;
 }
@@ -150,22 +153,22 @@ int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
   u_char *dst;
   short s;
 
-  if ((pos < 0) || (pos > var->nsubs) || (pos >= 63))   // max. 63 subscripts
+  if ((pos < 0) || (pos > var->var_m.nsubs) || (pos >= 63))   // max. 63 subscripts
     return EINVAL;
 
-  if (0 != pos)
-    var->spos[pos] = var->spos[pos - 1] + var->slen[pos - 1];
-  else
-    var->spos[pos] = 0;
+  if (0 == pos)
+  { var->var_m.nsubs = 0;
+    var->var_m.slen  = 0;
+    var->var_m.subspos[0] = 0;
+  }
 
-  dst = &var->var_m.key[var->spos[pos]];
-  s = UTIL_Key_Build(cstr, dst);
+  dst = &var->var_m.key[var->var_m.subspos[pos]];
+  s = UTIL_Key_BuildEx(&var->var_m, cstr, dst);
   if (s < 0)
     return s;
 
-  var->slen[pos] = s;
-  var->var_m.slen = var->spos[pos] + s;
-  var->nsubs = 1 + pos;
+  var->var_m.subspos[pos + 1] = var->var_m.subspos[pos] + s;
+  var->var_m.slen = var->var_m.subspos[pos] + s;
 
   return 0;
 }
@@ -191,11 +194,11 @@ int mv1_subs_insert_null(MV1VAR *var, int pos)
 
 int mv1_subs_append(MV1VAR *var, unsigned char *val, int len)
 {
-  return mv1_subs_insert(var, var->nsubs, val, len);
+  return mv1_subs_insert(var, var->var_m.nsubs, val, len);
 }
 
 int mv1_subs_append_null(MV1VAR *var)
 {
-  return mv1_subs_insert_null(var, var->nsubs);
+  return mv1_subs_insert_null(var, var->var_m.nsubs);
 }
 

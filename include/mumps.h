@@ -467,7 +467,7 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN
   short out_len;                                // length of output terminator
   u_char out_term[MAX_SEQ_OUT];                 // the output terminator
   int in_term;                                  // input terminator bit mask
-  var_u namespace;                              // routine for namespace
+  var_u nmspace;                                // routine for namespace
 } SQ_Chan;                                      // define the $I stuf
 
 // *** End SEQIO specific *** //
