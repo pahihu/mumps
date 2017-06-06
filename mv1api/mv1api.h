@@ -78,13 +78,16 @@ int mv1_subs_clear(MV1VAR *var);
 int mv1_subs_count(MV1VAR *var, int *cnt);
 int mv1_subs_extract(MV1VAR *var, int pos, u_char *val, int *len);
 int mv1_subs_insert(MV1VAR *var, int pos, u_char *val, int len);
+int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *cstr);
 int mv1_subs_insert_null(MV1VAR *var, int pos);
 int mv1_subs_append(MV1VAR *var, u_char *val, int len);
+int mv1_subs_append_cstr(MV1VAR *var, cstring *cstr);
 int mv1_subs_append_null(MV1VAR *var);
 
 /* global functions */
 int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len);
 int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len);
+int mv1_global_set_cstr(MV1DB *hnd, MV1VAR *var, cstring *cstr);
 int mv1_global_set_null(MV1DB *hnd, MV1VAR *var);
 int mv1_global_kill(MV1DB *hnd, MV1VAR *var);
 int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval);

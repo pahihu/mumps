@@ -42,6 +42,7 @@
 
 extern mvar db_var;
 
+
 static
 short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
 {
@@ -58,7 +59,8 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
       if (systab->vol[i] != NULL)
         if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, var->volset))
           break;
-    if (i == MAX_VOL) return -ERRM26;
+    if (i == MAX_VOL)
+      return -ERRM26;
     var->var_m.volset = i + 1;
   }
   if (0 == var->var_m.volset)
@@ -69,7 +71,8 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
       if (X_EQ(systab->vol[var->var_m.volset-1]->vollab->uci[i].name.var_xu,
                var->env))
         break;
-    if (i == UCIS) return -ERRM26;
+    if (i == UCIS)
+      return -ERRM26;
     var->var_m.uci = i + 1;
   }
   if (0 == var->var_m.uci)
@@ -79,6 +82,7 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
 
   return 0;
 }
+
 
 #define MV1_INVALID_UCI         -1
 #define MV1_INVALID_VOLSET      -2
@@ -116,8 +120,10 @@ int Resolve_Subs(MV1DB *hnd, MV1VAR *var)
     i += cnt;
     var->var_m.subspos[var->var_m.nsubs] = i;
   }
+
   return 0;
 }
+
 
 int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len)
 {
@@ -125,15 +131,17 @@ int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len)
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
   s = DB_Get(&var->var_m, val);
   if (s < 0)
     return s;
 
   *len = s;
+
   return 0;
 }
+
 
 int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len)
 {
@@ -142,7 +150,7 @@ int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len)
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
   if (0 == len)
     len = strlen((char*) val);
@@ -156,22 +164,40 @@ int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len)
   return 0;
 }
 
-int mv1_global_set_null(MV1DB *hnd, MV1VAR *var)
+
+int mv1_global_set_cstr(MV1DB *hnd, MV1VAR *var, cstring *cstr)
 {
   short s;
-  cstring cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
-  cstr.len = 0;
-  s = DB_Set(&var->var_m, &cstr);
+  s = DB_Set(&var->var_m, cstr);
   if (s < 0)
     return s;
 
   return 0;
 }
+
+
+int mv1_global_set_null(MV1DB *hnd, MV1VAR *var)
+{
+  short s;
+  short len;
+
+  s = Resolve_UCI_VOLSET(hnd, var);
+  if (s < 0)
+    return s;
+
+  len = 0;
+  s = DB_Set(&var->var_m, (cstring *) &len);
+  if (s < 0)
+    return s;
+
+  return 0;
+}
+
 
 int mv1_global_kill(MV1DB *hnd, MV1VAR *var)
 {
@@ -179,27 +205,33 @@ int mv1_global_kill(MV1DB *hnd, MV1VAR *var)
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
   return DB_Kill(&var->var_m);
 }
 
+
 int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval)
 {
   short s;
-  cstring cstr;
+  u_char tmpstr[16];
+  cstring *cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
-  s = DB_Data(&var->var_m, &cstr.buf[0]);
+  cstr = (cstring *) &tmpstr[0];
+  s = DB_Data(&var->var_m, &cstr->buf[0]);
   if (s < 0)
     return s;
-  cstr.buf[s] = '\0';
-  *dval = atol((char*) &cstr.buf[0]);
+
+  cstr->buf[s] = '\0';
+  *dval = atol((char*) &cstr->buf[0]);
+
   return 0;
 }
+
 
 static
 int Key_Backwards_Fix(MV1VAR *var, int dir)
@@ -219,6 +251,7 @@ int Key_Backwards_Fix(MV1VAR *var, int dir)
   return i;
 }
 
+
 int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
                 u_char *sibling, int *len)
 {
@@ -227,7 +260,7 @@ int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
 #if 0
   fprintf(stderr,"var_m.name   = %s\r\n", &var->var_m.name.var_xu);
@@ -247,63 +280,78 @@ int mv1_global_order(MV1DB *hnd, MV1VAR *var, int dir,
 
   *len = s;
   s = 0;
+
 exit:
   if (-1 != i)                                          // unfix
     var->var_m.key[i] = '\0';
+
   return s;
 }
+
 
 int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next)
 {
   short s;
   int i;
-  cstring cstr;
+  u_char tmpstr[1024];
+  cstring *cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
   i = Key_Backwards_Fix(var, dir);
-  s = DB_Query(&var->var_m, &cstr.buf[0], dir, 0);
+  cstr = (cstring *) &tmpstr[0];
+  s = DB_Query(&var->var_m, &cstr->buf[0], dir, 0);
   if (s < 0)
     goto exit;
+
   bcopy(&db_var, next, sizeof(mvar));
   s = Resolve_Subs(hnd, next);
 
 exit:
   if (-1 != i)                                          // unfix
     var->var_m.key[i] = '\0';
+
   return s;
 }
+
 
 int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout)
 {
   short s;
-  cstring cstr;
+  u_char tmpstr[1024];
+  cstring *cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
-  s = UTIL_mvartolock(&var->var_m, &cstr.buf[0]);
+  cstr = (cstring *) &tmpstr[0];
+  s = UTIL_mvartolock(&var->var_m, &cstr->buf[0]);
   if (s < 0)
     return s;
-  cstr.len = s;
-  return incr ? LCK_Add(1, &cstr, timeout) : LCK_Old(1, &cstr, timeout);
+
+  cstr->len = s;
+  return incr ? LCK_Add(1, cstr, timeout) : LCK_Old(1, cstr, timeout);
 }
+
 
 int mv1_global_unlock(MV1DB *hnd, MV1VAR *var)
 {
   short s;
-  cstring cstr;
+  u_char tmpstr[1024];
+  cstring *cstr;
 
   s = Resolve_UCI_VOLSET(hnd, var);
   if (s < 0)
-    return 0;
+    return s;
 
-  s = UTIL_mvartolock(&var->var_m, &cstr.buf[0]);
+  cstr = (cstring *) &tmpstr[0];
+  s = UTIL_mvartolock(&var->var_m, &cstr->buf[0]);
   if (s < 0)
     return s;
-  return LCK_Sub(1, &cstr);
+
+  return LCK_Sub(1, cstr);
 }
 

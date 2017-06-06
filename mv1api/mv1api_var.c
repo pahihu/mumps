@@ -52,29 +52,36 @@ typedef struct _MV1VAR
 } MV1VAR;
 #endif
 
+
 int mv1_var_init(MV1VAR *var)
 {
   bzero(var, sizeof(MV1VAR));                           // clear MV1VAR
+
   return 0;
 } 
+
 
 int mv1_var_clear(MV1VAR *var)
 {
   X_Clear(var->volset);                                 // clear volset
   X_Clear(var->env);                                    //   env
   X_Clear(var->var_m.name.var_xu);                      //   glb name
+
   return 0;
 }
+
 
 int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset)
 {
   int i;
 
-  for (i = 0; (*glb++ = var->var_m.name.var_cu[i]); i++);
-  for (i = 0; (*env++ = var->env.buf[i]); i++);
-  for (i = 0; (*volset++ = var->volset.buf[i]); i++);
+  for (i = 0; (*glb++    = var->var_m.name.var_cu[i]); i++);
+  for (i = 0; (*env++    = var->env.buf[i]);           i++);
+  for (i = 0; (*volset++ = var->volset.buf[i]);        i++);
+
   return 0;
 }
+
 
 int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
 {
@@ -114,38 +121,39 @@ int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
   return 0;
 }
 
+
 int mv1_subs_clear(MV1VAR *var)
 {
   var->var_m.nsubs = 0;                                 // clear subscripts
   var->var_m.slen = 0;
+
   return 0;
 }
+
 
 int mv1_subs_count(MV1VAR *var, int *cnt)
 {
   *cnt = var->var_m.nsubs;                              // return #subscripts
+
   return 0;
 }
+
 
 int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
 {
   short s;
-  int   args;
 
   if ((pos < 0) || (pos > var->var_m.nsubs - 1))
     return EINVAL;
 
-  args = 0;
-  do
-  { *len = 0;
-    s = UTIL_Key_Extract(&var->var_m.key[args], val, len);
-    if (s < 0)
-      return s;
-    args += s;
-  } while (0 < --pos);
+  *len = 0;
+  s = UTIL_Key_Extract(&var->var_m.key[var->var_m.subspos[pos]], val, len);
+  if (s < 0)
+    return s;
 
   return 0;
 }
+
 
 static
 int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
@@ -173,6 +181,7 @@ int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
   return 0;
 }
 
+
 int mv1_subs_insert(MV1VAR *var, int pos, unsigned char *val, int len)
 {
    cstring cstr;
@@ -181,21 +190,37 @@ int mv1_subs_insert(MV1VAR *var, int pos, unsigned char *val, int len)
      len = strlen((char*) val);
    bcopy(val, &cstr.buf[0], len);
    cstr.len = len;
+
    return insert_cstring(var, pos, &cstr);
 }
 
+
+int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *cstr)
+{
+   return insert_cstring(var, pos, cstr);
+}
+
+
 int mv1_subs_insert_null(MV1VAR *var, int pos)
 {
-  cstring cstr;
+  short len;
 
-  cstr.len = 0;
-  return insert_cstring(var, pos, &cstr);
+  len = 0;
+  return insert_cstring(var, pos, (cstring *) &len);
 }
+
 
 int mv1_subs_append(MV1VAR *var, unsigned char *val, int len)
 {
   return mv1_subs_insert(var, var->var_m.nsubs, val, len);
 }
+
+
+int mv1_subs_append_cstr(MV1VAR *var, cstring *cstr)
+{
+  return mv1_subs_insert_cstr(var, var->var_m.nsubs, cstr);
+}
+
 
 int mv1_subs_append_null(MV1VAR *var)
 {
