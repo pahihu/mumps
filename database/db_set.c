@@ -222,6 +222,10 @@ short Set_data(cstring *data)				// set a record
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
+            blk[level]->last_accessed = MTIME(0);       // accessed
+#ifdef MV1_REFD
+            blk[level]->referenced = 1;
+#endif
             if ((systab->vol[volnum - 1]->vollab->journal_available) &&
                 (systab->vol[volnum - 1]->vollab->journal_requested) &&
                 (partab.jobtab->last_written_flags & GL_JOURNAL))

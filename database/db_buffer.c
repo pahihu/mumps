@@ -276,7 +276,7 @@ writelock:
     if (s < 0)						// on error
     { return s;						// return it
     }
-    // ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
+    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
     ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
@@ -344,13 +344,13 @@ unlocked:
   }
 
 exit:
-#ifdef MV1_REFD
-  blk[level]->referenced = 1;
-#endif
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
   blk[level]->last_accessed = MTIME(0);			// set access time
+#ifdef MV1_REFD
+  blk[level]->referenced = 1;
+#endif
   UTIL_Barrier();
   Index = LOW_INDEX;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block
@@ -710,7 +710,7 @@ start:
     }
   }
 
-  systab->vol[volnum - 1]->stats.gbwait++;              // incr. GBD wait
+  systab->vol[volnum - 1]->stats.gbswait++;             // incr. GBD wait
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   if (pass & 3)
     SchedYield();                                       // yield
@@ -853,22 +853,14 @@ gbd *Get_RdGBD()					        // get a GBD
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (0 == ptr->block)				// no block ?
+    if ((   0 == ptr->block) &&				// no block ?
+        (NULL == ptr->dirty))                           //   and NOT dirty ?
     { oldptr = ptr;                                     // mark this
       systab->hash_start = i;				// remember this
       // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
-#if 0
-    if ((clean) && (ptr->referenced))                   // blk clean, but refd
-    { ptr->referenced--;                                //   clear it
-      if (!oldptr)
-      { oldptr = ptr;                                   //   remember GBD
-        oldpos = i;                                     //   and its position
-      }
-    }
-#endif
     clean = (NULL == ptr->dirty) &&                     // not dirty
             (ptr->last_accessed < now) &&               //   and not viewed
             (ptr->last_accessed > 0);                   //   and not being read

@@ -117,6 +117,9 @@ short Get_data(int dir)					// locate a record
 	  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastok);
                                                         // count success
 	    blk[level]->last_accessed = MTIME(0);	// accessed
+#ifdef MV1_REFD
+            blk[level]->referenced = 1;
+#endif
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok
 	    { s = record->len;				// get the dbc

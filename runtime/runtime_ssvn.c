@@ -444,6 +444,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.gqstall);
 	if (strncasecmp( (char *) subs[2]->buf, "gbwait\0", 7) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.gbwait);
+	if (strncasecmp( (char *) subs[2]->buf, "gbswait\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.gbswait);
 	if (strncasecmp( (char *) subs[2]->buf, "rdwait\0", 7) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.rdwait);
       }						// end of "VOL"
