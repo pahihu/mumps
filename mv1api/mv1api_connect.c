@@ -71,12 +71,10 @@ extern void ser(short s);                       // display errors
 extern void controlc();				// say ^C
 
 
-int mv1_rundown(MV1DB *hnd)
+int mv1_detach(MV1DB *hnd)
 {
   int i;
 
-  if (partab.jobtab != NULL)			// if we have a jobtab
-    CleanJob(0);				// remove all locks etc
   i = shmdt(systab);                            // detach the shared mem
   if (hnd->dbfd)
     i = close(hnd->dbfd);                       // close the database
@@ -87,6 +85,14 @@ int mv1_rundown(MV1DB *hnd)
     return 0;		
   free(hnd->file);
   return hnd->ret;
+}
+
+
+int mv1_rundown(MV1DB *hnd)
+{
+  if (partab.jobtab != NULL)			// if we have a jobtab
+    CleanJob(0);				// remove all locks etc
+  return mv1_detach(hnd);
 }
 
 

@@ -384,6 +384,7 @@ int mv1_global_unlock(MV1DB *hnd, MV1VAR *var)
   if (s < 0)
     return s;
 
+  cstr->len = s;
   return LCK_Sub(1, cstr);
 }
 

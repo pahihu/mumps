@@ -67,6 +67,7 @@ typedef struct _MV1VAR
 /* init/rundown functions */
 int mv1_initialize(MV1DB *hnd, const char *file, const char *env);
 int mv1_xecute(MV1DB *hnd, const char *cmd);
+int mv1_detach(MV1DB *hnd);     // does NOT clean up job, locks etc.
 int mv1_rundown(MV1DB *hnd);
 
 /* glbref functions */
