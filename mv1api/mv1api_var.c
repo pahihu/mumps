@@ -83,7 +83,7 @@ int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset)
 }
 
 
-int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset)
+int mv1_var_insert(MV1VAR *var, const char *glb, const char *env, const char *volset)
 {
   int i, c;
 
@@ -139,15 +139,15 @@ int mv1_subs_count(MV1VAR *var, int *cnt)
 }
 
 
-int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *val, int *len)
+int mv1_subs_extract(MV1VAR *var, int pos, unsigned char *idx, int *idxlen)
 {
   short s;
 
   if ((pos < 0) || (pos > var->var_m.nsubs - 1))
     return EINVAL;
 
-  *len = 0;
-  s = UTIL_Key_Extract(&var->var_m.key[var->var_m.subspos[pos]], val, len);
+  *idxlen = 0;
+  s = UTIL_Key_Extract(&var->var_m.key[var->var_m.subspos[pos]], idx, idxlen);
   if (s < 0)
     return s;
 
@@ -182,21 +182,32 @@ int insert_cstring(MV1VAR *var, int pos, cstring *cstr)
 }
 
 
-int mv1_subs_insert(MV1VAR *var, int pos, unsigned char *val, int len)
+int mv1_subs_insert(MV1VAR *var, int pos, unsigned char *idx, int idxlen)
 {
    cstring cstr;
 
-   if (0 == len)
-     len = strlen((char*) val);
-   bcopy(val, &cstr.buf[0], len);
-   cstr.len = len;
+   if (0 == idxlen)
+     idxlen = strlen((char*) idx);
+   bcopy(idx, &cstr.buf[0], idxlen);
+   cstr.len = idxlen;
 
    return insert_cstring(var, pos, &cstr);
 }
 
 
-int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *cstr)
+int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *idx)
 {
+   return insert_cstring(var, pos, idx);
+}
+
+
+int mv1_subs_insert_long(MV1VAR *var, int pos, long idx)
+{
+   u_char tmpstr[32];
+   cstring *cstr;
+
+   cstr = (cstring *) &tmpstr[0];
+   cstr->len = sprintf((char *) &cstr->buf[0], "%ld", idx);
    return insert_cstring(var, pos, cstr);
 }
 
@@ -210,15 +221,21 @@ int mv1_subs_insert_null(MV1VAR *var, int pos)
 }
 
 
-int mv1_subs_append(MV1VAR *var, unsigned char *val, int len)
+int mv1_subs_append(MV1VAR *var, unsigned char *idx, int idxlen)
 {
-  return mv1_subs_insert(var, var->var_m.nsubs, val, len);
+  return mv1_subs_insert(var, var->var_m.nsubs, idx, idxlen);
 }
 
 
-int mv1_subs_append_cstr(MV1VAR *var, cstring *cstr)
+int mv1_subs_append_cstr(MV1VAR *var, cstring *idx)
 {
-  return mv1_subs_insert_cstr(var, var->var_m.nsubs, cstr);
+  return mv1_subs_insert_cstr(var, var->var_m.nsubs, idx);
+}
+
+
+int mv1_subs_append_long(MV1VAR *var, long idx)
+{
+   return mv1_subs_insert_long(var, var->var_m.nsubs, idx);
 }
 
 

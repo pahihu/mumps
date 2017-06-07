@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <errno.h>
 #include "mumps.h"
 #include "proto.h"
 #include "mv1api.h"
@@ -143,6 +144,26 @@ int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len)
 }
 
 
+int mv1_global_get_long(MV1DB *hnd, MV1VAR *var, long *val)
+{
+  short s;
+  cstring cstr;
+
+  s = Resolve_UCI_VOLSET(hnd, var);
+  if (s < 0)
+    return s;
+
+  s = DB_Get(&var->var_m, &cstr.buf[0]);
+  if (s < 0)
+    return s;
+
+  cstr.buf[s] = '\0';
+  *val = atol((char *) &cstr.buf[0]);
+
+  return 0;
+}
+
+
 int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len)
 {
   short s;
@@ -178,6 +199,17 @@ int mv1_global_set_cstr(MV1DB *hnd, MV1VAR *var, cstring *cstr)
     return s;
 
   return 0;
+}
+
+
+int mv1_global_set_long(MV1DB *hnd, MV1VAR *var, long val)
+{
+  u_char tmpstr[32];
+  cstring *cstr;
+
+  cstr = (cstring *) &tmpstr[0];
+  cstr->len = sprintf((char *) &cstr->buf[0], "%ld", val);
+  return mv1_global_set_cstr(hnd, var, cstr);
 }
 
 
@@ -354,4 +386,72 @@ int mv1_global_unlock(MV1DB *hnd, MV1VAR *var)
 
   return LCK_Sub(1, cstr);
 }
+
+
+int mv1_global_zincrement_cstr(MV1DB *hnd, MV1VAR *var, cstring *incr, u_char *res, int *reslen)
+{
+  short s;
+  u_char tmpstr[128];
+  cstring *cstr;
+
+  s = Resolve_UCI_VOLSET(hnd, var);
+  if (s < 0)
+    return s;
+
+  cstr = (cstring *) &tmpstr[0];
+  s = Dzincrement2(cstr, &var->var_m, incr);
+  if (s < 0)
+    return s;
+
+  if (res)
+  { bcopy(&cstr->buf[0], res, s);
+    *reslen = s;
+  }
+
+  return 0;
+}
+
+
+int mv1_global_zincrement(MV1DB *hnd, MV1VAR *var, u_char *incr, int incrlen, u_char *res, int *reslen)
+{
+  u_char tmpstr[128];
+  cstring *cstr;
+
+  if (0 == incrlen)
+    incrlen = strlen((char *) incr);
+
+  if (incrlen > 63)
+    return EINVAL;
+
+  cstr = (cstring *) &tmpstr[0];
+  bcopy(incr, &cstr->buf[0], incrlen);
+  return mv1_global_zincrement_cstr(hnd, var, cstr, res, reslen);
+}
+
+
+int mv1_global_zincrement_long(MV1DB *hnd, MV1VAR *var, long incr, long *res)
+{
+  short s;
+  u_char tmpstr[32];
+  cstring *cstr;
+  u_char tmpres[128];
+  int reslen;
+
+  cstr = (cstring *) &tmpstr[0];
+  cstr->len = sprintf((char *) &cstr->buf[0], "%ld", incr);
+  reslen = 0;
+  s = mv1_global_zincrement_cstr(hnd, var, cstr, &tmpres[0], &reslen);
+
+  if (s < 0)
+    return s;
+
+  if (res)
+  { tmpres[reslen] = '\0';
+    *res = atol((char *) &tmpres[0]);
+  }
+
+  return s;
+}
+
+
 

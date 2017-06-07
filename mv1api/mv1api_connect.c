@@ -70,6 +70,7 @@ extern u_char *mumpspc;				// mumps prog pointer
 extern void ser(short s);                       // display errors
 extern void controlc();				// say ^C
 
+
 int mv1_rundown(MV1DB *hnd)
 {
   int i;
@@ -88,10 +89,11 @@ int mv1_rundown(MV1DB *hnd)
   return hnd->ret;
 }
 
+
 static
 int mv1_initialize_p(MV1DB *hnd,                // connection handle
-              char *file,                       // database file
-              char *env)                        // environment (UCI)
+              const char *file,                 // database file
+              const char *env)                  // environment (UCI)
 
 { int i;                                        // an int
   // int dbfd = 0;                              // database file descriptor
@@ -254,10 +256,11 @@ exit:						// general exit code
   return mv1_rundown(hnd);
 }
 
+
 //****************************************************************************
 // Connect to an environment - switches are:
 //                            e = environment (UCI)             Opt
-int mv1_initialize(MV1DB *hnd, char *file, char *env)
+int mv1_initialize(MV1DB *hnd, const char *file, const char *env)
 {
   bzero(hnd, sizeof(MV1DB));
 
@@ -270,7 +273,8 @@ int mv1_initialize(MV1DB *hnd, char *file, char *env)
   return mv1_initialize_p(hnd, file, env);
 }
 
-int mv1_xecute(MV1DB *hnd, char *cmd)
+
+int mv1_xecute(MV1DB *hnd, const char *cmd)
 { int i;                                        // an int
   // int dbfd = 0;                              // database file descriptor
   int ret = 0;				// return value

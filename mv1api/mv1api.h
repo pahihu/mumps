@@ -65,29 +65,33 @@ typedef struct _MV1VAR
 } MV1VAR;
 
 /* init/rundown functions */
-int mv1_initialize(MV1DB *hnd, char *file, char *env);
-int mv1_xecute(MV1DB *hnd, char *cmd);
+int mv1_initialize(MV1DB *hnd, const char *file, const char *env);
+int mv1_xecute(MV1DB *hnd, const char *cmd);
 int mv1_rundown(MV1DB *hnd);
 
 /* glbref functions */
 int mv1_var_init(MV1VAR *var);
 int mv1_var_clear(MV1VAR *var);
 int mv1_var_extract(MV1VAR *var, char *glb, char *env, char *volset);
-int mv1_var_insert(MV1VAR *var, char *glb, char *env, char *volset);
+int mv1_var_insert(MV1VAR *var, const char *glb, const char *env, const char *volset);
 int mv1_subs_clear(MV1VAR *var);
 int mv1_subs_count(MV1VAR *var, int *cnt);
-int mv1_subs_extract(MV1VAR *var, int pos, u_char *val, int *len);
-int mv1_subs_insert(MV1VAR *var, int pos, u_char *val, int len);
-int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *cstr);
+int mv1_subs_extract(MV1VAR *var, int pos, u_char *idx, int *idxlen);
+int mv1_subs_insert(MV1VAR *var, int pos, u_char *idx, int idxlen);
+int mv1_subs_insert_cstr(MV1VAR *var, int pos, cstring *idx);
+int mv1_subs_insert_long(MV1VAR *var, int pos, long idx);
 int mv1_subs_insert_null(MV1VAR *var, int pos);
-int mv1_subs_append(MV1VAR *var, u_char *val, int len);
-int mv1_subs_append_cstr(MV1VAR *var, cstring *cstr);
+int mv1_subs_append(MV1VAR *var, u_char *idx, int idxlen);
+int mv1_subs_append_cstr(MV1VAR *var, cstring *idx);
+int mv1_subs_append_long(MV1VAR *var, long idx);
 int mv1_subs_append_null(MV1VAR *var);
 
 /* global functions */
 int mv1_global_get(MV1DB *hnd, MV1VAR *var, u_char *val, int *len);
+int mv1_global_get_long(MV1DB *hnd, MV1VAR *var, long *val);
 int mv1_global_set(MV1DB *hnd, MV1VAR *var, u_char *val, int len);
-int mv1_global_set_cstr(MV1DB *hnd, MV1VAR *var, cstring *cstr);
+int mv1_global_set_cstr(MV1DB *hnd, MV1VAR *var, cstring *val);
+int mv1_global_set_long(MV1DB *hnd, MV1VAR *var, long val);
 int mv1_global_set_null(MV1DB *hnd, MV1VAR *var);
 int mv1_global_kill(MV1DB *hnd, MV1VAR *var);
 int mv1_global_data(MV1DB *hnd, MV1VAR *var, int *dval);
@@ -97,6 +101,9 @@ int mv1_global_query(MV1DB *hnd, MV1VAR *var, int dir, MV1VAR *next);
 int mv1_global_next(MV1DB *hnd, MV1VAR *var, u_char *data, int *dlen);
 int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout);
 int mv1_global_unlock(MV1DB *hnd, MV1VAR *var);
+int mv1_global_zincrement(MV1DB *hnd, MV1VAR *var, u_char *incr, int incrlen, u_char *res, int *reslen);
+int mv1_global_zincrement_cstr(MV1DB *hnd, MV1VAR *var, cstring *incr, u_char *res, int *reslen);
+int mv1_global_zincrement_long(MV1DB *hnd, MV1VAR *var, long incr, long *res);
 
 #ifdef __cplusplus
 };
