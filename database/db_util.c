@@ -316,6 +316,7 @@ void Free_block(int blknum)				// free blk in map
   int off;						// and another
   u_char *map;						// map pointer
 
+
   map = ((u_char *) systab->vol[volnum-1]->map);	// point at it
   i = blknum >> 3;					// map byte
   off = blknum & 7;					// bit number
@@ -323,6 +324,7 @@ void Free_block(int blknum)				// free blk in map
   if ((map[i] & off) == 0)				// if it's already free
   { return;						// just exit
   }
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.blkdeall); // update stats
   map[i] &= ~off;					// clear the bit
   if (systab->vol[volnum-1]->first_free > (void *) &map[i])	// if earlier
   { systab->vol[volnum-1]->first_free = &map[i]; // reset first free
@@ -354,6 +356,7 @@ void Used_block(int blknum)				// set blk in map
   if ((map[i] & off))					// if it's already used
   { return;						// just exit
   }
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.blkalloc); // update stats
   map[i] |= off;					// set the bit
   systab->vol[volnum-1]->map_dirty_flag++;		// mark map dirty
   return;						// and exit

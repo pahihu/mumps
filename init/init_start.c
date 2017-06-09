@@ -353,6 +353,10 @@ int INIT_Start( char *file,                     // database
   for (i = 0; i < SEM_MAX; i++)                 // init shared IPC
     LatchInit(&systab->shsem[i]);
   RWLockInit(&systab->glorw, systab->maxjob);
+#ifdef MV1_BLKSEM
+  for (i = 0; i < BLKSEM_MAX; i++)              // init shared block semaphores
+    LatchInit(&systab->blksem[i]);
+#endif
 #endif
 
   volnum = 1;
@@ -467,6 +471,9 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
+#endif
+#ifdef MV1_BLKSEM
+    gptr[i].curr_lock = 0;                      // block lock flag
 #endif
   }						// end setup gbds
 #ifdef MV1_GBDRO

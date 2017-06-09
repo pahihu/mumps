@@ -232,6 +232,10 @@
 #define SEM_GLOBAL_WR   7
 
 #define SEM_MAX         8                       // total number of these
+#ifdef MV1_BLKSEM
+#define BLK_WRITE       ((short) 0x7FFF)        // block WRITE lock
+#define BLKSEM_MAX      16                      // total no. of block semaphores
+#endif
 #endif
 
 #define KILL_VAL        1                       // kill only value
@@ -356,9 +360,12 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int diskerrors;                             // Disk write errors
   u_int dqstall;                                // No. of dirtyQ stalls
   u_int gqstall;                                // No. of garbQ stalls
-  u_int gbwait;                                 // No. of waits for GBDs
-  u_int gbswait;                                // No. of waits for GBDs
+  u_int gbwait;                                 // No. of waits for Get_GBD()
+  u_int gbswait;                                // No. of waits for Get_GBDs()
   u_int rdwait;                                 // No. of waits for read()
+  u_int lckwait;                                // No. of wait for LOCK
+  u_int brdwait;                                // No. of waits for block LCK_SH
+  u_int bwrwait;                                // No. of waits for block LCK_EX
 } db_stat;                                      // database statistics
 
 typedef struct MSEM_STAT
@@ -547,6 +554,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;
+#ifdef MV1_BLKSEM
+  LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
+#endif
 #endif
   int hash_start;                               // GBD search starts here
   u_int *last_blk_written;                      // actually setup for real jobs

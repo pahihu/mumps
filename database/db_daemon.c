@@ -98,6 +98,8 @@ u_int MSLEEP(u_int mseconds)
 extern int   curr_sem_init;
 extern pid_t mypid;
 
+u_char *wrbuf = 0;
+
 int DB_Daemon(int slot, int vol)			// start a daemon
 { int i;						// a handy int 
   int k;						// and another
@@ -137,6 +139,15 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
+
+  wrbuf = (u_char *) dlmalloc(                          // alloc a write buffer
+		 systab->vol[volnum-1]->vollab->block_size);
+  if (0 == wrbuf)
+  { fprintf(stderr, "Cannot alloc write buffer\n");
+    fflush( stderr );                                   // flush to the file
+    return(ENOMEM);					// check for error
+  }
+
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)
   { fprintf(stderr, "Cannot open database file %s\n",
@@ -144,6 +155,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     fflush( stderr );                                   // flush to the file
     return(errno);					// check for error
   }
+
   // i = fcntl(dbfd, F_NOCACHE, 1);
   t = time(0);						// for ctime()
   fprintf(stderr,"Daemon %d started successfully at %s\n",
@@ -416,6 +428,17 @@ void do_write()						// write GBDs
     else						// do a write
     { blkno = gbdptr->block;
       Check_BlockNo(blkno, "Write_Chain", 0, 0);        // check blkno validity
+#ifdef MV1_BLKSEM
+      while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
+      { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.brdwait);// count a wait
+        SchedYield();                                   //   release quant
+      }                                                 //   if failed
+      bcopy(gbdptr->mem, wrbuf,                         // copy block
+		 systab->vol[volnum-1]->vollab->block_size);
+      BLOCK_UNLOCK(gpdptr);
+#else
+      wrbuf = gbdptr->mem;                              // use gbdptr directly
+#endif
       file_off = (off_t) blkno - 1;		        // block#
       file_off = (file_off * (off_t)
     			systab->vol[volnum-1]->vollab->block_size)
@@ -425,7 +448,7 @@ void do_write()						// write GBDs
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
         panic("lseek failed in Write_Chain()!!");	// die on error
       }
-      i = write( dbfd, gbdptr->mem,
+      i = write( dbfd, wrbuf, // gbdptr->mem
 		 systab->vol[volnum-1]->vollab->block_size); // write it
       if (i < 0)
       { 

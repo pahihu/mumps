@@ -399,7 +399,6 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
-
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.blkalloc);
 	if (strncasecmp( (char *) subs[2]->buf, "blkdeall\0", 9) == 0)
@@ -448,6 +447,12 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.gbswait);
 	if (strncasecmp( (char *) subs[2]->buf, "rdwait\0", 7) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.rdwait);
+	if (strncasecmp( (char *) subs[2]->buf, "brdwait\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.brdwait);
+	if (strncasecmp( (char *) subs[2]->buf, "bwrwait\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.bwrwait);
+	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.lckwait);
       }						// end of "VOL"
       return (-ERRM38);				// junk
   }						// end of switch

@@ -115,6 +115,9 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   u_int  referenced;                                    // block referenced
   int    hash;                                          // which chain?
 #endif
+#ifdef MV1_BLKSEM
+  short  curr_lock;                                     // current block lock
+#endif
 } gbd;							// end gbd struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
@@ -181,6 +184,23 @@ void Get_GBDs(int greqd);				// get n free GBDs
 void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(gbd *free);				// Free a GBD
 
+#ifdef MV1_BLKSEM
+
+short Block_TryReadLock(gbd *blk);
+short Block_TryWriteLock(gbd *blk);
+void  Block_Unlock(void);
+
+#define BLOCK_UNLOCK(x)         Block_Unlock()
+#define BLOCK_TRYREADLOCK(x)    Block_TryReadLock(x)
+#define BLOCK_TRYWRITELOCK(x)   Block_TryWriteLock(x)
+
+#else
+
+#define BLOCK_UNLOCK
+#define BLOCK_TRYREADLOCK(x)    0
+#define BLOCK_TRYWRITELOCK(x)   0
+
+#endif
 // File: database/db_get.c
 short Get_data(int dir);				// get db_var node
 
