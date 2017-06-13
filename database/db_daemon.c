@@ -64,6 +64,7 @@ void do_free(u_int gb);					// free from map et al
 void ic_map(int flag, int dbfd);			// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
+static time_t last_map_write;                           // last map write
 
 //------------------------------------------------------------------------------
 // Function: MSLEEP
@@ -107,6 +108,9 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
+  u_int rest_time = 1000, rest_time_up = 0;             // default 1000ms
+  u_int old_gbswait = 0, curr_gbswait, diff_gbswait;    // no. of Get_GBDs()
+                                                        // waits
 
   volnum = vol;						// save vol# here
 
@@ -122,6 +126,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
   last_daemon_check = (time_t) 0;
+  last_map_write    = (time_t) 0;
   mypid = 0;
 
   // -- Create log file name --
@@ -172,8 +177,27 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  // { i = MSLEEP(1000);			        // rest
-  { i = MSLEEP(125);					// rest
+  { curr_gbswait = systab->vol[volnum-1]->stats.gbswait;
+    diff_gbswait = curr_gbswait - old_gbswait;
+    old_gbswait  = curr_gbswait;
+    if (diff_gbswait)
+    { rest_time    >>= 1;
+      rest_time_up   = 0;
+    }
+    else
+    { if (rest_time_up++ > 2)
+      { rest_time    <<= 1;
+        rest_time_up   = 0;
+      }
+    }
+    if (rest_time < 60)                                 // bound to [62,1000]
+    { rest_time = 62;
+    }
+    else if (rest_time > 1000)
+    { rest_time = 1000;
+    }
+    i = MSLEEP(rest_time);		                // rest
+  // { i = MSLEEP(125);					// rest
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -200,19 +224,22 @@ start:
   daemon_check();					// ensure all running
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_NOTHING)
   { if ((!myslot) && (systab->vol[volnum-1]->map_dirty_flag)) // first daemon
-    { file_off = lseek( dbfd, 0, SEEK_SET);		// move to start of file
-      if (file_off<0)
-      { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("do_daemon: lseek() to start of file failed");
-      }
-      i = write( dbfd, systab->vol[volnum-1]->vollab,
-		 systab->vol[volnum-1]->vollab->header_bytes);// map/label
-      if (i < 0)
-      { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("do_daemon: write() map block failed");
-      }
-      systab->vol[volnum-1]->map_dirty_flag = 0;	// unset dirty flag
-      ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+    { if (last_map_write != MTIME(0))
+      { file_off = lseek( dbfd, 0, SEEK_SET);		// move to start of file
+        if (file_off<0)
+        { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
+          panic("do_daemon: lseek() to start of file failed");
+        }
+        i = write( dbfd, systab->vol[volnum-1]->vollab,
+		   systab->vol[volnum-1]->vollab->header_bytes);// map/label
+        if (i < 0)
+        { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
+          panic("do_daemon: write() map block failed");
+        }
+        systab->vol[volnum-1]->map_dirty_flag = 0;	// unset dirty flag
+        ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+        last_map_write = MTIME(0);
+     }
     }							// end map write
     if ((!myslot) && (systab->vol[volnum-1]->writelock < 0)) // check wrtlck
     { while (TRUE)					// loop
@@ -689,7 +716,7 @@ void daemon_check()					// ensure all running
 { int i;						// a handy int
   int fit;
 
-  if (last_daemon_check == systab->Mtime)
+  if (last_daemon_check == MTIME(0))
     return;
 
   while (SemOp(SEM_WD, WRITE));				// lock WD
@@ -707,6 +734,6 @@ void daemon_check()					// ensure all running
   }							// end daemon check
   SemOp(SEM_WD, -WRITE);				// release lock
 
-  last_daemon_check = systab->Mtime;
+  last_daemon_check = MTIME(0);
   return;
 }
