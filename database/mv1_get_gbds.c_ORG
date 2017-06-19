@@ -1,0 +1,206 @@
+void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
+{ int i;						// a handy int
+  int curr;						// current count
+  gbd *ptr;						// and pointer
+  gbd *last;						// and another
+  time_t now;						// current time
+  int pass = 0;						// pass number
+
+start:
+  if (!haslock)
+    while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  haslock = 0;                                          // clear for next turns
+  ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
+  curr = 0;						// clear current  
+  while (ptr != NULL)					// while some there
+  { curr++;						// count it
+    if (curr >= greqd)					// if enough there
+    { return;						// just exit
+    }
+    ptr = ptr->next;					// point at next
+  }							// end while
+  now = MTIME(0) + 1;					// get current time +
+
+  i = GBD_BUCKET(systab->hash_start + 1);	        // where to start
+  while (TRUE)						// loop
+  { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
+    last = NULL;					// clear last
+    while (ptr != NULL)					// while we have some
+    { if (ptr->block == 0)				// if no block
+      { if (last == NULL)				// if first one
+        { systab->vol[volnum-1]->gbd_hash[i] = ptr->next; // hook it here
+        }
+        else						// not first one
+	{ last->next = ptr->next;			// then hook it here
+	}
+	ptr->next = systab->vol[volnum-1]->gbd_hash [GBD_HASH]; // hook to free
+	systab->vol[volnum-1]->gbd_hash [GBD_HASH] = ptr; // and this
+	ptr->dirty = NULL;				// ensure clear
+	ptr->last_accessed = (time_t) 0;		// ensure no time
+	curr++;						// count this
+        if (curr >= greqd)				// if enough there
+        { systab->hash_start = i;
+          return;					// just exit
+        }
+	if (last == NULL)				// if first one
+	{ ptr = systab->vol[volnum-1]->gbd_hash[i];	// get next in list
+	}
+	else
+	{ ptr = last->next;				// to allow for loop
+	}
+	continue;					// next ptr
+      }							// end - no block
+      if ((ptr->dirty == NULL) &&			// if free
+	  (ptr->last_accessed < now) &&			// and time expired
+	  (ptr->last_accessed > 0))			// and there is a time
+      { curr++;						// count that
+        if (curr >= greqd)				// if enough there
+        { return;					// just exit
+        }
+      }
+
+      last = ptr;					// remember last
+      ptr = ptr->next;					// point at next
+    }							// end 1 hash list
+
+    i = GBD_BUCKET(i + 1);			        // next hash entry
+    if (i == systab->hash_start)			// where we started
+    { break;						// done
+    }
+  }							// end while (TRUE)
+  SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
+  if (pass & 3)
+    SchedYield();                                       // yield
+  else
+  { ATOMIC_INCREMENT(systab->vol[volnum - 1]->stats.gbwait); // incr. GBD wait
+    MSleep(GBD_SLEEP);                                  // wait
+  }
+  pass++;						// increment a pass
+  if (pass > GBD_TRIES)					// this is crazy!
+  { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
+  }
+  goto start;						// try again
+}
+
+//-----------------------------------------------------------------------------
+// Function: Get_GBD
+// Descript: Get a GBD into blk[level]
+//	     ->block, next, dirty and last_accessed are cleared
+//	     The block pointers idx & iidx are setup
+//	     The block is NOT zeroed
+// Input(s): none
+// Return:   none
+// Note:     curr_lock MUST be WRITE when calling this function
+//
+
+void Get_GBD()				                // get a GBD
+{ int i;						// a handy int
+  time_t now;						// current time
+  time_t exp;						// expiry time
+  time_t old;						// oldest
+  int hash = -1;					// for the table
+  gbd *ptr;						// loop gbd ptr
+  gbd *oldptr = NULL;					// remember oldest
+  gbd *last;						// points to ptr
+  int pass;
+  int clean;                                            // flag clean blk
+  short s;
+
+  pass = 0;
+start:
+  if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
+  { blk[level]
+      = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
+    systab->vol[volnum-1]->gbd_hash [GBD_HASH]
+      = blk[level]->next;				// unlink it
+    goto exit;						// common exit code
+  }
+
+  now = MTIME(0) + 1;					// get current time
+  old = now;					        // remember oldest
+  exp = now - gbd_expired + 1;				// expired time
+
+  i = GBD_BUCKET(systab->hash_start + 1);	        // where to start
+  while (TRUE)						// loop
+  { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
+    last = NULL;					// clear last
+    while (ptr != NULL)					// while we have some
+    { clean = (ptr->dirty == NULL) &&                   // not dirty
+              (ptr->last_accessed < now) &&             //   and not viewed
+              (ptr->last_accessed > 0);                 //   and not being read
+      if ((ptr->block == 0) ||				// if no block OR
+	  ((ptr->last_accessed < exp) &&		// time expired
+	   (clean)))			                // blk clean
+      { if (last == NULL)				// first one?
+	{ systab->vol[volnum-1]->gbd_hash[i] = ptr->next; // unlink from hash
+	}
+	else						// subsequent
+	{ last->next = ptr->next;			// unlink
+	}
+	systab->hash_start = i;				// remember this
+	blk[level] = ptr;				// store where reqd
+	goto exit;					// common exit code
+      }							// end found expired
+      if ((clean) &&                                    // blk clean
+	  (ptr->last_accessed < old))    		// and less than oldest
+      { old = ptr->last_accessed;			// save time
+	oldptr = ptr;					// save the ptr
+	hash = i;					// and the hash
+      }
+      if ((ptr->dirty == NULL) &&			// if free
+	  (ptr->last_accessed < old) &&			// and less than oldest
+	  (ptr->last_accessed > 0))			// and there is a time
+      { old = ptr->last_accessed;			// save time
+	oldptr = ptr;					// save the ptr
+	hash = i;					// and the hash
+      }
+      last = ptr;					// save last
+      ptr = ptr->next;					// point at next
+    }							// end 1 hash list
+    i = GBD_BUCKET(i + 1);			        // next hash entry
+    if (i == systab->hash_start)			// where we started
+    { break;						// done
+    }
+  }							// end while (TRUE)
+  if (oldptr == NULL)					// did we get one
+  { if (writing)					// SET or KILL
+    { panic("Get_GBD: Failed to find an available GBD while writing"); // die
+    }
+    systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
+    SemOp(SEM_GLOBAL, -curr_lock);			// release current
+    if (pass & 3)
+      SchedYield();                                     // yield
+    else
+      MSleep(GBD_SLEEP);                                // wait
+    pass++;
+    if (pass > GBD_TRIES)				// this is crazy!
+    { panic("Get_GBD: Can't get a GDB after 60 seconds");
+    }
+    while (SemOp(SEM_GLOBAL, WRITE));			// re-get WRITE lock
+    goto start;						// and try again
+  }
+
+quite_old:
+  ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
+  if (ptr == oldptr)					// is this it
+  { systab->vol[volnum-1]->gbd_hash[hash] = ptr->next;	// unlink it
+  }
+  else							// we gota look for it
+  { while (ptr->next != oldptr)				// until we do
+    { ptr = ptr->next;					// get the next
+    }
+    ptr->next = oldptr->next;				// unlink it
+  }
+  blk[level] = oldptr;					// store where reqd
+
+exit:
+  blk[level]->block = 0;				// no block attached
+  blk[level]->next = NULL;				// clear link
+  blk[level]->dirty = NULL;				// clear dirty
+  blk[level]->last_accessed = (time_t) 0;		// and time
+  UTIL_Barrier();
+  idx = (u_short *) blk[level]->mem;			// set this up
+  iidx = (int *) blk[level]->mem;			// and this
+  return;						// return
+}
+
