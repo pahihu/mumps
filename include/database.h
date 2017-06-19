@@ -71,6 +71,9 @@
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
 
+#define WDP_TIME_MAX   1000                             // max. daemon poll time
+#define WDP_TIME_MIN    125                             // min. daemon poll
+
 // #include <libkern/OSAtomic.h>
 // #define ATOMIC_INCREMENT(x)     OSAtomicIncrement32((volatile int32_t*)&(x))
 #define ATOMIC_INCREMENT(x)        __sync_add_and_fetch(&(x), 1)

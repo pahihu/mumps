@@ -551,6 +551,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   long addsize;                                 // add buff size
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
+  VOLATILE u_int WDPtime;                       // Write Daemon Poll time
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;

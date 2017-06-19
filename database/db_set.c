@@ -183,6 +183,7 @@ short Set_data(cstring *data)				// set a record
   else
   { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
                                                         // get last written
+    i = 0;
     if (last_written_failed)                            // failed recently?
     { last_written_failed--;                            //   decrement counter
       i = 0;                                            //   clear last_written
@@ -201,7 +202,7 @@ short Set_data(cstring *data)				// set a record
 	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
             (X_NE(gptr->mem->global, 
                               db_var.name.var_xu)))     // wrong global
-        { last_written_failed = 10;                     // add penalty 
+        { // last_written_failed = 10;                     // add penalty 
           break;					// exit the loop
 	}
 	level = LAST_USED_LEVEL;			// use this level
@@ -219,6 +220,19 @@ short Set_data(cstring *data)				// set a record
                 ((Index > gptr->mem->last_idx) &&       //   and append
                  (gptr->mem->right_ptr == 0)))))))      //   has no right_ptr
 	{ trysimple = 1;
+          if ((systab->vol[volnum - 1]->vollab->journal_available) &&
+              (systab->vol[volnum - 1]->vollab->journal_requested) &&
+              (partab.jobtab->last_written_flags & GL_JOURNAL))
+                                                        // if journaling
+          { jrnrec jj;				        // jrn structure
+             jj.action = JRN_SET;			// doing set
+             jj.uci = db_var.uci;			// copy UCI
+             //jj.name.var_qu = db_var.name.var_qu;	// global name
+             jj.name.var_xu = db_var.name.var_xu;	// global name
+             jj.slen = db_var.slen;			// subs length
+             bcopy(db_var.key, jj.key, jj.slen);	// copy key
+             DoJournal(&jj, data);			// and do it
+          }
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
@@ -226,26 +240,13 @@ short Set_data(cstring *data)				// set a record
 #ifdef MV1_REFD
             blk[level]->referenced = 1;
 #endif
-            if ((systab->vol[volnum - 1]->vollab->journal_available) &&
-                (systab->vol[volnum - 1]->vollab->journal_requested) &&
-                (partab.jobtab->last_written_flags & GL_JOURNAL))
-                                                        // if journaling
-            { jrnrec jj;				// jrn structure
-              jj.action = JRN_SET;			// doing set
-              jj.uci = db_var.uci;			// copy UCI
-              //jj.name.var_qu = db_var.name.var_qu;	// global name
-              jj.name.var_xu = db_var.name.var_xu;	// global name
-              jj.slen = db_var.slen;			// subs length
-              bcopy(db_var.key, jj.key, jj.slen);	// copy key
-              DoJournal(&jj, data);			// and do it
-            }
             return s;                                   //   done
           }
           if ((s != -(ERRMLAST+ERRZ62)) && (s < 0))	// complain on error
           { return s;					//   except did not fit
           }
 	}
-        last_written_failed = 10;                       // add penalty
+        // last_written_failed = 10;                       // add penalty
 	blk[level] = NULL;				// clear this
 	level = 0;					// and this
 	break;					        // and exit loop
@@ -260,17 +261,19 @@ short Set_data(cstring *data)				// set a record
   if ((s < 0) && (s != -ERRM7))				// check for errors
   { return s;						// return the error
   }					// WARNING: Leaves GBDs reserved
-  if ((systab->vol[volnum - 1]->vollab->journal_available) &&
-      (systab->vol[volnum - 1]->vollab->journal_requested) &&
-      (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
-  { jrnrec jj;						// jrn structure
-    jj.action = JRN_SET;				// doing set
-    jj.uci = db_var.uci;				// copy UCI
-    //jj.name.var_qu = db_var.name.var_qu;		// global name
-    jj.name.var_xu = db_var.name.var_xu;		// global name
-    jj.slen = db_var.slen;				// subs length
-    bcopy(db_var.key, jj.key, jj.slen);			// copy key
-    DoJournal(&jj, data);				// and do it
+  if (0 == trysimple)                                   // when not tried a
+  { if ((systab->vol[volnum - 1]->vollab->journal_available) && // simple set
+        (systab->vol[volnum - 1]->vollab->journal_requested) && // not jrned yet
+        (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+    { jrnrec jj;					// jrn structure
+      jj.action = JRN_SET;				// doing set
+      jj.uci = db_var.uci;				// copy UCI
+      //jj.name.var_qu = db_var.name.var_qu;		// global name
+      jj.name.var_xu = db_var.name.var_xu;		// global name
+      jj.slen = db_var.slen;				// subs length
+      bcopy(db_var.key, jj.key, jj.slen);		// copy key
+      DoJournal(&jj, data);				// and do it
+    }
   }
   if ((s == -ERRM7) && (!level))			// is global there
   { level++;						// no - where it goes

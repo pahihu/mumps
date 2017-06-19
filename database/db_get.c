@@ -104,7 +104,7 @@ short Get_data(int dir)					// locate a record
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
 	      (ptr->last_accessed == (time_t) 0))	// not available
-          { last_used_failed = 5;                       // add penalty
+          { // last_used_failed = 5;                       // add penalty
             break;					// exit the loop
 	  }
 	  level = LAST_USED_LEVEL;			// use this level
@@ -133,7 +133,7 @@ short Get_data(int dir)					// locate a record
 	    }
 	    return s;					// and return
 	  }
-          last_used_failed = 5;                         // add penalty
+          // last_used_failed = 5;                         // add penalty
 	  blk[level] = NULL;				// clear this
 	  level = 0;					// and this
 	  break;					// and exit loop

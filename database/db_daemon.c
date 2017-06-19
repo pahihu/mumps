@@ -108,9 +108,10 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
-  u_int rest_time = 1000, rest_time_up = 0;             // default 1000ms
-  u_int old_gbswait = 0, curr_gbswait, diff_gbswait;    // no. of Get_GBDs()
-                                                        // waits
+  u_int wdp_time, wdp_time_up;                          // Wr. Daemon Poll time
+  u_int old_stall, curr_stall, diff_stall;              // no. of Get_GBDs()
+                                                        // and dirtyQ waits
+  u_int curr_dbact, db_rest_start;                      // track DB activity
 
   volnum = vol;						// save vol# here
 
@@ -176,28 +177,47 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   i = MSLEEP(1000);					// wait a bit
 
+  wdp_time    = WDP_TIME_MAX;
+  wdp_time_up = 0;
+  old_stall = 0;
+  db_rest_start = (time_t) 0;
   while (TRUE)						// forever
-  { curr_gbswait = systab->vol[volnum-1]->stats.gbswait;
-    diff_gbswait = curr_gbswait - old_gbswait;
-    old_gbswait  = curr_gbswait;
-    if (diff_gbswait)
-    { rest_time    >>= 1;
-      rest_time_up   = 0;
-    }
-    else
-    { if (rest_time_up++ > 2)
-      { rest_time    <<= 1;
-        rest_time_up   = 0;
+  { if (!myslot)
+    { wdp_time = systab->WDPtime;                       // query WDP
+      curr_stall = systab->vol[volnum-1]->stats.dqstall // no. of stalls
+                 + systab->vol[volnum-1]->stats.gbswait;
+      diff_stall = curr_stall - old_stall;
+      old_stall  = curr_stall;
+      if (diff_stall)                                   // any stall ?
+      { wdp_time = (wdp_time + WDP_TIME_MIN) >> 1;      //   reduce poll time
+        wdp_time_up = 0;                                // reset incr flag
       }
+      else
+      { if (wdp_time_up++ > 2)                          // no stall 3 times ?
+        { wdp_time    = 1.1 * wdp_time;                 //   increase poll time
+          wdp_time_up = 0;
+        }
+      }
+      curr_dbact = systab->vol[volnum-1]->stats.logrd
+                 + systab->vol[volnum-1]->stats.logwt;
+      if (0 == curr_dbact)                              // no DB activity ?
+      { if (0 == db_rest_start)                         // track start
+          db_rest_start = MTIME(0);
+        else if (MTIME(0) - db_rest_start > 5)          // 5s w/o DB activity ?
+        { wdp_time = WDP_TIME_MAX;                      //   reset poll time
+        }
+      }
+      else
+        db_rest_start = 0;                              // reset activity chk
+      if (wdp_time < WDP_TIME_MIN)                      // clip range
+      { wdp_time = WDP_TIME_MIN;
+      }
+      else if (wdp_time > WDP_TIME_MAX)
+      { wdp_time = WDP_TIME_MAX;
+      }
+      systab->WDPtime = wdp_time;
     }
-    if (rest_time < 60)                                 // bound to [62,1000]
-    { rest_time = 62;
-    }
-    else if (rest_time > 1000)
-    { rest_time = 1000;
-    }
-    i = MSLEEP(rest_time);		                // rest
-  // { i = MSLEEP(125);					// rest
+    i = MSLEEP(systab->WDPtime);                        // rest
     do_daemon();					// do something
   }
   return 0;						// never gets here

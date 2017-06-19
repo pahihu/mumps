@@ -454,6 +454,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.lckwait);
       }						// end of "VOL"
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "wdptime\0", 8) == 0))
+      { return itocstring(buf, systab->WDPtime);// return the value
+      }
       return (-ERRM38);				// junk
   }						// end of switch
   return (-ERRM38);				// can't get here?

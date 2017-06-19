@@ -258,6 +258,7 @@ int INIT_Start( char *file,                     // database
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
+  systab->WDPtime = WDP_TIME_MAX;               // write daemon poll time
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab)*jobs)); //locktab
