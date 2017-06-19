@@ -94,12 +94,14 @@ void DB_Unlocked(void);                                 // proto for DB unlock
 
 short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
+  char msg[128];
 
   // fprintf(stderr,"=== %s\r\n", rtn);
   partab.jobtab->grefs++;				// count global ref
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   if (curr_lock)
-  { panic("Copy2local: curr_lock != 0");
+  { sprintf(msg,"Copy2local: curr_lock != 0 [%s]", rtn);
+    panic(msg);
   }
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
@@ -945,6 +947,7 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   jj.slen = 0;
   DoJournal(&jj, NULL);
   systab->vol[vol - 1]->vollab->journal_available = 0;
+  SemOp( SEM_GLOBAL, -curr_lock);
   return;
 }
 
@@ -1006,7 +1009,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  Get_GBDs(1);						// ensure this many
+  Get_GBDs(0);						// ensure this many
   s = Get_data(0);                                      // try to find that
   if ((s < 0) && (s != -ERRM7))                         // check for errors
   { if (curr_lock)					// if locked

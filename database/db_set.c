@@ -183,7 +183,7 @@ short Set_data(cstring *data)				// set a record
   else
   { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
                                                         // get last written
-    i = 0;
+    // i = 0;
     if (last_written_failed)                            // failed recently?
     { last_written_failed--;                            //   decrement counter
       i = 0;                                            //   clear last_written
@@ -389,9 +389,9 @@ short Set_data(cstring *data)				// set a record
 
   if (s < 0)			                        // a new node
   { 
-    if (trysimple)                                      // was a simple set ?
-      s = -(ERRMLAST+ERRZ62);                           //   return error
-    else
+    // if (trysimple)                                      // was a simple set ?
+    //   s = -(ERRMLAST+ERRZ62);                           //   return error
+    // else
       s = Insert(&db_var.slen, data);			// try it
     if (s != -(ERRMLAST+ERRZ62))			// if it did fit
     { if (s < 0)
