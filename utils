@@ -609,23 +609,26 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
-INT(INT,%,O,N,EX,I,LS,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwrtry,lastwrok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait,brdwait,bwrwait"
+INT(INT,%,O,N,EX,I,LS,D,M,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwrtry,lastwrok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W $&V(1,1),$C(27)_"[J" S:'INT INT=1
- D GET Q:EX  M O=N F  D GET Q:EX  D PRT M O=N Q:EX  R *%:INT
+ D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
  W $&V(23,1),! Q
 ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
 GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",1,$P(LS,",",I))
  S N=$H Q
+MAX F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>$G(M(%),-1) M(%)=D
+ Q
 PRT W $&V(1,1),"System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
  W "Volume: ",^$S("VOL",1,"NAME")
  W " in file: ",^$S("VOL",1,"FILE"),!
  W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")/1024,"kb blocks - "
  W ^$S("VOL",1,"FREE")," available ("
- W $J(^$S("VOL",1,"FREE")/^$S("VOL",1,"SIZE")*100,0,2),"%)",!!
- W ?15,$J("Total",10),?30,$J("Increment",10),!
- F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),!
+ W $J(^$S("VOL",1,"FREE")/^$S("VOL",1,"SIZE")*100,0,2),"%)",!
+ W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),?30,$J("WDPtime:",10),$J(^$S("wdptime"),4),!
+ W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Max",10),!
+ F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(M(%),10),!
  W "cache",?15,$J(N("logrd")-N("phyrd")/N("logrd")*100,10,2),"%",?30
  S %=N("logrd")-O("logrd") I '% W $J("",11),!
  E  W $J(%-(N("phyrd")-O("phyrd"))/%*100,10,2),"%",!
@@ -1168,9 +1171,11 @@ UNKEY(K,%,X,C) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q ""
 ;Get count - Remove terminator and trailing rubish from K, reset K
  I C=64&'X Q "0"
 ;Check for "0"
- I C<64 S C=63-C,X=$TR(X,"0123456789","9876543210")
+ S:$$R2^%MV1 X=$$UNN(X) I C<64 S C=63-C,X=$TR(X,"0123456789","9876543210")
 ;If it's negative, do the complementing
- Q $S(C<64:"-",1:"")_$E(X,1,C#64)_$S($L(X)>(C#64):"."_$E(X,C#64+1,999),1:"")
+ S X=$S(C<64:"-",1:"")_$E(X,1,C#64)_$S($L(X)>(C#64):"."_$E(X,C#64+1,999),1:"")
+ S:$$R2^%MV1&($L(X)>2)&($E(X,$L(X)-1,63)=".0") X=$E(X,1,$L(X)-2)
+ Q X
 ;Quit with the number
 ;
 FULLUNK(K,A,%,F) S A="" F  S %=$$UNKEY(.K) D:+%'=%  S A=A_","_% Q:K=""
@@ -1182,6 +1187,9 @@ FULLUNK(K,A,%,F) S A="" F  S %=$$UNKEY(.K) D:+%'=%  S A=A_","_% Q:K=""
  .S %=F_""""
 ;.Terminate it
  Q $E(A,2,999)
+UNN(S,%,R,D) ; decode a number
+ S R="" F %=1:1:$L(S) S D=$A(S,%)-1,R=R_$C(D\16+48)_$C(D#16+48)
+ Q R
 
 FIX2
 FIX2 ;FIX subroutines ; V 3.0 05 Jan 2000 04:22 PM
@@ -1280,7 +1288,6 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 JOURNLST
 JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
 ;Allow for 64 bit time_t in the file - rdn
-JOURNLST ;List journal file
 ;typedef struct JRNREC                                   // journal record
 ;{ u_short size;                                         // size of following
 ;  u_char action;                                        // what it is
@@ -1300,7 +1307,7 @@ JOURNLST ;List journal file
 ;#define JRN_SET         4                               // Set global
 ;#define JRN_KILL        5                               // Kill global
 ;
- N $ET S $ET="D ^%ET"
+ N NREC,ANS,$ET S $ET="D ^%ET"
 ASK R "Enter file: ",FILE,! Q:FILE=""
  I '$&%FILE(FILE,"EXISTS") W "NO SUCH FILE",! G ASK
  C 1 O 1:(FILE:"R") U 1:("TERMINATOR=")
@@ -1333,6 +1340,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  .S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2))
 ;.Extract the data
  .W "=",DATA,!
+ .S NREC=$G(NREC)+1 I NREC#20=0 U $P R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
 ;.Finally the data (if any)
  C 1 Q
 ;---
