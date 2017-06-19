@@ -49,7 +49,6 @@
 #include "database.h"				        // database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
-#include <assert.h>
 
 
 int curr_lock;						// lock on globals
@@ -155,7 +154,7 @@ short Copy2local(mvar *var, char *rtn)
                            255, &actsubs, NULL);
     if (db_var.nsubs != actsubs)
       BAD_MVAR();
-    assert(db_var.nsubs == actsubs);
+    ASSERT(db_var.nsubs == actsubs);
   }
 #endif
   return 0;						// else return ok
@@ -811,6 +810,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     return s;						// and return
   }
   s = Get_data(0);					// attempt to get it
+  // fprintf(stderr, "Get_data(): s=%d\r\n", s);
 
   if (s < 0)						// check for error
   { if (curr_lock)					// if locked
@@ -1113,7 +1113,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     }
     i = ((blk[level-1]->mem->last_free*2 + 1 - blk[level-1]->mem->last_idx)*2)
       + ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2);
-    if (i < 1024)	// if REALLY not enough space (btw: make this a param)
+    if (i < systab->ZMinSpace /*1024*/)	         // if REALLY not enough space
     { chunk = (cstring *) &iidx[idx[LOW_INDEX]];	// point at first in RL
       bcopy(&chunk->buf[1], &var->slen, chunk->buf[1]+1); // save the real key
       SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

@@ -165,12 +165,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
       Queit();						// and que
     }
     level--;						// backup a level
-    while (level >= 0)					// scan up
-    { if (blk[level]->dirty == (gbd *) 1)		// if reserved
-      { blk[level]->dirty = NULL;			// release it
-      }
-      level--;						// up one
-    }
+    Release_GBDs(0);
     return 0;						// exit **0**
   }
   else if (s != -(ERRMLAST+ERRZ62))

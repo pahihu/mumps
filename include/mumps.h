@@ -94,6 +94,7 @@
 #define MAX_ECODE       1024                    // max len for $ECODE
 #define MAX_NAME_BYTES  32                      // max len for names
 #define MAX_SUBSCRIPTS  63                      // max no. of subscripts
+#define DEFAULT_ZMINSPACE 1024                  // Min. space for Compress
 
 #define SECDAY          86400                   // seconds per day ($H)
 #define YRADJ           47117                   // days from 1 Jan 1841 to 1970
@@ -144,15 +145,20 @@
 #define SHMAT_SEED      (void *)0
 #endif
 
-// #define NUM_GBDRO       32                      // no. of R/O GBDs
+#ifdef MV1_GBDRO
+#define NUM_GBDRO       32                      // no. of R/O GBDs
+#else
 #define NUM_GBDRO        0                      // no. of R/O GBDs
+#endif
+
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
 // #define GBD_HASH     1024                    // hash size for global buffers
 #define GBD_HASH        4096                    // hash size for global buffers
 //#define NUM_DIRTY     1024                    // max queued dirty chains
-#define NUM_DIRTY       2048                    // max queued dirty chains
+//#define NUM_DIRTY     2048                    // max queued dirty chains
+#define NUM_DIRTY       4096                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
@@ -552,6 +558,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE u_int WDPtime;                       // Write Daemon Poll time
+  VOLATILE int ZMinSpace;                       // Min. Space for Compress()
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;

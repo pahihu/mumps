@@ -118,7 +118,7 @@ short Get_data(int dir)					// locate a record
                                                         // count success
 	    blk[level]->last_accessed = MTIME(0);	// accessed
 #ifdef MV1_REFD
-            blk[level]->referenced = 1;
+            REFD_MARK(blk[level]);
 #endif
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok

@@ -233,6 +233,7 @@ extern u_int lochit;
 // SemStats is called to print semaphore statistics.
 void SemStats(void)
 {
+#ifdef MV1_PROFILE
   int i;
 
   fprintf(stderr,"sem type #tryfail bkoff-us #held    held-us semop-us\r\n");
@@ -248,6 +249,8 @@ void SemStats(void)
   fprintf(stderr,"locqry = %u\r\n", locqry);
   fprintf(stderr,"lochit = %u\r\n", lochit);
   fflush(stderr);
+#endif
+  return;
 }
 
 

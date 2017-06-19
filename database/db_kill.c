@@ -112,12 +112,7 @@ cont:
   level = 0;						// reset level
   s = Get_data(0);					// attempt to get it
   if ((s < 0) && (s != -ERRM7))				// error, not undef
-  { while (level)					// for each level
-    { if (blk[level]->dirty == (gbd *) 1)		// if reserved
-      { blk[level]->dirty = NULL;			// clear it
-      }
-      level--;						// up a level
-    }
+  { Release_GBDs(1);
     return s;						// return it
   }
   if ((systab->vol[volnum - 1]->vollab->journal_available) &&
@@ -136,12 +131,7 @@ cont:
   if ((db_var.slen == 0) && (KILL_VAL & what))	        // full global kill?
   { 
 FullGlobalKill:
-    while (level)					// for each level
-    { if (blk[level]->dirty == (gbd *) 1)		// if reserved
-      { blk[level]->dirty = NULL;			// clear it
-      }
-      level--;						// up a level
-    }
+    Release_GBDs(1);
     tmp[1] = 128;					// start string key
     for (i=0; i<MAX_NAME_BYTES; i++)			// for each char
     { if (db_var.name.var_cu[i] == '\0')		// check for null
@@ -197,12 +187,7 @@ FullGlobalKill:
   }							// end full kill
 
   systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
-  while (level >= 0)					// what we just got
-  { if (blk[level]->dirty == (gbd *) 1)			// if reserved
-    { blk[level]->dirty = NULL;				// clear it
-    }
-    level--;						// up a level
-  }
+  Release_GBDs(0);
 
   db_var.key[db_var.slen++] = 255;			// modify key
   s = Get_data(0);					// attempt to get it
@@ -435,7 +420,7 @@ FullGlobalKill:
       ptr->mem->type = 65;				// say type = data!!
       ptr->last_accessed = MTIME(0);			// clear last access
 #ifdef MV1_REFD
-      ptr->referenced = 1;
+      REFD_MARK(ptr);
 #endif
       Garbit(ptr->block);				// dump the block
       rblk[level] = NULL;				// mark gone

@@ -238,7 +238,7 @@ short Set_data(cstring *data)				// set a record
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
             blk[level]->last_accessed = MTIME(0);       // accessed
 #ifdef MV1_REFD
-            blk[level]->referenced = 1;
+            REFD_MARK(blk[level]);
 #endif
             return s;                                   //   done
           }
@@ -259,8 +259,9 @@ short Set_data(cstring *data)				// set a record
 
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
-  { return s;						// return the error
-  }					// WARNING: Leaves GBDs reserved
+  { Release_GBDs(0);
+    return s;						// return the error
+  }
   if (0 == trysimple)                                   // when not tried a
   { if ((systab->vol[volnum - 1]->vollab->journal_available) && // simple set
         (systab->vol[volnum - 1]->vollab->journal_requested) && // not jrned yet
@@ -407,14 +408,7 @@ short Set_data(cstring *data)				// set a record
                                 blk[level]->block;      //   and block
 
       level--;						// point up a level
-      while (level >= 0)				// for each
-      { if (blk[level] != NULL)				// if one there
-        { if (blk[level]->dirty == (gbd *) 1)		// if we reserved it
-          { blk[level]->dirty = NULL;			// clear that
-          }
-	}
-	level--;					// previous
-      }
+      Release_GBDs(0);
       return data->len;					// and return length
     }
   }			// end new node code
@@ -438,14 +432,7 @@ short Set_data(cstring *data)				// set a record
                                 blk[level]->block;      //   and block
 
       level--;						// point up a level
-      while (level >= 0)				// for each
-      { if (blk[level] != NULL)				// if one there
-        { if (blk[level]->dirty == (gbd *) 1)		// if we reserved it
-          { blk[level]->dirty = NULL;			// clear that
-          }
-	}
-	level--;					// previous
-      }
+      Release_GBDs(0);
       return data->len;					// and return length
     }
 
@@ -473,14 +460,7 @@ short Set_data(cstring *data)				// set a record
     }
     if (s >= 0)						// if that worked
     { level--;						// point up a level
-      while (level >= 0)				// for each
-      { if (blk[level] != NULL)				// if one there
-        { if (blk[level]->dirty == (gbd *) 1)		// if we reserved it
-          { blk[level]->dirty = NULL;			// clear that
-          }
-	}
-	level--;					// previous
-      }
+      Release_GBDs(0);
       return data->len;					// return length
     }
   }			// end simple replace (original node missing)
@@ -574,6 +554,39 @@ short Set_data(cstring *data)				// set a record
       = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
+#if 0
+    // NB.
+    // - ha rs < ts, akkor miert ne lehetne G1 G2 - G3 G4 eloszor ?
+    if ((rs < ts) && (trailings != LOW_INDEX))
+    { Copy_data(cblk[0], trailings);			// copy trailings
+      Copy_data(cblk[3], LOW_INDEX);			// and old RL
+
+      btmp = blk[level]->mem;				// save this
+      blk[level]->mem = cblk[3]->mem;			// copy in this
+      cblk[3]->mem = btmp;				// end swap 'mem'
+      Free_GBD(blk[level]);				// give it back
+
+      blk[level] = cblk[0];				// orig blk again
+      idx = (u_short *) blk[level]->mem;		// point at it
+      iidx = (int *) blk[level]->mem;			// point at it
+
+      for (i = trailings; i <= blk[level]->mem->last_idx; i++)
+      { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
+        record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
+        record->len = NODE_UNDEFINED;			// junk it
+      }
+      Tidy_block();					// tidy it
+
+      s = Insert(&db_var.slen, data);			// attempt to insert
+      if (s >= 0)					// if OK
+      { goto fix_keys;					// exit **2A**
+      }
+      else if (s != -(ERRMLAST+ERRZ62))
+      { return s;					// error
+      }
+    }
+#endif
+
     if (((ts + rs) < rls) && (trailings != LOW_INDEX))	// if new record fits
     { s = Insert(&db_var.slen, data);			// insert it
       if (s < 0)					// failed ?
@@ -582,10 +595,7 @@ short Set_data(cstring *data)				// set a record
       bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);	// save key
     }
 
-    if (ts)
-    { Copy_data(cblk[0], trailings);			// copy trailings
-    }
-
+    Copy_data(cblk[0], trailings);			// copy trailings
     Copy_data(cblk[3], LOW_INDEX);			// and old RL
 
     btmp = blk[level]->mem;				// save this
@@ -652,7 +662,7 @@ short Set_data(cstring *data)				// set a record
   { if (cblk[3]->dirty == (gbd *) 1)			// if reserved
     { cblk[3]->dirty = NULL;				// clear it
     }
-  cblk[3] = NULL;					// flag not used
+    cblk[3] = NULL;					// flag not used
   }
 
   s = New_block();					// new blk for trail

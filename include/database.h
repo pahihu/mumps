@@ -101,9 +101,52 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #define LOW_INDEX       26                              // 22
 #endif
 
-// #define MV1_CCC         1
-// #define MV1_CACHE	1
-#define MV1_REFD	1
+// #define MV1_CCC              1
+// #define MV1_CACHE	        1
+#define MV1_REFD	        1
+#define MV1_REFD_GCLOCK         1
+
+#ifdef MV1_REFD_GCLOCK
+
+#define REFD_NEW_START          1
+#define REFD_READ_START         1
+
+#define REFD_NEW_INIT(x)        (x)->refd = REFD_NEW_START
+#define REFD_READ_INIT(x)       (x)->refd = REFD_READ_START
+#define REFD_TYPED_INIT(x)
+#define REFD_VALUE(x)           (x)->refd
+#define REFD_MARK(x)            (x)->refd++
+#define REFD_UNMARK(x)          if ((x)->refd) (x)->refd--
+#define REFD_CLEAR(x)           (x)->refd = 0
+#define REFD_RETYPE(x)          REFD_UNMARK(x)
+#define REFD_DEC(x,n)           \
+        { if ((n) > (x)->refd)  \
+            REFD_CLEAR(x);      \
+          else                  \
+            (x)->refd -= (n);   \
+        }
+
+#else
+
+#define REFD_NEW_START          1
+#define REFD_READ_START         1
+
+#define REFD_NEW_INIT(x)        (x)->refd = REFD_NEW_START
+#define REFD_READ_INIT(x)       (x)->refd = REFD_READ_START
+#define REFD_TYPED_INIT(x)
+#define REFD_VALUE(x)           (x)->refd
+#define REFD_MARK(x)            (x)->refd = 1
+#define REFD_UNMARK(x)          if ((x)->refd) (x)->refd--
+#define REFD_CLEAR(x)           (x)->refd = 0
+#define REFD_RETYPE(x)          REFD_UNMARK(x)
+#define REFD_DEC(x,n)           \
+        { if (n > (x)->refd)    \
+            REFD_CLEAR(x);      \
+          else                  \
+            (x)->refd -= (n);   \
+        }
+
+#endif
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 { u_int block;						// block number
@@ -115,7 +158,7 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
   VOLATILE struct GBD* dirty;				// to write -> next
   VOLATILE time_t last_accessed;			// last time used
 #ifdef MV1_REFD
-  u_int  referenced;                                    // block referenced
+  u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
 #endif
 #ifdef MV1_BLKSEM
@@ -186,6 +229,7 @@ void Get_GBD();				                // get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
 void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(gbd *free);				// Free a GBD
+void Release_GBDs(int stopat);                          // release rsvd blk[]
 
 #ifdef MV1_BLKSEM
 
@@ -199,7 +243,7 @@ void  Block_Unlock(void);
 
 #else
 
-#define BLOCK_UNLOCK
+#define BLOCK_UNLOCK(x)
 #define BLOCK_TRYREADLOCK(x)    0
 #define BLOCK_TRYWRITELOCK(x)   0
 
@@ -241,6 +285,7 @@ void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
 void Check_BlockNo(u_int blkno,char *where,char *file,int lno); // chk blkno
+int  DirtyQ_Len();                                      // length of dirtyQ
 
 //*****************************************************************************
 

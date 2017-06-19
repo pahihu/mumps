@@ -42,9 +42,7 @@
 #include <unistd.h>				// for sleep
 #include <errno.h>                              // error stuf
 #include <math.h>				// maths functions
-#include <assert.h>
 #include "mumps.h"                              // standard includes
-#include <assert.h>
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
 #include "opcodes.h"				// the op codes
@@ -198,7 +196,7 @@ short run(int savasp, int savssp)		// run compiled code
 	CleanJob(0);				// remove all locks etc
 	return OPHALT;				// all done
       case OPERROR:				// ERROR
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
    	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
     	ERROR(s)
@@ -222,7 +220,7 @@ short run(int savasp, int savssp)		// run compiled code
 	isp = partab.jobtab->dostk[partab.jobtab->cur_do].isp; // and isp
 	break;
       case JMP0:				// jump if false
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
     	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
 	//s = *((short *)mumpspc)++;		// get the offset
@@ -255,7 +253,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if (cstringtob((cstring *)astk[--asp]) == 0)
 	{ partab.jobtab->test = 0;		// clear $TEST
 	  if (opc == OPIFI)			// indirect
-      	  { assert(sizeof(isp) == sizeof(long)); 
+      	  { ASSERT(sizeof(isp) == sizeof(long)); 
 	    bcopy(mumpspc, &isp, sizeof(isp));	// restore the isp
             mumpspc += sizeof(isp);
 	    //isp = *((int *)mumpspc)++;
@@ -1104,11 +1102,11 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert(sizeof(comp_ptr) == sizeof(long));
+    	ASSERT(sizeof(comp_ptr) == sizeof(long));
     	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
     	comp_ptr += sizeof(comp_ptr);
 	//*((int *)comp_ptr)++ = isp;
-    	assert(sizeof(comp_ptr) == sizeof(long));
+    	ASSERT(sizeof(comp_ptr) == sizeof(long));
     	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
     	comp_ptr += sizeof(comp_ptr);
 	//*((u_char **)comp_ptr)++ = mumpspc;
@@ -1134,11 +1132,11 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert(sizeof(comp_ptr) == sizeof(long));
+    	ASSERT(sizeof(comp_ptr) == sizeof(long));
     	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
     	comp_ptr += sizeof(comp_ptr);
 	//*((int *)comp_ptr)++ = isp;
-    	assert(sizeof(comp_ptr) == sizeof(long));
+    	ASSERT(sizeof(comp_ptr) == sizeof(long));
     	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
     	comp_ptr += sizeof(comp_ptr);
 	//*((u_char **)comp_ptr)++ = mumpspc;
@@ -2149,7 +2147,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_xu;
 						// default to current routine
 	  if ((opc == CMDOROU ) || (opc == CMDORT) || (opc == CMDORTO))
-      	  { assert(sizeof(rou) == MAX_NAME_BYTES);
+      	  { ASSERT(sizeof(rou) == MAX_NAME_BYTES);
 	    mumpspc += X_take(mumpspc, &rou);   // XXX
 	    // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
             // mumpspc += sizeof(rou);
@@ -2163,7 +2161,7 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	if ((opc == CMDOTAG ) || (opc == CMDORT)
 	   || (opc == CMDORTO) || (opc == CMDOWRT))
-	{  assert(sizeof(tag) == MAX_NAME_BYTES);
+	{  ASSERT(sizeof(tag) == MAX_NAME_BYTES);
       	   mumpspc += X_take(mumpspc, &tag);    // XXX
       	   // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
       	   // mumpspc += sizeof(tag);
@@ -2173,7 +2171,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-      	  assert(sizeof(s) == 2);
+      	  ASSERT(sizeof(s) == 2);
           bcopy(mumpspc, &s, sizeof(s));	// get the offset
           mumpspc += sizeof(s);
           offset = s;
@@ -2468,7 +2466,7 @@ short run(int savasp, int savssp)		// run compiled code
 	//tag = 0;				// clear tag
 	X_Clear(tag);				// clear tag
 	if ((opc == CMJOBROU ) || (opc == CMJOBRT) || (opc == CMJOBRTO))
-     	{ assert(sizeof(rou) == MAX_NAME_BYTES);
+     	{ ASSERT(sizeof(rou) == MAX_NAME_BYTES);
       	  mumpspc += X_take(mumpspc, &rou);	// XXX
       	  // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
       	  // mumpspc += sizeof(rou);
@@ -2480,7 +2478,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_xu;
 	}					// reset to current
 	if ((opc == CMJOBTAG ) || (opc == CMJOBRT) || (opc == CMJOBRTO))
-    	{ assert(sizeof(tag) == MAX_NAME_BYTES);
+    	{ ASSERT(sizeof(tag) == MAX_NAME_BYTES);
     	  mumpspc += X_take(mumpspc, &tag);	// XXX
     	  // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
     	  // mumpspc += sizeof(tag);
@@ -2491,7 +2489,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-      	  assert(sizeof(s) == 2);
+      	  ASSERT(sizeof(s) == 2);
     	  bcopy(mumpspc, &s, sizeof(s));	// get the offset
     	  mumpspc += sizeof(s);
     	  offset = s;
@@ -2557,7 +2555,7 @@ short run(int savasp, int savssp)		// run compiled code
 	//tag = 0;				// clear tag
 	X_Clear(tag);				// clear tag
 	if ((opc == CMGOROU ) || (opc == CMGORT) || (opc == CMGORTO))
-    	{ assert(sizeof(rou) == MAX_NAME_BYTES);
+    	{ ASSERT(sizeof(rou) == MAX_NAME_BYTES);
     	  mumpspc += X_take(mumpspc, &rou);	// XXX
     	  // bcopy(mumpspc, &rou, sizeof(rou));	// get routine name
     	  // mumpspc += sizeof(rou);
@@ -2569,7 +2567,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ rou = partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_xu;
 	}					// reset to current
 	if ((opc == CMGOTAG ) || (opc == CMGORT) || (opc == CMGORTO))
-    	{ assert(sizeof(tag) == MAX_NAME_BYTES);
+    	{ ASSERT(sizeof(tag) == MAX_NAME_BYTES);
     	  mumpspc += X_take(mumpspc, &tag);	// XXX
     	  // bcopy(mumpspc, &tag, sizeof(tag));	// get tag name
     	  // mumpspc += sizeof(tag);
@@ -2579,7 +2577,7 @@ short run(int savasp, int savssp)		// run compiled code
 	{ if (!(systab->historic & HISTORIC_OFFOK)) // if not permitted
 	  { ERROR(-(ERRMLAST+ERRZ70))		// complain
 	  }
-    	  assert(sizeof(s) == 2);
+    	  ASSERT(sizeof(s) == 2);
     	  bcopy(mumpspc, &s, sizeof(s));	// get the offset
     	  mumpspc += sizeof(s);
      	  offset = s;
@@ -2682,7 +2680,7 @@ short run(int savasp, int savssp)		// run compiled code
 	curframe->line_num = 1;			// current routine line#
 	p = curframe->pc;			// the new pc
 	if (*p++ == LINENUM)
-	{ assert(sizeof(s) == 2);
+	{ ASSERT(sizeof(s) == 2);
     	  bcopy(p, &s, sizeof(s));
     	  p += sizeof(s) ;			// XXX see below
     	  curframe->line_num = s;
@@ -3004,12 +3002,12 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
 
       case LINENUM:				// set current line number
-  	assert (sizeof(s) == 2);
+  	ASSERT (sizeof(s) == 2);
   	bcopy(mumpspc, &s, sizeof(s));
   	mumpspc += sizeof(s);
 	partab.jobtab->dostk[partab.jobtab->cur_do].line_num = s;
 	//*((short *)mumpspc)++;		// store the line number
-  	assert (sizeof(s) == 2);
+  	ASSERT (sizeof(s) == 2);
   	bcopy(mumpspc, &s, sizeof(s));
 	partab.jobtab->dostk[partab.jobtab->cur_do].endlin = mumpspc + s;
   	mumpspc += sizeof(s);
@@ -3034,7 +3032,7 @@ short run(int savasp, int savssp)		// run compiled code
 	}
 	ERROR(-ERRM11)				// complain
       case JMP:					// Jump
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
     	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
 	//s = *((short *)mumpspc)++;		// get the offset
@@ -3051,7 +3049,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if (infor)
 	{ forx->type |= FOR_NESTED;		// check for nesting
 	}
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
     	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
 	//s = *((short *)mumpspc)++;		// get the offset
@@ -3209,12 +3207,12 @@ short run(int savasp, int savssp)		// run compiled code
 	if (infor) forx->type |= FOR_NESTED;	// check for nesting
 	forx->svar = s;				// save syment
 	forx->var = var;			// or mvar address
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
     	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
 	//s = *((short *)mumpspc)++;		// get the offset
 	forx->startpc = mumpspc + s;		// save the new address
-    	assert(sizeof(s) == 2);
+    	ASSERT(sizeof(s) == 2);
     	bcopy(mumpspc, &s, sizeof(s));
     	mumpspc += sizeof(s);
 	//s = *((short *)mumpspc)++;		// get the offset
@@ -3296,11 +3294,11 @@ short run(int savasp, int savssp)		// run compiled code
 
 // ************** Indirection stuff **************
       case INDREST:				// restore isp and mumpspc
-    	assert (sizeof(isp) == sizeof(long));
+    	ASSERT (sizeof(isp) == sizeof(long));
     	bcopy(mumpspc, &isp, sizeof(isp));
     	mumpspc += sizeof(isp);
 	//isp = *((int *)mumpspc)++;		// restore the isp
-    	assert(sizeof(mumpspc) == sizeof(long));
+    	ASSERT(sizeof(mumpspc) == sizeof(long));
     	bcopy(mumpspc, &mumpspc, sizeof(mumpspc));
 	//mumpspc = *((u_char **)mumpspc);	// and the mumpspc
 	break;					// continue
@@ -3380,11 +3378,11 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert (sizeof(comp_ptr) == sizeof(long));
+    	ASSERT (sizeof(comp_ptr) == sizeof(long));
     	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
     	comp_ptr += sizeof(comp_ptr);
 	//*((int *)comp_ptr)++ = isp;
-    	assert (sizeof(comp_ptr) == sizeof(long));
+    	ASSERT (sizeof(comp_ptr) == sizeof(long));
     	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
     	comp_ptr += sizeof(comp_ptr);
 	//*((u_char **)comp_ptr)++ = mumpspc;

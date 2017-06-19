@@ -38,7 +38,6 @@
 #include <string.h>				// for memcpy/memcmp
 #include <strings.h>
 #include <sys/types.h>				// for u_char def
-#include <assert.h>
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // errors
@@ -62,10 +61,10 @@ short UTIL_Key_BuildEx( mvar *var, cstring *src, u_char *dest)
     return s;
   if (255 == var->nsubs)
     var->nsubs = 0;
-  assert(var->nsubs < MAX_SUBSCRIPTS + 1);
+  ASSERT(var->nsubs < MAX_SUBSCRIPTS + 1);
   var->subspos[var->nsubs] = diff;
   var->nsubs++;
-  assert(var->nsubs < MAX_SUBSCRIPTS + 1);
+  ASSERT(var->nsubs < MAX_SUBSCRIPTS + 1);
   var->subspos[var->nsubs] = diff ? s + var->slen : s;
   return s;
 }
@@ -801,7 +800,7 @@ int X_take(u_char *a, chr_x *b)
   }
   fprintf(stderr,"]\n");
   */
-  assert(0 <= len && len <= MAX_NAME_BYTES); 
+  ASSERT(0 <= len && len <= MAX_NAME_BYTES); 
   X_set(a, b->buf, len);
   return 1 + len;
 }

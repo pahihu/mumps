@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <assert.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
 #include <sys/types.h>
 
 #include "mumps.h"
+#include "proto.h"
 
 extern void panic(char*);
 
@@ -222,7 +222,7 @@ void UnlockWriter(RWLOCK_T *lok)
   if (s < 0)
   { panic("UnlockWriter(): failed [g_latch]");
   }
-  assert(0 == lok->readers);
+  ASSERT(0 == lok->readers);
   lok->writers--;
   if (lok->wait_to_read)
   { lok->readers = lok->wait_to_read;
@@ -243,7 +243,7 @@ void UnlockWriterToReader(RWLOCK_T *lok)
   if (s < 0)
   { panic("UnlockWriterToReader(): failed [g_latch]");
   }
-  assert(0 == lok->readers);
+  ASSERT(0 == lok->readers);
   lok->writers--;
   wait_to_read = lok->wait_to_read;
   lok->readers = 1 + lok->wait_to_read;
@@ -284,7 +284,7 @@ void UnlockReader(RWLOCK_T *lok)
   if (s < 0)
   { panic("UnlockReader(): failed [g_latch]");
   }
-  assert(0 != lok->readers);
+  ASSERT(0 != lok->readers);
   lok->readers--;
   if ((0 == lok->readers) && (0 < lok->writers))
     LatchUnlock(&lok->wr_latch);

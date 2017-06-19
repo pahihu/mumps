@@ -123,6 +123,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   if (fit < 0)
   { return (errno);					// die on error
   }
+
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
@@ -198,8 +199,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
           wdp_time_up = 0;
         }
       }
-      curr_dbact = systab->vol[volnum-1]->stats.logrd
-                 + systab->vol[volnum-1]->stats.logwt;
+      curr_dbact = systab->vol[volnum-1]->stats.phyrd
+                 + systab->vol[volnum-1]->stats.phywt;
       if (0 == curr_dbact)                              // no DB activity ?
       { if (0 == db_rest_start)                         // track start
           db_rest_start = MTIME(0);
@@ -457,6 +458,7 @@ void do_write()						// write GBDs
   gbd *lastptr = NULL;					// for the gbd
   short s;
   u_int blkno;                                          // block#
+  int curr_lock_sav;                                    // saveing curr. lock
 
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -484,7 +486,11 @@ void do_write()						// write GBDs
 		 systab->vol[volnum-1]->vollab->block_size);
       BLOCK_UNLOCK(gpdptr);
 #else
-      wrbuf = gbdptr->mem;                              // use gbdptr directly
+      // bcopy(gbdptr->mem, wrbuf,                         // copy block
+      // 	 systab->vol[volnum-1]->vollab->block_size);
+      // curr_lock_sav = curr_lock;                        // save curr. lock
+      // SemOp( SEM_GLOBAL, -curr_lock);                   // release lock
+      wrbuf = gbdptr->mem;
 #endif
       file_off = (off_t) blkno - 1;		        // block#
       file_off = (file_off * (off_t)
@@ -503,6 +509,7 @@ void do_write()						// write GBDs
         panic("write failed in Write_Chain()!!");
       }
       ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+      // SemOp( SEM_GLOBAL, curr_lock_sav);                // get lock
     }							// end write code
 
     if (!gbdptr->dirty)

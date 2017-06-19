@@ -87,7 +87,7 @@ int INIT_Start( char *file,                     // database
                 int addmb)                      // mb of additional buf
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
-  int i;                                        // usefull int
+  int i, j;                                     // usefull int
   int n_gbd;                                    // number of gbd
   int addoff;                                   // offset for add buff
   int indx;                                     // loop control
@@ -259,6 +259,7 @@ int INIT_Start( char *file,                     // database
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->WDPtime = WDP_TIME_MAX;               // write daemon poll time
+  systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab)*jobs)); //locktab
@@ -478,8 +479,9 @@ int INIT_Start( char *file,                     // database
 #endif
   }						// end setup gbds
 #ifdef MV1_GBDRO
-  for (i = 0; i < NUM_GBDRO - 1; i++)           // setup R/O GBDs at the tail
+  for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail
   { gptr[i].mem = (struct DB_BLOCK *) ptr;
+    ptr += systab->vol[0]->vollab->block_size;	// point at next
     Free_GBDRO(&gptr[i]);
   }
 #endif

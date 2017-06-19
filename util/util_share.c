@@ -54,6 +54,29 @@
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
 //****************************************************************************
+//**  Function: UTIL_assert - my assert() funcion, if supplied     ***
+//**  prints the caller of the function which called ASSERT()      ***
+void UTIL_assert(int cond, const char *expr,
+               const char *fn, const char *path, int line,
+               const char *caller_path, int caller_line)
+{
+  if (!cond)
+  { if (curr_lock)
+    { SemOp( SEM_GLOBAL, -curr_lock);
+    }
+    if (caller_path)
+    { fprintf(stderr, "Assertion failed: (%s), function %s at %s:%d, called from %s:%d\r\n", expr, fn, path, line, caller_path, caller_line);
+    }
+    else
+    { fprintf(stderr, "Assertion failed: (%s), function %s at %s:%d\r\n", expr, fn, path, line);
+    }
+    fflush(stderr);
+    *((volatile u_char*) NULL) = 0;
+    exit(-1);
+  }
+}
+
+//****************************************************************************
 //**  Function: UTIL_Share - attach shared memory section        ***
 //**  returns addr (or NULL on error)                            ***
 int UTIL_Share(char *dbf)                     	// pointer to dbfile name
@@ -136,10 +159,10 @@ short SemOpEx(int sem_num, int numb,
   }
   for (i = 0; i < 5; i++)                       // try this many times
   { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
-    if (sem_num == SEM_GLOBAL && 0 < numb)
+    if ((SEM_GLOBAL == sem_num) && (0 < numb))
       DB_Unlocked();
     if (s == 0)					// if that worked
-    { if (sem_num == SEM_GLOBAL)curr_lock += numb; // adjust curr_lock
+    { if (SEM_GLOBAL == sem_num)curr_lock += numb; // adjust curr_lock
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add

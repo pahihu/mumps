@@ -570,12 +570,7 @@ short Compress1()
   { s = 0;						// it does exist
   }
   if (s == -ERRM7)					// if gone missing
-  { while (level >= 0)
-    { if (blk[level]->dirty == (gbd *) 1)
-      { blk[level]->dirty = NULL;
-      }
-      level--;
-    }
+  { Release_GBDs(0); 
     return 0;						// just exit
   }
   if (s < 0)						// any other error
@@ -608,42 +603,27 @@ short Compress1()
       blk[1]->mem->type = 65;				// pretend it's data
       blk[1]->last_accessed = MTIME(0);			// clear last access
 #ifdef MV1_REFD
-      blk[1]->referenced = 1;
+      REFD_MARK(blk[1]);
 #endif
       Garbit(blk[1]->block);				// que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));	// clear last ref
       return 0;						// and exit
     }
-    while (level >= 0)
-    { if (blk[level]->dirty == (gbd *) 1)
-      { blk[level]->dirty = NULL;
-      }
-      level--;
-    }
+    Release_GBDs(0);
     return 0;						// just exit
   }
   blk[level + 1] = blk[level];				// save that
   s = Get_block(blk[level]->mem->right_ptr);
   if (s < 0)						// if error
-  { while (level >= 0)
-    { if (blk[level]->dirty == (gbd *) 1)
-      { blk[level]->dirty = NULL;
-      }
-      level--;
-    }
+  { Release_GBDs(0);
     return s;						// just exit
   }
   i = ((blk[level+1]->mem->last_free*2 + 1 - blk[level+1]->mem->last_idx)*2)
     + ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2);
-  if (i < 1024)		// if REALLY not enough space (btw: make this a param)
+  if (i < systab->ZMinSpace /*1024*/)           // if REALLY not enough space
   { level++;
-    while (level >= 0)
-    { if (blk[level]->dirty == (gbd *) 1)
-      { blk[level]->dirty = NULL;
-      }
-      level--;
-    }
+    Release_GBDs(0);
     return s;						// just exit
   }
   Un_key();						// unkey RL block
@@ -659,7 +639,7 @@ short Compress1()
   { blk[level]->mem->type = 65;				// pretend it's data
     blk[level]->last_accessed = MTIME(0);		// clear last access
 #ifdef MV1_REFD
-    blk[level]->referenced = 1;
+    REFD_MARK(blk[level]);
 #endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);				// que for freeing
@@ -826,11 +806,14 @@ int MSleep(u_int mseconds)
   return usleep(1000 * mseconds);
 }
 
+#define DQ_SLEEP        10
+
 void Ensure_GBDs(int haslock)
 {
   int j;
   int qpos, wpos, rpos, qlen, qfree;
   int MinSlots;
+  int pass = 0;
 
 start:
   Get_GBDsEx(MAXTREEDEPTH * 2, haslock);		// ensure this many
@@ -851,12 +834,16 @@ start:
   if (qfree >= MinSlots)
     goto cont;
 
-  systab->vol[volnum -1]->stats.dqstall++;              // count dirtQ stall
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
 
   // Sleep(1);
-  // MSleep(125);
-  MSleep(90);
+  if (pass & 3)
+    SchedYield();
+  else
+  { ATOMIC_INCREMENT(systab->vol[volnum -1]->stats.dqstall);// count dirtQ stall
+    MSleep(DQ_SLEEP);
+  }
+  pass++;
   goto start;
 
 cont:
@@ -879,5 +866,24 @@ void Check_BlockNo(u_int blkno, char *where, char *file, int lno)
                                 blkno, where);
     panic((char *) msg);
   }
+}
+
+int DirtyQ_Len(void)
+{ int qlen = 0;
+
+#ifdef MV1_CKIT
+  qlen = ck_ring_size(&systab->vol[volnum-1]->dirtyQ);
+#else
+  int qpos, wpos, rpos;
+
+  wpos = systab->vol[volnum - 1]->dirtyQw;
+  rpos = systab->vol[volnum - 1]->dirtyQr;
+  if (rpos <= wpos)
+    qlen = wpos - rpos;
+  else
+    qlen = NUM_DIRTY + wpos - rpos;
+#endif
+
+  return qlen;
 }
 

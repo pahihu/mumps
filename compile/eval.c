@@ -42,7 +42,6 @@
 #include <errno.h>                              // error stuf
 #include <limits.h>                     	// for LONG_MAX etc
 #include <math.h>
-#include <assert.h>                             // for assert()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // and the error defs
@@ -363,7 +362,7 @@ void evalx(int chain)                           // evaluate source
     { // in a DO chain all but the last is an extrinsic call
       // the last is just a DO
       if ((chain == 2) && (op == FUNZSE))       // DO chain, last was $ZSEND
-      { assert(comp_ptr[-1] > 127);
+      { ASSERT(comp_ptr[-1] > 127);
         comp_ptr[-1] -= 128;
       }
       return;                                   // exit

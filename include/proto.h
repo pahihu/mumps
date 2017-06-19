@@ -347,6 +347,19 @@ short UTIL_String_Lock( locktab *var,         	// address of lock entry
 short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 
 // Share and semaphore stuff
+
+#ifdef NDEBUG
+#define ASSERT(x)
+#define ASSERT2(x)
+#else
+#define ASSERT(x)     UTIL_assert(x,#x,__FUNCTION__,__FILE__,__LINE__,NULL,0)
+#define ASSERT2(x)    UTIL_assert(x,#x,__FUNCTION__,__FILE__,__LINE__,caller_path,caller_line)
+#endif
+
+void UTIL_assert(int cond, const char *expr,
+               const char *fn, const char *path, int line,
+               const char *caller_path, int caller_line);
+
 int UTIL_Share(char *dbf);			// attach share and semaphores
 #define Sleep(x)   SleepEx(x,__FILE__,__LINE__)
 u_int SleepEx(u_int seconds, const char *file, int line);

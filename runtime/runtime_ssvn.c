@@ -52,6 +52,7 @@
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
+#include "database.h"
 
 // SSVNs use the same structures as ST_ and DB_ functions
 // Note valid SSVNs are:	$GLOBAL
@@ -319,6 +320,14 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       return DB_Get(var, buf);			// let the database module doit
 
     case 'S':					// $SYSTEM
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "zminspace\0", 10) == 0))
+      { return itocstring(buf, systab->ZMinSpace); // return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dqlen\0", 6) == 0))
+      { return itocstring(buf, DirtyQ_Len()); // return the value
+      }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "eok\0", 4) == 0))
       { return itocstring(buf,
@@ -592,6 +601,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         }
 	return 0;				// and exit
       }
+
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "eok\0", 4) == 0))
       { if (cstringtob(data))
@@ -599,6 +609,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         }
 	return 0;				// and exit
       }
+
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "offok\0", 6) == 0))
       { if (cstringtob(data))
@@ -612,6 +623,16 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > 31)) return -ERRM28;
         systab->precision = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "zminspace\0", 10) == 0))
+      { j = cstringtoi(data);
+	if ((j < 128) ||
+            (j > (0.9 * systab->vol[0]->vollab->block_size))) // XXX volume?
+          return -(ERRMLAST+ERRZ64);
+        systab->ZMinSpace = j;
 	return 0;				// and exit
       }
 

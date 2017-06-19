@@ -46,7 +46,6 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
-#include <assert.h>
 
 
         int     KeyLocated;                             // flag key located

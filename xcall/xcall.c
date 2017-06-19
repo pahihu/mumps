@@ -69,7 +69,6 @@
 #include "proto.h"                              // standard prototypes
 
 #ifdef __APPLE__
-#include <assert.h>
 #include <CoreServices/CoreServices.h>
 #include <DirectoryService/DirectoryService.h>
 #endif
@@ -634,9 +633,9 @@ static tDirStatus dsDataBufferAppendData(
 {
     tDirStatus      err;
 
-    assert(buf != NULL);
-    assert(dataPtr != NULL);
-    assert(buf->fBufferLength <= buf->fBufferSize);
+    ASSERT(buf != NULL);
+    ASSERT(dataPtr != NULL);
+    ASSERT(buf->fBufferLength <= buf->fBufferSize);
     
     if ( (buf->fBufferLength + dataLen) > buf->fBufferSize ) {
         err = eDSBufferTooSmall;
@@ -661,8 +660,8 @@ static tDirStatus dsDataListAndHeaderDeallocate(
 {
     tDirStatus  err;
     
-    assert(inDirReference != 0);
-    assert(inDataList != NULL);
+    ASSERT(inDirReference != 0);
+    ASSERT(inDataList != NULL);
     
     err = dsDataListDeallocate(inDirReference, inDataList);
     if (err == eDSNoErr) {
@@ -695,10 +694,10 @@ static void DoubleTheBufferSizeIfItsTooSmall(
     tDirStatus      junk;
     tDataBufferPtr  tmpBuf;
     
-    assert(errPtr != NULL);
-    assert(dirRef != 0);
-    assert( bufPtrPtr != NULL);
-    assert(*bufPtrPtr != NULL);
+    ASSERT(errPtr != NULL);
+    ASSERT(dirRef != 0);
+    ASSERT( bufPtrPtr != NULL);
+    ASSERT(*bufPtrPtr != NULL);
     
     if (*errPtr == eDSBufferTooSmall) {
         // If the buffer size is already bigger than 16 MB, don't try to 
@@ -719,7 +718,7 @@ static void DoubleTheBufferSizeIfItsTooSmall(
                 #endif
                 
                 junk = dsDataBufferDeAllocate(dirRef, *bufPtrPtr);
-                assert(junk == eDSNoErr);
+                ASSERT(junk == eDSNoErr);
                 
                 *bufPtrPtr = tmpBuf;
             }
@@ -763,10 +762,10 @@ static tDirStatus dsFindDirNodesQ(
     tDirStatus  err;
     
     // I only supply pre-conditions for the parameters that I touch.
-    assert( inOutDataBufferPtrPtr != NULL);
-    assert(*inOutDataBufferPtrPtr != NULL);
-    assert(outDirNodeCount != NULL);
-    assert(inOutContinueData != NULL);
+    ASSERT( inOutDataBufferPtrPtr != NULL);
+    ASSERT(*inOutDataBufferPtrPtr != NULL);
+    ASSERT(outDirNodeCount != NULL);
+    ASSERT(inOutContinueData != NULL);
     
     do {
         do {
@@ -817,10 +816,10 @@ static tDirStatus dsGetRecordListQ(
     unsigned long   originalRecordCount;
     
     // I only supply pre-conditions for the parameters that I touch.
-    assert( inOutDataBufferPtr != NULL);
-    assert(*inOutDataBufferPtr != NULL);
-    assert(inOutRecordEntryCount != NULL);
-    assert(inOutContinueData != NULL);
+    ASSERT( inOutDataBufferPtr != NULL);
+    ASSERT(*inOutDataBufferPtr != NULL);
+    ASSERT(inOutRecordEntryCount != NULL);
+    ASSERT(inOutContinueData != NULL);
     
     originalRecordCount = *inOutRecordEntryCount;
 
@@ -869,8 +868,8 @@ static tDirStatus dsDoDirNodeAuthQ(
     tDirStatus  err;
     
     // I only supply pre-conditions for the parameters that I touch.
-    assert( outAuthStepDataResponsePtr != NULL);
-    assert(*outAuthStepDataResponsePtr != NULL);
+    ASSERT( outAuthStepDataResponsePtr != NULL);
+    ASSERT(*outAuthStepDataResponsePtr != NULL);
     
     do {
         err = dsDoDirNodeAuth(
@@ -902,9 +901,9 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     unsigned long       nodeCount;
     tContextData        context;
     
-    assert(dirRef != 0);
-    assert( searchNodePathListPtr != NULL);
-    assert(*searchNodePathListPtr == NULL);
+    ASSERT(dirRef != 0);
+    ASSERT( searchNodePathListPtr != NULL);
+    ASSERT(*searchNodePathListPtr == NULL);
 
     patternToFind = eDSLocalNodeNames;
     
@@ -959,14 +958,14 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     
     if (context != NULL) {
         junk = dsReleaseContinueData(dirRef, context);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (buf != NULL) {
 		junk = dsDataBufferDeAllocate(dirRef, buf);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     
-    assert( (err == eDSNoErr) == (*searchNodePathListPtr != NULL) );
+    ASSERT( (err == eDSNoErr) == (*searchNodePathListPtr != NULL) );
     
     return err;
 }
@@ -1009,13 +1008,13 @@ static tDirStatus FindUsersAuthInfo(
     tDataListPtr        pathListToAuthNode;
     char *              userNameForAuth;
 
-    assert(dirRef != 0);
-    assert(nodeRef != 0);
-    assert(username != NULL);
-    assert( pathListToAuthNodePtr != NULL);
-    assert(*pathListToAuthNodePtr == NULL);
-    assert( userNameForAuthPtr != NULL);
-    assert(*userNameForAuthPtr == NULL);
+    ASSERT(dirRef != 0);
+    ASSERT(nodeRef != 0);
+    ASSERT(username != NULL);
+    ASSERT( pathListToAuthNodePtr != NULL);
+    ASSERT(*pathListToAuthNodePtr == NULL);
+    ASSERT( userNameForAuthPtr != NULL);
+    ASSERT(*userNameForAuthPtr == NULL);
 
     recordType = NULL;
     recordName = NULL;
@@ -1078,7 +1077,7 @@ static tDirStatus FindUsersAuthInfo(
     // we care about.  If it is, remember the value for later processing.
     
     if (err == eDSNoErr) {
-        assert(recordCount == 1);       // we only asked for one record, shouldn't get more back
+        ASSERT(recordCount == 1);       // we only asked for one record, shouldn't get more back
 
         err = dsGetRecordEntry(nodeRef, buf, 1, &foundRecAttrList, &foundRecEntry);
     }
@@ -1123,7 +1122,7 @@ static tDirStatus FindUsersAuthInfo(
                         // Handle each of the two attributes we care about; ignore any others.
                         
                         if ( strcmp(thisAttrName, kDSNAttrMetaNodeLocation) == 0 ) {
-                            assert(pathListToAuthNode == NULL);        // same attribute twice
+                            ASSERT(pathListToAuthNode == NULL);        // same attribute twice
                             
                             // This is the kDSNAttrMetaNodeLocation attribute, which contains 
                             // a path to the node used for authenticating this record; convert 
@@ -1138,7 +1137,7 @@ static tDirStatus FindUsersAuthInfo(
                                 err = eDSAllocationFailed;
                             }
                         } else if ( strcmp(thisAttrName, kDSNAttrRecordName) == 0 ) {
-                            assert(userNameForAuth == NULL);            // same attribute twice
+                            ASSERT(userNameForAuth == NULL);            // same attribute twice
                             
                             // This is the kDSNAttrRecordName attribute, which contains the 
                             // user name used for authentication; remember its value in a
@@ -1168,15 +1167,15 @@ static tDirStatus FindUsersAuthInfo(
             
             if (thisValueEntry != NULL) {
                 junk = dsDeallocAttributeValueEntry(dirRef, thisValueEntry);
-                assert(junk == eDSNoErr);
+                ASSERT(junk == eDSNoErr);
             }
             if (thisValue != 0) {
                 junk = dsCloseAttributeValueList(thisValue);
-                assert(junk == eDSNoErr);
+                ASSERT(junk == eDSNoErr);
             }
             if (thisAttrEntry != NULL) {
                 junk = dsDeallocAttributeEntry(dirRef, thisAttrEntry);
-                assert(junk == eDSNoErr);
+                ASSERT(junk == eDSNoErr);
             }
             
             if (err != eDSNoErr) {
@@ -1207,41 +1206,41 @@ static tDirStatus FindUsersAuthInfo(
 
     if (pathListToAuthNode != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (userNameForAuth != NULL) {
         dlfree(userNameForAuth);
     }
     if (foundRecAttrList != 0) {
         junk = dsCloseAttributeList(foundRecAttrList);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (context != NULL) {
         junk = dsReleaseContinueData(dirRef, context);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (foundRecAttrList != 0) {
         junk = dsDeallocRecordEntry(dirRef, foundRecEntry);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (requestedAttributes != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, requestedAttributes);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (recordName != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, recordName);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (recordType != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, recordType);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (buf != NULL) {
 		junk = dsDataBufferDeAllocate(dirRef, buf);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
 
-    assert( (err == eDSNoErr) == ( (*pathListToAuthNodePtr != NULL) && (*userNameForAuthPtr != NULL) ) );
+    ASSERT( (err == eDSNoErr) == ( (*pathListToAuthNodePtr != NULL) && (*userNameForAuthPtr != NULL) ) );
 
     return err;
 }
@@ -1269,10 +1268,10 @@ static tDirStatus AuthenticateWithNode(
     tDataBufferPtr      authInBuf;
     unsigned long       length;
     
-    assert(dirRef != 0);
-    assert(pathListToAuthNode != NULL);
-    assert(userNameForAuth != NULL);
-    assert(password != NULL);
+    ASSERT(dirRef != 0);
+    ASSERT(pathListToAuthNode != NULL);
+    ASSERT(userNameForAuth != NULL);
+    ASSERT(password != NULL);
     
     authNodeRef = 0;
     authMethod = NULL;
@@ -1323,17 +1322,17 @@ static tDirStatus AuthenticateWithNode(
 	if (err == eDSNoErr) {     
         length = userNameLen + 1;                           // + 1 to include trailing null
         junk = dsDataBufferAppendData(authInBuf, &length, sizeof(length));
-        assert(junk == noErr);
+        ASSERT(junk == noErr);
 
         junk = dsDataBufferAppendData(authInBuf, userNameForAuth, userNameLen + 1);
-        assert(junk == noErr);
+        ASSERT(junk == noErr);
 
         length = passwordLen + 1;                           // + 1 to include trailing null
         junk = dsDataBufferAppendData(authInBuf, &length, sizeof(length));
-        assert(junk == noErr);
+        ASSERT(junk == noErr);
 
         junk = dsDataBufferAppendData(authInBuf, password, passwordLen + 1);
-        assert(junk == noErr);
+        ASSERT(junk == noErr);
 
         // Call dsDoDirNodeAuth to do the authentication.
         
@@ -1344,19 +1343,19 @@ static tDirStatus AuthenticateWithNode(
 
     if (authInBuf != NULL) {
         junk = dsDataBufferDeAllocate(dirRef, authInBuf);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (authOutBuf != NULL) {
         junk = dsDataBufferDeAllocate(dirRef, authOutBuf);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (authMethod != NULL) {
         junk = dsDataNodeDeAllocate(dirRef, authMethod);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (authNodeRef != 0) {
         junk = dsCloseDirNode(authNodeRef);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     
     return err;
@@ -1373,8 +1372,8 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     tDataListPtr            pathListToAuthNode;
     char *                  userNameForAuth;
 
-    assert(username != NULL);
-    assert(password != NULL);
+    ASSERT(username != NULL);
+    ASSERT(password != NULL);
 	
     dirRef = 0;
     pathListToSearchNode = NULL;
@@ -1415,19 +1414,19 @@ static tDirStatus CheckPasswordUsingOpenDirectory(const char *username, const ch
     }
     if (pathListToAuthNode != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, pathListToAuthNode);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (searchNodeRef != 0) {
         junk = dsCloseDirNode(searchNodeRef);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
     if (pathListToSearchNode != NULL) {
         junk = dsDataListAndHeaderDeallocate(dirRef, pathListToSearchNode);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
     }
 	if (dirRef != 0) {
 		junk = dsCloseDirService(dirRef);
-        assert(junk == eDSNoErr);
+        ASSERT(junk == eDSNoErr);
 	}
     
     return err;
