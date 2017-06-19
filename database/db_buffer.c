@@ -337,7 +337,7 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
       UTIL_Barrier();
-      while (ptr->last_accessed == (time_t) 0)		// if being read
+      while (ptr->last_accessed == (time_t) 0)	        // if being read
       { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
         SchedYield();					// wait for it
         UTIL_Barrier();

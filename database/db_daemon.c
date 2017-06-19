@@ -458,7 +458,6 @@ void do_write()						// write GBDs
   gbd *lastptr = NULL;					// for the gbd
   short s;
   u_int blkno;                                          // block#
-  int curr_lock_sav;                                    // saveing curr. lock
 
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -467,7 +466,7 @@ void do_write()						// write GBDs
   { panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
-  if (curr_lock == 0)					// if we need a lock
+  if (!curr_lock)					// if we need a lock
   { SemOp( SEM_GLOBAL, READ);				// take a read lock
   }
   while (TRUE)						// until we break
@@ -486,10 +485,6 @@ void do_write()						// write GBDs
 		 systab->vol[volnum-1]->vollab->block_size);
       BLOCK_UNLOCK(gpdptr);
 #else
-      // bcopy(gbdptr->mem, wrbuf,                         // copy block
-      // 	 systab->vol[volnum-1]->vollab->block_size);
-      // curr_lock_sav = curr_lock;                        // save curr. lock
-      // SemOp( SEM_GLOBAL, -curr_lock);                   // release lock
       wrbuf = gbdptr->mem;
 #endif
       file_off = (off_t) blkno - 1;		        // block#
@@ -504,12 +499,10 @@ void do_write()						// write GBDs
       i = write( dbfd, wrbuf, // gbdptr->mem
 		 systab->vol[volnum-1]->vollab->block_size); // write it
       if (i < 0)
-      { 
-        systab->vol[volnum-1]->stats.diskerrors++;	// count an error
+      { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
         panic("write failed in Write_Chain()!!");
       }
       ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
-      // SemOp( SEM_GLOBAL, curr_lock_sav);                // get lock
     }							// end write code
 
     if (!gbdptr->dirty)
