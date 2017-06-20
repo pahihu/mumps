@@ -55,6 +55,8 @@
 // This module is the main run-time dispatch. It starts interpreting
 // at the opcode pointed to by mumpspc updating it as it goes.
 
+extern u_char *localvar_op;
+
 short run(int savasp, int savssp)		// run compiled code
 { int opc;					// current opcode
   int infor = 0;				// for flag
@@ -179,6 +181,7 @@ short run(int savasp, int savssp)		// run compiled code
 	// WHAT FOLLOWS IS THE MAIN INTERPRETER LOOP
 
     opc = *mumpspc++;				// get an opcode
+    // fprintf(stderr, "\r\nopc=%d", opc);
     switch (opc)				// dispatch on it
     { case ENDLIN:				// end of line
 	if (*mumpspc == ENDLIN)
@@ -246,7 +249,7 @@ short run(int savasp, int savssp)		// run compiled code
 	if (cstringtob((cstring *)astk[--asp]) == 0)
 	{ partab.jobtab->test = 0;		// clear $TEST
 	  if (opc == OPIFI)			// indirect
-      	  { assert(sizeof(isp) == sizeof(long)); 
+      	  { // assert(sizeof(isp) == sizeof(long)); 
 	    bcopy(mumpspc, &isp, sizeof(isp));	// restore the isp
             mumpspc += sizeof(isp);
 	    //isp = *((int *)mumpspc)++;
@@ -266,7 +269,8 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	}
 	else if (opc == OPIFI)			// indirect
-	{ mumpspc += sizeof(long);		// skip the stored isp
+	{ // mumpspc += sizeof(long);           // skip the stored isp
+          mumpspc += sizeof(isp);		// skip the stored isp
 	}
 	break;
       case OPELSE:				// else
@@ -1045,6 +1049,7 @@ short run(int savasp, int savssp)		// run compiled code
 		  sizeof(short) + 1;		// point past the string
 	break;
       case OPVAR:				// var name
+        // fprintf(stderr,"\r\nOPVAR");
 	s = buildmvar(&partab.src_var, 0, asp); // build mvar from the code
         if (s < 0) ERROR(s)			// complain on error
 	asp = s;				// restore returned asp
@@ -1066,6 +1071,7 @@ short run(int savasp, int savssp)		// run compiled code
       case OPMVAR:				// build mvar on the sstk
       case OPMVARN:				// build mvar (null subs OK)
       case OPMVARF:				// build mvar on the sstk
+        // fprintf(stderr,"\r\nOPMVARx: opc=%d",opc);
 	var = (mvar *) &sstk[ssp];		// where we will put it
 	s = buildmvar(var, (opc == OPMVARN), asp); // build (chk null OK)
         if (s < 0) ERROR(s)			// complain on error
@@ -1081,6 +1087,7 @@ short run(int savasp, int savssp)		// run compiled code
 						// comp as: expr INDEVAL
 	cptr = (cstring *) astk[--asp];		// get string to eval
 	if INDSNOK(cptr->len) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
+        // fprintf(stderr, "\r\nINDEVAL: [%s]", cptr->buf);
 	source_ptr = cptr->buf;			// what to compile
 	comp_ptr = &istk[isp];			// where it goes
 	eval();					// attempt to compile it
@@ -1088,13 +1095,13 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert(sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert(sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&isp, comp_ptr, sizeof(isp));	// the isp to restore
+    	comp_ptr += sizeof(isp);
 	//*((int *)comp_ptr)++ = isp;
-    	assert(sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert(sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&mumpspc, comp_ptr, sizeof(mumpspc));// and the mumpspc
+    	comp_ptr += sizeof(mumpspc);
 	//*((u_char **)comp_ptr)++ = mumpspc;
 	mumpspc = &istk[isp];			// what we are going to do
 	isp = (comp_ptr - &istk[isp]) + isp;	// adjust isp
@@ -1105,8 +1112,26 @@ short run(int savasp, int savssp)		// run compiled code
       case INDMVARF:				// ditto, full size
 	cptr = (cstring *) astk[--asp];		// get string to eval
 	if INDSNOK(cptr->len) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
+        // fprintf(stderr, "\r\nINDMVARx: [%s] opc=%d", cptr->buf, opc);
 	source_ptr = cptr->buf;			// what to compile
 	comp_ptr = &istk[isp];			// where it goes
+        if ('@' == *source_ptr)
+        { // fprintf(stderr,"\r\nINDMVARx: eval() branch");
+          atom();
+          if (INDEVAL == *(comp_ptr - 1))
+          { *comp_ptr = opc;
+          }
+          else if (localvar_op)
+          { *localvar_op = OPMVAR + opc - INDMVAR;
+          }
+        }
+        else
+        { // fprintf(stderr,"\r\nINDMVARx: localvar() branch");
+          s = localvar();
+	  if (s < 0) ERROR(s)			// complain on error
+	  istk[isp + s] = OPMVAR + opc - INDMVAR; // change to OPMVAR
+        }
+#if 0
 	s = localvar();				// compile it
 	if (s < 0) ERROR(s)			// complain on error
 	istk[isp + s] = OPMVAR;			// change to OPMVAR
@@ -1114,17 +1139,18 @@ short run(int savasp, int savssp)		// run compiled code
 	  istk[isp + s] = OPMVARN;		// change to OPMVARN
 	if (opc == INDMVARF)			// full size?
 	  istk[isp + s] = OPMVARF;		// change to OPMVARF
+#endif
 	if (*source_ptr != '\0')		// must point at end of var
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert(sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert(sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&isp, comp_ptr, sizeof(isp));	// the isp to restore
+    	comp_ptr += sizeof(isp);
 	//*((int *)comp_ptr)++ = isp;
-    	assert(sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert(sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&mumpspc, comp_ptr, sizeof(mumpspc));// and the mumpspc
+    	comp_ptr += sizeof(mumpspc);
 	//*((u_char **)comp_ptr)++ = mumpspc;
 	mumpspc = &istk[isp];			// what we are going to do
 	isp = (comp_ptr - &istk[isp]) + isp;	// adjust isp
@@ -2933,11 +2959,12 @@ short run(int savasp, int savssp)		// run compiled code
 
 // ************** Indirection stuff **************
       case INDREST:				// restore isp and mumpspc
-    	assert (sizeof(isp) == sizeof(long));
+        // fprintf(stderr,"\r\nINDREST");
+    	// assert (sizeof(isp) == sizeof(long));
     	bcopy(mumpspc, &isp, sizeof(isp));
     	mumpspc += sizeof(isp);
 	//isp = *((int *)mumpspc)++;		// restore the isp
-    	assert(sizeof(mumpspc) == sizeof(long));
+    	// assert(sizeof(mumpspc) == sizeof(long));
     	bcopy(mumpspc, &mumpspc, sizeof(mumpspc));
 	//mumpspc = *((u_char **)mumpspc);	// and the mumpspc
 	break;					// continue
@@ -3017,13 +3044,13 @@ short run(int savasp, int savssp)		// run compiled code
 	  ERROR(-(ERRZ57+ERRMLAST))		// complain
 	if INDANOK(comp_ptr) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
 	*comp_ptr++ = INDREST;			// restore things
-    	assert (sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&isp, comp_ptr, sizeof(long));	// the isp to restore
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert (sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&isp, comp_ptr, sizeof(isp));	// the isp to restore
+    	comp_ptr += sizeof(isp);
 	//*((int *)comp_ptr)++ = isp;
-    	assert (sizeof(comp_ptr) == sizeof(long));
-    	bcopy(&mumpspc, comp_ptr, sizeof(long));// and the mumpspc
-    	comp_ptr += sizeof(comp_ptr);
+    	// assert (sizeof(comp_ptr) == sizeof(long));
+    	bcopy(&mumpspc, comp_ptr, sizeof(mumpspc));// and the mumpspc
+    	comp_ptr += sizeof(mumpspc);
 	//*((u_char **)comp_ptr)++ = mumpspc;
 	mumpspc = &istk[isp];			// what we are going to do
 	isp = (comp_ptr - &istk[isp]) + isp;	// adjust isp
