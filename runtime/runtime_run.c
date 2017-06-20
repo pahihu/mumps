@@ -1087,7 +1087,7 @@ short run(int savasp, int savssp)		// run compiled code
 						// comp as: expr INDEVAL
 	cptr = (cstring *) astk[--asp];		// get string to eval
 	if INDSNOK(cptr->len) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
-        // fprintf(stderr, "\r\nINDEVAL: [%s]", cptr->buf);
+        // fprintf(stderr, "\r\n--- INDEVAL: [%s]", cptr->buf);
 	source_ptr = cptr->buf;			// what to compile
 	comp_ptr = &istk[isp];			// where it goes
 	eval();					// attempt to compile it
@@ -1112,17 +1112,19 @@ short run(int savasp, int savssp)		// run compiled code
       case INDMVARF:				// ditto, full size
 	cptr = (cstring *) astk[--asp];		// get string to eval
 	if INDSNOK(cptr->len) ERROR(-(ERRZ58+ERRMLAST)) // too much indirection
-        // fprintf(stderr, "\r\nINDMVARx: [%s] opc=%d", cptr->buf, opc);
+        // fprintf(stderr, "\r\n--- INDMVARx: [%s] opc=%d ---", cptr->buf, opc);
 	source_ptr = cptr->buf;			// what to compile
 	comp_ptr = &istk[isp];			// where it goes
         if ('@' == *source_ptr)
         { // fprintf(stderr,"\r\nINDMVARx: eval() branch");
           atom();
           if (INDEVAL == *(comp_ptr - 1))
-          { *comp_ptr = opc;
+          { // fprintf(stderr, "\r\nwas INDEVAL");
+            *(comp_ptr - 1) = opc;
           }
           else if (localvar_op)
-          { *localvar_op = OPMVAR + opc - INDMVAR;
+          { // fprintf(stderr, "\r\nwas localvar_op");
+            *localvar_op = OPMVAR + opc - INDMVAR;
           }
         }
         else
