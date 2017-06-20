@@ -285,6 +285,8 @@ void evalx(int chain)                           // evaluate source
   int patmat = 0;				// for pattern match funnee
   cstring *ptr;					// spare pointer
   u_char c;
+
+  // fprintf(stderr, "\r\neval(): [%s]", source_ptr);
   atom();                                       // get first operand
   if ((*source_ptr == ')') ||			// do it at a higher level
       (*source_ptr == ',') ||			// ditto

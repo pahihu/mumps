@@ -77,6 +77,8 @@
 //	TYPVARGBLUCIENV: subs uci env OPVAR TYPVARGBLUCIENV #subs (var_u) name
 //	TYPVARIND:	(str on astk[]) [subs] OPVAR TYPEVARIND #subs
 
+u_char *localvar_op;
+
 short localvar()                                // evaluate local variable
 { char c;                                       // current character
   u_char idx = 0;				// index
@@ -88,6 +90,8 @@ short localvar()                                // evaluate local variable
   short ret;					// the return
   int isbp;                                     // flag for $BP
 
+  // fprintf(stderr, "\r\nlocalvar(): [%s]", source_ptr);
+  localvar_op = 0;
   ptr = comp_ptr;				// save comp_ptr
   c = *source_ptr++;                            // get a character
   if (c == '^')					// if it's global
@@ -102,7 +106,9 @@ short localvar()                                // evaluate local variable
 	atom();					// eval the argument
 	c = *source_ptr++; 			// get next
       }
-      if (c != ']') return (-(ERRZ12+ERRMLAST)); // that's junk
+      if (c != ']')
+      { return (-(ERRZ12+ERRMLAST));             // that's junk
+      }
       c = *source_ptr++; 			// get next
     }
     else if (c == '(')				// naked reference ?
@@ -118,7 +124,8 @@ short localvar()                                // evaluate local variable
   }
   isbp = (c == '$') && (0 == strncasecmp(source_ptr,"BP",2));
   if ((isalpha((int)c) == 0) && (c != '%') && (c != '$'))// check for a variable
-    return (-(ERRZ12+ERRMLAST));                // return the error
+  { return (-(ERRZ12+ERRMLAST));                // return the error
+  }
   if ((c == '$') && (type == TYPVARNAM) && !isbp)  // check $...
   { if (isalpha(*source_ptr) == 0)		// next must be alpha
     { return (-(ERRZ12+ERRMLAST));              // return the error
@@ -148,11 +155,15 @@ subs:
       count++;					// count it
       c = *source_ptr++;			// get next character
       if (c == ')') break;			// quit when done
-      if (c != ',') return (-(ERRZ12+ERRMLAST)); // return the error
+      if (c != ',') 
+      { return (-(ERRZ12+ERRMLAST));             // return the error
+      }
     }
   }
   if (count > TYPMAXSUB)			// too many
-    return -(ERRZ15+ERRMLAST);			// error
+  { return -(ERRZ15+ERRMLAST);			// error
+  }
+  localvar_op = comp_ptr;
   ret = comp_ptr - ptr;				// remember here
   *comp_ptr++ = OPVAR;				// opcode
   if ((type < TYPVARGBL) &&			// candidate for index?

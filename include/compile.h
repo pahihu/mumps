@@ -44,9 +44,11 @@
 		   partab.jobtab->attention = 1;\
 		   break; }				// report an error
 
-#define INDSNOK(S) (((S * 2) + (sizeof(int) *2) + isp) > MAX_ISTK)
+// #define INDSNOK(S) (((S * 2) + (sizeof(int) *2) + isp) > MAX_ISTK)
+#define INDSNOK(S) (((S * 2) + (sizeof(mumpspc) + sizeof(isp)) + isp) > MAX_ISTK)
 	// The above is for testing indirection size - a guess
-#define INDANOK(A) ((comp_ptr + (sizeof(int) * 2) + 1) >= &istk[MAX_ISTK])
+// #define INDANOK(A) ((comp_ptr + (sizeof(int) * 2) + 1) >= &istk[MAX_ISTK])
+#define INDANOK(A) ((comp_ptr + (sizeof(mumpspc) + sizeof(isp)) + 1) >= &istk[MAX_ISTK])
 	// The above is for testing the address of compiled indirection
 
 
