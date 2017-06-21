@@ -59,9 +59,9 @@ void help(void)                                 // give some help
   printf( "                   and optionally -m mapblocksize(kb)\n");
   printf( "  volnam is 1 to %d alpha characters\n\n",MAX_NAME_BYTES);
   printf( "To initialize an environment:\n");
-  printf( "> mumps -j maxjobs -r routinemb -g globalmb -a addmb database\n");
-  printf("         -l jrnkb\n");
-  printf( "           routinemb, globalmg, addmb and jrnkb are optional\n\n");
+  printf( "> mumps -j maxjobs  -r routinemb\n");
+  printf( "        -g globalmb -a addmb -l jrnkb  database\n");
+  printf( "  routinemb, globalmb, addmb and jrnkb are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");

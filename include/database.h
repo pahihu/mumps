@@ -167,6 +167,7 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 } gbd;							// end gbd struct
 
 #define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))
+#define MIN_JRNREC      20                              // min. JRN records
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 { u_short size;						// size of record
