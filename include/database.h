@@ -166,6 +166,8 @@ typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
 #endif
 } gbd;							// end gbd struct
 
+#define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))
+
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 { u_short size;						// size of record
   u_char action;					// what it is
@@ -187,7 +189,8 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 
 // Note: The first 4 bytes (u_int) = (MUMPS_MAGIC - 1).
 //	 The next 8 bytes (off_t) in the file point at the next free byte.
-//	 (Initially 12 and always rounded to the next 4 byte boundary).
+//	 (Initially 16+sizeof(time_t) and always rounded to the next 4 
+//        byte boundary).
 //	 Journal file is only accessed while a write lock is held.
 //	 Protection on the file is changed to g:rw by init_start (TODO).
 

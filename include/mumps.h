@@ -70,7 +70,7 @@
 #define FALSE           0                       // nicer than using 0
 #define TRUE            1                       // or 1
 
-#define MUMPS_MAGIC     4155766917UL            // seems unique
+#define MUMPS_MAGIC     4155766917U             // seems unique
 #define MUMPS_SYSTEM    50                      // MDC assigned number
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
@@ -352,8 +352,8 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int lasttry;                                // Search Last Tries
   u_int lastok;                                 // Search Last Successes
 
-  u_int lastwrtry;                              // Write Last Tries
-  u_int lastwrok;                               // Write Last Successes
+  u_int lastwttry;                              // Write Last Tries
+  u_int lastwtok;                               // Write Last Successes
   u_int eventcnt;                               // Event Count
 
   u_int logrd;                                  // Logical Block Reads
@@ -560,7 +560,7 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   long addsize;                                 // add buff size
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
-  VOLATILE u_int WDPtime;                       // Write Daemon Poll time
+  VOLATILE u_int WDPtime;                       // Write Daemon Poll time (msec)
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores

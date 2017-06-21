@@ -610,7 +610,7 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
 INT(INT,%,O,N,EX,I,LS,D,M,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwrtry,lastwrok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W $&V(1,1),$C(27)_"[J" S:'INT INT=1
  D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
  W $&V(23,1),! Q
@@ -1287,12 +1287,11 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 
 JOURNLST
 JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
-;Allow for 64 bit time_t in the file - rdn
 ;typedef struct JRNREC                                   // journal record
 ;{ u_short size;                                         // size of following
 ;  u_char action;                                        // what it is
 ;  u_char uci;                                           // uci number
-;  time_t time;                                          // now
+;  time_t time;                                          // now (4/8byte)
 ;  var_u name;                                           // global name
 ;  u_char slen;                                          // subs length
 ;  u_char key[256];                                      // the key to 256 char
@@ -1315,21 +1314,21 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
  I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 G ASK
  W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
- S OFF=12 F  D  Q:OFF'<OFFSET
+ S OFF=12,TSIZE=^$S("tsize") F  D  Q:OFF'<OFFSET
 ;Scan the file
- .U 1 R TIME#8 U 0 S SIZE=$$CVT($E(TIME,1,2)),UCI=$A(TIME,4),ACTION=$A(TIME,3)
+ .U 1 R TIME#(4+TSIZE) U 0 S SIZE=$$CVT($E(TIME,1,2)),UCI=$A(TIME,4),ACTION=$A(TIME,3)
 ;.Get the fixed fields
- .S TIME=$$CVT($E(TIME,5,8)),TIME=(TIME\86400+47117)_","_(TIME#86400)
+ .S TIME=$$CVT($E(TIME,5,5+TSIZE-1)),TIME=(TIME\86400+47117)_","_(TIME#86400)
 ;.Convert time
  .S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
 ;.Setup ACTION
  .W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
 ;.Write the first bit
- .I SIZE=8 S OFF=OFF+SIZE W ! Q
+ .I 4+TSIZE=SIZE S OFF=OFF+SIZE W ! Q
 ;.If a "small" one, that's all
- .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-8) U 0
+ .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-4-TSIZE) U 0
 ;.Get the rest of the record
- .I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
+;.I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
 ;.Check for a 64 bit time_t here
  .S NAME=$TR($E(DATA,1,$$GLOSIZE^%MV1),$C(0)),SLEN=$A(DATA,1+$$GLOSIZE^%MV1),DATA=$E(DATA,2+$$GLOSIZE^%MV1,99999)
 ;.Extract the name and key length
@@ -1340,7 +1339,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  .S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2))
 ;.Extract the data
  .W "=",DATA,!
- .S NREC=$G(NREC)+1 I NREC#20=0 U $P R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
+ .S NREC=$G(NREC)+1 I NREC#20=0 U 0 R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
 ;.Finally the data (if any)
  C 1 Q
 ;---
@@ -1349,6 +1348,7 @@ CVT(BIN,I,N) ;Convert binary string to number
  I $$BIGEND^%MV1 F N=1:1:$L(BIN) S I=I*256+$A(BIN,N)
  E  F N=$L(BIN):-1:1  S I=I*256+$A(BIN,N)
  Q I
+
 
 SSD
 SSD ;Shutdown ; V 3.0 10 Oct 1999 06:23 PM

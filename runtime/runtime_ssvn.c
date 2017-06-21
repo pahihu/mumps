@@ -321,6 +321,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 
     case 'S':					// $SYSTEM
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "tsize\0", 6) == 0))
+      { return itocstring(buf, sizeof(time_t)); // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "zminspace\0", 10) == 0))
       { return itocstring(buf, systab->ZMinSpace); // return the value
       }
@@ -430,10 +434,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return itocstring(buf, systab->vol[i]->stats.lastok);
 	if (strncasecmp( (char *) subs[2]->buf, "lasttry\0", 8) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.lasttry);
-	if (strncasecmp( (char *) subs[2]->buf, "lastwrok\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lastwrok);
-	if (strncasecmp( (char *) subs[2]->buf, "lastwrtry\0", 10) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lastwrtry);
+	if (strncasecmp( (char *) subs[2]->buf, "lastwtok\0", 9) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.lastwtok);
+	if (strncasecmp( (char *) subs[2]->buf, "lastwttry\0", 10) == 0)
+	  return itocstring(buf, systab->vol[i]->stats.lastwttry);
 	if (strncasecmp( (char *) subs[2]->buf, "eventcnt\0", 9) == 0)
 	  return itocstring(buf, systab->vol[i]->stats.eventcnt);
 	if (strncasecmp( (char *) subs[2]->buf, "logrd\0", 6) == 0)

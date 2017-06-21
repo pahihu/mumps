@@ -705,22 +705,24 @@ short Compress1()
 void ClearJournal(int vol)				// clear journal
 { jrnrec jj;						// to write with
   int jfd;						// file descriptor
-  u_char tmp[12];
+  u_char tmp[sizeof(u_int) + sizeof(off_t)];            // was 12bytes
 
   jfd = open(systab->vol[vol]->vollab->journal_file,
         O_TRUNC | O_RDWR | O_CREAT, 0770);		// open it
   if (jfd > 0)						// if OK
   { (*(u_int *) tmp) = (MUMPS_MAGIC - 1);
-    (*(off_t *) &tmp[4]) = 20;				// next free byte
-    (void)write(jfd, tmp, 12);
+    (*(off_t *) &tmp[sizeof(u_int)]) = sizeof(tmp) +    // was 20bytes
+                                        MIN_JRNREC_SIZE;// next free byte
+    (void)write(jfd, tmp, sizeof(tmp));
     jj.action = JRN_CREATE;
     jj.time = MTIME(0);
     jj.uci = 0;
-    jj.size = 8;
-    (void)write(jfd, &jj, 8);				// write the create rec
+    jj.size = MIN_JRNREC_SIZE;
+    (void)write(jfd, &jj, MIN_JRNREC_SIZE);		// write the create rec
     (void)fchmod(jfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // make grp wrt
     (void)close(jfd);					// and close it
-    systab->vol[vol]->jrn_next = (off_t) 20;		// where it's upto
+    systab->vol[vol]->jrn_next = (off_t) sizeof(tmp) +
+                                        MIN_JRNREC_SIZE;// where it's upto
   }
   return;						// done
 }
@@ -746,9 +748,9 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   { goto fail;
   }
   jj->time = MTIME(0);					// store the time
-  jj->size = 3 + sizeof(u_short) + sizeof(time_t) + sizeof(var_u) + jj->slen;
+  jj->size = sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t) + sizeof(var_u) + sizeof(u_char) + jj->slen;
   if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) // not SET of KILL
-  { jj->size = 8;					// size is 8
+  { jj->size = MIN_JRNREC_SIZE;				// size is 8
   }
   i = jj->size;
   if (jj->action == JRN_SET)
@@ -769,8 +771,8 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   { jj->size += (4 - (jj->size & 3));			// round it
   }
   systab->vol[volnum  - 1]->jrn_next += jj->size;	// update next
-  jptr = lseek(partab.jnl_fds[volnum - 1], 4, SEEK_SET);
-  if (jptr != 4)
+  jptr = lseek(partab.jnl_fds[volnum - 1], sizeof(u_int), SEEK_SET);
+  if (jptr != sizeof(u_int))
   { goto fail;
   }
   j = write(partab.jnl_fds[volnum - 1],

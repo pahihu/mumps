@@ -415,8 +415,8 @@ int INIT_Start( char *file,                     // database
         // i = fcntl(jfd, F_NOCACHE, 1);
 	lseek(jfd, 0, SEEK_SET);
 	errno = 0;
-	i = read(jfd, tmp, 4);			// read the magic
-	if ((i != 4) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+	i = read(jfd, tmp, sizeof(u_int));	// read the magic
+	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
 	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
 		  systab->vol[0]->vollab->journal_file);
 	  close(jfd);
@@ -439,10 +439,12 @@ int INIT_Start( char *file,                     // database
 	    { jj.action = JRN_START;
 	      jj.time = MTIME(0);
 	      jj.uci = 0;
-	      jj.size = 8;
-	      i = write(jfd, &jj, 8);		// write the create record
-	      systab->vol[0]->jrn_next += 8;	// adjust pointer
-	      lseek(jfd, 4, SEEK_SET);
+	      jj.size = MIN_JRNREC_SIZE;
+	      i = write(jfd, &jj,               // write the create record
+                                MIN_JRNREC_SIZE);
+	      systab->vol[0]->jrn_next += 
+                                MIN_JRNREC_SIZE;// adjust pointer
+	      lseek(jfd, sizeof(u_int), SEEK_SET);
 	      i = write(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
 	      i = close(jfd);			// and close it
 	      systab->vol[0]->vollab->journal_available = 1;

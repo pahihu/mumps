@@ -190,7 +190,7 @@ short Set_data(cstring *data)				// set a record
     }
     if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// if one there
-    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrtry); // count a try
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwttry); // count a try
       gptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)];// get listhead
       while (gptr != NULL)				// for each in list
       { if (gptr->block != i)                           // not found
@@ -235,7 +235,7 @@ short Set_data(cstring *data)				// set a record
           }
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
-          { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwrok); // count it
+          { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwtok); // count it
             blk[level]->last_accessed = MTIME(0);       // accessed
 #ifdef MV1_REFD
             REFD_MARK(blk[level]);
