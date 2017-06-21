@@ -562,6 +562,10 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE u_int WDPtime;                       // Write Daemon Poll time (msec)
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
+  int syncjrn;                                  // fsync() journal file
+  VOLATILE u_int jrnbufsize;                    // current journal buffer size
+  u_int   jrnbufcap;                            // journal buffer capacity
+  u_char *jrnbuf;                               // journal buffer
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;

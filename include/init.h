@@ -50,7 +50,8 @@ int INIT_Start( char *file,                     // database
                 int jobs,                       // number of jobs
                 int gmb,                        // mb of global buf
                 int rmb,                        // mb of routine buf
-                int addmb);                     // mb of additional buf
+                int addmb,                      // mb of additional buf
+                int jrnkb);                     // kb of jrn buf
 void ST_Init();					// empty symbol table
 
 #endif                                          // !_MUMPS_INIT_H_

@@ -47,6 +47,7 @@
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
+#include <sys/stat.h>                                   // for stat()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -381,6 +382,46 @@ void do_dismount()					// dismount volnum
       systab->jobtab[i].attention = 1;			// look at it
     }
   }
+
+  if ((systab->vol[0]->vollab->journal_requested) &&    // flush journal
+           (systab->vol[0]->vollab->journal_file[0]))
+  { struct stat   sb;				// File attributes
+    int jfd;					// file descriptor
+
+    i = stat(systab->vol[0]->vollab->journal_file, &sb ); // check for file
+    if (i < 0)		                        // if that's junk
+    { fprintf(stderr, "Failed to access journal file %s\n",
+    		systab->vol[0]->vollab->journal_file);
+    }
+    else					// do something
+    { jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
+      if (jfd < 0)				// on fail
+      { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
+		systab->vol[0]->vollab->journal_file, errno);
+      }
+      else					// if open OK
+      { u_char tmp[sizeof(u_int) + sizeof(off_t)];
+
+        // i = fcntl(jfd, F_NOCACHE, 1);
+	lseek(jfd, 0, SEEK_SET);
+	errno = 0;
+	i = read(jfd, tmp, sizeof(u_int));	// read the magic
+	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
+		  systab->vol[0]->vollab->journal_file);
+	  close(jfd);
+	}
+	else
+	{ i = FlushJournal(jfd, 1);
+          if (i < 0)
+	  { fprintf(stderr, "Failed to flush journal file %s\nLast failed - %d\n",
+	        systab->vol[0]->vollab->journal_file, errno);
+	  }
+          close(jfd);
+	}
+      }
+    }
+  }						        // end journal stuff
 
   for (i=0; i<systab->vol[volnum-1]->num_gbd; i++)	// look for unwritten
   { if ((systab->vol[volnum-1]->gbd_head[i].block) && 	// if there is a blk

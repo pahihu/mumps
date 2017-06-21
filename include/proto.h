@@ -88,7 +88,8 @@ short DB_UCISet(int vol, int uci, var_u name);   // set uci name
 short DB_UCIKill(int vol, int uci);              // kill uci entry
 short DB_Expand(int vol, u_int vsiz);		     // expand db
 int DB_Dismount(int vol);			             // dismount a volume
-void ClearJournal();				             // clear journal
+void ClearJournal(int jfd, int vol);             // clear journal
+short FlushJournal(int jfd, int dosync);         // flush JNL buffer w/ sync
 void DB_StopJournal(int vol, u_char action);	 // Stop journal
 int DB_GetFlags(mvar *var);                    	 // Get flags
 int DB_SetFlags(mvar *var, int flags);         	 // Set flags

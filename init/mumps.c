@@ -60,7 +60,8 @@ void help(void)                                 // give some help
   printf( "  volnam is 1 to %d alpha characters\n\n",MAX_NAME_BYTES);
   printf( "To initialize an environment:\n");
   printf( "> mumps -j maxjobs -r routinemb -g globalmb -a addmb database\n");
-  printf( "                 routinemb, globalmg and addmb are optional\n\n");
+  printf("         -l jrnkb\n");
+  printf( "           routinemb, globalmg, addmb and jrnkb are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
@@ -86,6 +87,7 @@ int main(int argc,char **argv)                  // main entry point
   char *cmd = NULL;                             // startup command
   char *cmd1 = "D ^%1MV1LGI\0";                 // cmd for one
   char *db1 = "/one/onedb\0";                   // db for one
+  int jrnkb = 0;                                // jrn buf KB
 //  printf ("argc = %d\nargv[0] = %s\n", argc, argv[0]);
   if (argc == 1)
   { if (strcmp( argv[0], "one\0" ) == 0 )       // allow for a name of 'one'
@@ -95,7 +97,7 @@ int main(int argc,char **argv)                  // main entry point
     }
   }
   if (argc < 2) help();                         // they need help
-  while ((c = getopt(argc, argv, "b:e:g:hj:m:r:s:v:x:")) != EOF)
+  while ((c = getopt(argc, argv, "b:e:g:hj:l:m:r:s:v:x:")) != EOF)
   { switch(c)
     { case 'a':                                 // switch -a
         addmb = atoi(optarg);                   // additional buffer
@@ -114,6 +116,9 @@ int main(int argc,char **argv)                  // main entry point
         break;
       case 'j':                                 // switch -j
         jobs = atoi(optarg);                    // max number of jobs   (init)
+        break;
+      case 'l':                                 // switch -l
+        jrnkb = atoi(optarg);                   // jrn buffer KB        (init)
         break;
       case 'm':                                 // switch -m
         map = atoi(optarg);                     // size of map block    (creDB)
@@ -153,7 +158,8 @@ int main(int argc,char **argv)                  // main entry point
                       jobs,                     // number of jobs
                       gmb,                      // mb of global buf
                       rmb,                      // mb of routine buf
-                      addmb));                  // mb of additional buf
+                      addmb,                    // mb of additional buf
+                      jrnkb));                  // kb of jrn buf
 
 runit:
   c = INIT_Run( *argv, env, cmd);               // run a job

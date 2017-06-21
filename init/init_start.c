@@ -84,7 +84,8 @@ int INIT_Start( char *file,                     // database
                 int jobs,                       // number of jobs
                 int gmb,                        // mb of global buf
                 int rmb,                        // mb of routine buf
-                int addmb)                      // mb of additional buf
+                int addmb,                      // mb of additional buf
+                int jnrkb)                      // kb of jrn buf
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i, j;                                     // usefull int
@@ -402,7 +403,7 @@ int INIT_Start( char *file,                     // database
     }
     else					// do something
     { if (i < 0)				// if doesn't exist
-      { ClearJournal(0);			// create it
+      { ClearJournal(0, 0);			// create it
       }						// end create code
       jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
       if (jfd < 0)				// on fail
@@ -410,7 +411,7 @@ int INIT_Start( char *file,                     // database
 		systab->vol[0]->vollab->journal_file, errno);
       }
       else					// if open OK
-      { u_char tmp[12];
+      { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
         // i = fcntl(jfd, F_NOCACHE, 1);
 	lseek(jfd, 0, SEEK_SET);

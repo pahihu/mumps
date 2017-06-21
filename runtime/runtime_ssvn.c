@@ -724,7 +724,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0) &&
 	    (cstringtoi(data) == 0))		// clear journal
 	{ while (SemOp( SEM_GLOBAL, -systab->maxjob)); // lock GLOBAL
-	  ClearJournal(i);			// do it
+	  ClearJournal(partab.jnl_fds[i], i);	// do it
 	  SemOp( SEM_GLOBAL, systab->maxjob);	// unlock global
 	  return 0;				// done
 	}
