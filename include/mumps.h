@@ -135,6 +135,8 @@
 #define SQ_CONTROLT     16384                   // enable control t status
 #define SQ_NOCONTROLT	32768                   // disable control t status
 
+#define IN_TERMS_SIZE   32                      // Input Terminator Array size
+
 #if defined(__linux__) && !defined(__LP64__)
 #define SHMAT_SEED      (void *)0x1000000
 #elif defined(__APPLE__) && defined(__LP64__)   // OS X 10.10 Yosemite
@@ -480,7 +482,8 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN
   u_char dkey[MAX_DKEY_LEN+1];                  // stored $KEY (null term)
   short out_len;                                // length of output terminator
   u_char out_term[MAX_SEQ_OUT];                 // the output terminator
-  int in_term;                                  // input terminator bit mask
+  u_char in_terms[IN_TERMS_SIZE];               // input terminator bit mask
+  int    in_terms_crlf;                         // Input Terminator is CRLF
   var_u nmspace;                                // routine for namespace
 } SQ_Chan;                                      // define the $I stuf
 

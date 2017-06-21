@@ -117,7 +117,10 @@
 #define		UNLIMITED	-1		// Unlimited
 
 static int	MASK[MASKSIZE];			// Set bit mask
-static int	CRLF;				// CRLF
+// static int	CRLF;				// CRLF
+
+#define BIT_SET(bm,i)    (bm[(i) >> 3] |= (1 << ((i) & 3)))
+#define BIT_GET(bm,i)    (bm[(i) >> 3] &  (1 << ((i) & 3)))
 
 // ************************************************************************* //
 // The following required for linux					     //
@@ -141,8 +144,8 @@ int getObjectType ( char *object );
 int getObjectMode ( int fd );
 int getModeCategory ( int mode );
 int checkCtrlChars ( cstring *cstr );
-int getBitMask ( cstring *cstr );
-int isINTERM ( char *readbuf, int nbytes, int options, int interm );
+int getBitMask ( u_char *bmask, int bmask_len, cstring *cstr );
+int isINTERM ( char *readbuf, int nbytes, int options, u_char *interm );
 int isChan ( int chan );
 int isType ( int type );
 int isChanFree ( int chan );
@@ -179,21 +182,20 @@ int signalCaught ( SQ_Chan *c );
 
 short SQ_Init (void)
 { int			index;			// Useful variable
-  int			mask;			// Useful variable
   int			ret;			// Return value
   int			typ;			// object type
   
   // Integer bit mask
 
   for ( index = 0; index < MASKSIZE; index++ )
-    MASK[index] = toThePower ( index );
+    MASK[index] = 1 << index; // toThePower ( index );
 
   // CRLF
 
-  mask = 1 << 13;
-  CRLF = mask;
-  mask = 1 << 10;
-  CRLF |= mask;
+  // mask = 1 << 13;
+  // CRLF = mask;
+  // mask = 1 << 10;
+  // CRLF |= mask;
   
   // Define the set of signals that are to be delivered, ignored etc
  
@@ -457,10 +459,10 @@ short SQ_Use (int chan, cstring *interm, cstring *outerm, int par)
   { if ( chan == STDCHAN ) return ( 0 );
     else return ( getError ( INT, ERRZ27 ));
   }
-  if ( interm != NULL )
-  { ret = checkCtrlChars ( interm );
-    if ( ret < 0 ) return ( ret );
-  }
+  // if ( interm != NULL )
+  // { ret = checkCtrlChars ( interm );
+  //   if ( ret < 0 ) return ( ret );
+  // }
   if ( outerm != NULL )
   { ret = checkCstring ( outerm );
     if ( ret < 0 ) return ( ret );
@@ -476,11 +478,14 @@ short SQ_Use (int chan, cstring *interm, cstring *outerm, int par)
 
   if ( interm != NULL )			// Set channel's input term(s) bit mask
   { if ( interm->len != 0 )
-    { c->in_term = getBitMask ( interm );
+    { // c->in_term = getBitMask ( interm );
+      c->in_terms_crlf = getBitMask( c->in_terms, IN_TERMS_SIZE, interm );
       flag = SET;
     }
     else
-    { c->in_term = 0;
+    { // c->in_term = 0;
+      bzero( c->in_terms, IN_TERMS_SIZE );
+      c->in_terms_crlf = 0;
       flag = UNSET;
     }
   }
@@ -895,9 +900,9 @@ short SQ_ReadStar (int *result, int timeout)
 
   // ReadStar options
 
-#ifndef  __APPLE__
+// #ifndef  __APPLE__
   partab.jobtab->seqio[chan].options &= ~ ( MASK[INTERM] );
-#endif                                                          // OSX doesn't like this !!!!!
+// #endif                                                          // OSX doesn't like this !!!!!
   partab.jobtab->seqio[chan].options &= ~ ( MASK[TTYECHO] );
   partab.jobtab->seqio[chan].options &= ~ ( MASK[DEL8] );
   partab.jobtab->seqio[chan].options &= ~ ( MASK[DEL127] );
@@ -1291,20 +1296,19 @@ int checkCtrlChars (cstring *cstr)
 }
 
 // ************************************************************************* //
-// This function returns an integer, which represents a bit mask corresponding
-// to the array of control characters "cstr->buf".
+// This function returns a flag which means the bitmask represents CR-LF. It
+// sets a bit mask corresponding to the array of control characters "cstr->buf".
 
-int getBitMask (cstring *cstr)
+int getBitMask (u_char *bmask, int bmask_len, cstring *cstr)
 { int	index;				// Index
-  int	chmask;				// Characters bit mask
-  int	mask;				// Array's bit mask
+  int	ch;				// Character
 
-  mask = 0;
+  bzero(bmask, bmask_len);
   for ( index = 0; index < cstr->len; index++ ) {
-    chmask = 1 << (int)cstr->buf[index];
-    mask = mask | chmask;
+    ch = (int) cstr->buf[index]; 
+    BIT_SET(bmask, ch);
   }
-  return ( mask );
+  return (2 == cstr->len) && BIT_GET(bmask, 13) && BIT_GET(bmask, 10);
 }
 
 // ************************************************************************* //
@@ -1375,15 +1379,15 @@ int getOperation (cstring *op)
 // integer value of 0.  If bit 0 in the integer "interm" is equal to 1, then
 // this bit has been set.
 
-int isINTERM (char *readbuf, int nbytes, int options, int interm)
+int isINTERM (char *readbuf, int nbytes, int options, u_char *interm)
 { int	index;
   int	value;
 
   if ( options & MASK[INTERM] )
   { for ( index = 0; index < nbytes; index++ )
     { value = (int)(readbuf[index]);
-      if ( ( value >= 0 ) && ( value <= 31 ) )
-      { if ( interm & MASK[value] )
+      // if ( ( value >= 0 ) && ( value <= 31 ) )
+      { if ( BIT_GET(interm, value) )
 	{ return ( index );
 	}
       }
@@ -1634,10 +1638,11 @@ int readFILE (int chan, u_char *buf, int maxbyt)
     // Check if an input terminator has been received
 
     if ( c->options & MASK[INTERM] )
-    { if ((int)(buf[bytesread]) <= 31 )
-      { if ( c->in_term == CRLF )
-        { if ( (int)(buf[bytesread]) == 13 ) crflag = 1;
-          else if (((int)(buf[bytesread]) == 10 ) &&
+    { // if ((int)(buf[bytesread]) <= 31 )
+      { int ch = (int)(buf[bytesread]);
+        if ( c->in_terms_crlf )
+        { if ( ch == 13 ) crflag = 1;
+          else if ((ch == 10 ) &&
                    ( crflag == 1 ))
           { c->dkey_len = 2;
             c->dkey[0] = (char)13;
@@ -1646,9 +1651,9 @@ int readFILE (int chan, u_char *buf, int maxbyt)
             return ( bytesread - 1 );
           }
         }
-        else if ( c->in_term & MASK[(int)(buf[bytesread])] )
+        else if ( BIT_GET(c->in_terms, ch) )
         { c->dkey_len = 1;
-          c->dkey[0] = buf[bytesread];
+          c->dkey[0] = ch;
           c->dkey[1] = '\0';
           return ( bytesread );
         }
@@ -1744,10 +1749,11 @@ int readTCP (int chan, u_char *buf, int maxbyt, int tout)
     // Check if an input terminator has been received
 
     if ( c->options & MASK[INTERM] )
-    { if ( (int)(buf[bytesread]) <= 31 )
-      { if ( c->in_term == CRLF )
-	{ if ( (int)(buf[bytesread]) == 13 ) crflag = 1;
-	  else if (( (int)(buf[bytesread]) == 10 ) &&
+    { // if ( (int)(buf[bytesread]) <= 31 )
+      { int ch = (int)(buf[bytesread]);
+        if ( c->in_terms_crlf )
+	{ if ( ch == 13 ) crflag = 1;
+	  else if (( ch == 10 ) &&
 		   ( crflag == 1 ))
 	  { c->dkey_len = 2;
 	    c->dkey[0] = (char)13;
@@ -1756,9 +1762,9 @@ int readTCP (int chan, u_char *buf, int maxbyt, int tout)
 	    return ( bytesread - 1 );
 	  }
 	}
-        else if ( c->in_term & MASK[(int)(buf[bytesread])] )
+        else if ( BIT_GET(c->in_terms, ch) )
 	{ c->dkey_len = 1;
-	  c->dkey[0] = buf[bytesread];
+	  c->dkey[0] = ch;
 	  c->dkey[1] = '\0';
           return ( bytesread );
         }
@@ -1812,10 +1818,11 @@ int readPIPE (int chan, u_char *buf, int maxbyt, int tout)
     // Check if an input terminator has been received
 
     else if (( c->options & MASK[INTERM] ) && (ret))
-    { if ((int)(buf[bytesread]) <= 31 )
-      { if ( c->in_term == CRLF )
-        { if ( (int)(buf[bytesread]) == 13 ) crflag = 1;
-          else if (((int)(buf[bytesread]) == 10 ) &&
+    { // if ((int)(buf[bytesread]) <= 31 )
+      { int ch = (int)(buf[bytesread]);
+        if ( c->in_terms_crlf )
+        { if ( ch == 13 ) crflag = 1;
+          else if ((ch == 10 ) &&
                    ( crflag == 1 ))
           { c->dkey_len = 2;
             c->dkey[0] = (char)13;
@@ -1824,9 +1831,9 @@ int readPIPE (int chan, u_char *buf, int maxbyt, int tout)
             return ( bytesread - 1 );
           }
         }
-        else if ( c->in_term & MASK[(int)(buf[bytesread])] )
+        else if ( BIT_GET(c->in_terms, ch) )
         { c->dkey_len = 1;
-          c->dkey[0] = buf[bytesread];
+          c->dkey[0] = ch;
           c->dkey[1] = '\0';
           return ( bytesread );
         }
@@ -1980,13 +1987,13 @@ int readTERM (int chan, u_char *buf, int maxbyt, int tout)
 
     // Check if an input terminator has been received
 
-    if ( c->options & MASK[INTERM] ) {
-      if ( (int)(buf[bytesread]) <= 31 )
-      { 
-        if ( c->in_term == CRLF )
-        { if ( (int)(buf[bytesread]) == 13 ) crflag = 1;
+    if ( c->options & MASK[INTERM] )
+    { // if ( (int)(buf[bytesread]) <= 31 )
+      { int ch = (int)(buf[bytesread]);
+        if ( c->in_terms_crlf )
+        { if ( ch == 13 ) crflag = 1;
           else if (
-                  ( (int)(buf[bytesread]) == 10 ) &&
+                  ( ch == 10 ) &&
                   ( crflag == 1 )
                   )
           { c->dkey_len = 2;
@@ -1996,9 +2003,9 @@ int readTERM (int chan, u_char *buf, int maxbyt, int tout)
             return ( bytesread - 1 );
           }
         }
-        else if ( c->in_term & MASK[(int)(buf[bytesread])] )
+        else if ( BIT_GET(c->in_terms, ch) )
         { c->dkey_len = 1;
-          c->dkey[0] = buf[bytesread];
+          c->dkey[0] = ch;
           c->dkey[1] = '\0';
           return ( bytesread );
         }
