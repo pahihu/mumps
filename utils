@@ -1287,6 +1287,7 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 
 JOURNLST
 JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
+;Allow for 64 bit time_t in the file - rdn
 ;typedef struct JRNREC                                   // journal record
 ;{ u_short size;                                         // size of following
 ;  u_char action;                                        // what it is
@@ -1306,19 +1307,22 @@ JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
 ;#define JRN_SET         4                               // Set global
 ;#define JRN_KILL        5                               // Kill global
 ;
- N NREC,ANS,$ET S $ET="D ^%ET"
+ N NREC,ANS,OD,CTIME,OTIME,HDR,$ET S $ET="D ^%ET",OTIME=""
 ASK R "Enter file: ",FILE,! Q:FILE=""
+ R "Enter outfile: ",OFILE,!
+ S OD=0 I $L(OFILE) O 2:(OFILE:"W") S OD=2
  I '$&%FILE(FILE,"EXISTS") W "NO SUCH FILE",! G ASK
  C 1 O 1:(FILE:"R") U 1:("TERMINATOR=")
- R MAGIC#4,OFFSET#8 U 0
+ R MAGIC#4,OFFSET#8 U OD
  S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
  I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 G ASK
  W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
  S OFF=12,TSIZE=^$S("tsize") F  D  Q:OFF'<OFFSET
 ;Scan the file
- .U 1 R TIME#(4+TSIZE) U 0 S SIZE=$$CVT($E(TIME,1,2)),UCI=$A(TIME,4),ACTION=$A(TIME,3)
+ .U 1 R HDR#(4+TSIZE) U OD S SIZE=$$CVT($E(HDR,1,2)),UCI=$A(HDR,4),ACTION=$A(HDR,3)
 ;.Get the fixed fields
- .S TIME=$$CVT($E(TIME,5,5+TSIZE-1)),TIME=(TIME\86400+47117)_","_(TIME#86400)
+ .S CTIME=$E(HDR,5,5+TSIZE-1)
+ .S:OTIME'=CTIME TIME=$$CVT(CTIME),TIME=(TIME\86400+47117)_","_(TIME#86400),OTIME=CTIME
 ;.Convert time
  .S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
 ;.Setup ACTION
@@ -1326,7 +1330,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
 ;.Write the first bit
  .I 4+TSIZE=SIZE S OFF=OFF+SIZE W ! Q
 ;.If a "small" one, that's all
- .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-4-TSIZE) U 0
+ .S:SIZE#4 SIZE=SIZE\4+1*4 S OFF=OFF+SIZE U 1 R DATA#(SIZE-4-TSIZE) U OD
 ;.Get the rest of the record
 ;.I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
 ;.Check for a 64 bit time_t here
@@ -1339,16 +1343,15 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  .S DBC=$$CVT($E(DATA,1,2)),DATA=$$DISP^%U($E(DATA,3,DBC+2))
 ;.Extract the data
  .W "=",DATA,!
- .S NREC=$G(NREC)+1 I NREC#20=0 U 0 R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
+ .S NREC=$G(NREC)+1 I 'OD&(NREC#20=0) U 0 R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
 ;.Finally the data (if any)
- C 1 Q
+ C 1 C:OD OD Q
 ;---
 CVT(BIN,I,N) ;Convert binary string to number
  S I=0
  I $$BIGEND^%MV1 F N=1:1:$L(BIN) S I=I*256+$A(BIN,N)
  E  F N=$L(BIN):-1:1  S I=I*256+$A(BIN,N)
  Q I
-
 
 SSD
 SSD ;Shutdown ; V 3.0 10 Oct 1999 06:23 PM
