@@ -470,7 +470,8 @@ unlocked:
   }
   REFD_TYPED_INIT(blk[level]);
 exit:
-  if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
+  // if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
+  if ((writing) && (blk[level]->dirty == NULL))	        // if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
   if (!writing)                                         // if reading

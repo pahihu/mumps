@@ -40,6 +40,9 @@
 #define VOLATILE
 #endif
 
+// #define __PACKED__      __attribute__ ((__packed__))
+#define __PACKED__
+
 
 // **** Defines ***************************************************************
 
@@ -148,7 +151,7 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 
 #endif
 
-typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
+typedef struct __PACKED__ GBD		                // global buf desciptor
 { u_int block;						// block number
 #ifdef MV1_REFD
   VOLATILE struct GBD *prev;				// prev entry in list

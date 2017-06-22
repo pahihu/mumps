@@ -64,6 +64,8 @@
 #define VOLATILE
 #endif
 
+// #define __PACKED__      __attribute__ ((__packed__))
+#define __PACKED__
 
 //** general constant definitions ***/
 
@@ -308,12 +310,12 @@ typedef struct __attribute__ ((__packed__)) UCI_TAB
   u_int global;                                 // ptr to global directory
 } uci_tab;                                      // define the uci table
 
-typedef union __attribute__ ((__packed__)) DATA_UNION // diff types of msg data
+typedef union __PACKED__ DATA_UNION             // diff types of msg data
 { struct GBD *gbddata;                          // a gbd pointer
   u_int intdata;                                // or an integer (block number)
 } msg_data;                                     // end data msg union
 
-typedef struct __attribute__ ((__packed__)) WD_TAB // write daemon table
+typedef struct __PACKED__ WD_TAB                // write daemon table
 { int pid;                                      // the wd's pid
   VOLATILE int doing;                           // what we are doing
   VOLATILE msg_data currmsg;                    // the current gbd */block#
@@ -341,7 +343,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
 #define SIZEOF_LABEL_BLOCK	3072
 #endif
 
-typedef struct __attribute__ ((__packed__)) DB_STAT
+typedef struct __PACKED__ DB_STAT
 { u_int dbget;                                  // Global Gets
   u_int dbset;                                  // Global Sets
   u_int dbkil;                                  // Global Kills
@@ -388,7 +390,7 @@ typedef struct MSEM_STAT
 struct GBD;                                     // defined in "db_util.h"
 struct RBD;                                     // see compile.h
 
-typedef struct __attribute__ ((__packed__)) VOL_DEF
+typedef struct __PACKED__ VOL_DEF
 { label_block *vollab;                          // ptr to volset label block
   void *map;                                    // start of map area
   VOLATILE void *first_free;                    // first word with free bits
@@ -430,7 +432,7 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
 
-typedef struct __attribute__ ((__packed__)) DO_FRAME
+typedef struct __PACKED__ DO_FRAME
 { u_char *routine;                              // addr of rou (or X src)
   u_char *pc;                                   // current mumps pc
   short *symbol;                                // process space sym ptrs
@@ -454,12 +456,12 @@ typedef struct __attribute__ ((__packed__)) DO_FRAME
 
 // *** SEQIO specific *** //
 
-typedef struct __attribute__ ((__packed__)) FORKTAB
+typedef struct __PACKED__ FORKTAB
 { int job_no;
   int pid;
 } forktab;
 
-typedef struct __attribute__ ((__packed__)) SERVERTAB
+typedef struct __PACKED__ SERVERTAB
 { int slots;
   int taken;
   int cid;
@@ -467,7 +469,7 @@ typedef struct __attribute__ ((__packed__)) SERVERTAB
   forktab *forked;
 } servertab;
 
-typedef struct __attribute__ ((__packed__)) SQ_CHAN
+typedef struct __PACKED__ SQ_CHAN
 { u_char type;                                  // type of device
   u_char options;                               // type specific options
   u_char mode;                                  // how object is opened
@@ -489,7 +491,7 @@ typedef struct __attribute__ ((__packed__)) SQ_CHAN
 
 // *** End SEQIO specific *** //
 
-typedef struct __attribute__ ((__packed__)) JOBTAB
+typedef struct __PACKED__ JOBTAB
 { int pid;                                      // O/S PID (0 if unused)
   int cur_do;	                             	// current do frame addr
   u_int commands;                               // commands executed
@@ -533,7 +535,7 @@ typedef struct __attribute__ ((__packed__)) LOCKTAB // internal lock tables
   u_char key[256];                              // and the key
 } locktab;             				// define locktab
 
-typedef struct __attribute__ ((__packed__)) TRANTAB // translation table
+typedef struct __PACKED__ TRANTAB               // translation table
 { var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
   u_char from_uci;                              //      uci#
@@ -542,7 +544,7 @@ typedef struct __attribute__ ((__packed__)) TRANTAB // translation table
   u_char to_uci;                                //      uci#
 } trantab;             				// define trantab
 
-typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
+typedef struct __PACKED__ SYSTAB                // system tables
 { void *address;
   jobtab *jobtab;                               // address of jobtab
   int maxjob;                                   // maximum jobs permitted
@@ -592,7 +594,7 @@ extern int sem_id;                              // global semaphore id
 //** process memory structures ***/
 //** PARTAB definitions **
 
-typedef struct __attribute__ ((__packed__)) PARTAB // define the partition table
+typedef struct __PACKED__ PARTAB                // define the partition table
 { jobtab *jobtab;                               // our jobtab entry
   int vol_fds[MAX_VOL];                         // the filedes for the volumes
   int jnl_fds[MAX_VOL];                         // the filedes for journals
