@@ -53,7 +53,7 @@
        u_int   locqry = 0;                              // Locate() stats
        u_int   lochit = 0;
 
-static int     KeyBufUpdated;                           // flag keybuf[] updated
+static int     KeyBufUpdated = 0;                       // flag keybuf[] updated
 
 //-----------------------------------------------------------------------------
 // Function:    Build_KeyBuf
