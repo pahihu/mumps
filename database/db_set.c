@@ -233,6 +233,9 @@ short Set_data(cstring *data)				// set a record
              bcopy(db_var.key, jj.key, jj.slen);	// copy key
              DoJournal(&jj, data);			// and do it
           }
+          if (blk[level]->dirty == NULL)                // reserve it
+          { blk[level]->dirty = (gbd *) 1;
+          }
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwtok); // count it
@@ -241,6 +244,9 @@ short Set_data(cstring *data)				// set a record
             REFD_MARK(blk[level]);
 #endif
             return s;                                   //   done
+          }
+          if (blk[level]->dirty == (gbd *) 1)           // release it
+          { blk[level]->dirty = NULL;
           }
           if ((s != -(ERRMLAST+ERRZ62)) && (s < 0))	// complain on error
           { return s;					//   except did not fit
