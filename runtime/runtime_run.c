@@ -2410,7 +2410,7 @@ short run(long savasp, long savssp)		// run compiled code
 	    partab.jobtab->cur_do--;		// point back
 	    ERROR(-ERRM58)			// complain: too few params
 	  }
-	  list = (var_u *) &sstk[ssp];		// where we put this
+	  list = (var_u *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where we put this XXX
 	  for (i = 0; i < j; i++)		// for each arg
 	  //{ vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
 	  //  list[i].var_qu = vt[mumpspc[i]];    // get the var name
@@ -2901,7 +2901,7 @@ short run(long savasp, long savssp)		// run compiled code
       case CMNEWB:				// exclusive new variables
 	partab.jobtab->commands++;		// count a command
 	cptr = NULL;				// flag for $ETRAP
-	list = (var_u *) &sstk[ssp];		// where we put this
+	list = (var_u *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where we put this XXX
 	flag = *mumpspc++;			// get arg count
 	args = 0;				// for the calls
 	for (i = 0; i < flag; i++)		// for each arg
@@ -2988,7 +2988,7 @@ short run(long savasp, long savssp)		// run compiled code
         j = CMKVAL  == opc ? KILL_VAL :         // calc. flags
             CMKSUBS == opc ? KILL_SUBS : KILL_ALL;
 	partab.jobtab->commands++;		// count a command
-	list = (var_u *) &sstk[ssp];		// where we put this
+	list = (var_u *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where we put this XXX
 	args = *mumpspc++;			// get arg count
 	for (i = 0; i < args; i++)		// for each arg
 	{ var = (mvar *) astk[--asp];		// point at mvar
