@@ -55,7 +55,24 @@
 
 extern u_char *localvar_op;
 
-short run(int savasp, int savssp)		// run compiled code
+static
+void* ALIGN_STRUCT(void *p_ptr, long *p_ssp)
+{
+  unsigned long long uptr;
+  unsigned int diff;
+
+  uptr = (unsigned long long) p_ptr;
+  // 01234567
+  // ..^.....
+  if (uptr & (sizeof(void*) -1))
+  { diff = sizeof(void*) - (uptr & (sizeof(void*) - 1));
+    uptr   += diff;
+    *p_ssp += diff;
+  }
+  return (void *) uptr;
+}
+
+short run(long savasp, long savssp)		// run compiled code
 { int opc;					// current opcode
   int infor = 0;				// for flag
   int offset;					// for DO, GO, JOB offset
@@ -81,8 +98,8 @@ short run(int savasp, int savssp)		// run compiled code
   tags *ttbl;					// a structure of tags
   rbd *rouadd;					// routine pointer
   do_frame *curframe;				// a do frame pointer
-  int asp;					// copy of asp
-  int ssp;					// and ssp
+  long asp;					// copy of asp
+  long ssp;					// and ssp
   u_char temp[256];				// some temp storage
   for_stack *forx;				// point at a for stack
   //chr_q *vt;					// pointer for var tab
@@ -1086,7 +1103,7 @@ short run(int savasp, int savssp)		// run compiled code
       case OPMVARN:				// build mvar (null subs OK)
       case OPMVARF:				// build mvar on the sstk
         // fprintf(stderr,"\r\nOPMVARx: opc=%d",opc);
-	var = (mvar *) &sstk[ssp];		// where we will put it
+	var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where we will put it XXX
 	s = buildmvar(var, (opc == OPMVARN), asp); // build (chk null OK)
         if (s < 0) ERROR(s)			// complain on error
 	asp = s;				// restore returned asp
@@ -1874,7 +1891,7 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case FUNQL:				// $QL[ENGTH]
 	cptr = (cstring *) astk[--asp];		// the argument
-	var = (mvar *) &sstk[ssp];		// some space
+	var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // some space XXX
 	s = UTIL_MvarFromCStr(cptr, var);	// convert to an mvar
 	if (s < 0) ERROR(s)			// complain on error
 	cptr = (cstring *) var;			// where the answer goes
@@ -1886,7 +1903,7 @@ short run(int savasp, int savssp)		// run compiled code
 	j = cstringtoi((cstring *)astk[--asp]); // get second arg
 	if (j < -1) ERROR(-(ERRMLAST+ERRZ12))	// can't do that
 	ptr1 = (cstring *) astk[--asp];		// the first argument
-	var = (mvar *) &sstk[ssp];		// some space
+	var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // some space XXX
 	s = UTIL_MvarFromCStr(ptr1, var);	// convert to an mvar
 	if (s < 0) ERROR(s)			// complain on error
 	ssp = ssp + MVAR_SIZE + var->slen;      // protect the mvar
@@ -2409,7 +2426,7 @@ short run(int savasp, int savssp)		// run compiled code
 	    partab.jobtab->cur_do--;		// point back
             ERROR(s)			        // complain on error
           }
-	  var = (mvar *) &sstk[ssp];		// get some space
+	  var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // get some space XXX
 	  //var->name.var_qu = 0;		// clear the name
 	  X_Clear(var->name.var_xu);		// clear the name
 	  var->uci = UCI_IS_LOCALVAR;		// all locals
@@ -2931,7 +2948,7 @@ short run(int savasp, int savssp)		// run compiled code
 	else s = ST_NewAll(args, list);		// or a new except
 	if (s < 0) ERROR(s)			// complain on error
 	if (cptr != NULL)			// need to restore $ETRAP?
-	{ var = (mvar *) &sstk[ssp];		// where to put this
+	{ var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where to put this XXX
 	  X_set("$ETRAP\0\0", &var->name.var_cu[0], 8);
 	  var->uci = UCI_IS_LOCALVAR;		// local
 	  var->volset = 0;
@@ -3068,7 +3085,7 @@ short run(int savasp, int savssp)		// run compiled code
 	break;
       case CMFOR0:				// argless FOR
 	partab.jobtab->commands++;		// count a command
-	forx = (for_stack *) &sstk[ssp];	// where to put for stuf
+	forx = (for_stack *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where to put for stuf XXX
 	ssp = ssp + sizeof(for_stack);		// protect it
 	astk[asp++] = (u_char *) forx;		// save the address
 	savasp = asp;				// protect these
@@ -3217,7 +3234,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  }
 	}
 	else
-	{ var = (mvar *) &sstk[ssp];            // somewhere to put it
+	{ var = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // somewhere to put it XXX
           s = buildmvar(var, 0, asp);		// build it
 	  if (s < 0) ERROR(s)			// check it
 	  asp = s;				// restore returned asp
@@ -3226,7 +3243,7 @@ short run(int savasp, int savssp)		// run compiled code
 	  ssp = ssp + var->slen + MVAR_SIZE;
 	  s = -1;				// flag var type
 	}
-	forx = (for_stack *) &sstk[ssp];	// where to put for stuf
+	forx = (for_stack *) ALIGN_STRUCT(&sstk[ssp], &ssp); // where to put for stuf XXX
 	ssp = ssp + sizeof(for_stack);		// protect it
 	astk[asp++] = (u_char *) forx;		// save the address
 	savasp = asp;				// protect these
@@ -3625,7 +3642,7 @@ short run(int savasp, int savssp)		// run compiled code
       case XCROUCHK:				// Xcall $&%ROUCHK()
 	ptr2 = (cstring *) astk[--asp];		// get arg 2 (ignored)
 	ptr1 = (cstring *) astk[--asp];		// get arg 1
-        var2 = (mvar *) &sstk[ssp];		// some space
+        var2 = (mvar *) ALIGN_STRUCT(&sstk[ssp], &ssp); // some space XXX
         var2->nsubs = 255;
         ssp = ssp + sizeof(mvar);		// cover it
         X_set("$ROUTINE", &var2->name.var_cu, 8); // ^$R

@@ -157,7 +157,7 @@ short mv1_uitocstring(u_char *buf, u_int n);	// convert u_int to string
 #define uitocstring(x,y)     mv1_uitocstring(x,y)
 #endif
 
-short run(int asp, int ssp);			// run compiled code
+short run(long asp, long ssp);			// run compiled code
 short buildmvar(mvar *var, int nul_ok, int asp); // build an mvar
 short patmat(cstring *str, cstring *pattern);	// pattern match
 short attention();				// process attention

@@ -36,6 +36,9 @@
 #ifndef _MUMPS_COMPILE_H_                       // only do this once
 #define _MUMPS_COMPILE_H_
 
+// #define __PACKED__      __alignment__ ((__packed__))
+#define __PACKED__
+
 
 #define UNVAR { comperror(-ERRM8); return; } 	// compile undef spec var
 #define EXPRE { comperror(-(ERRZ12+ERRMLAST)); return; } // compile expr err
@@ -92,7 +95,7 @@ extern u_char *comp_ptr;                        // pointer to compiled code
 extern u_char istk[];				// indirect stack
 extern long isp;				// indirect stack pointer
 
-typedef struct __attribute__ ((__packed__)) FOR_STACK // saved FOR details
+typedef struct __PACKED__ FOR_STACK             // saved FOR details
 { short type;					// type of for (see above)
   short svar;					// syment of simple var
 						// ( if -1 use var)

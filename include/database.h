@@ -83,7 +83,7 @@
 
 // **** Structures ***********************************************************
 
-typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
+typedef struct __PACKED__ DB_BLOCK	                // database block layout
 { u_char type;						// block type
   u_char flags;						// flags
   u_short spare;					// future
@@ -91,7 +91,8 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
   u_short last_idx;					// last used index off
   u_short last_free;					// last free lw in block
   chr_x global;						// global name
-  u_int64 blkver;
+  u_int blkver_lo;
+  u_int blkver_hi;
 } DB_Block;						// end block header
 
 #if MAX_NAME_BYTES == 8
