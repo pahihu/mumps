@@ -173,7 +173,7 @@ void Debug_GDB(short e);
 #endif
 void  Debug_off();				// turn off debugging
 short Debug_on(cstring *param);			// turn on/modify debug
-short Debug(int savasp, int savssp, int dot);	// drop into debug
+short Debug(long savasp, long savssp, int dot);	// drop into debug
 
 
 #endif                                          // _MUMPS_COMPILE_H_

@@ -166,7 +166,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
 //	  1 from a BREAK sp sp
 //
 
-short Debug(int savasp, int savssp, int dot)	// drop into debug
+short Debug(long savasp, long savssp, int dot)	// drop into debug
 { int i;					// a handy int
   int io;					// save current $IO
   short s = 0;					// for calls
