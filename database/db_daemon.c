@@ -678,23 +678,29 @@ int do_zot(u_int gb)					// zot block
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     Allign_record();					// ensure alligned
     i = *(int *) record;				// get block#
-    if (zot_data && systab->ZotData)			// if we are zotting
-    { file_ret = (off_t) i - 1;				// block#
-      file_ret = (file_ret * (off_t) systab->vol[volnum-1]->vollab->block_size)
+    if (zot_data)			                // if we are zotting
+    { ret = 0;
+      if (systab->ZotData)
+      { file_ret = (off_t) i - 1;			// block#
+        file_ret = (file_ret *(off_t) systab->vol[volnum-1]->vollab->block_size)
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
-      file_ret = lseek( dbfd, file_ret, SEEK_SET);	// Seek to block
-      if (file_ret < 1)	        			// check for fail
-      { fprintf(stderr, "do_zot: seek to block %d failed\n", i);
-        fflush( stderr );                               // flush to the file
-      }
-      else						// looks ok
-      { ret = write( dbfd, systab->vol[volnum-1]->zero_block,
-	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
-        if (ret < 0)					// fail ?
-        { fprintf(stderr, "do_zot: zero of block %d failed\n", i);
+        file_ret = lseek( dbfd, file_ret, SEEK_SET);	// Seek to block
+        if (file_ret < 1)	        		// check for fail
+        { fprintf(stderr, "do_zot: seek to block %d failed\n", i);
           fflush( stderr );                             // flush to the file
+          ret = -1;                                     // flag an error
         }
-        ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+        else						// looks ok
+        { ret = write( dbfd, systab->vol[volnum-1]->zero_block,
+	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
+          if (ret < 0)					// fail ?
+          { fprintf(stderr, "do_zot: zero of block %d failed\n", i);
+            fflush( stderr );                           // flush to the file
+          }
+        }
+      }
+      if (!(ret < 0))
+      { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
         ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);// and a logical
         do_free(i);					// free the block
       }
