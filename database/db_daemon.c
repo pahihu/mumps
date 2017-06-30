@@ -649,7 +649,7 @@ int do_zot(u_int gb)					// zot block
   SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
-  { file_ret = lseek( dbfd, file_off, SEEK_SET);	// Seek to block
+  { file_ret = lseek( dbfd, file_off, SEEK_SET);	// seek to block
     if (file_ret < 1)
     { fprintf(stderr, "do_zot: seek to block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
@@ -678,7 +678,7 @@ int do_zot(u_int gb)					// zot block
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     Allign_record();					// ensure alligned
     i = *(int *) record;				// get block#
-    if (zot_data)					// if we are zotting
+    if (zot_data && systab->ZotData)			// if we are zotting
     { file_ret = (off_t) i - 1;				// block#
       file_ret = (file_ret * (off_t) systab->vol[volnum-1]->vollab->block_size)
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
@@ -708,19 +708,21 @@ int do_zot(u_int gb)					// zot block
   }							// end of indexes
 
 zotit:
-  file_ret = lseek( dbfd, file_off, SEEK_SET);		// Seek to block
-  if (file_ret < 1)
-  { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
-    dlfree(bptr);					// free memory
-    return -1;						// return error
-  }
-  ret = write( dbfd, systab->vol[volnum-1]->zero_block,
-	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
-  if (ret < 0)						// if it failed
-  { fprintf(stderr, "do_zot: zero of block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
-    typ = -1;						// flag fail
+  if (systab->ZotData)                                  // if zero data
+  { file_ret = lseek( dbfd, file_off, SEEK_SET);	// seek to block
+    if (file_ret < 1)
+    { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
+      fflush( stderr );                                 // flush to the file
+      dlfree(bptr);					// free memory
+      return -1;					// return error
+    }
+    ret = write( dbfd, systab->vol[volnum-1]->zero_block,
+	       systab->vol[volnum-1]->vollab->block_size); // write zeroes
+    if (ret < 0)					// if it failed
+    { fprintf(stderr, "do_zot: zero of block %d failed\n", gb);
+      fflush( stderr );                                 // flush to the file
+      typ = -1;						// flag fail
+    }
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);	// count a write
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);	// and a logical

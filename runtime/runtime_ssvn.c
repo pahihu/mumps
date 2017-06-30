@@ -471,6 +471,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  (strncasecmp( (char *) subs[0]->buf, "wdptime\0", 8) == 0))
       { return itocstring(buf, systab->WDPtime);// return the value
       }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "zotdata\0", 8) == 0))
+      { return itocstring(buf, systab->ZotData);// return the value
+      }
       return (-ERRM38);				// junk
   }						// end of switch
   return (-ERRM38);				// can't get here?
@@ -637,6 +641,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             (j > (0.9 * systab->vol[0]->vollab->block_size))) // XXX volume?
           return -(ERRMLAST+ERRZ64);
         systab->ZMinSpace = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "zotdata\0", 8) == 0))
+      { j = cstringtoi(data);
+        systab->ZotData = 0 != j;
 	return 0;				// and exit
       }
 
