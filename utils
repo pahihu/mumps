@@ -403,7 +403,7 @@ EX U 0 W:NOSAY<2 ! C 1 Q
  R !,"Filename:   ",FILE G %RS:FILE=""
  R !,"Header Txt: ",HEAD,! S:HEAD="" HEAD=GLO
  D INT(GLO,FILE,HEAD) Q
-INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
+INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR,D) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
  S HEAD=$G(HEAD,GLO)
  S UI=$$UI^%U() K ^UTILITY(UI) S GLO=$$PAT^%U(GLO)
  D INT^%GD(3,GLO,^$J($J,"GLOBAL"),"","z","^UTILITY("_UI_")")
@@ -414,7 +414,7 @@ INT(GLO,FILE,HEAD,%,VOL,UCI,G,ZR) N $ET S ZR="INT^%GS",$ET="D EX^%GS"
  W $$D^%D($H)," at ",$$T^%T($P($H,",",2)),!,HEAD,!
  S GLO="" F  S GLO=$O(^UTILITY(UI,GLO)) Q:GLO=""  S G="^"_GLO D
  .U 0 W:$X>70 ! W GLO,?$X\10+1*10 U 1
- .W G,!,$G(@G),! F  S G=$Q(@G) Q:G=""  W "("_$P(G,"(",2,999),!,@G,!
+ .W G,!,$G(@G),! F  S G=$Q(@G,1,D) Q:G=""  W "("_$P(G,"(",2,999),!,D,!
  .W "*",!,"*",!
  W "**",!,"**",! U 0
 EX C 1 W ! Q
