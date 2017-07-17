@@ -90,7 +90,7 @@ void setSignalBitMask ( int sig );
 int setSignal ( int sig, int flag );
 int setSignals ( void );
 void printBytestr ( char *bytestr, int nbytes );
-void printSQChan ( jobtab *jobptr, SQ_Chan *chanptr );
+void printSQChan ( jobtab_t *jobptr, SQ_Chan *chanptr );
 int seqioSelect ( int sid, int type, int tout );
 int getError ( int type, int errnum );
 int SQ_File_Open ( char *file, int op );

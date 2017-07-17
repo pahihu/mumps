@@ -198,7 +198,7 @@ int INIT_Start( char *file,                     // database
   sjlt_size = sizeof(systab_struct)		// size of Systab
 	    + (sizeof(u_int) * (jobs - 1))	// adj for last_blk_used[1]
             + (sizeof(u_int) * (jobs))          // adj for last_blk_written
-            + (sizeof(jobtab) * jobs)		// size of JOBTAB
+            + (sizeof(jobtab_t) * jobs)		// size of JOBTAB
             + locksize 				// size of LOCKTAB
             + jrnsize;                          // size of JRN buf
 
@@ -270,7 +270,7 @@ int INIT_Start( char *file,                     // database
   // systab->jobtab =
   //   (jobtab *)&systab->last_blk_used[jobs + 1]; // setup jobtab pointer
   systab->jobtab =
-     (jobtab *)&systab->last_blk_written[jobs]; // setup jobtab pointer
+     (jobtab_t *)&systab->last_blk_written[jobs];  // setup jobtab pointer
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
@@ -279,7 +279,7 @@ int INIT_Start( char *file,                     // database
   systab->ZotData = 1;                          // Kill zeroes data blocks
 
   systab->lockstart =
-    (void *)((void *)systab->jobtab + (sizeof(jobtab)*jobs)); //locktab
+    (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
   systab->locksize = locksize;			// the size
   systab->lockhead = NULL;			// no locks currently
   systab->lockfree = (locktab *) systab->lockstart; // free space

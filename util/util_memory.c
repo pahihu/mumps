@@ -314,6 +314,6 @@ void CleanJob(int job)				// tidy up a job
   { for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++));	// close all io
     partab.jobtab = NULL;			// clear jobtab
   }
-  bzero(&systab->jobtab[j], sizeof(jobtab));	// zot all
+  bzero(&systab->jobtab[j], sizeof(jobtab_t));	// zot all
   return;					// and exit
 }

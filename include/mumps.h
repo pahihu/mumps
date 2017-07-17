@@ -520,7 +520,7 @@ typedef struct __PACKED__ JOBTAB
   do_frame dostk[MAX_DO_FRAMES];                // the do stack
   SQ_Chan seqio[MAX_SEQ_IO];                    // sequential io stuf
   struct GBD *view[MAX_VOL];                    // locked view buffers
-} jobtab;              				// define jobtab
+} jobtab_t;            				// define jobtab
 						// sizeof(jobtab) = 21939
 
 typedef struct __attribute__ ((__packed__)) LOCKTAB // internal lock tables
@@ -546,7 +546,7 @@ typedef struct __PACKED__ TRANTAB               // translation table
 
 typedef struct __PACKED__ SYSTAB                // system tables
 { void *address;
-  jobtab *jobtab;                               // address of jobtab
+  jobtab_t *jobtab;                             // address of jobtab
   int maxjob;                                   // maximum jobs permitted
   int sem_id;                                   // GBD semaphore id
   int historic;                                 // Enn, tag+off, $NEXT etc
@@ -596,7 +596,7 @@ extern int sem_id;                              // global semaphore id
 //** PARTAB definitions **
 
 typedef struct __PACKED__ PARTAB                // define the partition table
-{ jobtab *jobtab;                               // our jobtab entry
+{ jobtab_t *jobtab;                             // our jobtab entry
   int vol_fds[MAX_VOL];                         // the filedes for the volumes
   int jnl_fds[MAX_VOL];                         // the filedes for journals
   int debug;                                    // debug in progress

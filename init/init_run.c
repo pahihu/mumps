@@ -130,7 +130,7 @@ start:
 
   bzero(semtab, sizeof(semtab));
 
-  partab.jobtab = (jobtab *) NULL;		// clear jobtab pointer
+  partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
   dbfd = open(file, O_RDONLY);                  // open the database for read
   if (dbfd < 0) return (errno);                 // if that failed
   // i = fcntl(dbfd, F_NOCACHE, 1);
@@ -182,7 +182,7 @@ start:
 	 (start_type == TYPE_RUN))    ||
 	((systab->jobtab[i].pid == pid) &&	// or already done (JOB)
 	 (start_type == TYPE_JOB)))
-    { bzero(&systab->jobtab[i], sizeof(jobtab)); // yes - zot the lot
+    { bzero(&systab->jobtab[i], sizeof(jobtab_t)); // yes - zot the lot
       partab.jobtab = &systab->jobtab[i];	// and save our jobtab address
       partab.jobtab->pid = pid;			// copy in our pid
       break;					// end loop

@@ -123,7 +123,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 #endif
 
   hnd->file = strdup(file);                     // cpy database file name
-  partab.jobtab = (jobtab *) NULL;		// clear jobtab pointer
+  partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
   hnd->dbfd = open(file, O_RDONLY);             // open the database for read
   if (hnd->dbfd < 0) return (errno);            // if that failed
   // i = fcntl(dbfd, F_NOCACHE, 1);
@@ -175,7 +175,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 	 (hnd->start_type == TYPE_RUN))    ||
 	((systab->jobtab[i].pid == pid) &&	// or already done (JOB)
 	 (hnd->start_type == TYPE_JOB)))
-    { bzero(&systab->jobtab[i], sizeof(jobtab)); // yes - zot the lot
+    { bzero(&systab->jobtab[i], sizeof(jobtab_t)); // yes - zot the lot
       partab.jobtab = &systab->jobtab[i];	// and save our jobtab address
       partab.jobtab->pid = pid;			// copy in our pid
       break;					// end loop

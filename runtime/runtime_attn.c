@@ -210,7 +210,7 @@ int ForkIt(int cft)				// Copy File Table True/False
     return 0;					// return fail
   }
   if (i > 0)					// the parent ?
-  { bcopy(partab.jobtab, &systab->jobtab[mid], sizeof(jobtab)); // copy job info
+  { bcopy(partab.jobtab, &systab->jobtab[mid], sizeof(jobtab_t)); // copy job info
     systab->jobtab[mid].pid = i;		// save the pid
     i = SemOp(SEM_SYS, systab->maxjob);		// unlock
     return (mid + 1);				// return child job number
