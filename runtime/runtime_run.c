@@ -72,6 +72,8 @@ void* ALIGN_STRUCT(void *p_ptr, long *p_ssp)
   return (void *) uptr;
 }
 
+extern void Bits_Init();
+
 short run(long savasp, long savssp)		// run compiled code
 { int opc;					// current opcode
   int infor = 0;				// for flag
@@ -110,11 +112,17 @@ short run(long savasp, long savssp)		// run compiled code
   cstring *unkrou;                              // "%Unknown"
   u_char unktmp[sizeof(short)+MAX_NAME_BYTES];  // buffer for unkrou cstring
   double d;                                     // a handy double
+  static int initBits = 1;                      // init ZBIT functions
 
 
   unkrou = (cstring *) &unktmp;                 // setup "%Unknown" cstring
   X_set("%Unknown", &unkrou->buf[0], 8);
   unkrou->len = 8;
+
+  if (initBits)
+  { Bits_Init();
+    initBits = 0;
+  }
 
   asp = savasp;
   ssp = savssp;

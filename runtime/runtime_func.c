@@ -781,7 +781,6 @@ static struct {
   u_char bit0pos;                               // 1 + position of 1st '0'
 } Bits[256];
 
-static
 void Bits_Init(void)                            // init Bits[] array
 { int i, j;
   u_char byt;
@@ -1714,12 +1713,7 @@ int Dzbitlen(cstring *bstr)
 int Dzbitcount(cstring *bstr)
 { int i, len, count;
   u_char byt;
-  static int initBits = 1;
 
-  if (initBits)
-  { Bits_Init();
-    initBits = 0;
-  }
   len = Dzbitlen(bstr);                         // check bit string
   if (0 > len)
     return len;
