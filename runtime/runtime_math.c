@@ -97,7 +97,7 @@ int m_mtoapm(M_APM out, long *lout, char *buf)
       return ndigits;
     }
     else
-      m_apm_set_string(out, buf);
+      m_apm_set_string(out, sign ? buf - 1 : buf);
     return 0;
 }
 
