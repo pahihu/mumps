@@ -468,11 +468,12 @@ int failed(lck_add_ctx *pctx)                 // common code
 
   if (tryagain == 1)
   { x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
-    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lckwait); // update stats
     if (pass & 3)
       SchedYield();
     else
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lckwait); // update stats
       MSleep(LCK_SLEEP);
+    }
     pass++;
   }
         
