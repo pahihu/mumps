@@ -601,6 +601,13 @@ short ST_DataEx(mvar *var, u_char *buf, cstring *dat)// put var type in buf
         (memcmp(depPtr->bytes, var->key, i) == 0)) // if matches ok for i
     { if (depPtr->keylen == var->slen)		// exact match
       { prevPtr = depPtr;			// save this pos
+        if (dat)                                // dat given ?
+        { i = (int) prevPtr->keylen;		// get key length
+          if (i&1) i++;				// ensure even
+          addr = (cstring *) &(prevPtr->bytes[i]);// send data addr as cstring
+          bcopy(&addr->buf[0], &dat->buf[0], addr->len);
+          dat->len = addr->len;
+        }
         depPtr = depPtr->deplnk;		// go to next
         if (depPtr == ST_DEPEND_NULL)		// have we run out
         { bcopy("1\0", buf, 2);
