@@ -1785,8 +1785,14 @@ short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
 //
 int Dzbitfind3(cstring *bstr, int ff, int pos)
 { int i;
+  int len;
   u_char byt, bit1pos, bit0pos;
 
+  len = Dzbitlen(bstr);                         // check bit string
+  if (0 > len)
+    return len;
+  if (pos > len)                                // at end ?
+    return 0;
   if (pos-- < 1)                                // check pos
     return -(ERRMLAST+ERRZ74); 
   if (ff)                                       // search for 1
