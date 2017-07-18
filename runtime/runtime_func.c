@@ -1754,7 +1754,7 @@ short Dzbitget(cstring *bstr, int pos)
 short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
 { int len;
   u_char byt, mask;
-  short retlen;
+  int retlen;
 
   len = Dzbitlen(bstr);                         // check bit string
   if (0 > len)
@@ -1777,7 +1777,7 @@ short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
   byt &= ~mask;                                 // clear bit
   if (ff) byt |= mask;                          // if 1, then set
   ret[1 + (pos >> 3)] = byt;                    // write back result
-  return retlen;
+  return (short) retlen;
 }
 
 //***********************************************************************
@@ -1927,7 +1927,7 @@ short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
 { int i, bitlen, bitlen2;
   short len;
 
-  len    = bstr1->len;                          // assume bit string 1 shorter
+  len    = bstr1->len;                          // assume bit string 1 is longer
   bitlen = Dzbitlen(bstr1);                     // check bit string
   if (0 > bitlen)
     return bitlen;
@@ -1935,7 +1935,7 @@ short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
   if (0 > bitlen2)
     return bitlen2;
 
-  if (bitlen2 < bitlen)                         // result length is smaller
+  if (bitlen2 > bitlen)                         // result length is longer
   { len = bstr2->len;                           //   bit string 1 & bit string 2
     bitlen = bitlen2;
   }
