@@ -67,14 +67,15 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
   }
   systab = (systab_struct *) sad->address;  	// get required address
   if ( sad != systab)				// if not in correct place
-  { 
-    fprintf(stderr, "attach = %lX need = %lX\n", (u_long)sad, (u_long)systab);
+  { // fprintf(stderr, "attach = %lX need = %lX\n", (u_long)sad, (u_long)systab);
     i = shmdt( sad );				// unmap it
-    fprintf(stderr, "shmdt return = %X\n", i);
+    // fprintf(stderr, "shmdt return = %X\n", i);
     sad = shmat(shar_mem_id, (void *) systab, 0); // try again
-    fprintf(stderr, "systab = %lX  sad = %lX\n", (u_long) systab, (u_long) sad);
+    // fprintf(stderr, "systab = %lX  sad = %lX\n", (u_long) systab, (u_long) sad);
     if ( systab != sad)
-	return(EADDRNOTAVAIL);			// die on error
+    { fprintf(stderr, "Unable to attach to systab at %lX\n", (u_long) systab);
+      return(EADDRNOTAVAIL);			// die on error
+    }
   }
   sem_id = semget(shar_mem_key, 0, 0);		// attach to semaphores
   if (sem_id < 0) return (errno);		// die on error
