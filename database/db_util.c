@@ -209,12 +209,69 @@ short Insert(u_char *key, cstring *data)                // insert a node
 }
 
 //-----------------------------------------------------------------------------
-// Function: Queit
-// Descript: Que the gbd at blk[level] for write - links already setup
-// Input(s): none
-// Return:   none
+// Function: Queit2
+// Descript: Que the gbd p_gbd - links already setup
+// Input(s): the gbd to queue
+// Return:   0 - on success, 1 - on failed (queue empty)
 // Note:     Must hold a write lock before calling this function
 //
+
+int Queit2(gbd *p_gbd)					// que a gbd for write
+{ int i;						// a handy int
+  gbd *ptr;						// a handy ptr
+#ifdef MV1_CKIT
+  bool result;
+#endif
+
+  if (DirtyQ_Len() + 1 >= NUM_DIRTY)
+    return 1;
+
+  // LastBlock = 0;                                     // zot Locate() cache
+#if 0
+  ptr = p_gbd;
+  // fprintf(stderr,"Queit: %d",ptr->block);
+  systab->vol[volnum-1]->stats.logwt++;			// incr logical
+  while (ptr->dirty != ptr)				// check it
+  { ptr = ptr->dirty;					// point at next
+    // fprintf(stderr," %d",ptr->block);
+    systab->vol[volnum-1]->stats.logwt++;		// incr logical
+  }
+  // fprintf(stderr,"\r\n");
+#endif
+
+  if (curr_lock != WRITE)
+  { char msg[32];
+    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
+    panic(msg);
+  }
+#ifdef MV1_CKIT
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[volnum-1]->dirtyQ,
+                &systab->vol[volnum-1]->dirtyQBuffer[0],
+                p_gbd);
+  if (false == result)
+  { return 1;
+    // panic("Queit(): dirtyQ overflow");
+  }
+  ptr = p_gbd;                                          // mark gbds as queued
+  systab->vol[volnum-1]->stats.logwt++;			// incr logical
+  while (ptr->dirty != ptr)				// check for end
+  { ptr->queued = 1;
+    ptr = ptr->dirty;					// point at next
+    systab->vol[volnum-1]->stats.logwt++;		// incr logical
+  }
+#else
+  // we have the WRITE lock, at least NUM_DIRTY/2 is free
+  i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
+  if (systab->vol[volnum - 1]->dirtyQ[i] != NULL)
+  { panic("Queit(): dirtyQ overflow");
+  }
+  systab->vol[volnum - 1]->dirtyQ[i] = p_gbd;	        // stuff it in
+  systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
+#endif
+
+  return 0;						// and exit
+}
 
 void Queit()						// que a gbd for write
 { int i;						// a handy int
@@ -222,6 +279,14 @@ void Queit()						// que a gbd for write
 #ifdef MV1_CKIT
   bool result;
 #endif
+
+  blk[level]->dhead = 1;                                // head of dirty chain
+  if (0 == blk[level]->dirty)
+    Queit2(blk[level]);
+  // fprintf(stderr,"dirty: %ld\r\n", blk[level]->block);
+  return;
+
+  Queit2(blk[level]);
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block

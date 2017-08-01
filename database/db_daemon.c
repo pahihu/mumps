@@ -218,6 +218,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
       { wdp_time = WDP_TIME_MAX;
       }
       systab->WDPtime = wdp_time;
+      systab->WDPtime = WDP_TIME_MAX;                   // XXX
     }
     i = MSLEEP(systab->WDPtime);                        // rest
     do_daemon();					// do something
@@ -551,6 +552,8 @@ void do_write()						// write GBDs
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
+      gbdptr->dhead  = 0;
+      gbdptr->queued = 0;
       UTIL_Barrier();
       break;						// break from while
     }
@@ -568,6 +571,8 @@ void do_write()						// write GBDs
       		doing = DOING_NOTHING;			// and here
     }
     lastptr->dirty = NULL;				// clear old dirtyptr
+    lastptr->dhead  = 0;
+    lastptr->queued = 0;
     UTIL_Barrier();
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while

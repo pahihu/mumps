@@ -586,6 +586,7 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
+  int doenque;
 
 start:
   if (!haslock)
@@ -609,7 +610,7 @@ start:
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if ((GBD_HASH == ptr->hash) ||                      // skip GBDs on free lst
-        (NULL     != ptr->dirty))                       //   or dirty
+       (NULL     != ptr->dirty))                        //   or dirty
       continue;                                         
     if (0 == ptr->block) 				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
@@ -621,6 +622,8 @@ start:
       ptr->hash = GBD_HASH;
       systab->vol[volnum-1]->gbd_hash [GBD_HASH] = ptr; // and this
       ptr->dirty = NULL;				// ensure clear
+      ptr->dhead = 0;
+      ptr->queued = 0;
       ptr->last_accessed = (time_t) 0;		        // ensure no time
       REFD_CLEAR(ptr);                                  // not refd
       curr++;						// count this
@@ -633,6 +636,22 @@ start:
     { curr++;					        // count that
       if (curr >= greqd)				// if enough there
           return;					// just exit
+    }
+  }
+
+  doenque = 1;
+  i = (systab->hash_start + 1) % num_gbd;	        // where to start
+  for (j = 0; doenque && (j < num_gbd); j++, i = (i + 1) % num_gbd)
+  { ptr = &systab->vol[volnum-1]->gbd_head[i];
+    if (ptr->dirty)                                     // dirty ?
+    { if ((ptr->dhead) && (0 == ptr->queued))           // dirty chain head AND
+      { doenque = (0 == Queit2(ptr));                   //   not queued yet ?
+        if (doenque)                                    // queued ?
+        { if (++curr >= greqd)                          //   count it
+          { doenque = 0;                                //   stop scanning
+          }
+        }
+      }
     }
   }
 
@@ -672,9 +691,10 @@ void Get_GBD()						// get a GBD
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
   int oldpos;
   u_int oldval;
+  int doenque, nqueued;
 
-  pass   = 0;
-  oldval = (u_int) -1;
+  pass    = 0;
+  oldval  = (u_int) -1;
 start:
   oldptr = NULL;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
@@ -688,9 +708,16 @@ start:
 
   now = MTIME(0) + 1;				        // get current time
 
+  doenque = 1; nqueued = 0;
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
+    if ((!writing) && (doenque) && (ptr->dirty) && (ptr->dhead))
+    { if (0 == ptr->queued)
+      { doenque = (0 == Queit2(ptr)) && (++nqueued < 10);
+      }
+      goto Lcontinue;
+    }
     if ((0 == ptr->block) && 				// no block ?
         (NULL == ptr->dirty))                           //   and not dirty ?
     { oldptr = ptr;                                     // mark this
@@ -717,6 +744,7 @@ start:
         goto unlink_gbd;
       }
     }
+Lcontinue:
     i = (i + 1) % num_gbd;			        // next GBD entry
   }							// end for every GBD
   if (NULL == oldptr)
@@ -770,6 +798,8 @@ exit:
   blk[level]->block = 0;			        // no block attached
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = writing ? (gbd *) 1 : NULL;       // clear dirty XXX
+  blk[level]->dhead = 0;
+  blk[level]->queued = 0;
   blk[level]->last_accessed = (time_t) 0;		// and time
   REFD_READ_INIT(blk[level]);                           // mark refd
   blk[level]->prev = NULL;                              // clear prev link
@@ -848,6 +878,8 @@ exit:
   blk[level]->block = 0;				// no block attached
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = NULL;				// clear dirty
+  blk[level]->dhead = 0;
+  blk[level]->queued = 0;
   blk[level]->last_accessed = (time_t) 0;		// and time
   REFD_READ_INIT(blk[level]);                           // mark refd
   blk[level]->prev = NULL;                              // clear prev link
@@ -891,6 +923,8 @@ void Free_GBD(gbd *free)				// Free a GBD
   free->prev = NULL;
   REFD_CLEAR(free);
   free->hash = GBD_HASH;
+  free->dhead = 0;
+  free->queued = 0;
 #endif
   free->next = systab->vol[volnum-1]->gbd_hash[GBD_HASH]; // get free list
   systab->vol[volnum-1]->gbd_hash[GBD_HASH] = free; 	// link it in

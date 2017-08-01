@@ -125,9 +125,11 @@ typedef struct __PACKED__ DB_BLOCK	                // database block layout
 #define REFD_RETYPE(x)          REFD_UNMARK(x)
 #define REFD_DEC(x,n)           \
         { if ((n) > (x)->refd)  \
-            REFD_CLEAR(x);      \
+          { REFD_CLEAR(x);      \
+          }                     \
           else                  \
-            (x)->refd -= (n);   \
+          { (x)->refd -= (n);   \
+          }                     \
         }
 
 #else
@@ -145,9 +147,11 @@ typedef struct __PACKED__ DB_BLOCK	                // database block layout
 #define REFD_RETYPE(x)          REFD_UNMARK(x)
 #define REFD_DEC(x,n)           \
         { if (n > (x)->refd)    \
-            REFD_CLEAR(x);      \
+          { REFD_CLEAR(x);      \
+          }                     \
           else                  \
-            (x)->refd -= (n);   \
+          { (x)->refd -= (n);   \
+          }
         }
 
 #endif
@@ -164,6 +168,8 @@ typedef struct __PACKED__ GBD		                // global buf desciptor
 #ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
+  int    queued;
+  int    dhead;
 #endif
 #ifdef MV1_BLKSEM
   short  curr_lock;                                     // current block lock
@@ -287,7 +293,8 @@ void DoJournal(jrnrec *jj, cstring *data); 		// Write journal
 void Free_block(int blknum);				// free blk in map
 void Garbit(int blknum);				// que a blk for garb
 short Insert(u_char *key, cstring *data);		// insert a node
-void Queit();						// que a gbd for write
+int Queit2(gbd *p_gbd);				        // que a gbd for write
+void Queit();						// que blk[level] for write
 void Tidy_block();					// tidy current blk
 void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block

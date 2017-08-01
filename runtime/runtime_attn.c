@@ -253,9 +253,9 @@ int ForkIt(int cft)				// Copy File Table True/False
   sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
   (void)freopen(stderr_out, "w", stderr);	// redirect stderr
 #else
-  (void)freopen("/dev/null", "w", stderr);	// redirect stderr
-  // sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
-  // (void)freopen(stderr_out, "w", stderr);	// redirect stderr
+  // (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+  sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
+  (void)freopen(stderr_out, "w", stderr);	// redirect stderr
 #endif
 
   return ret;					// return -parent job#
