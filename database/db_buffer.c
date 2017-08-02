@@ -407,6 +407,8 @@ writelock:
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+	// SemOp( SEM_GLOBAL, -curr_lock);			// drop to read lock
+	// SemOp( SEM_GLOBAL, READ);			// drop to read lock
         UTIL_Barrier();
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
@@ -553,6 +555,35 @@ short New_block()					// get new block
   return -(ERRMLAST + ERRZ11);				// error - no room
 }
 
+void WriteBlock(gbd *gbdptr)				// write GBD
+{ off_t file_off;                               	// for lseek() et al
+  int i;						// a handy int
+  u_int blkno;                                          // block#
+  int dbfd;
+
+  blkno = gbdptr->block;
+  dbfd = partab.vol_fds[0];
+  Check_BlockNo(blkno, "WriteBlock", 0, 0);             // check blkno validity
+  file_off = (off_t) blkno - 1;		                // block#
+  file_off = (file_off * (off_t)
+	systab->vol[volnum-1]->vollab->block_size)
+	+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
+  file_off = lseek( dbfd, file_off, SEEK_SET);          // seek to block
+  if (file_off < 1)
+  { systab->vol[volnum-1]->stats.diskerrors++;	        // count an error
+    panic("lseek failed in WriteBlock()!!");	        // die on error
+  }
+  i = write( dbfd, gbdptr->mem,
+	 systab->vol[volnum-1]->vollab->block_size);    // write it
+  if (i < 0)
+  { systab->vol[volnum-1]->stats.diskerrors++;	        // count an error
+    panic("write failed in WriteBlock()!!");
+  }
+  systab->vol[volnum-1]->stats.phywt;                   // count a write
+  gbdptr->modified = 0;
+  gbdptr->dirty = NULL;
+}							// end write code
+
 //-----------------------------------------------------------------------------
 // Function: Get_GBDs
 // Descript: Ensure there are n available GDBs
@@ -579,6 +610,12 @@ void Get_GBDs(int greqd)				// get n free GBDs
 //	     When it completes, it returns with a write lock held.
 //
 
+// block allapotok
+//      szabad                  a free listaban van
+//      piszkos                 modositottak a blokkot
+//      piszkos + sorban van    modositottak a blokkot + WD sorban van
+//      nem piszkos             nem modositottak
+//
 void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 { int i, j;						// a handy int
   int curr;						// current count
@@ -591,6 +628,8 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 start:
   if (!haslock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  return;
+
   haslock = 0;                                          // clear for next turns
   curr = 0;						// clear current  
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
@@ -609,10 +648,9 @@ start:
   i = (systab->hash_start + 1) % num_gbd;	        // where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if ((GBD_HASH == ptr->hash) ||                      // skip GBDs on free lst
-       (NULL     != ptr->dirty))                        //   or dirty
-      continue;                                         
-    if (0 == ptr->block) 				// if no block
+    if (GBD_HASH == ptr->hash)                          // skip GBDs on free lst
+      continue;
+    if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
       // fprintf(stderr,"Get_GBDs(): before Unlink_GBD\r\n"); fflush(stderr);
       Unlink_GBD(ptr);                                  // unlink ptr
@@ -622,8 +660,7 @@ start:
       ptr->hash = GBD_HASH;
       systab->vol[volnum-1]->gbd_hash [GBD_HASH] = ptr; // and this
       ptr->dirty = NULL;				// ensure clear
-      ptr->dhead = 0;
-      ptr->queued = 0;
+      ptr->modified = 0;
       ptr->last_accessed = (time_t) 0;		        // ensure no time
       REFD_CLEAR(ptr);                                  // not refd
       curr++;						// count this
@@ -635,23 +672,7 @@ start:
         (0   < ptr->last_accessed))			// and there is a time
     { curr++;					        // count that
       if (curr >= greqd)				// if enough there
-          return;					// just exit
-    }
-  }
-
-  doenque = 1;
-  i = (systab->hash_start + 1) % num_gbd;	        // where to start
-  for (j = 0; doenque && (j < num_gbd); j++, i = (i + 1) % num_gbd)
-  { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (ptr->dirty)                                     // dirty ?
-    { if ((ptr->dhead) && (0 == ptr->queued))           // dirty chain head AND
-      { doenque = (0 == Queit2(ptr));                   //   not queued yet ?
-        if (doenque)                                    // queued ?
-        { if (++curr >= greqd)                          //   count it
-          { doenque = 0;                                //   stop scanning
-          }
-        }
-      }
+        return;					        // just exit
     }
   }
 
@@ -687,12 +708,12 @@ void Get_GBD()						// get a GBD
   gbd *ptr;						// loop gbd ptr
   gbd *oldptr = NULL;					// remember last unrefd
   int pass;
-  int clean;                                            // flag clean blk
+  int avail;                                            // flag available blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
   int oldpos;
   u_int oldval;
-  int doenque, nqueued;
 
+  // fprintf(stderr,"ENTER GBD\r\n"); fflush(stderr);
   pass    = 0;
   oldval  = (u_int) -1;
 start:
@@ -708,38 +729,33 @@ start:
 
   now = MTIME(0) + 1;				        // get current time
 
-  doenque = 1; nqueued = 0;
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if ((!writing) && (doenque) && (ptr->dirty) && (ptr->dhead))
-    { if (0 == ptr->queued)
-      { doenque = (0 == Queit2(ptr)) && (++nqueued < 10);
-      }
-      goto Lcontinue;
-    }
-    if ((0 == ptr->block) && 				// no block ?
-        (NULL == ptr->dirty))                           //   and not dirty ?
+    if (0 == ptr->block)  				// no block ?
     { oldptr = ptr;                                     // mark this
       oldpos = i;				        // remember this
       // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
-    clean = (NULL == ptr->dirty) &&                     // not dirty
-            (now > ptr->last_accessed) &&               //   and not viewed
+    avail = (now > ptr->last_accessed) &&               // not viewed
             (0   < ptr->last_accessed);                 //   and not being read
-    if (clean)
-    { if (REFD_VALUE(ptr))
-      { REFD_UNMARK(ptr);
-        if (REFD_VALUE(ptr) < oldval)
-        { oldptr = ptr;
+    if (avail)
+    { if (REFD_VALUE(ptr))                              // hasznalt ?
+      { REFD_UNMARK(ptr);                               //   csokkentsuk a reft
+        if ((REFD_VALUE(ptr)) &&                        // keressuk meg
+            (REFD_VALUE(ptr) < oldval))                 //   a hasznaltak
+        { oldptr = ptr;                                 //   minimumat
           oldpos = i;
           oldval = REFD_VALUE(ptr);
         }
       }
-      else
-      { oldptr = ptr;
+      if (0 == REFD_VALUE(ptr))                         // nem hasznalt ?
+      { if (ptr->modified)                              // modositottuk ?
+        { WriteBlock(ptr);                              //  irjuk ki
+        }
+        oldptr = ptr;                                   //  hasznaljuk
         oldpos = i;
         goto unlink_gbd;
       }
@@ -747,6 +763,8 @@ start:
 Lcontinue:
     i = (i + 1) % num_gbd;			        // next GBD entry
   }							// end for every GBD
+
+/*
   if (NULL == oldptr)
   { if (writing)				        // SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
@@ -765,6 +783,15 @@ Lcontinue:
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }
+*/
+
+  if (NULL == oldptr)
+  { { panic("Get_GBD: Failed to find an available GBD"); // die
+    }
+  }
+  if (oldptr->modified)
+  { WriteBlock(oldptr);
+  }
 
   // NB.
   // - oldval lehet nulla, ha eppen 1-rol csokkentettuk
@@ -772,13 +799,11 @@ Lcontinue:
   if (oldval && --oldval)
   { for (i = 0; i < num_gbd; i++)                       // for each GBD
     { ptr = &systab->vol[volnum-1]->gbd_head[i];
-      if ((0 == ptr->block) && 				// no block ?
-          (NULL == ptr->dirty))                         //   and not dirty ?
+      if (0 == ptr->block) 				// no block ?
         continue;
-      clean = (NULL == ptr->dirty) &&                   // not dirty
-              (now > ptr->last_accessed) &&             //   and not viewed
+      avail = (now > ptr->last_accessed) &&             // not viewed
               (0   < ptr->last_accessed);               //   and not being read
-      if (clean)
+      if (avail)
       { if (REFD_VALUE(ptr))
         { REFD_DEC(ptr,oldval);
         }
@@ -798,8 +823,7 @@ exit:
   blk[level]->block = 0;			        // no block attached
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = writing ? (gbd *) 1 : NULL;       // clear dirty XXX
-  blk[level]->dhead = 0;
-  blk[level]->queued = 0;
+  blk[level]->modified = 0;
   blk[level]->last_accessed = (time_t) 0;		// and time
   REFD_READ_INIT(blk[level]);                           // mark refd
   blk[level]->prev = NULL;                              // clear prev link
@@ -807,6 +831,7 @@ exit:
   UTIL_Barrier();
   idx = (u_short *) blk[level]->mem;			// set this up
   iidx = (int *) blk[level]->mem;			// and this
+  // fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
   return;						// return
 }
 
@@ -878,8 +903,7 @@ exit:
   blk[level]->block = 0;				// no block attached
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = NULL;				// clear dirty
-  blk[level]->dhead = 0;
-  blk[level]->queued = 0;
+  blk[level]->modified = 0;
   blk[level]->last_accessed = (time_t) 0;		// and time
   REFD_READ_INIT(blk[level]);                           // mark refd
   blk[level]->prev = NULL;                              // clear prev link
@@ -923,8 +947,7 @@ void Free_GBD(gbd *free)				// Free a GBD
   free->prev = NULL;
   REFD_CLEAR(free);
   free->hash = GBD_HASH;
-  free->dhead = 0;
-  free->queued = 0;
+  free->modified = 0;
 #endif
   free->next = systab->vol[volnum-1]->gbd_hash[GBD_HASH]; // get free list
   systab->vol[volnum-1]->gbd_hash[GBD_HASH] = free; 	// link it in

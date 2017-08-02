@@ -223,7 +223,7 @@ int Queit2(gbd *p_gbd)					// que a gbd for write
   bool result;
 #endif
 
-  if (DirtyQ_Len() + 1 >= NUM_DIRTY)
+  if (DirtyQ_Len() + 1 > NUM_DIRTY)
     return 1;
 
   // LastBlock = 0;                                     // zot Locate() cache
@@ -256,8 +256,7 @@ int Queit2(gbd *p_gbd)					// que a gbd for write
   ptr = p_gbd;                                          // mark gbds as queued
   systab->vol[volnum-1]->stats.logwt++;			// incr logical
   while (ptr->dirty != ptr)				// check for end
-  { ptr->queued = 1;
-    ptr = ptr->dirty;					// point at next
+  { ptr = ptr->dirty;					// point at next
     systab->vol[volnum-1]->stats.logwt++;		// incr logical
   }
 #else
@@ -275,15 +274,25 @@ int Queit2(gbd *p_gbd)					// que a gbd for write
 
 void Queit()						// que a gbd for write
 { int i;						// a handy int
-  gbd *ptr;						// a handy ptr
+  gbd *ptr, *nxt;					// a handy ptr
 #ifdef MV1_CKIT
   bool result;
 #endif
 
-  blk[level]->dhead = 1;                                // head of dirty chain
-  if (0 == blk[level]->dirty)
-    Queit2(blk[level]);
+  // teritsuk ki a lancot, jeloljuk meg oket
+  // fprintf(stderr,"ENTER QUEIT\r\n"); fflush(stderr);
+  ptr = blk[level];
+  while (ptr->dirty != ptr)				// masra mutat ?
+  { nxt = ptr->dirty;					// jegyezzuk meg
+    ptr->dirty = ptr;                                   // mutasson onmagara
+    systab->vol[volnum-1]->stats.logwt++;		// incr logical
+    ptr->modified = 1;                                  // modositottuk
+    ptr = nxt;                                          // menjunk a kov.re
+  }
+  ptr->modified = 1;                                    // az utolso hurok
+  systab->vol[volnum-1]->stats.logwt++;			// incr logical
   // fprintf(stderr,"dirty: %ld\r\n", blk[level]->block);
+  // fprintf(stderr,"EXIT QUEIT\r\n"); fflush(stderr);
   return;
 
   Queit2(blk[level]);

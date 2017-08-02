@@ -131,7 +131,8 @@ start:
   bzero(semtab, sizeof(semtab));
 
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-  dbfd = open(file, O_RDONLY);                  // open the database for read
+  // dbfd = open(file, O_RDONLY);                  // open the database for read
+  dbfd = open(file, O_RDWR);                  // open the database for read XXX
   if (dbfd < 0) return (errno);                 // if that failed
   // i = fcntl(dbfd, F_NOCACHE, 1);
   if (start_type == TYPE_RUN)			// if not from JOB

@@ -83,6 +83,14 @@ void LatchUnlock(LATCH_T *latch)
 #endif
 }
 
+void MicroSleep(u_long useconds)
+{
+  struct timeval tout;
+
+  tout.tv_sec = 0;
+  tout.tv_usec = useconds;
+  select(0, NULL, NULL, NULL, &tout);
+}
 
 int LatchLock(LATCH_T *latch)
 { int i, j;
@@ -94,7 +102,7 @@ int LatchLock(LATCH_T *latch)
         return 0;
 #ifdef USE_EXPBACK
       slot = random() & ((1 << j) - 1);
-      usleep(slot);
+      MicroSleep(slot);
 #endif
     }
 #ifdef USE_EXPBACK
@@ -104,7 +112,7 @@ int LatchLock(LATCH_T *latch)
     if (i & 3)
       sched_yield();
     else
-      usleep(1000 * LOCK_SLEEP);
+      MicroSleep(1000 * LOCK_SLEEP);
 #endif
   }
   // fprintf(stderr, "lock_latch: timeout\n");
@@ -142,7 +150,7 @@ void SemWait(SEM_T *sem)
         return;
 #ifdef USE_EXPBACK
       slot = random() & ((1 << j) - 1);
-      usleep(slot);
+      MicroSleep(slot);
 #endif
     }
 #ifdef USE_EXPBACK
@@ -152,7 +160,7 @@ void SemWait(SEM_T *sem)
     if (i & 3)
       sched_yield();
     else
-      usleep(1000 * LOCK_SLEEP);
+      MicroSleep(1000 * LOCK_SLEEP);
 #endif
   }
   // fprintf(stderr, "SemWait(): timeout\n");

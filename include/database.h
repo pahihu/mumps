@@ -168,8 +168,7 @@ typedef struct __PACKED__ GBD		                // global buf desciptor
 #ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
-  int    queued;
-  int    dhead;
+  int    modified;
 #endif
 #ifdef MV1_BLKSEM
   short  curr_lock;                                     // current block lock

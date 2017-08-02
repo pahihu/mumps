@@ -427,7 +427,8 @@ void do_dismount()					// dismount volnum
   for (i=0; i<systab->vol[volnum-1]->num_gbd; i++)	// look for unwritten
   { if ((systab->vol[volnum-1]->gbd_head[i].block) && 	// if there is a blk
         (systab->vol[volnum-1]->gbd_head[i].last_accessed != (time_t) 0) &&
-	(systab->vol[volnum-1]->gbd_head[i].dirty))
+	(systab->vol[volnum-1]->gbd_head[i].modified))
+	// (systab->vol[volnum-1]->gbd_head[i].dirty))
     { systab->vol[volnum-1]->gbd_head[i].dirty
         = &systab->vol[volnum-1]->gbd_head[i]; 		// point at self
 
@@ -552,8 +553,6 @@ void do_write()						// write GBDs
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
-      gbdptr->dhead  = 0;
-      gbdptr->queued = 0;
       UTIL_Barrier();
       break;						// break from while
     }
@@ -571,8 +570,6 @@ void do_write()						// write GBDs
       		doing = DOING_NOTHING;			// and here
     }
     lastptr->dirty = NULL;				// clear old dirtyptr
-    lastptr->dhead  = 0;
-    lastptr->queued = 0;
     UTIL_Barrier();
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while

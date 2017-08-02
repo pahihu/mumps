@@ -53,6 +53,19 @@
 
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#define monotonic_time  mach_absolute_time
+#endif
+#ifdef __linux__
+#include <time.h>
+u_int64 monotonic_time(void)
+{ struct timespec time;
+  clock_gettime(CLOCK_MONOTONIC, &time);
+  return (u_int64)time.tv_sec * 1000000000 + time.tv_nsec;
+}
+#endif
+
 //****************************************************************************
 //**  Function: UTIL_assert - my assert() funcion, if supplied     ***
 //**  prints the caller of the function which called ASSERT()      ***
@@ -135,10 +148,10 @@ short SemOpEx(int sem_num, int numb,
   { mypid = getpid();
     mv1_log_init();
   }
-  // fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
-  //                 mypid, monotonic_time(),
-  //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
-  //                 file, line);
+  fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
+                  mypid, monotonic_time(),
+                  systab->shsem[SEM_GLOBAL], sem_num, numb,
+                  file, line); fflush(stderr);
 
   if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));
