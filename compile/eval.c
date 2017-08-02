@@ -123,7 +123,7 @@ void atom()                                     // evaluate source
   if ((isalpha((int)c) != 0) || (c == '%') ||   // check for local variable
       (c == '^') ||				// or a global var
       ((c == '$') &&                            // check for $BP
-       (0 == strncasecmp(source_ptr,"BP",2))))
+       (0 == strncasecmp((char *)source_ptr,"BP",2))))
   { --source_ptr;				// backup to first character
     s = localvar();				// parse the variable
     if (s < 0)					// if we got an error
