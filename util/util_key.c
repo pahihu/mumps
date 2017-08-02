@@ -584,7 +584,7 @@ int X_put(const chr_x *a, u_char *b)
 
 int X_take(u_char *a, chr_x *b)
 {
-  int i,len;
+  int len;
 
   len = (int)(*a++);
   /*

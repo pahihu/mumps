@@ -125,7 +125,7 @@ short localvar()                                // evaluate local variable
   if ((isalpha((int)c) == 0) && (c != '%') && (c != '$'))// check for a variable
   { return (-(ERRZ12+ERRMLAST));                // return the error
   }
-  isbp = (c == '$') && (0 == strncasecmp(source_ptr,"BP",2));
+  isbp = (c == '$') && (0 == strncasecmp((char *)source_ptr,"BP",2));
   if ((c == '$') && (type == TYPVARNAM) && !isbp)  // check $...
   { if (isalpha(*source_ptr) == 0)		// next must be alpha
     { return (-(ERRZ12+ERRMLAST));              // return the error

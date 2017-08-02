@@ -1071,6 +1071,7 @@ short SQ_Force(cstring *device, cstring *msg)
 
 #ifdef __APPLE__
 
+  fd = 0;
   return ( 0 );
 
 #else
