@@ -78,7 +78,7 @@
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
 #define VERSION_TEST	0                       // Test version number
-#define MBYTE           1048576                 // 1024*1024
+#define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
@@ -555,11 +555,11 @@ typedef struct __PACKED__ SYSTAB                // system tables
   trantab tt[MAX_TRANTAB];                      // translation tables
   uid_t start_user;                             // he's priv too
   void *lockstart;                              // head of lock table
-  int locksize;                                 // how many bytes
+  size_t locksize;                              // how many bytes
   locktab *lockhead;                            // head of used locks
   locktab *lockfree;                            // head of lock free space
-  long addoff;                                  // off from systab to add buff
-  long addsize;                                 // add buff size
+  size_t addoff;                                // off from systab to add buff
+  size_t addsize;                               // add buff size
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE u_int WDPtime;                       // Write Daemon Poll time (msec)

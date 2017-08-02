@@ -90,18 +90,18 @@ int INIT_Start( char *file,                     // database
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i, j;                                     // usefull int
   int n_gbd;                                    // number of gbd
-  int addoff;                                   // offset for add buff
+  size_t addoff;                                // offset for add buff
   int indx;                                     // loop control
   key_t shar_mem_key;                           // memory "key"
   int shar_mem_id;                              // memory id
   int sem_id;					// semaphore id
   u_short sem_val[SEM_MAX];			// to init them
   union semun semvals;				// for a ptr to sem_val
-  int share_size;                               // size of share (bytes)
-  int locksize;					// size of locktab
-  int sjlt_size;                                // size of systab+jobtab+locktab
-  int volset_size;                              // size of volset struct (bytes)
-  int pagesize;                                 // system pagesize (bytes)
+  size_t share_size;                            // size of share (bytes)
+  size_t locksize;				// size of locktab
+  size_t sjlt_size;                             // size of systab+jobtab+locktab
+  size_t volset_size;                           // size of volset struct (bytes)
+  size_t pagesize;                              // system pagesize (bytes)
   struct shmid_ds sbuf;				// for shmctl
   char fullpathvol[MAXPATHLEN];			// full pathname of vol file
   gbd *gptr;					// a gbd pointer
@@ -183,7 +183,7 @@ int INIT_Start( char *file,                     // database
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
-  printf( "and %dkb for locktab.\n", locksize/1024);
+  printf( "and %lukb for locktab.\n", locksize/1024);
   if (jrnsize) printf("With %dkb of journal buffer.\n", jrnsize/1024);
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
 
