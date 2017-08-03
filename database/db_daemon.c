@@ -427,8 +427,7 @@ void do_dismount()					// dismount volnum
   for (i=0; i<systab->vol[volnum-1]->num_gbd; i++)	// look for unwritten
   { if ((systab->vol[volnum-1]->gbd_head[i].block) && 	// if there is a blk
         (systab->vol[volnum-1]->gbd_head[i].last_accessed != (time_t) 0) &&
-	(systab->vol[volnum-1]->gbd_head[i].modified))
-	// (systab->vol[volnum-1]->gbd_head[i].dirty))
+	(systab->vol[volnum-1]->gbd_head[i].dirty))
     { systab->vol[volnum-1]->gbd_head[i].dirty
         = &systab->vol[volnum-1]->gbd_head[i]; 		// point at self
 
@@ -518,7 +517,8 @@ void do_write()						// write GBDs
     }
     else						// do a write
     { blkno = gbdptr->block;
-      Check_BlockNo(blkno, "Write_Chain", 0, 0);        // check blkno validity
+      Check_BlockNo(blkno, CBN_INRANGE | CBN_ALLOCATED,
+                           "Write_Chain", 0, 0, 1);     // check blkno validity
 #ifdef MV1_BLKSEM
       while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
       { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.brdwait);// count a wait

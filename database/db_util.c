@@ -280,19 +280,28 @@ void Queit()						// que a gbd for write
 #endif
 
   // teritsuk ki a lancot, jeloljuk meg oket
-  // fprintf(stderr,"ENTER QUEIT\r\n"); fflush(stderr);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"ENTER QUEIT:");
+#endif
   ptr = blk[level];
   while (ptr->dirty != ptr)				// masra mutat ?
   { nxt = ptr->dirty;					// jegyezzuk meg
     ptr->dirty = ptr;                                   // mutasson onmagara
+#ifdef MV1_CACHE_DEBUG
+    fprintf(stderr," %d",ptr->block);
+#endif
     systab->vol[volnum-1]->stats.logwt++;		// incr logical
-    ptr->modified = 1;                                  // modositottuk
     ptr = nxt;                                          // menjunk a kov.re
   }
-  ptr->modified = 1;                                    // az utolso hurok
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr," %d",ptr->block);
+#endif
+  ptr->dirty = ptr;
   systab->vol[volnum-1]->stats.logwt++;			// incr logical
   // fprintf(stderr,"dirty: %ld\r\n", blk[level]->block);
-  // fprintf(stderr,"EXIT QUEIT\r\n"); fflush(stderr);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr," EXIT\r\n"); fflush(stderr);
+#endif
   return;
 
   Queit2(blk[level]);
@@ -1012,13 +1021,23 @@ cont:
 }
 
 
-void Check_BlockNo(u_int blkno, char *where, char *file, int lno)
+short Check_BlockNo(u_int blkno, int checks,
+                        char *where, char *file, int lno, int dopanic)
 {
   char msg[128];
   u_char *bitmap = (u_char *) systab->vol[volnum-1]->map;
+  int failed = 0;
 
-  if ((blkno > systab->vol[volnum-1]->vollab->max_block) || // out of range?
-      (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7)))))     //   or free ?
+  if (checks & CBN_INRANGE)                             // out of range ?       
+    failed = failed || (blkno > systab->vol[volnum-1]->vollab->max_block);
+  if (checks & CBN_ALLOCATED)                           // unallocated ?
+    failed = failed || (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
+
+  if (!dopanic)                                         // just check ?
+  { return failed ? -1 : 0;                             //   return condition
+  }
+
+  if (failed)                                           // panic when failed
   { if (file)
       sprintf((char *) msg, "invalid block (%u) in %s(%s:%d)!!",
                                   blkno, where, file, lno);
@@ -1027,6 +1046,7 @@ void Check_BlockNo(u_int blkno, char *where, char *file, int lno)
                                 blkno, where);
     panic((char *) msg);
   }
+  return 0;
 }
 
 int DirtyQ_Len(void)

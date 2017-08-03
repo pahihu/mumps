@@ -168,7 +168,7 @@ typedef struct __PACKED__ GBD		                // global buf desciptor
 #ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
-  int    modified;
+  u_int64 dbreq;
 #endif
 #ifdef MV1_BLKSEM
   short  curr_lock;                                     // current block lock
@@ -235,7 +235,8 @@ extern int hash_start;					// start searching here
 //**** Function Prototypes*****************************************************
 
 // File: database/db_buffer.c
-short GetBlock(u_int blknum,char *file,int line);	// Get block
+short GetBlock(u_int blknum,char *file,int line);       // Get block, chk valid
+short GetBlockRaw(u_int blknum,char *file,int line);	// Get block, raw
 #define Get_block(u)    GetBlock(u,__FILE__,__LINE__)
 short New_block();					// get new block
 void Get_GBD();				                // get a GBD
@@ -298,7 +299,10 @@ void Tidy_block();					// tidy current blk
 void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
-void Check_BlockNo(u_int blkno,char *where,char *file,int lno); // chk blkno
+short Check_BlockNo(u_int blkno,int checks,             // check blkno
+           char *where,char *file,int lno,int dopanic);
+#define CBN_INRANGE     1
+#define CBN_ALLOCATED   2
 int  DirtyQ_Len();                                      // length of dirtyQ
 
 //*****************************************************************************

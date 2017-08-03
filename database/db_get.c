@@ -48,6 +48,15 @@
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
 
+#ifdef MV1_CACHE_DEBUG
+short logit(int where,short ret)
+{ fprintf(stderr,"--- Get_data@%d: ret = %d\r\n",where,ret); fflush(stderr);
+  return ret;
+}
+#else
+#define logit(where,ret)        ret
+#endif
+
 //-----------------------------------------------------------------------------
 // Function: Get_data
 // Descript: Locate and return data described in db_var
@@ -73,12 +82,12 @@ short Get_data(int dir)					// locate a record
   if (!curr_lock)					// ensure locked
   { s = SemOp( SEM_GLOBAL, READ);			// take a read lock
     if (s < 0)						// if we got an error
-    { return s;						// return it
+    { return logit(1,s);				// return it
     }
   }
 
   if (systab->vol[db_var.volset-1] == NULL)		// vol still mounted?
-  { return (-ERRM26);					// no - error
+  { return logit(2,(-ERRM26));				// no - error
   }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
       (dir != 0) ||					// or level or backward
@@ -131,7 +140,7 @@ short Get_data(int dir)					// locate a record
 	        ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
 	    { s = -ERRM7;				// check for top node
 	    }
-	    return s;					// and return
+	    return logit(3,s);				// and return
 	  }
           // last_used_failed = 5;                         // add penalty
 	  blk[level] = NULL;				// clear this
@@ -147,13 +156,13 @@ short Get_data(int dir)					// locate a record
   i = systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].global;
 							// get directory blk#
   if (!i)						// if nosuch
-  { return (-ERRM26);					// then error
+  { return logit(4,(-ERRM26));				// then error
   }
 
   level = 0;						// where it goes
   s = Get_block(i);					// get the block
   if (s < 0)						// error?
-  { return s;						// give up
+  { return logit(5,s);					// give up
   }
 
   if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
@@ -161,7 +170,7 @@ short Get_data(int dir)					// locate a record
     if (s >= 0)						// if found
     { Allign_record();
     }
-    return s;						// end ^$G() lookup
+    return logit(6,s);					// end ^$G() lookup
   }
 
   tmp[1] = 128;						// start string key
@@ -177,13 +186,13 @@ short Get_data(int dir)					// locate a record
 
   s = Locate(tmp);					// search for it
   if (s < 0)						// failed?
-  { return s;						// return error
+  { return logit(7,s);					// return error
   }
   partab.jobtab->last_block_flags = 0;			// clear JIC
   Allign_record();					// if not alligned
   i = *(int *) record;					// get block#
   if (!i)						// none there?
-  { return -ERRM7;					// say nosuch
+  { return logit(8,-ERRM7);				// say nosuch
   }
   partab.jobtab->last_block_flags = ((u_int *) record)[1]; // save flags
 
@@ -195,20 +204,20 @@ short Get_data(int dir)					// locate a record
   level++;						// where we want it
   s = Get_block(i);					// get the block
   if (s < 0)						// error?
-  { return s;						// give up
+  { return logit(9,s);					// give up
   }
   while (blk[level]->mem->type < 65)			// while we have ptrs
   { 
     //if (blk[level]->mem->global != db_var.name.var_qu)
     if (X_NE(blk[level]->mem->global, db_var.name.var_xu))
-    { return -(ERRMLAST+ERRZ61);			// database stuffed
+    { return logit(10,-(ERRMLAST+ERRZ61));		// database stuffed
     }
     s = Locate(&db_var.slen);				// locate the key
     if (s == -ERRM7)					// failed to find?
     { Index--;						// yes, backup the Index
     }
     else if (s < 0)					// else if error
-    { return s;						// return it
+    { return logit(11,s);				// return it
     }
     else if (dir < 0)					// if found and want -
     { Index--;						// backup the Index
@@ -221,19 +230,19 @@ short Get_data(int dir)					// locate a record
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     Allign_record();					// if not alligned
     if (level == dir)					// stop here?
-    { return s;						// yes - return result
+    { return logit(12,s);				// yes - return result
     }
     i = *(int *) record;				// get block#
     level++;						// where it goes
     s = Get_block(i);					// get the block
     if (s < 0)						// error?
-    { return s;						// give up
+    { return logit(13,s);				// give up
     }
   }							// end while ptr
 
   //if (blk[level]->mem->global != db_var.name.var_qu)
   if (X_NE(blk[level]->mem->global, db_var.name.var_xu))
-  { return -(ERRMLAST+ERRZ61);				// database stuffed
+  { return logit(14,-(ERRMLAST+ERRZ61));		// database stuffed
   }
   s = Locate(&db_var.slen);				// locate key in data
   if (dir < 1)					        // if not a pointer
@@ -249,5 +258,5 @@ short Get_data(int dir)					// locate a record
   if (!s)						// if ok
   { s = record->len;					// get the dbc
   }
-  return s;						// return result
+  return logit(15,s);					// return result
 }

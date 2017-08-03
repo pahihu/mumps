@@ -96,7 +96,9 @@ short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
   char msg[128];
 
-  // fprintf(stderr,"=== %s\r\n", rtn);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"=== %s\r\n", rtn);
+#endif
   partab.jobtab->grefs++;				// count global ref
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   if (curr_lock)
@@ -159,6 +161,7 @@ short Copy2local(mvar *var, char *rtn)
     // ASSERT(db_var.nsubs == actsubs); XXX
   }
 #endif
+  systab->DbReq++;
   return 0;						// else return ok
 }
 
@@ -390,8 +393,14 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
     }
   }							// end writelock check
   wanna_writing = 1;
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- S:Get_data KILL\r\n");
+#endif
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbkil); // update stats
   s = Get_data(0);					// attempt to get it
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- E:Get_data = %d KILL\r\n", s);
+#endif
   if (((s == -ERRM7) && (level == 0)) ||		// if nosuch
       ((s < 0) && (s != -ERRM7)))			// or an error
   { if (curr_lock)					// if locked

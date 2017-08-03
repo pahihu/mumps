@@ -569,6 +569,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE u_int jrnbufsize;                    // current journal buffer size
   u_int   jrnbufcap;                            // journal buffer capacity
   u_char *jrnbuf;                               // journal buffer
+  VOLATILE u_int64 DbReq;                       // DB request counts
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;

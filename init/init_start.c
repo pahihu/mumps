@@ -277,6 +277,7 @@ int INIT_Start( char *file,                     // database
   systab->WDPtime = WDP_TIME_MAX;               // write daemon poll time
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 1;                          // Kill zeroes data blocks
+  systab->DbReq = 0;                            // To keep track DB requests
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
@@ -497,7 +498,7 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
-    gptr[i].modified = 0;
+    gptr[i].dbreq = 0;
 #endif
 #ifdef MV1_BLKSEM
     gptr[i].curr_lock = 0;                      // block lock flag

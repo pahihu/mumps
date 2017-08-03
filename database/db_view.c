@@ -58,6 +58,10 @@
 
 struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
 { short s;						// for func
+
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- DB_ViewGet: %d\r\n",block);fflush(stderr);
+#endif
   if ((block < 1) || (block > systab->vol[vol-1]->vollab->max_block))
   { return NULL;					// validate
   }
@@ -68,7 +72,7 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
   if (s < 0)						// check error
   { return NULL;					// quit if so
   }
-  s = Get_block(block);					// get it
+  s = GetBlockRaw(block,__FILE__,__LINE__);             // get it
   if (s >= 0)
   { blk[level]->last_accessed = MTIME(0)+86400;		// push last access
   }
@@ -88,6 +92,9 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
 void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
 { short s;						// for funcs
 
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- DB_ViewPut: %d\r\n",ptr->block);fflush(stderr);
+#endif
   volnum = vol;						// for ron
   writing = 0;						// clear this
   s = SemOp(SEM_GLOBAL, WRITE);				// write lock
@@ -125,14 +132,20 @@ void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
 void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
 { short s;						// for functions
 
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- DB_ViewRel: %d\r\n",ptr->block);fflush(stderr);
+#endif
   writing = 0;						// clear this
   ptr->last_accessed = MTIME(0);			// reset access
-  if (ptr->dirty != NULL)				// not owned elsewhere
+  if (ptr->dirty && (ptr->dirty < (gbd *) 5))		// not owned elsewhere
   { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error
     { return;						// quit if so
 // PROBABLY SHOULD PERSIST HERE
     }
+#ifdef MV1_CACHE_DEBUG
+    fprintf(stderr,"--- DB_ViewRel: !!! free !!!\r\n");fflush(stderr);
+#endif
     Free_GBD(ptr);					// free it
     SemOp(SEM_GLOBAL, -curr_lock);			// release lock
   }
