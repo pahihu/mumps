@@ -124,7 +124,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   hnd->file = strdup(file);                     // cpy database file name
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-  hnd->dbfd = open(file, O_RDONLY);             // open the database for read
+  hnd->dbfd = open(file, O_RDWR);               // open the database for write
   if (hnd->dbfd < 0) return (errno);            // if that failed
   // i = fcntl(dbfd, F_NOCACHE, 1);
   if (hnd->start_type == TYPE_RUN)			// if not from JOB
