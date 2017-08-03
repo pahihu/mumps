@@ -703,7 +703,8 @@ int do_zot(u_int gb)					// zot block
         }
       }
       if (!(ret < 0))
-      { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);// count a write
+      { if (systab->ZotData)                            // count a write
+          ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);
         ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);// and a logical
         do_free(i);					// free the block
       }
@@ -733,7 +734,8 @@ zotit:
       typ = -1;						// flag fail
     }
   }
-  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);	// count a write
+  if (systab->ZotData)                                  // count a write
+    ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);	// and a logical
   dlfree(bptr);						// free memory
   do_free(gb);						// and the block
