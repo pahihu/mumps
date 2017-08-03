@@ -148,10 +148,10 @@ short SemOpEx(int sem_num, int numb,
   { mypid = getpid();
     mv1_log_init();
   }
-  fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
-                  mypid, monotonic_time(),
-                  systab->shsem[SEM_GLOBAL], sem_num, numb,
-                  file, line); fflush(stderr);
+  // fprintf(stderr,"%5d %20lld %08X %d %3d %s:%d\r\n",
+  //                 mypid, monotonic_time(),
+  //                 systab->shsem[SEM_GLOBAL], sem_num, numb,
+  //                 file, line); fflush(stderr);
 
   if (curr_sem_init)
   { bzero(curr_sem, sizeof(curr_sem));

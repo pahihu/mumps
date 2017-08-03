@@ -91,18 +91,21 @@ void UnlinkGBD(gbd *oldptr,                             // unlink a GBD
 
   hash = oldptr->hash;                                  // the chain
   // fprintf(stderr,"Unlink_GBD(): hash=%d\r\n",hash); fflush(stderr);
-  ASSERT2((0 <= hash) && (hash < GBD_HASH));
-  ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
-  if (ptr == oldptr)					// is this it
-  { systab->vol[volnum-1]->gbd_hash[hash] = oldptr->next;// unlink it
-    ptr = 0;                                            // removed
+  // ASSERT2(0 <= hash); XXX
+  ASSERT2(hash < GBD_HASH);
+  if (0 <= hash)
+  { ptr = systab->vol[volnum-1]->gbd_hash[hash];	// get the list
+    if (ptr == oldptr)					// is this it
+    { systab->vol[volnum-1]->gbd_hash[hash] = oldptr->next;// unlink it
+      ptr = 0;                                          // removed
+    }
+    else						// inside the chain
+    { oldptr->prev->next = oldptr->next;                // nxt of prev is my nxt
+      ptr = oldptr->prev;                               // point to prev
+    }
+    if (oldptr->next)                                   // if not last
+      oldptr->next->prev = ptr;                         //   point to head/prev
   }
-  else							// inside the chain
-  { oldptr->prev->next = oldptr->next;                  // nxt of prev is my nxt
-    ptr = oldptr->prev;                                 // point to prev
-  }
-  if (oldptr->next)                                     // if not last
-    oldptr->next->prev = ptr;                           //   point to head/prev
 
   oldptr->prev = NULL;                                  // clear chain ptrs
   oldptr->next = NULL;
@@ -314,6 +317,7 @@ void Release_GBDs(int stopat)
   }
 }
 
+#define BLK_WAIT        50
 
 short GetBlock(u_int blknum,char *file,int line)        // Get block
 { int i;						// a handy int
@@ -321,8 +325,12 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
   int  refd_inited = 0;                                 // reference initialized
+  time_t wait_start;
 
   // fprintf(stderr,"GetBlock(%u) called from %s:%d\r\n", blknum, file, line);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- S:GetBlock(%u)\r\n",blknum);fflush(stderr);
+#endif
   Check_BlockNo(blknum, "Get_block", file, line);       // check blknum validity
 
   if (!writing)                                         // a reader
@@ -337,11 +345,16 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
       UTIL_Barrier();
+      wait_start = MTIME(0);                            // remember time
       while (ptr->last_accessed == (time_t) 0)	        // if being read
       { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
+        if ((MTIME(0) - wait_start) > BLK_WAIT)         // wait for block
+        { panic("Get_block: can't get block in stage1 after 50 seconds");
+        }
         SchedYield();					// wait for it
         UTIL_Barrier();
       }
+      ASSERT(blknum == ptr->block);
       goto exit;					// go common exit code
     }
     ptr = ptr->next;					// point at next
@@ -407,14 +420,17 @@ writelock:
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
-	// SemOp( SEM_GLOBAL, -curr_lock);			// drop to read lock
-	// SemOp( SEM_GLOBAL, READ);			// drop to read lock
         UTIL_Barrier();
+        wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
+          if ((MTIME(0) - wait_start) > BLK_WAIT)
+          { panic("Get_block: can't get block in stage2 after 50 seconds");
+          }
           SchedYield();					// wait for it
           UTIL_Barrier();
         }
+        ASSERT(blknum == ptr->block);
         goto exit;					// go common exit code
       }
       ptr = ptr->next;					// point at next
@@ -428,7 +444,6 @@ writelock:
   refd_inited = 1;
 #endif
   blk[level]->last_accessed = (time_t) 0;		// clear last access
-  UTIL_Barrier();
 #ifdef MV1_REFD
   Link_GBD(blknum, blk[level]);
 #else
@@ -436,6 +451,7 @@ writelock:
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
 #endif
+  UTIL_Barrier();
   if (!writing)						// if reading
   { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
   }
@@ -492,6 +508,9 @@ exit:
   Index = LOW_INDEX;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"--- E:GetBlock\r\n"); fflush(stderr);
+#endif
   return 0;						// return success
 }
 
@@ -582,6 +601,7 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   systab->vol[volnum-1]->stats.phywt;                   // count a write
   gbdptr->modified = 0;
   gbdptr->dirty = NULL;
+  UTIL_Barrier();
 }							// end write code
 
 //-----------------------------------------------------------------------------
@@ -713,7 +733,9 @@ void Get_GBD()						// get a GBD
   int oldpos;
   u_int oldval;
 
-  // fprintf(stderr,"ENTER GBD\r\n"); fflush(stderr);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"ENTER GBD\r\n"); fflush(stderr);
+#endif
   pass    = 0;
   oldval  = (u_int) -1;
 start:
@@ -831,7 +853,9 @@ exit:
   UTIL_Barrier();
   idx = (u_short *) blk[level]->mem;			// set this up
   iidx = (int *) blk[level]->mem;			// and this
-  // fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
+#ifdef MV1_CACHE_DEBUG
+  fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
+#endif
   return;						// return
 }
 

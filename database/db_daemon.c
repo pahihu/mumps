@@ -643,6 +643,7 @@ int do_zot(u_int gb)					// zot block
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
+      ptr->block = 0;
       UTIL_Barrier();
       break;						// exit
     }
@@ -767,6 +768,7 @@ void do_free(u_int gb)					// free from map et al
       }
       else						// in use or not locked
       { ptr->last_accessed = (time_t) 0;		// mark as zotted
+        ptr->block = 0;
       }
       break;						// and exit the loop
     }

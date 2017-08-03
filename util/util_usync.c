@@ -200,6 +200,7 @@ int RWLockInit(RWLOCK_T *lok, int maxjob)
 
 void LockWriter(RWLOCK_T *lok)
 { int dowait, s;
+  char msg[128];
 
   dowait = 0;
   s = LatchLock(&lok->g_latch);
@@ -217,7 +218,9 @@ void LockWriter(RWLOCK_T *lok)
     // fflush(stderr);
     s = LatchLock(&lok->wr_latch);
     if (s < 0)
-    { panic("LockWriter(): failed [wr_latch]");
+    { sprintf(msg,"LockWriter(): failed [wr_latch] %d,%d,%d",
+                    lok->readers,lok->wait_to_read,lok->writers);
+      panic(msg);
     }
   }
 }
@@ -232,6 +235,7 @@ void UnlockWriter(RWLOCK_T *lok)
   }
   ASSERT(0 == lok->readers);
   lok->writers--;
+  ASSERT(0 <= lok->writers);
   if (lok->wait_to_read)
   { lok->readers = lok->wait_to_read;
     lok->wait_to_read = 0;
@@ -294,6 +298,7 @@ void UnlockReader(RWLOCK_T *lok)
   }
   ASSERT(0 != lok->readers);
   lok->readers--;
+  ASSERT(0 <= lok->readers);
   if ((0 == lok->readers) && (0 < lok->writers))
     LatchUnlock(&lok->wr_latch);
   LatchUnlock(&lok->g_latch);

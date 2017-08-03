@@ -156,7 +156,7 @@ short Copy2local(mvar *var, char *rtn)
                            255, &actsubs, NULL);
     if (db_var.nsubs != actsubs)
       BAD_MVAR();
-    ASSERT(db_var.nsubs == actsubs);
+    // ASSERT(db_var.nsubs == actsubs); XXX
   }
 #endif
   return 0;						// else return ok
@@ -304,7 +304,9 @@ short DB_DataEx(mvar *var, u_char *buf, cstring *dat)   // get $DATA()
   { return s;						// exit on error
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbdat); // update stats
+  // fprintf(stderr,"--- S:Get_data\r\n"); fflush(stderr);
   s = Get_data(0);					// attempt to get it
+  // fprintf(stderr,"--- E:Get_data\r\n"); fflush(stderr);
   i = 1;						// assume data found
   if (s == -ERRM7)					// undefined global?
   { i = 0;						// yes - no data
