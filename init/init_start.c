@@ -169,9 +169,10 @@ int INIT_Start( char *file,                     // database
   }
   n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
+  syncjrn = 1;                                  // buffer flush w/ fsync()
   if (jrnkb < 0)                                // if negative
-  { syncjrn = 1;                                //   we requested fsync() on
-    jrnkb   = -jrnkb;                           //   buffer flush
+  { syncjrn = 0;                                //   then disable fsync()
+    jrnkb   = -jrnkb;
   }
   jrnsize = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
   if (jrnsize < jrnkb)
@@ -184,7 +185,8 @@ int INIT_Start( char *file,                     // database
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
   printf( "and %lukb for locktab.\n", locksize/1024);
-  if (jrnsize) printf("With %dkb of journal buffer.\n", jrnsize/1024);
+  if (jrnsize) printf("With %dkb of journal buffer (%s flush).\n",
+                        jrnsize/1024, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
