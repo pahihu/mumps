@@ -35,19 +35,6 @@ extern     pid_t   mypid;
 #define ATOMIC_SYNC     __sync_synchronize()
 #endif
 
-#ifdef __APPLE__
-#include <mach/mach_time.h>
-#define monotonic_time  mach_absolute_time
-#endif
-#ifdef __linux__
-#include <time.h>
-u_int64 monotonic_time(void)
-{ struct timespec time;
-  clock_gettime(CLOCK_MONOTONIC, &time);
-  return (u_int64)time.tv_sec * 1000000000 + time.tv_nsec;
-}
-#endif
-
 static
 int Semop(int semid, struct sembuf *sops, size_t nsops)
 {

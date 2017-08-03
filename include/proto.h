@@ -348,6 +348,7 @@ short UTIL_String_Lock( locktab *var,         	// address of lock entry
 short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 
 // Share and semaphore stuff
+u_int64 monotonic_time(void);                   // 64bit monotonic time
 
 #ifdef NDEBUG
 #define ASSERT(x)
