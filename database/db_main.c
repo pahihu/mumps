@@ -161,7 +161,6 @@ short Copy2local(mvar *var, char *rtn)
     // ASSERT(db_var.nsubs == actsubs); XXX
   }
 #endif
-  systab->DbReq++;
   return 0;						// else return ok
 }
 

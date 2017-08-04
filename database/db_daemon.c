@@ -164,7 +164,9 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     return(errno);					// check for error
   }
 
-  // i = fcntl(dbfd, F_NOCACHE, 1);
+#ifdef MV1_F_NOCACHE
+  i = fcntl(dbfd, F_NOCACHE, 1);
+#endif
   t = time(0);						// for ctime()
   fprintf(stderr,"Daemon %d started successfully at %s\n",
 	         myslot, ctime(&t));			// log success
@@ -403,7 +405,9 @@ void do_dismount()					// dismount volnum
       else					// if open OK
       { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-        // i = fcntl(jfd, F_NOCACHE, 1);
+#ifdef MV1_F_NOCACHE
+         i = fcntl(jfd, F_NOCACHE, 1);
+#endif
 	lseek(jfd, 0, SEEK_SET);
 	errno = 0;
 	i = read(jfd, tmp, sizeof(u_int));	// read the magic

@@ -134,7 +134,9 @@ start:
   // dbfd = open(file, O_RDONLY);                  // open the database for read
   dbfd = open(file, O_RDWR);                  // open the database for read XXX
   if (dbfd < 0) return (errno);                 // if that failed
-  // i = fcntl(dbfd, F_NOCACHE, 1);
+#ifdef MV1_F_NOCACHE
+  i = fcntl(dbfd, F_NOCACHE, 1);
+#endif
   if (start_type == TYPE_RUN)			// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
@@ -263,7 +265,10 @@ start:
       if (cmd != NULL) goto exit;
     }
     else
-    { // i = fcntl(dbfd, F_NOCACHE, 1);
+    { 
+#ifdef MV1_F_NOCACHE
+      i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
+#endif
     }
   }
 

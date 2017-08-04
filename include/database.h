@@ -78,8 +78,9 @@
 #define WDP_TIME_MIN    125                             // min. daemon poll
 
 // #include <libkern/OSAtomic.h>
-// #define ATOMIC_INCREMENT(x)     OSAtomicIncrement32((volatile int32_t*)&(x))
-#define ATOMIC_INCREMENT(x)        __sync_add_and_fetch(&(x), 1)
+// #define ATOMIC_INCREMENT(x)      OSAtomicIncrement32((volatile int32_t*)&(x))
+// #define ATOMIC_INCREMENT(x)      __sync_add_and_fetch(&(x), 1)
+#define ATOMIC_INCREMENT(x)         inter_add(&(x),1)
 
 // **** Structures ***********************************************************
 

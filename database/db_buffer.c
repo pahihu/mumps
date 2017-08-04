@@ -317,6 +317,8 @@ void Release_GBDs(int stopat)
 
 #define BLK_WAIT        50
 
+extern pid_t mypid;
+
 static
 short GetBlockEx(u_int blknum,char *file,int line)      // Get block
 { int i;						// a handy int
@@ -397,7 +399,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
         }
       }
       // fprintf(stderr,"--- use ro_gbd ---\r\n");
-      ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
+      // ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
       blk[level] = ro_gbd;                              // use the R/O GBD
       systab->vol[volnum-1]->stats.phyrd++;             // update stats
       blk[level]->block = blknum;			// set block number
@@ -426,7 +428,7 @@ writelock:
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
           if ((MTIME(0) - wait_start) > BLK_WAIT)       // wait over ?
-          { sprintf(msg,"Get_block: can't get block in stage1 after %d seconds",
+          { sprintf(msg,"Get_block: can't get block in stage2 after %d seconds",
                           BLK_WAIT);
             panic(msg);
           }
@@ -459,6 +461,10 @@ writelock:
   { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
   }
 unlocked:
+#ifdef MV1_CACHE_IO
+  fprintf(stderr,"%d %20lld R %d\r\n",mypid,monotonic_time(),blk[level]->block);
+  fflush(stderr);
+#endif
   file_off = (off_t) blknum - 1;			// block#
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)
            + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
@@ -583,7 +589,11 @@ short New_block()					// get new block
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
         UTIL_Barrier();
 	systab->vol[volnum-1]->first_free = c;		// save this
-        ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.blkalloc); // update stats
+        systab->vol[volnum-1]->stats.blkalloc++;        // update stats
+#ifdef MV1_CACHE_IO
+        fprintf(stderr,"%d %20lld A %d\r\n",mypid,monotonic_time(),blk[level]->block);
+        fflush(stderr);
+#endif
 	return 0;					// return success
       }
     }
@@ -599,8 +609,15 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   u_int blkno;                                          // block#
   int dbfd;
 
+  if (!writing)
+    systab->vol[volnum-1]->stats.eventcnt++;            // update stats
+
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"WriteBlock: %d %p\r\n",gbdptr->block,gbdptr->dirty);fflush(stderr);
+#endif
+#ifdef MV1_CACHE_IO
+  fprintf(stderr,"%d %20lld W %d\r\n",mypid,monotonic_time(),gbdptr->block);
+  fflush(stderr);
 #endif
   blkno = gbdptr->block;
   dbfd = partab.vol_fds[0];
@@ -717,12 +734,13 @@ start:
     }
   }
 
+  if (0 == (pass & 3))                                  // will wait ?
+    systab->vol[volnum - 1]->stats.gbswait++;           //   update stats
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
   if (pass & 3)
     SchedYield();                                       // yield
   else
-  { ATOMIC_INCREMENT(systab->vol[volnum - 1]->stats.gbswait);// incr. GBD wait
-    MSleep(GBD_SLEEP);                                  // wait
+  { MSleep(GBD_SLEEP);                                  // wait
   }
   pass++;						// increment a pass
   if (pass > GBD_TRIES)					// this is crazy!
@@ -775,8 +793,6 @@ start:
   i = (systab->hash_start + 1) % num_gbd;		// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    // if (ptr->dbreq == systab->DbReq)
-    //   goto Lcontinue;
     if (ptr->dirty && (ptr->dirty < (gbd *) 5))         // reserved ?
       goto Lcontinue;                                   //   skip it
     if (0 == ptr->block)  				// no block ?
@@ -846,8 +862,9 @@ Lcontinue:
   if (oldval && --oldval)
   { for (i = 0; i < num_gbd; i++)                       // for each GBD
     { ptr = &systab->vol[volnum-1]->gbd_head[i];
-      if (0 == ptr->block) 				// no block ?
-        continue;
+      if ((0 == ptr->block) ||                          // no block ?
+          (ptr->dirty && (ptr->dirty < (gbd *) 5)))     //   OR reserved ?
+        continue;                                       //     skip it
       avail = (now > ptr->last_accessed) &&             // not viewed
               (0   < ptr->last_accessed);               //   and not being read
       if (avail)
@@ -880,7 +897,6 @@ exit:
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif
-  blk[level]->dbreq = systab->DbReq;
   return;						// return
 }
 

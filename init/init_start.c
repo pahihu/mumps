@@ -130,7 +130,9 @@ int INIT_Start( char *file,                     // database
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
-  // i = fcntl(dbfd, F_NOCACHE, 1);
+#ifdef MV1_F_NOCACHE
+  i = fcntl(dbfd, F_NOCACHE, 1);
+#endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of label block failed\n - %s\n", // complain
@@ -278,8 +280,7 @@ int INIT_Start( char *file,                     // database
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->WDPtime = WDP_TIME_MAX;               // write daemon poll time
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
-  systab->ZotData = 1;                          // Kill zeroes data blocks
-  systab->DbReq = 0;                            // To keep track DB requests
+  systab->ZotData = 0;                          // Kill zeroes data blocks
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
@@ -437,7 +438,9 @@ int INIT_Start( char *file,                     // database
       else					// if open OK
       { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-        // i = fcntl(jfd, F_NOCACHE, 1);
+#ifdef MV1_F_NOCACHE
+        i = fcntl(jfd, F_NOCACHE, 1);
+#endif
 	lseek(jfd, 0, SEEK_SET);
 	errno = 0;
 	i = read(jfd, tmp, sizeof(u_int));	// read the magic
