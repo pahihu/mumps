@@ -372,6 +372,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
       if (ptr)                                          //   if succeeded, done
       { // fprintf(stderr,"Get_FreeGBD(): success\r\n");
         systab->vol[volnum-1]->stats.phyrd++;           // update stats
+        blk[level] = ptr;                               // save in blk[] chain
         blk[level]->block = blknum;			// set block number
 #ifdef MV1_REFD
         REFD_READ_INIT(blk[level]);
@@ -761,7 +762,8 @@ start:
 // Note:     curr_lock MUST be WRITE when calling this function
 //
 
-void Get_GBD()						// get a GBD
+static
+gbd* GetGBDEx(int rdonly)				// get a GBD
 { int i, j;						// a handy int
   time_t now;						// current time
   gbd *ptr;						// loop gbd ptr
@@ -780,10 +782,10 @@ void Get_GBD()						// get a GBD
 start:
   oldptr = NULL;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { blk[level]
+  { oldptr
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
     systab->vol[volnum-1]->gbd_hash [GBD_HASH]
-      = blk[level]->next;				// unlink it
+      = oldptr->next;			                // unlink it
     // fprintf(stderr,"Get_GBD(): from free list\r\n"); fflush(stderr);
     goto exit;						// common exit code
   }
@@ -816,7 +818,9 @@ start:
       }
       if (0 == REFD_VALUE(ptr))                         // nem hasznalt ?
       { if (ptr->dirty)                                 // modositottuk ?
-        { WriteBlock(ptr);                              //  irjuk ki
+        { if (rdonly)                                   // ha csak olvasot
+            return 0;                                   //   kertunk, nem irjuk
+          WriteBlock(ptr);                              //   irjuk ki
         }
         oldptr = ptr;                                   //  hasznaljuk
         oldpos = i;
@@ -852,8 +856,11 @@ Lcontinue:
   { { panic("Get_GBD: Failed to find an available GBD"); // die
     }
   }
-  if (oldptr->dirty)
-  { WriteBlock(oldptr);
+
+  if (oldptr->dirty)                                    // modositottuk ?
+  { if (rdonly)                                         // ha csak olvasnivalo,
+      return 0;                                         //   nem irjuk ki
+    WriteBlock(oldptr);                                 //   irjuk ki
   }
 
   // NB.
@@ -880,103 +887,33 @@ unlink_gbd:
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
   Unlink_GBD(oldptr);                                   // unlink oldptr
   // fprintf(stderr,"Get_GBD(): after Unlink_GBD\r\n"); fflush(stderr);
-  blk[level] = oldptr;					// store where reqd
 
 exit:
+  oldptr->block = 0;			                // no block attached
   // fprintf(stderr,"Get_GBD(): exit\r\n"); fflush(stderr);
-  blk[level]->block = 0;			        // no block attached
-  blk[level]->next = NULL;				// clear link
-  blk[level]->dirty = writing ? (gbd *) 1 : NULL;       // reserve when writing
-  blk[level]->last_accessed = (time_t) 0;		// and time
-  REFD_READ_INIT(blk[level]);                           // mark refd
-  blk[level]->prev = NULL;                              // clear prev link
-  blk[level]->hash = -1;                                // clear hash chain
+  oldptr->next = NULL;				        // clear link
+  oldptr->dirty = writing ? (gbd *) 1 : NULL;           // reserve when writing
+  oldptr->last_accessed = (time_t) 0;		        // and time
+  REFD_READ_INIT(oldptr);                               // mark refd
+  oldptr->prev = NULL;                                  // clear prev link
+  oldptr->hash = -1;                                    // clear hash chain
   UTIL_Barrier();
-  idx = (u_short *) blk[level]->mem;			// set this up
-  iidx = (int *) blk[level]->mem;			// and this
+  idx = (u_short *) oldptr->mem;			// set this up
+  iidx = (int *) oldptr->mem;			        // and this
+  return oldptr; 
+}
+
+void Get_GBD(void)                                      // get a GBD
+{ blk[level] = GetGBDEx(0);				// store where reqd
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif
-  return;						// return
 }
 
-gbd *Get_RdGBD()				        // get a GBD
-{ int i, j;						// a handy int
-  time_t now;						// current time
-  gbd *ptr;						// loop gbd ptr
-  gbd *oldptr = NULL;					// remember last unrefd
-  int pass;
-  int clean;                                            // flag clean blk
-  int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
-  int oldpos;
-
-  oldptr = NULL;
-  if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { blk[level]
-      = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
-    systab->vol[volnum-1]->gbd_hash [GBD_HASH]
-      = blk[level]->next;				// unlink it
-    // fprintf(stderr,"Get_GBD(): from free list\r\n"); fflush(stderr);
-    goto exit;						// common exit code
-  }
-
-  now = MTIME(0) + 1;				        // get current time
-
-  i = (systab->hash_start + 1) % num_gbd;		// where to start
-  for (j = 0; j < num_gbd; j++)                         // for each GBD
-  { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if ((0 == ptr->block) && 				// no block ?
-        (NULL == ptr->dirty))                           //   and not dirty ?
-    { oldptr = ptr;                                     // mark this
-      oldpos = i;				        // remember this
-      // fprintf(stderr,"Get_GBD(): from block == 0/unreferenced clean\r\n");
-      // fflush(stderr);
-      goto unlink_gbd;				        // common exit code
-    }							// end found expired
-    clean = (NULL == ptr->dirty) &&                     // not dirty
-            (now > ptr->last_accessed) &&               //   and not viewed
-            (0   < ptr->last_accessed);                 //   and not being read
-    if (clean)
-    { if (REFD_VALUE(ptr))
-      { REFD_UNMARK(ptr);
-        if ((0 == REFD_VALUE(ptr)) && (NULL == oldptr))
-        { oldptr = ptr;
-          oldpos = i;
-        }
-      }
-      else
-      { oldptr = ptr;
-        oldpos = i;
-        goto unlink_gbd;
-      }
-    }
-    i = (i + 1) % num_gbd;			        // next GBD entry
-  }							// end for every GBD
-  if (NULL == oldptr)
-    return 0;
-
-unlink_gbd:
-  systab->hash_start = oldpos;
-
-  // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
-  Unlink_GBD(oldptr);                                   // unlink oldptr
-  // fprintf(stderr,"Get_GBD(): after Unlink_GBD\r\n"); fflush(stderr);
-  blk[level] = oldptr;					// store where reqd
-
-exit:
-  // fprintf(stderr,"Get_GBD(): exit\r\n"); fflush(stderr);
-  blk[level]->block = 0;				// no block attached
-  blk[level]->next = NULL;				// clear link
-  blk[level]->dirty = NULL;				// clear dirty
-  blk[level]->last_accessed = (time_t) 0;		// and time
-  REFD_READ_INIT(blk[level]);                           // mark refd
-  blk[level]->prev = NULL;                              // clear prev link
-  blk[level]->hash = -1;                                // clear hash chain
-  UTIL_Barrier();
-  idx = (u_short *) blk[level]->mem;			// set this up
-  iidx = (int *) blk[level]->mem;			// and this
-  return blk[level];						// return
+gbd* Get_RdGBD(void)                                    // get a read-only GBD
+{ return GetGBDEx(1);                                   // no I/O involved !!!
 }
+
 
 //-----------------------------------------------------------------------------
 // Function: Free_GBD
