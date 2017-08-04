@@ -53,7 +53,8 @@
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
 
-#define LCK_SLEEP       250
+// #define LCK_SLEEP       250
+#define LCK_SLEEP            1
 
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
@@ -460,19 +461,20 @@ int failed(lck_add_ctx *pctx)                 // common code
   if (to == 0)                                // if no timeout
       tryagain = 0;                           // flag as if timeout expired
 
-  if (to > 0)                                 // if timeout value specified
+  if (to > 0)                                   // if timeout value specified
   // { currtime = time((time_t *) NULL);         // get current time
   { currtime = MTIME(0);                      // get current time
     if (strttime + to < currtime) tryagain = 0; // flag if time expired
   }                                           // end if timeout specified
 
   if (tryagain == 1)
-  { x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
+  { if (0 == (pass & 3))
+      systab->vol[volnum-1]->stats.lckwait++; // update stats
+    x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
     if (pass & 3)
       SchedYield();
     else
-    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lckwait); // update stats
-      MSleep(LCK_SLEEP);
+    { MSleep(LCK_SLEEP);
     }
     pass++;
   }
