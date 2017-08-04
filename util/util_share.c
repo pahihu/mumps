@@ -55,7 +55,9 @@ extern int curr_lock;				// for tracking SEM_GLOBAL
 
 #ifdef __APPLE__
 #include <mach/mach_time.h>
-#define monotonic_time  mach_absolute_time
+u_int64 monotonic_time(void)
+{ return mach_absolute_time();
+}
 #endif
 #ifdef __linux__
 #include <time.h>
