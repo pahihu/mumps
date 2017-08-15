@@ -11,6 +11,7 @@ Changes:
   * MCL shell prompt changed to [UCI,VOL], SHUTDOWN command
   * %MV1 routine contains the implementation constants
   * support global buffers over 2GB
+  * daemon log contains GMT timestamp, process id, restart info
 
 Fixes:
   * fixes from MUMPS V1 1.66 and 1.70
