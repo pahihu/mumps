@@ -244,6 +244,7 @@ typedef union __attribute__ ((__packed__)) DATA_UNION // diff types of msg data
 
 typedef struct __attribute__ ((__packed__)) WD_TAB // write daemon table
 { int pid;                                      // the wd's pid
+  int chkpt;                                    // checkpoint
   int doing;                                    // what we are doing
   msg_data currmsg;                             // the current gbd */block#
 } wdtab_struct;                                 // end write daemon structure

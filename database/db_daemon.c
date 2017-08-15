@@ -43,10 +43,12 @@
 #include <errno.h>					// for errors
 #include <fcntl.h>					// for file stuff
 #include <signal.h>					// for kill()
+#include <stdarg.h>                                     // for va_list
 #include <sys/shm.h>
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
+#include <sys/time.h>                                   // for gettimeofday()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -64,6 +66,64 @@ void do_free(u_int gb);					// free from map et al
 void ic_map(int flag, int dbfd);			// check the map
 void daemon_check();					// ensure all running
 
+#define CHKPT   systab->vol[0]->wd_tab[myslot].chkpt = __LINE__
+
+char *last_status(void)
+{ static char buf[128];
+  int doing, chkpt;
+
+  buf[0] = '\0';
+  doing = systab->vol[0]->wd_tab[myslot].doing;
+  chkpt = systab->vol[0]->wd_tab[myslot].chkpt;
+  if (0 == chkpt)
+    return buf;
+
+  if (DOING_WRITE == doing)
+  { sprintf(buf, "Last status: doing=WRITE gbddata=%p chkpt=%d\n",
+                  systab->vol[0]->wd_tab[myslot].currmsg.gbddata,
+                  chkpt);
+  }
+  else if (DOING_GARB == doing)
+  { sprintf(buf, "Last status: doing=GARB intdata=%d chkpt=%d\n",
+                  systab->vol[0]->wd_tab[myslot].currmsg.intdata,
+                  chkpt);
+  }
+  else
+  { sprintf(buf, "Last status: doing=%d chkpt=%d\n", doing, chkpt);
+  }
+  return buf;
+}
+
+int do_log(const char *fmt,...)
+{ int i;
+  va_list ap;
+  char tstamp[64];
+  struct timeval tv_result;
+  struct tm *tm_result;
+  int tstamp_filled;
+
+  tstamp_filled = 0;
+  if (0 == gettimeofday(&tv_result, 0) < -1)
+  { tm_result = gmtime(&tv_result.tv_sec);
+    if (tm_result != NULL)
+    { if (0 != strftime(tstamp, 64, "%Y-%m-%dT%H:%M:%S", tm_result))
+      { sprintf(tstamp + 19, ".%3d", tv_result.tv_usec / 1000);
+        tstamp_filled = 1;
+      }
+    }
+  }
+  if (0 == tstamp_filled)
+    strcpy(tstamp,"YYYY-MM-DDTHH:MM:SS.MMM");
+
+  fprintf(stderr,"%s [%d] ", tstamp, getpid());
+  va_start(ap, fmt);
+  i = vfprintf(stderr,fmt,ap);
+  va_end(ap);
+
+  fflush(stderr);
+  return i;
+}
+
 //------------------------------------------------------------------------------
 // Function: MSLEEP
 // Descript: sleep given seconds, if daemon 0 update Mtime
@@ -74,6 +134,7 @@ void daemon_check();					// ensure all running
 static
 u_int MSLEEP(u_int seconds)
 {
+  CHKPT;
   if (!myslot)
     systab->Mtime = time(0);
 
@@ -94,6 +155,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
+  char *msg;
 
   volnum = vol;						// save vol# here
 
@@ -116,34 +178,39 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   sprintf(&logfile[strlen(logfile)],"daemon_%d.log",slot); // add slot to name
   myslot = slot;					// remember my slot
+  msg = last_status();                                  // save last status
+  CHKPT;
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
   a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
   a = freopen(logfile,"a",stderr);			// stderr to logfile
+  CHKPT;
   if (!a) return (errno);			        // check for error
+  CHKPT;
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)
-  { fprintf(stderr, "Cannot open database file %s\n",
+  { do_log("Cannot open database file %s\n",
                   systab->vol[0]->file_name);
-    fflush( stderr );                                   // flush to the file
     return(errno);					// check for error
   }
   // i = fcntl(dbfd, F_NOCACHE, 1);
   t = time(0);						// for ctime()
-  fprintf(stderr,"Daemon %d started successfully at %s\n",
-	         myslot, ctime(&t));			// log success
-  fflush( stderr );                                     // flush to the file
+  do_log("Daemon %d started successfully\n", myslot);   // log success
+  if (msg[0])                                           // report last status
+    do_log(msg);
 
   if (!myslot)
     systab->Mtime = time(0);
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
-  { ic_map(-3, dbfd);					// doit
+  { CHKPT;
+    ic_map(-3, dbfd);					// doit
   }
 
   i = MSLEEP(1);					// wait a bit
 
+  CHKPT;
   while (TRUE)						// forever
   { i = MSLEEP(1);					// rest
     do_daemon();					// do something
@@ -165,11 +232,12 @@ void do_daemon()					// do something
   time_t t;						// for ctime()
 
 start:
-
+  CHKPT;
   daemon_check();					// ensure all running
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_NOTHING)
   { if ((!myslot) && (systab->vol[volnum-1]->map_dirty_flag)) // first daemon
-    { file_off = lseek( dbfd, 0, SEEK_SET);		// move to start of file
+    { CHKPT;
+      file_off = lseek( dbfd, 0, SEEK_SET);		// move to start of file
       if (file_off<0)
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
         panic("do_daemon: lseek() to start of file failed");
@@ -184,7 +252,8 @@ start:
       systab->vol[volnum-1]->stats.phywt++;		// count a write
     }							// end map write
     if ((!myslot) && (systab->vol[volnum-1]->writelock < 0)) // check wrtlck
-    { while (TRUE)					// loop
+    { CHKPT;
+      while (TRUE)					// loop
       { i = (systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr]
 	     != NULL);					// check dirty que
 	i = ((i) ||
@@ -203,10 +272,13 @@ start:
       systab->vol[volnum-1]->writelock = abs(systab->vol[volnum-1]->writelock);
       // Set the writelock to a positive value when all quiet
     }							// end wrtlock
+    CHKPT;
     while (SemOp(SEM_WD, WRITE));			// lock WD
+    CHKPT;
     if (systab->vol[volnum-1]->dirtyQ
 	[systab->vol[volnum-1]->dirtyQr] != NULL)	// any writes?
-    { systab->vol[volnum-1]->wd_tab[myslot].currmsg.gbddata
+    { CHKPT;
+      systab->vol[volnum-1]->wd_tab[myslot].currmsg.gbddata
         = systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr]; // get
       systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_WRITE;
       systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr] = NULL;
@@ -215,31 +287,35 @@ start:
     }
     else if (systab->vol[volnum-1]->garbQ
 	       [systab->vol[volnum-1]->garbQr]) 	// any garbage?
-    { systab->vol[volnum-1]->wd_tab[myslot].currmsg.intdata
+    { CHKPT;
+      systab->vol[volnum-1]->wd_tab[myslot].currmsg.intdata
         = systab->vol[volnum-1]->garbQ[systab->vol[volnum-1]->garbQr]; // get
       systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_GARB;
       systab->vol[volnum-1]->garbQ[systab->vol[volnum-1]->garbQr] = 0;
       systab->vol[volnum-1]->garbQr++;			// increment ptr
       systab->vol[volnum-1]->garbQr &= (NUM_GARB - 1);	// do wrap
     }
+    CHKPT;
     SemOp( SEM_WD, -WRITE);				// release WD lock
+    CHKPT;
   }							// end looking for work
 
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_NOTHING)
-  { if (systab->vol[volnum-1]->dismount_flag)		// dismounting?
-    { if (myslot)					// first?
+  { CHKPT;
+    if (systab->vol[volnum-1]->dismount_flag)		// dismounting?
+    { CHKPT;
+      if (myslot)					// first?
       { systab->vol[volnum-1]->wd_tab[myslot].pid = 0;	// say gone
 	t = time(0);					// for ctime()
-	fprintf(stderr,"Daemon %d shutting down at %s\n",
-	         myslot, ctime(&t));			// log success
-        fflush( stderr );
+	do_log("Daemon %d shutting down\n", myslot);    // log success
         exit(0);					// and exit
       }
       do_dismount();					// dismount it
       exit(0);						// and exit
     }							// end dismount code
     else
-    { return;						// nothing to do
+    { CHKPT;
+      return;						// nothing to do
     }
   }
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_WRITE)
@@ -267,6 +343,7 @@ void do_dismount()					// dismount volnum
   struct shmid_ds sbuf;					// for shmctl
   off_t off;                                            // for lseek
 
+  CHKPT;
   i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); //remove share
   for (i = 0; i < systab->maxjob; i++)			// for each job
   { pid = systab->jobtab[i].pid;			// get pid
@@ -314,26 +391,22 @@ void do_dismount()					// dismount volnum
     { MSLEEP(1);					// wait a second...
     }
   }							// end wait for daemons
-  fprintf(stderr,"Writing out clean flag as clean\n");  // operation
-  fflush( stderr );
+  do_log("Writing out clean flag as clean\n");            // operation
   systab->vol[volnum-1]->vollab->clean = 1;		// set database as clean
   off =lseek( dbfd, 0, SEEK_SET);			// seek to start of file
   if (off < 0)
-  { fprintf(stderr, "do_dismount: lseek() to start of file failed");
-    fflush( stderr );
+  { do_log("do_dismount: lseek() to start of file failed\n");
   }
   i = write( dbfd, 					// write to database
 	 systab->vol[volnum-1]->vollab, 		// the map/label block
 	 systab->vol[volnum-1]->vollab->		// with the clean
 	 header_bytes );				// flag set.
   if (i != systab->vol[volnum-1]->vollab->header_bytes )
-  { fprintf(stderr, "do_dismount: write() map block failed");
-    fflush( stderr );
+  { do_log("do_dismount: write() map block failed\n");
   } 
   i = semctl(systab->sem_id, 0, (IPC_RMID), NULL);	// remove the semaphores
   if (i)
-  { fprintf(stderr, "do_dismount: semctl() failed to remove semaphores");
-    fflush( stderr );
+  { do_log("do_dismount: semctl() failed to remove semaphores\n");
   }
   return;						// done
 }
@@ -351,6 +424,7 @@ void do_write()						// write GBDs
   gbd *gbdptr;						// for the gbd
   gbd *lastptr = NULL;					// for the gbd
 
+  CHKPT;
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
 
@@ -358,15 +432,19 @@ void do_write()						// write GBDs
   { panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
+  CHKPT;
   if (curr_lock == 0)					// if we need a lock
   { SemOp( SEM_GLOBAL, READ);				// take a read lock
   }
+  CHKPT;
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
-    { gbdptr->block = 0;				// just zot the block
+    { CHKPT;
+      gbdptr->block = 0;				// just zot the block
     }
     else						// do a write
-    { file_off = (off_t) gbdptr->block - 1;		// block#
+    { CHKPT;
+      file_off = (off_t) gbdptr->block - 1;		// block#
       file_off = (file_off * (off_t)
     			systab->vol[volnum-1]->vollab->block_size)
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
@@ -386,29 +464,38 @@ void do_write()						// write GBDs
     }							// end write code
 
     if (!gbdptr->dirty)
-    { systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
+    { CHKPT;
+      systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
       break;						// break from while
     }
+    CHKPT;
     lastptr = gbdptr;					// remember this ptr
     gbdptr = gbdptr->dirty;  				// get next in list
 
+    CHKPT;
     if (lastptr != gbdptr)  				// if not at end
-    { systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
+    { CHKPT;
+      systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
 		currmsg.gbddata = gbdptr;		// table JIC I vanish
     }
     else
-    { systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
+    { CHKPT;
+      systab->vol[volnum-1]->wd_tab[myslot].		// update the daemon
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
     }
+    CHKPT;
     lastptr->dirty = NULL;				// clear old dirtyptr
     if (lastptr == gbdptr)  				// if reached end
+    { CHKPT;
       break;  						// break from while
+    }
   }							// end dirty write
+  CHKPT;
   SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   return;						// done
 
@@ -426,6 +513,7 @@ void do_write()						// write GBDs
 void do_garb()						// garbage collect
 { u_int gb;						// block being garbed
 
+  CHKPT;
   if (systab->vol[volnum-1]->wd_tab[myslot].currmsg.intdata == 0) // done?
   { systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_NOTHING; // yes
     return;						// and exit
@@ -460,18 +548,21 @@ int do_zot(u_int gb)					// zot block
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
 
+  CHKPT;
   bptr = malloc(systab->vol[volnum-1]->vollab->block_size); // get some memory
   if (bptr == NULL)					// if failed
-  { fprintf(stderr, "do_zot: malloc for block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
+  { do_log("do_zot: malloc for block %d failed\n", gb);
     return -1;						// return fail
   }
 
+  CHKPT;
   file_off = (off_t) gb - 1;				// the block#
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
+  CHKPT;
   while(SemOp(SEM_GLOBAL, READ));			// take a global lock
+  CHKPT;
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -481,21 +572,20 @@ int do_zot(u_int gb)					// zot block
     }
     ptr = ptr->next;					// point at next
   }							// end memory search
+  CHKPT;
   SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
   { file_ret = lseek( dbfd, file_off, SEEK_SET);	// Seek to block
     if (file_ret < 1)
-    { fprintf(stderr, "do_zot: seek to block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: seek to block %d failed\n", gb);
       free(bptr);					// free memory
       return -1;					// return error
     }
     ret = read( dbfd, bptr,
 	       systab->vol[volnum-1]->vollab->block_size); // read it
     if (ret < 0)					// if it failed
-    { fprintf(stderr, "do_zot: read of block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: read of block %d failed\n", gb);
       free(bptr);					// free memory
       return -1;					// return error
     }
@@ -506,28 +596,29 @@ int do_zot(u_int gb)					// zot block
   { goto zotit;						// yes, just zot
   }
 
+  CHKPT;
   for (Idx = LOW_INDEX; Idx <= bptr->last_idx; Idx++)	// for each entry
   { idx = (u_short *) bptr;				// point at the block
     iidx = (int *) bptr;				// point at the block
     chunk = (cstring *) &iidx[idx[Idx]];		// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     Allign_record();					// ensure alligned
+    CHKPT;
     i = *(int *) record;				// get block#
     if (zot_data)					// if we are zotting
-    { file_ret = (off_t) i - 1;				// block#
+    { CHKPT;
+      file_ret = (off_t) i - 1;				// block#
       file_ret = (file_ret * (off_t) systab->vol[volnum-1]->vollab->block_size)
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
       file_ret = lseek( dbfd, file_ret, SEEK_SET);	// Seek to block
       if (file_ret < 1)	        			// check for fail
-      { fprintf(stderr, "do_zot: seek to block %d failed\n", i);
-        fflush( stderr );                               // flush to the file
+      { do_log("do_zot: seek to block %d failed\n", i);
       }
       else						// looks ok
       { ret = write( dbfd, systab->vol[volnum-1]->zero_block,
 	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
         if (ret < 0)					// fail ?
-        { fprintf(stderr, "do_zot: zero of block %d failed\n", i);
-          fflush( stderr );                             // flush to the file
+        { do_log("do_zot: zero of block %d failed\n", i);
         }
         systab->vol[volnum-1]->stats.phywt++;		// count a write
         systab->vol[volnum-1]->stats.logwt++;		// and a logical
@@ -543,18 +634,17 @@ int do_zot(u_int gb)					// zot block
   }							// end of indexes
 
 zotit:
+  CHKPT;
   file_ret = lseek( dbfd, file_off, SEEK_SET);		// Seek to block
   if (file_ret < 1)
-  { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
+  { do_log("do_zot: zeroing seek to block %d failed\n", gb);
     free(bptr);						// free memory
     return -1;						// return error
   }
   ret = write( dbfd, systab->vol[volnum-1]->zero_block,
 	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
   if (ret < 0)						// if it failed
-  { fprintf(stderr, "do_zot: zero of block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
+  { do_log("do_zot: zero of block %d failed\n", gb);
     typ = -1;						// flag fail
   }
   systab->vol[volnum-1]->stats.phywt++;			// count a write
@@ -574,6 +664,7 @@ zotit:
 void do_free(u_int gb)					// free from map et al
 { gbd *ptr;						// GBD ptr
 
+  CHKPT;
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
@@ -584,6 +675,7 @@ void do_free(u_int gb)					// free from map et al
   
   Free_block(gb);					// free the block
 
+  CHKPT;
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
@@ -597,6 +689,7 @@ void do_free(u_int gb)					// free from map et al
     }
     ptr = ptr->next;					// get next
   }							// end gbd stuff
+  CHKPT;
   SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   return;						// exit
 }
@@ -612,6 +705,7 @@ void daemon_check()					// ensure all running
 { int i;						// a handy int
   int fit;
 
+  CHKPT;
   while (SemOp(SEM_WD, WRITE));				// lock WD
   for (i = 0; i < systab->vol[volnum - 1]->num_of_daemons; i++)
   { if (i != myslot)					// don't check self
@@ -619,8 +713,7 @@ void daemon_check()					// ensure all running
       { fit = DB_Daemon(i, volnum); 			// restart the daemon
         // SHOULD LOG THIS SUCCESS OR FAIL
         if (fit < 0)
-        { fprintf(stderr, "daemon_check: failed to start Daemon %d\n", i);
-          fflush( stderr );                             // flush to the file
+        { do_log("daemon_check: failed to start Daemon %d\n", i);
         }
       }
     }
