@@ -79,17 +79,17 @@ char *last_status(void)
     return buf;
 
   if (DOING_WRITE == doing)
-  { sprintf(buf, "Last status: doing=WRITE gbddata=%p chkpt=%d\n",
+  { sprintf(buf, "doing=WRITE gbddata=%p chkpt=%d",
                   systab->vol[0]->wd_tab[myslot].currmsg.gbddata,
                   chkpt);
   }
   else if (DOING_GARB == doing)
-  { sprintf(buf, "Last status: doing=GARB intdata=%d chkpt=%d\n",
+  { sprintf(buf, "doing=GARB intdata=%d chkpt=%d",
                   systab->vol[0]->wd_tab[myslot].currmsg.intdata,
                   chkpt);
   }
   else
-  { sprintf(buf, "Last status: doing=%d chkpt=%d\n", doing, chkpt);
+  { sprintf(buf, "doing=%d chkpt=%d", doing, chkpt);
   }
   return buf;
 }
@@ -196,9 +196,10 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   }
   // i = fcntl(dbfd, F_NOCACHE, 1);
   t = time(0);						// for ctime()
-  do_log("Daemon %d started successfully\n", myslot);   // log success
-  if (msg[0])                                           // report last status
-    do_log(msg);
+  if (msg[0])                                           // check restart
+    do_log("Daemon %d restarted (status: %s)\n", myslot, msg); // log restart
+  else
+    do_log("Daemon %d started successfully\n", myslot); // log success
 
   if (!myslot)
     systab->Mtime = time(0);
