@@ -850,7 +850,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  Get_GBDs(1);						// ensure this many
+  Ensure_GBDs(1);					// ensure this many
   s = Get_data(0);                                      // try to find that
   if ((s < 0) && (s != -ERRM7))                         // check for errors
   { if (curr_lock)					// if locked

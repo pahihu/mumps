@@ -436,6 +436,7 @@ short Re_key()						// re-key blocks
     if (low_index == -1)				// if none found
     { return 0;						// all done
     }
+    systab->vol[volnum-1]->stats.blkreorg++;            // update stats
     level = 0;						// clear level
     s = Get_block(rekey_blk[low_index]);		// get the block
     if (s < 0)

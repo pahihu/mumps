@@ -95,14 +95,19 @@ short Get_block(u_int blknum)                           // Get block
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
   gbd *ptr;						// a handy pointer
+  TIMER_T tim;                                          // timer for wait
 
   systab->vol[volnum-1]->stats.logrd++;                 // update stats
   ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
+      TimerStart(&tim, 60, "Get_block: waiting for blk=", blknum);
       while (ptr->last_accessed == (time_t) 0)		// if being read
       { SchedYield();					// wait for it
+        if (TimerCheck(&tim))
+        { panic("Get_block: Can't get block after 60 seconds");
+        }
       }
       goto exit;					// go common exit code
     }
@@ -120,8 +125,12 @@ short Get_block(u_int blknum)                           // Get block
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+        TimerStart(&tim, 60, "Get_block: waiting for blk=", blknum);
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { SchedYield();					// wait for it
+          if (TimerCheck(&tim))
+          { panic("Get_block: Can't get block after 60 seconds");
+          }
         }
         goto exit;					// go common exit code
       }
@@ -225,6 +234,7 @@ short New_block()					// get new block
 	blk[level]->dirty = (gbd *) 1;			// reserve it
 	blk[level]->last_accessed = MTIME(0);		// accessed
 	systab->vol[volnum-1]->first_free = c;		// save this
+        systab->vol[volnum-1]->stats.blkalloc++;        // update stats
 	return 0;					// return success
       }
     }

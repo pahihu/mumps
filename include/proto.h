@@ -276,6 +276,19 @@ short LCK_Old(int count, cstring *list, int to);
 short LCK_Add(int count, cstring *list, int to);
 short LCK_Sub(int count, cstring *list);
 
+typedef struct
+{ u_long tim_counter;
+  u_long tim_start;
+  u_long tim_timeout;
+  u_long tim_wait;
+  const char *tim_msg;
+  int tim_msgarg;
+} TIMER_T;
+
+void TimerStart(TIMER_T *p_tim,
+                int p_timeout_sec, const char *p_msg, int p_msgarg);
+int TimerCheck(TIMER_T *p_tim);
+
 // Xcalls
 //
 short Xcall_host ( char *ret_buffer, cstring *name, cstring *dum2 );

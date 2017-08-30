@@ -128,7 +128,7 @@ short Set_data(cstring *data)				// set a record
   int this_level;					// to save level
   DB_Block *btmp;					// ditto
 
-  Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  Ensure_GBDs(MAXTREEDEPTH * 2);			// ensure this many
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
   { return s;						// return the error

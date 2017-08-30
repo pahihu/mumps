@@ -171,6 +171,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
 void Queit()						// que a gbd for write
 { int i;						// a handy int
   gbd *ptr;						// a handy ptr
+  TIMER_T tim;                                          // timer w/ timeout
 
   ptr = blk[level];					// point at the block
   ptr->blkver_low++;
@@ -182,8 +183,12 @@ void Queit()						// que a gbd for write
   }
 
   i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
+  TimerStart(&tim, 10, "Queit: waiting for a dirty slot", 0);
   while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
-  { sleep(1);						// wait a bit
+  { SchedYield();
+    if (TimerCheck(&tim))                               // check timeout
+    { panic("Queit: Couldn't get a dirty slot after 10 seconds");
+    }
   }				// NOTE: The above CAN'T work!!!
   systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
   systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
@@ -201,9 +206,17 @@ void Queit()						// que a gbd for write
 
 void Garbit(int blknum)					// que a blk for garb
 { int i;						// a handy int
-  int j;						// for loop
+  TIMER_T tim;                                          // timer w/ timeout
 
+  TimerStart(&tim, 10, "Garbit: waiting for a garbage slot", 0);
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
+  while (systab->vol[volnum - 1]->garbQ[i] != 0)        // if not empty
+  { SchedYield();
+    if (TimerCheck(&tim))                               // check timeout
+    { panic("Garbit: Couldn't get a garbage slot after 10 seconds");
+    }
+  }
+#if 0
   for (j = 0; ; j++)
   { if (systab->vol[volnum - 1]->garbQ[i] == 0)		// if slot avbl
     { break;						// exit
@@ -213,6 +226,7 @@ void Garbit(int blknum)					// que a blk for garb
     }
     sleep(1);						// wait a bit
   }				// NOTE: I don't think this can work either
+#endif
   systab->vol[volnum - 1]->garbQ[i] = blknum;		// stuff it in
   systab->vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1); // reset ptr
   return;						// and exit
@@ -243,6 +257,7 @@ void Free_block(int blknum)				// free blk in map
   { systab->vol[volnum-1]->first_free = &map[i]; // reset first free
   }
   systab->vol[volnum-1]->map_dirty_flag++;		// mark map dirty
+  systab->vol[volnum-1]->stats.blkdeall++;              // update stats
   return;						// and exit
 }
 
@@ -271,6 +286,7 @@ void Used_block(int blknum)				// set blk in map
   }
   map[i] |= off;					// set the bit
   systab->vol[volnum-1]->map_dirty_flag++;		// mark map dirty
+  systab->vol[volnum-1]->stats.blkalloc++;              // update stats
   return;						// and exit
 }
 
@@ -457,7 +473,7 @@ short Compress1()
   short s;
   u_char gtmp[2*MAX_NAME_BYTES];			// to find glob
 
-  Get_GBDs(MAXTREEDEPTH * 2);                           // ensure this many
+  Ensure_GBDs(MAXTREEDEPTH * 2);                        // ensure this many
 
   curlevel = level;
   writing = 1;						// flag writing
@@ -699,3 +715,52 @@ fail:
   close(partab.jnl_fds[volnum - 1]);			// close the file
   return;						// and exit
 }
+
+
+//-----------------------------------------------------------------------------
+// Function: Ensure_GBDs
+// Descript: Get GBDs and ensure that many dirty slots
+// Input(s): number of GBDs required
+// Return:   none
+// Note:     No lock is held when calling this function.
+//	     When it completes, it returns with a write lock held.
+
+#define DQ_SLEEP        10
+
+void Ensure_GBDs(int greqd)
+{ int wpos, rpos, qlen, qfree;                          // queue params
+  int pass = 0;                                         // count passes
+  TIMER_T tim;                                          // timer w/ timeout
+
+  TimerStart(&tim, 60, "Ensure_GBDs: waiting for %d dirty slots", greqd);
+start:
+  Get_GBDs(greqd);		                        // ensure this many
+
+  wpos = systab->vol[volnum - 1]->dirtyQw;              // calc. free slots
+  rpos = systab->vol[volnum - 1]->dirtyQr;              //   in dirty queue
+  if (rpos <= wpos) qlen = wpos - rpos;
+  else
+    qlen = NUM_DIRTY + wpos - rpos;
+  qfree = NUM_DIRTY - qlen;
+  if (qfree >= greqd)                                   // have that many
+    goto cont;                                          //   continue
+
+  systab->vol[volnum-1]->stats.dqstall++;               // update stats
+  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+
+  if (pass & 3)                                         // busy wait 3 times
+  { SchedYield();
+  }
+  else
+  { usleep(DQ_SLEEP*1000);                              // wait DQ_SLEEP msecs
+  }
+  if (TimerCheck(&tim))
+  { panic("Ensure_GBDs: Couldn't get enough GBDs and dirty slots after 60 seconds");
+  }
+  pass++;
+  goto start;
+
+cont:
+  return;
+}
+

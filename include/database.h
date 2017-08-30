@@ -191,6 +191,8 @@ void Queit();						// que a gbd for write
 void Tidy_block();					// tidy current blk
 void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
+void Ensure_GBDs(int greqd);				// get n free GBDs and
+                                                        //   dirty slots
 
 //*****************************************************************************
 

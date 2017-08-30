@@ -40,6 +40,7 @@
 #include <sys/ipc.h>                            // shared memory
 #include <sys/shm.h>                            // shared memory
 #include <sys/sem.h>                            // semaphores
+#include <sys/time.h>                           // gettimeofday()
 #include "mumps.h"                              // standard includes
 #include "error.h"                              // standard includes
 #include "proto.h"                              // standard includes
@@ -115,4 +116,56 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
   }
   if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
   return 0;                                     // shouldn't get here except lock
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//      Forth COUNTER - TIMER
+//
+u_long fCounter(u_long *p_stamp)
+{ struct timeval tv;
+  u_long ret;
+
+  gettimeofday(&tv, NULL);
+  ret = 1000000 * tv.tv_sec + tv.tv_usec;
+  if (p_stamp) *p_stamp = ret;
+  return ret;
+}
+
+u_long fTimer(u_long p_start)
+{ return fCounter(0) - p_start;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//      Timer
+//
+
+#define ONE_SEC (1000000UL)
+
+void TimerStart(TIMER_T *p_tim,
+                int p_timeout_sec, const char *p_msg, int p_msgarg)
+{ fCounter(&p_tim->tim_start);
+  p_tim->tim_timeout = p_tim->tim_start + ONE_SEC * p_timeout_sec;
+  p_tim->tim_wait = ONE_SEC;
+  p_tim->tim_msg = p_msg;
+  p_tim->tim_msgarg = p_msgarg;
+  p_tim->tim_counter = 1;
+}
+
+int TimerCheck(TIMER_T *p_tim)
+{ u_long elapsed;
+
+  if (0 == (++p_tim->tim_counter & 1023))
+  { elapsed = fTimer(p_tim->tim_start);
+    if (elapsed > p_tim->tim_timeout)
+      return 1;
+    if (elapsed > p_tim->tim_wait)
+    { fprintf(stderr, p_tim->tim_msg, p_tim->tim_msgarg);
+      fflush(stderr);
+      p_tim->tim_wait += ONE_SEC;
+    }
+  }
+  return 0;
 }
