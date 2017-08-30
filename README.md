@@ -10,8 +10,9 @@ Changes:
   * has 31 character label/routine/local/global names
   * MCL shell prompt changed to [UCI,VOL], SHUTDOWN command
   * %MV1 routine contains the implementation constants
-  * support global buffers over 2GB
+  * supports global buffer area over 2GB
   * daemon log contains GMT timestamp, process id, restart info
+  * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
   * fixes from MUMPS V1 1.66 and 1.70
@@ -24,5 +25,6 @@ Fixes:
   * standard handle redirection in JOB
   * socket communication options (SO_REUSEADDR, SO_NOSIGPIPE)
   * robust error handling in MUMPS environment initialization
+  * no writer deadlock due to full dirty queue
 
 **NOTE**: Use the code! Good luck!
