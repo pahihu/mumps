@@ -115,7 +115,7 @@ int do_log(const char *fmt,...)
   if (0 == tstamp_filled)
     strcpy(tstamp,"YYYY-MM-DDTHH:MM:SS.MMM");
 
-  fprintf(stderr,"%s [%d] ", tstamp, getpid());
+  fprintf(stderr,"%s [%5d] ", tstamp, getpid());
   va_start(ap, fmt);
   i = vfprintf(stderr,fmt,ap);
   va_end(ap);
@@ -228,7 +228,6 @@ void do_daemon()					// do something
 { int i;						// handy int
   int j;						// and another
   off_t file_off;					// for lseek()
-  time_t t;						// for ctime()
 
 start:
   CHKPT;
