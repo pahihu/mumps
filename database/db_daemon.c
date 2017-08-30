@@ -103,11 +103,11 @@ int do_log(const char *fmt,...)
   int tstamp_filled;
 
   tstamp_filled = 0;
-  if (0 == gettimeofday(&tv_result, 0) < -1)
+  if (0 == gettimeofday(&tv_result, 0))
   { tm_result = gmtime(&tv_result.tv_sec);
     if (tm_result != NULL)
     { if (0 != strftime(tstamp, 64, "%Y-%m-%dT%H:%M:%S", tm_result))
-      { sprintf(tstamp + 19, ".%3d", tv_result.tv_usec / 1000);
+      { sprintf(tstamp + 19, ".%3d", (int) (tv_result.tv_usec / 1000));
         tstamp_filled = 1;
       }
     }
@@ -154,7 +154,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   int fit;						// for fork ret
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
-  time_t t;						// for ctime()
   char *msg;
 
   volnum = vol;						// save vol# here
@@ -195,7 +194,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     return(errno);					// check for error
   }
   // i = fcntl(dbfd, F_NOCACHE, 1);
-  t = time(0);						// for ctime()
   if (msg[0])                                           // check restart
     do_log("Daemon %d restarted (status: %s)\n", myslot, msg); // log restart
   else
@@ -307,7 +305,6 @@ start:
     { CHKPT;
       if (myslot)					// first?
       { systab->vol[volnum-1]->wd_tab[myslot].pid = 0;	// say gone
-	t = time(0);					// for ctime()
 	do_log("Daemon %d shutting down\n", myslot);    // log success
         exit(0);					// and exit
       }

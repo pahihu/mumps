@@ -72,6 +72,7 @@ int INIT_Create_File(int blocks,                // number of blocks
   DB_Block *mgrblk;				// mgr block ptr 
   label_block *labelblock;			// first LABEL_BLOCK_SIZE bytes
   cstring * chunk;
+  u_short us;
 
   namlen = strlen(volnam);                      // get the name length
   if ((namlen < 1)||(namlen > MAX_NAME_BYTES))  // check name length
@@ -162,7 +163,8 @@ int INIT_Create_File(int blocks,                // number of blocks
   mgrblk->last_free = (u_short) (bsize/4) - 7;	// minus extra 6 for rec length
   X_set( "$GLOBAL\0", &(mgrblk->global), 8);	// init the name
   i = (bsize / 4) - 6;				// point at the record
-  *(u_short *) &x.cuff[BLK_HDR_SIZE] = (u_short) i;  // save in index
+  us = (u_short) i;
+  bcopy(&us, &x.cuff[BLK_HDR_SIZE], sizeof(u_short)); // save in index
   chunk = (cstring *) &x.buff[i];		// point at the chunk
   chunk->len = 24;				// size of this (incl self)
   chunk->buf[1] = 9;				// key length

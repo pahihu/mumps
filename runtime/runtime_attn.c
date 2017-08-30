@@ -191,9 +191,9 @@ int ForkIt(int cft)				// Copy File Table True/False
   {
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
     if (!i)
-    { (void)freopen("/dev/null", "w", stdin);	// redirect stdin
-      (void)freopen("/dev/null", "w", stdout);	// redirect stdout
-      (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+    { freopen("/dev/null", "w", stdin);	        // redirect stdin
+      freopen("/dev/null", "w", stdout);	// redirect stdout
+      freopen("/dev/null", "w", stderr);	// redirect stderr
     }
 #endif
     return i;
@@ -240,9 +240,9 @@ int ForkIt(int cft)				// Copy File Table True/False
   }
   for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++));	// close all open files
 
-  (void)freopen("/dev/null", "r", stdin);	// redirect stdin
-  (void)freopen("/dev/null", "w", stdout);	// redirect stdout
-  (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+  freopen("/dev/null", "r", stdin);	        // redirect stdin
+  freopen("/dev/null", "w", stdout);	        // redirect stdout
+  freopen("/dev/null", "w", stderr);	        // redirect stderr
 
   return ret;					// return -parent job#
 

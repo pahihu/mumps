@@ -615,18 +615,22 @@ void ClearJournal(int vol)				// clear journal
 { jrnrec jj;						// to write with
   int jfd;						// file descriptor
   u_char tmp[12];
+  u_int ui;                                             // handy u_int
+  off_t offs;                                           // handy offs
 
   jfd = open(systab->vol[vol]->vollab->journal_file,
         O_TRUNC | O_RDWR | O_CREAT, 0770);		// open it
   if (jfd > 0)						// if OK
-  { (*(u_int *) tmp) = (MUMPS_MAGIC - 1);
-    (*(off_t *) &tmp[4]) = 20;				// next free byte
-    (void)write(jfd, tmp, 12);
+  { ui = MUMPS_MAGIC - 1;
+    bcopy(&ui, tmp, sizeof(u_int));
+    offs = 20;
+    bcopy(&offs, &tmp[sizeof(u_int)], sizeof(off_t));   // next free byte
+    write(jfd, tmp, 12);
     jj.action = JRN_CREATE;
     jj.time = MTIME(0);
     jj.uci = 0;
     jj.size = 8;
-    (void)write(jfd, &jj, 8);				// write the create rec
+    write(jfd, &jj, 8);				        // write the create rec
     (void)fchmod(jfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // make grp wrt
     (void)close(jfd);					// and close it
     systab->vol[vol]->jrn_next = (off_t) 20;		// where it's upto

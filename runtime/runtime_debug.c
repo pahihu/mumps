@@ -176,13 +176,13 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     dvar.slen++;				// count the null
     s = ST_Get(&dvar, &cmp[sizeof(short)]);	// get whatever
     if (s < 0) return 0;			// just return if nothing
-    (*(short *) cmp) = s;			// save the length
+    bcopy(&s, cmp, sizeof(short));              // save the length
   }
 
   if (dot == -1)				// from a QUIT n
   { s = ST_Get(&dvar, &cmp[sizeof(short)]);	// get whatever
     if (s < 0) s = 0;				// ignore errors
-    (*(short *) cmp) = s;			// save the length
+    bcopy(&s, cmp, sizeof(short));              // save the length
   }
   if (partab.jobtab->cur_do >= MAX_DO_FRAMES)
     return (-(ERRMLAST+ERRZ8));			// too many (perhaps ??????)
@@ -195,8 +195,9 @@ short Debug(int savasp, int savssp, int dot)	// drop into debug
     partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc;
     partab.jobtab->dostk[partab.jobtab->cur_do].symbol = NULL;
     partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
+    bcopy(cmp, &s, sizeof(short));
     partab.jobtab->dostk[partab.jobtab->cur_do].endlin =
-      &cmp[(*(short *) cmp) - 3 + sizeof(short)];
+      &cmp[s - 3 + sizeof(short)];
     //partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_qu = 0;
     X_Clear(partab.jobtab->dostk[partab.jobtab->cur_do].rounam.var_xu);
     partab.jobtab->dostk[partab.jobtab->cur_do].vol = partab.jobtab->vol;

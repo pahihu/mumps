@@ -362,12 +362,14 @@ int INIT_Start( char *file,                     // database
       }
       else					// if open OK
       { u_char tmp[12];
+        u_int ui;
 
         // i = fcntl(jfd, F_NOCACHE, 1);
 	lseek(jfd, 0, SEEK_SET);
 	errno = 0;
 	i = read(jfd, tmp, 4);			// read the magic
-	if ((i != 4) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+        bcopy(tmp, &ui, 4);
+	if ((i != 4) || (ui != (MUMPS_MAGIC - 1)))
 	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
 		  systab->vol[0]->vollab->journal_file);
 	  close(jfd);

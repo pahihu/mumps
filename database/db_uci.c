@@ -107,7 +107,7 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// setup record ptr
     Allign_record();					// allign it
     *(u_int *) record = blk[level]->block;		// point at self
-    *(u_int *) &(record->buf[2]) = 0;			// zero flags
+    bzero(&(record->buf[2]), sizeof(u_int));            // zero flags
     blk[level]->dirty = blk[level];			// setup for write
     Queit();						// que for write
   }							// end new block code
