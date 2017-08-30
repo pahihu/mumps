@@ -792,7 +792,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
 //****************************************************************
 
 short LCK_Sub(int count, cstring *list)         // lock minus
-{
+{ 
   int r = -1;                                   // return value
   int i;                                        // a handy int
   int pos = 0;                                  // position in *list

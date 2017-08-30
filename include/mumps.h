@@ -489,5 +489,7 @@ extern u_char *astk[];                          // address stack
 extern u_char sstk[];                           // string stack
 extern u_char *mumpspc;                         // mumps prog pointer
 
+#define IGNORE_VALUE(x) (void)((x) + 1)
+
 
 #endif                                          // !_MUMPS_MUMPS_H_

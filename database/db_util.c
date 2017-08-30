@@ -641,14 +641,14 @@ void ClearJournal(int vol)				// clear journal
     bcopy(&ui, tmp, sizeof(u_int));
     offs = 20;
     bcopy(&offs, &tmp[sizeof(u_int)], sizeof(off_t));   // next free byte
-    write(jfd, tmp, 12);
+    IGNORE_VALUE(write(jfd, tmp, 12));
     jj.action = JRN_CREATE;
     jj.time = MTIME(0);
     jj.uci = 0;
     jj.size = 8;
-    write(jfd, &jj, 8);				        // write the create rec
-    (void)fchmod(jfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP); // make grp wrt
-    (void)close(jfd);					// and close it
+    IGNORE_VALUE(write(jfd, &jj, 8));		        // write the create rec
+    IGNORE_VALUE(fchmod(jfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)); // make grp wrt
+    IGNORE_VALUE(close(jfd));				// and close it
     systab->vol[vol]->jrn_next = (off_t) 20;		// where it's upto
   }
   return;						// done

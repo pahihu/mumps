@@ -1482,7 +1482,7 @@ short Xcall_paschk(char *ret_buffer, cstring *user, cstring *pwd)
     return 1;  
   }
   while ( feof ( fd ) == 0 ) {
-    (void) fgets ( line, 256, fd );		// fgets() failed
+    IGNORE_VALUE(fgets ( line, 256, fd ));	// fgets() failed
     if ( line == NULL ) {
       ret_buffer[0] = '0';
       ret_buffer[1] = '\0';
