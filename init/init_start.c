@@ -503,7 +503,6 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
-    gptr[i].dbreq = 0;
 #endif
 #ifdef MV1_BLKSEM
     gptr[i].curr_lock = 0;                      // block lock flag
