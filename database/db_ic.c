@@ -131,11 +131,11 @@ void ic_full()						// full check
 
   doing_full = 1;					// set this
   i = (volsiz / 8) + 1;					// number of bytes  
-  rlnk = dlmalloc(i);					// for right links
+  rlnk = mv1malloc(i);					// for right links
   if (rlnk == NULL)					// if failed
   { panic("ic_full: can't get memory for rlnk");	// die
   }
-  dlnk = dlmalloc(i);					// for down links
+  dlnk = mv1malloc(i);					// for down links
   if (dlnk == NULL)					// if failed
   { panic("ic_full: can't get memory for dlnk");	// die
   }
@@ -198,8 +198,8 @@ void ic_full()						// full check
     }
   }
 
-  dlfree(rlnk);						// free that
-  dlfree(dlnk);						// and that
+  mv1free(rlnk);					// free that
+  mv1free(dlnk);					// and that
   return;						// and exit
 }
 

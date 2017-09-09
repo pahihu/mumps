@@ -148,7 +148,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
 
-  wrbuf = (u_char *) dlmalloc(                          // alloc a write buffer
+  wrbuf = (u_char *) mv1malloc(                         // alloc a write buffer
 		 systab->vol[volnum-1]->vollab->block_size);
   if (0 == wrbuf)
   { fprintf(stderr, "Cannot alloc write buffer\n");
@@ -630,7 +630,7 @@ int do_zot(u_int gb)					// zot block
   gbd *ptr;						// a handy pointer
   short s;
 
-  bptr = dlmalloc(systab->vol[volnum-1]->vollab->block_size); // get some memory
+  bptr = mv1malloc(systab->vol[volnum-1]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
   { fprintf(stderr, "do_zot: malloc for block %d failed\n", gb);
     fflush( stderr );                                   // flush to the file
@@ -660,7 +660,7 @@ int do_zot(u_int gb)					// zot block
     if (file_ret < 1)
     { fprintf(stderr, "do_zot: seek to block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
-      dlfree(bptr);					// free memory
+      mv1free(bptr);					// free memory
       return -1;					// return error
     }
     ret = read( dbfd, bptr,
@@ -668,7 +668,7 @@ int do_zot(u_int gb)					// zot block
     if (ret < 0)					// if it failed
     { fprintf(stderr, "do_zot: read of block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
-      dlfree(bptr);					// free memory
+      mv1free(bptr);					// free memory
       return -1;					// return error
     }
   }							// end read from disk
@@ -727,7 +727,7 @@ zotit:
     if (file_ret < 1)
     { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
       fflush( stderr );                                 // flush to the file
-      dlfree(bptr);					// free memory
+      mv1free(bptr);					// free memory
       return -1;					// return error
     }
     ret = write( dbfd, systab->vol[volnum-1]->zero_block,
@@ -741,7 +741,7 @@ zotit:
   if (systab->ZotData)                                  // count a write
     ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.phywt);
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logwt);	// and a logical
-  dlfree(bptr);						// free memory
+  mv1free(bptr);					// free memory
   do_free(gb);						// and the block
   return typ;						// return the type
 }

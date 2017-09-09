@@ -2055,7 +2055,7 @@ int initSERVER (int chan, int size)
   if ( size > systab->maxjob ) return ( getError ( INT, ERRZ42 ) );
   s = &(partab.jobtab->seqio[chan].s);
   if (size)				//***TEMP FIX
-  { f = dlmalloc ( sizeof ( forktab ) * size );   ///to forktab from fork
+  { f = mv1malloc ( sizeof ( forktab ) * size );   ///to forktab from fork
     if ( f == NULL ) return ( getError ( SYS, errno ) );
   }					//***TEMP FIX
   for ( index = 0; index < size; index++ ) initFORK ( &(f[index]) );
@@ -2223,7 +2223,7 @@ int acceptSERVER (int chan, int tout)
       s = &(c->s);
       s->slots = 0;
       s->taken = 0;
-      dlfree ( s->forked );
+      mv1free ( s->forked );
       close ( c->fid );
       c->mode = (char)FORKED;
       c->fid = s->cid;
@@ -2266,7 +2266,7 @@ int closeSERVERClient (int chan)
       if ( c->s.cid > -1 ) 
       {
         (void) close ( c->s.cid );
-        dlfree ( c->s.forked ); 
+        mv1free ( c->s.forked ); 
         (void) initSERVER ( chan, 0 );
       }
     }
@@ -2305,7 +2305,7 @@ int closeSERVER (int chan)
     
     case SERVER:
       if ( s->cid != -1 ) (void) close ( s->cid );
-      dlfree ( s->forked );				// Free fork structure
+      mv1free ( s->forked );				// Free fork structure
       (void) close ( c->fid );
       c->type = (u_char)SQ_FREE;
       break;

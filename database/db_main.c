@@ -881,14 +881,14 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
   u_char *p;						// for malloc
   int dbfd;						// for open
 
-  p = dlmalloc(systab->vol[vol]->vollab->block_size);	// get some space
+  p = mv1malloc(systab->vol[vol]->vollab->block_size);	// get some space
   if (p == NULL)
   { return -(ERRMLAST+ERRZLAST+errno);			// die
   }
   bzero(p, systab->vol[vol]->vollab->block_size);	// clear it
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)						// if failed
-  { dlfree(p);						// free memory
+  { mv1free(p);						// free memory
     return -(ERRMLAST+ERRZLAST+errno);			// and die
   }
 
@@ -898,19 +898,19 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 
   fres = lseek( dbfd, fptr, SEEK_SET);			// Seek to eof
   if (fres != fptr)					// if failed
-  { dlfree(p);						// free memory
+  { mv1free(p);						// free memory
     return -(ERRMLAST+ERRZLAST+errno);			// and die
   }
   vexp = vsiz - systab->vol[vol]->vollab->max_block;	// expand by
   while (vexp)
   { i = write(dbfd, p, systab->vol[vol]->vollab->block_size);
     if (i < 0)						// if failed
-    { dlfree(p);					// free memory
+    { mv1free(p);					// free memory
       return -(ERRMLAST+ERRZLAST+errno);		// and die
     }
     vexp--;						// count 1
   }
-  dlfree(p);						// free memory
+  mv1free(p);						// free memory
   i = close(dbfd);					// close db file
   systab->vol[vol]->vollab->max_block = vsiz;		// store new size
   systab->vol[vol]->map_dirty_flag = 1;			// say write this

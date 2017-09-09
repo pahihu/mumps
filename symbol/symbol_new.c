@@ -54,7 +54,7 @@ short ST_New(int count, var_u *list)
   int i;					// generic counter
   short s;
 
-  newtab = dlmalloc(sizeof(ST_newtab) + (count * sizeof(ST_locdata)));
+  newtab = mv1malloc(sizeof(ST_newtab) + (count * sizeof(ST_locdata)));
   						// try to get enough memory
   if (newtab == NULL) return -(ERRZ56+ERRMLAST); // no memory avlb
   newtab->fwd_link =				// setup for link in
@@ -119,7 +119,7 @@ short ST_NewAll(int count, var_u *list)
     }                                           // end else new everything
   }                                             // end for all in symtab
 
-  newtab = dlmalloc( sizeof(ST_newtab) +
+  newtab = mv1malloc( sizeof(ST_newtab) +
                    (cntnew * sizeof(ST_locdata)) +
                    (cntnon * sizeof(short)) );	// try allocate some memory
 
@@ -228,9 +228,9 @@ void ST_Restore(ST_newtab *newtab)
         while (dd != NULL)
         { ddf = dd;					// save a copy
           dd = dd->deplnk;				// get next
-          dlfree(ddf);					// free this one
+          mv1free(ddf);					// free this one
         }
-        dlfree(symtab[ptr->locdata[i].stindex].data);	// free data
+        mv1free(symtab[ptr->locdata[i].stindex].data);	// free data
 	symtab[ptr->locdata[i].stindex].data = NULL;	// and remember
       }
     }
@@ -241,7 +241,7 @@ void ST_Restore(ST_newtab *newtab)
       if ((symtab[ptr->locdata[i].stindex].data->deplnk == NULL) &&
 	  (symtab[ptr->locdata[i].stindex].data->attach < 2) &&
 	  (symtab[ptr->locdata[i].stindex].data->dbc == VAR_UNDEFINED))
-      { dlfree(symtab[ptr->locdata[i].stindex].data);	// free data memory
+      { mv1free(symtab[ptr->locdata[i].stindex].data);	// free data memory
 	symtab[ptr->locdata[i].stindex].data = NULL;	// clear ptr
       }
 
@@ -252,7 +252,7 @@ void ST_Restore(ST_newtab *newtab)
   if (ptr->fwd_link != NULL)				// if there are more
   { ST_Restore(ptr->fwd_link);				// restore next newtab
   }							// end if there's more
-  dlfree(ptr);						// free the space
+  mv1free(ptr);						// free the space
   if (ptr == (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
     partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL; // clear doframe
 }							// end function Restore

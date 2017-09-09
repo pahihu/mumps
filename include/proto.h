@@ -39,14 +39,44 @@
 //****************************************************************************
 // Doug Lea's Malloc
 //
+
+#ifdef MV1_DLMALLOC
 void *dlmalloc(size_t);
 void dlfree(void*);
 void *dlrealloc(void*, size_t);
+#define mv1malloc(s)    dlmalloc(s)
+#define mv1free(p)      dlfree(p)
+#define mv1realloc(p,s) dlrealloc(p,s)
+#endif
+
+
+//****************************************************************************
+// Jason Evans' Malloc (FreeBSD)
+//
+
+#ifdef MV1_JEMALLOC
+#include <jemalloc/jemalloc.h>
+#define mv1malloc(s)    je_malloc(s)
+#define mv1free(p)      je_free(p)
+#define mv1realloc(p,s) je_realloc(p,s)
+#endif
+
+
+//****************************************************************************
+// MV1 memory allocation interface
+//
+
+#ifndef mv1malloc
+#define mv1malloc(s)    malloc(s)
+#define mv1free(p)      free(p)
+#define mv1realloc(p,s) realloc(p,s)
+#endif
 
 
 //****************************************************************************
 // Identifier
 //
+
 chr_x *_X_Clear(chr_x *a);
 int   _X_EQ(chr_x *a, chr_x *b);
 int   _X_NE(chr_x *a, chr_x *b);
@@ -59,6 +89,7 @@ int   X_take(u_char *a, chr_x *b);
 #define X_EQ(x,y)     _X_EQ(&(x),&(y))
 #define X_NE(x,y)     _X_NE(&(x),&(y))
 #define X_Empty(x)    _X_Empty(&(x))
+
 
 //****************************************************************************
 // Database
