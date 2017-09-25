@@ -107,7 +107,7 @@ int do_log(const char *fmt,...)
   { tm_result = gmtime(&tv_result.tv_sec);
     if (tm_result != NULL)
     { if (0 != strftime(tstamp, 64, "%Y-%m-%dT%H:%M:%S", tm_result))
-      { sprintf(tstamp + 19, ".%3d", (int) (tv_result.tv_usec / 1000));
+      { sprintf(tstamp + 19, ".%03d", (int) (tv_result.tv_usec / 1000));
         tstamp_filled = 1;
       }
     }
