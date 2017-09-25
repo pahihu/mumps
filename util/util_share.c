@@ -99,10 +99,14 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
   }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
+  if (numb > 0)                                 // release
+    MEM_BARRIER;
   for (i = 0; i < 5; i++)                       // try this many times
   { s = semop(systab->sem_id, &buf, 1);         // doit
     if (s == 0)					// if that worked
     { if (sem_num == SEM_GLOBAL) curr_lock += numb; // adjust curr_lock
+      if (numb < 1)                             // acquire
+        MEM_BARRIER;
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add

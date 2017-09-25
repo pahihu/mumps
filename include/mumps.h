@@ -178,6 +178,8 @@
 #define HISTORIC_OFFOK		2               // GO/DO with offset OK
 #define HISTORIC_DNOK		4               // $NEXT OK runtime/runtime_ssvn
 
+#define MEM_BARRIER     __sync_synchronize()
+
 // Semaphore defines
 // Semaphores are setup with a value equal to systab->maxjob
 // A read takes one semaphore unit

@@ -103,11 +103,13 @@ short Get_block(u_int blknum)                           // Get block
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
       TimerStart(&tim, 60, "Get_block: waiting for blk=", blknum);
+      MEM_BARRIER;
       while (ptr->last_accessed == (time_t) 0)		// if being read
       { SchedYield();					// wait for it
         if (TimerCheck(&tim))
         { panic("Get_block: Can't get block after 60 seconds");
         }
+        MEM_BARRIER;
       }
       goto exit;					// go common exit code
     }
@@ -131,6 +133,7 @@ short Get_block(u_int blknum)                           // Get block
           if (TimerCheck(&tim))
           { panic("Get_block: Can't get block after 60 seconds");
           }
+          MEM_BARRIER;
         }
         goto exit;					// go common exit code
       }
@@ -182,6 +185,8 @@ short Get_block(u_int blknum)                           // Get block
 
 exit:
   blk[level]->last_accessed = MTIME(0);			// set access time
+  if (!writing)
+    MEM_BARRIER;
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
