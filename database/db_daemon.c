@@ -228,6 +228,7 @@ void do_daemon()					// do something
 { int i;						// handy int
   int j;						// and another
   off_t file_off;					// for lseek()
+  int dirtyQr, garbQr;                                  // queue read positions
 
 start:
   CHKPT;
@@ -273,25 +274,25 @@ start:
     CHKPT;
     while (SemOp(SEM_WD, WRITE));			// lock WD
     CHKPT;
-    if (systab->vol[volnum-1]->dirtyQ
-	[systab->vol[volnum-1]->dirtyQr] != NULL)	// any writes?
+    dirtyQr = systab->vol[volnum-1]->dirtyQr;
+    garbQr  = systab->vol[volnum-1]->garbQr;
+    if (systab->vol[volnum-1]->dirtyQ[dirtyQr] != NULL)	// any writes?
     { CHKPT;
       systab->vol[volnum-1]->wd_tab[myslot].currmsg.gbddata
-        = systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr]; // get
+        = systab->vol[volnum-1]->dirtyQ[dirtyQr];       // get
       systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_WRITE;
-      systab->vol[volnum-1]->dirtyQ[systab->vol[volnum-1]->dirtyQr] = NULL;
-      systab->vol[volnum-1]->dirtyQr++;			// increment ptr
-      systab->vol[volnum-1]->dirtyQr &= (NUM_DIRTY - 1); // do wrap
+      systab->vol[volnum-1]->dirtyQ[dirtyQr] = NULL;
+      systab->vol[volnum-1]->dirtyQr =                  // increment ptr
+        (dirtyQr + 1) & (NUM_DIRTY - 1);                //   with wrap
     }
-    else if (systab->vol[volnum-1]->garbQ
-	       [systab->vol[volnum-1]->garbQr]) 	// any garbage?
+    else if (systab->vol[volnum-1]->garbQ[garbQr]) 	// any garbage?
     { CHKPT;
       systab->vol[volnum-1]->wd_tab[myslot].currmsg.intdata
-        = systab->vol[volnum-1]->garbQ[systab->vol[volnum-1]->garbQr]; // get
+        = systab->vol[volnum-1]->garbQ[garbQr];         // get
       systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_GARB;
-      systab->vol[volnum-1]->garbQ[systab->vol[volnum-1]->garbQr] = 0;
-      systab->vol[volnum-1]->garbQr++;			// increment ptr
-      systab->vol[volnum-1]->garbQr &= (NUM_GARB - 1);	// do wrap
+      systab->vol[volnum-1]->garbQ[garbQr] = 0;
+      systab->vol[volnum-1]->garbQr =                   // increment ptr
+        (garbQr + 1) & (NUM_GARB - 1);	                //   with wrap
     }
     CHKPT;
     SemOp( SEM_WD, -WRITE);				// release WD lock
