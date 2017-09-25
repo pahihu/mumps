@@ -746,13 +746,13 @@ start:
     goto cont;                                          //   continue
 
   systab->vol[volnum-1]->stats.dqstall++;               // update stats
-  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+  SemOp( SEM_GLOBAL, -curr_lock);			            // release current lock
 
   if (pass & 3)                                         // busy wait 3 times
   { SchedYield();
   }
   else
-  { usleep(DQ_SLEEP*1000);                              // wait DQ_SLEEP msecs
+  { msleep(DQ_SLEEP);                                   // wait DQ_SLEEP msecs
   }
   if (TimerCheck(&tim))
   { panic("Ensure_GBDs: Couldn't get enough GBDs and dirty slots after 60 seconds");
@@ -762,5 +762,13 @@ start:
 
 cont:
   return;
+}
+
+int msleep_(u_long mseconds,const char *path,int lno)
+{
+#ifdef MV1_DEV
+  fprintf(stderr,"%s:%d: sleeping %dmsec\r\n",path,lno);
+#endif
+  return usleep(1000*mseconds);
 }
 

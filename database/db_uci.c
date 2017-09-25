@@ -69,7 +69,7 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
   }
 
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)sleep(5);					// wait a bit
+  { (void)msleep(5000);				        // wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
@@ -139,7 +139,7 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   { return (-ERRM26);					// too big
   }
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)sleep(5);					// wait a bit
+  { (void)msleep(5000);				        // wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }

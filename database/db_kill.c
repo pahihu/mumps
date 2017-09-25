@@ -86,7 +86,7 @@ start:
     }
   }
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
-  sleep(1);
+  msleep(1000);
   if (TimerCheck(&tim))
   { panic("Kill_data: Couldn't get enough garbage slots after 60 seconds");
   }

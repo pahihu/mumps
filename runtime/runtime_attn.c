@@ -140,6 +140,7 @@ int ForkIt(int cft)				// Copy File Table True/False
 { int i;					// a handy int
   int ret;					// ant another
   int mid = -1;					// for the MUMPS id
+  char stderr_out[64];                          // stderr file name
 
   for (i = 0; i < systab->maxjob; i++)		// scan the slots
   { ret = systab->jobtab[i].pid;		// get pid
@@ -242,8 +243,12 @@ int ForkIt(int cft)				// Copy File Table True/False
 
   IGNORE_VALUE(freopen("/dev/null", "r", stdin));  // redirect stdin
   IGNORE_VALUE(freopen("/dev/null", "w", stdout)); // redirect stdout
-  IGNORE_VALUE(freopen("/dev/null", "w", stderr)); // redirect stderr
-
+#ifdef MV1_DEV
+  sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
+  IGNORE_VALUE(freopen(stderr_out, "w", stderr));	// redirect stderr
+#else
+  IGNORE_VALUE(freopen("/dev/null", "w", stderr));	// redirect stderr
+#endif
   return ret;					// return -parent job#
 
 }

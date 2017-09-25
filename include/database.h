@@ -193,6 +193,8 @@ void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int greqd);				// get n free GBDs and
                                                         //   dirty slots
+int msleep_(u_long mseconds,const char *path,int lno);  // sleep milliseconds
+#define msleep(ms)      msleep_(ms,__FILE__,__LINE__)
 
 //*****************************************************************************
 
