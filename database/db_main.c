@@ -317,7 +317,6 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
-  writing = 1;                                          // say we are writing
   s = Get_data(0);					// attempt to get it
   if (((s == -ERRM7) && (level == 0)) ||		// if nosuch
       ((s < 0) && (s != -ERRM7)))			// or an error
