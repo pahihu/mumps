@@ -79,8 +79,8 @@ char *last_status(void)
     return buf;
 
   if (DOING_WRITE == doing)
-  { sprintf(buf, "doing=WRITE gbddata=%p chkpt=%d",
-                  systab->vol[0]->wd_tab[myslot].currmsg.gbddata,
+  { sprintf(buf, "doing=WRITE gbddata=%#lx chkpt=%d",
+                  (u_long)(systab->vol[0]->wd_tab[myslot].currmsg.gbddata),
                   chkpt);
   }
   else if (DOING_GARB == doing)
@@ -707,11 +707,13 @@ void daemon_check()					// ensure all running
   while (SemOp(SEM_WD, WRITE));				// lock WD
   for (i = 0; i < systab->vol[volnum - 1]->num_of_daemons; i++)
   { if (i != myslot)					// don't check self
-    { if (kill(systab->vol[volnum-1]->wd_tab[i].pid, 0) < 0) // if gone
+    { fit = kill(systab->vol[volnum-1]->wd_tab[i].pid, 0);
+      if ((fit < 0) && (errno == ESRCH))               	// if gone
       { fit = DB_Daemon(i, volnum); 			// restart the daemon
         // SHOULD LOG THIS SUCCESS OR FAIL
-        if (fit < 0)
-        { do_log("daemon_check: failed to start Daemon %d\n", i);
+        if (fit != 0)
+        { do_log("daemon_check: failed to start daemon %d - %s\n",
+		i, strerror(fit));
         }
       }
     }
