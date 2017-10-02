@@ -67,6 +67,12 @@
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
 
+// Sleep times
+#define DQ_SLEEP        125
+#define GQ_SLEEP        125
+#define GBD_SLEEP       250
+#define WRLOCK_SLEEP    1000
+
 // MUMPS time
 #define MTIME(x)        systab->Mtime                   // updated by daemon 0
 

@@ -94,7 +94,7 @@ short Get_block(u_int blknum)                           // Get block
 { int i;						// a handy int
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
-  gbd *ptr;						// a handy pointer
+  gbd volatile *ptr;	                                // a handy pointer
   TIMER_T tim;                                          // timer for wait
 
   systab->vol[volnum-1]->stats.logrd++;                 // update stats
@@ -102,7 +102,7 @@ short Get_block(u_int blknum)                           // Get block
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
-      TimerStart(&tim, 60, "Get_block: waiting for blk=", blknum);
+      TimerStart(&tim, 60, "Get_block: waiting for blk=%u\r\n", blknum);
       MEM_BARRIER;
       while (ptr->last_accessed == (time_t) 0)		// if being read
       { SchedYield();					// wait for it
@@ -127,7 +127,7 @@ short Get_block(u_int blknum)                           // Get block
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
-        TimerStart(&tim, 60, "Get_block: waiting for blk=", blknum);
+        TimerStart(&tim, 60, "Get_block: waiting for blk=%u\r\n", blknum);
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { SchedYield();					// wait for it
           if (TimerCheck(&tim))
@@ -265,7 +265,9 @@ void Get_GBDs(int greqd)				// get n free GBDs
   gbd *last;						// and another
   time_t now;						// current time
   int pass = 0;						// pass number
+  TIMER_T tim;
 
+  TimerStart(&tim, 60, "Get_GBDs: waiting for %d GBDs\r\n", greqd);
 start:
   while (SemOp(SEM_GLOBAL, WRITE));			// get write lock
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
@@ -327,9 +329,12 @@ start:
     }
   }							// end while (TRUE)
   SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
-  msleep(1000);
   pass++;						// increment a pass
-  if (pass > 60)					// this is crazy!
+  if (pass & 3)                                         // either
+    SchedYield();                                       //   yield time
+  else                                                  // OR
+    msleep(GBD_SLEEP);                                  //   wait a bit
+  if (TimerCheck(&tim))					// this is crazy!
   { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
   }
   goto start;						// try again
@@ -355,6 +360,7 @@ void Get_GBD()						// get a GBD
   gbd *ptr;						// loop gbd ptr
   gbd *oldptr = NULL;					// remember oldest
   gbd *last;						// points to ptr
+  int pass = 0;                                         // pass number
 
 start:
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
@@ -409,7 +415,11 @@ start:
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
-    msleep(1000);					// wait
+    pass++;                                             // increment a pass
+    if (pass & 3)                                       // either
+      SchedYield();                                     //   yield time
+    else                                                // OR
+      msleep(GBD_SLEEP);	                        //   wait a bit
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }

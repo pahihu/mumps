@@ -183,7 +183,7 @@ void Queit()						// que a gbd for write
   }
 
   i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
-  TimerStart(&tim, 10, "Queit: waiting for a dirty slot", 0);
+  TimerStart(&tim, 10, "Queit: waiting for a dirty slot\r\n", 0);
   while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
   { SchedYield();
     if (TimerCheck(&tim))                               // check timeout
@@ -208,7 +208,7 @@ void Garbit(int blknum)					// que a blk for garb
 { int i;						// a handy int
   TIMER_T tim;                                          // timer w/ timeout
 
-  TimerStart(&tim, 10, "Garbit: waiting for a garbage slot", 0);
+  TimerStart(&tim, 10, "Garbit: waiting for a garbage slot\r\n", 0);
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
   while (systab->vol[volnum - 1]->garbQ[i] != 0)        // if not empty
   { SchedYield();
@@ -725,14 +725,12 @@ fail:
 // Note:     No lock is held when calling this function.
 //	     When it completes, it returns with a write lock held.
 
-#define DQ_SLEEP        10
-
 void Ensure_GBDs(int greqd)
 { int wpos, rpos, qlen, qfree;                          // queue params
   int pass = 0;                                         // count passes
   TIMER_T tim;                                          // timer w/ timeout
 
-  TimerStart(&tim, 60, "Ensure_GBDs: waiting for %d dirty slots", greqd);
+  TimerStart(&tim, 60, "Ensure_GBDs: waiting for %d dirty slots\r\n", greqd);
 start:
   Get_GBDs(greqd);		                        // ensure this many
 
@@ -767,7 +765,7 @@ cont:
 int msleep_(u_long mseconds,const char *path,int lno)
 {
 #ifdef MV1_DEV
-  fprintf(stderr,"%s:%d: sleeping %dmsec\r\n",path,lno);
+  fprintf(stderr,"%s:%d: sleeping %lumsec\r\n",path,lno,mseconds);
 #endif
   return usleep(1000*mseconds);
 }

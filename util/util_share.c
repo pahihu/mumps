@@ -161,7 +161,7 @@ void TimerStart(TIMER_T *p_tim,
 int TimerCheck(TIMER_T *p_tim)
 { u_long elapsed;
 
-  if (0 == (++p_tim->tim_counter & 1023))
+  if (0 == (++p_tim->tim_counter & 31))
   { elapsed = fTimer(p_tim->tim_start);
     if (elapsed > p_tim->tim_timeout)
       return 1;

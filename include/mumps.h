@@ -119,9 +119,15 @@
 #define MIN_GBD		40			// minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
+#if 0
 #define GBD_HASH        1024                    // hash size for global buffers
 #define NUM_DIRTY       1024                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
+#else
+#define GBD_HASH        4096                    // hash size for global buffers
+#define NUM_DIRTY       8192                    // max queued dirty chains
+#define NUM_GARB        8192                    // max queued garbage blocks
+#endif
 
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list
@@ -448,6 +454,9 @@ typedef struct __attribute__ ((__packed__)) SYSTAB // system tables
   int sem_id;                                   // GBD semaphore id
   int historic;                                 // Enn, tag+off, $NEXT etc
   int precision;                                // decimal precision
+#ifdef MV1_DEV
+  u_int eventcnt;                               // generic event counter
+#endif
   int max_tt;                                   // max TRANTAB used
   trantab tt[MAX_TRANTAB];                      // translation tables
   int start_user;                               // he's priv too

@@ -236,6 +236,9 @@ int INIT_Start( char *file,                     // database
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = (int) getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
+#ifdef MV1_DEV
+  systab->eventcnt = 0;                         // event counter
+#endif
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab)*jobs)); //locktab

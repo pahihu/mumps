@@ -206,7 +206,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   systab->vol[volnum-1]->stats.dbset++;                 // update stats
   writing = 1;						// say we are writing
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { i = msleep(5000);					// wait a bit
+  { i = msleep(WRLOCK_SLEEP);                           // wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
@@ -312,7 +312,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
   }
   systab->vol[volnum-1]->stats.dbkil++;                 // update stats
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { (void)msleep(5000);					// wait a bit
+  { (void)msleep(WRLOCK_SLEEP);				// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
@@ -844,7 +844,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   systab->vol[volnum-1]->stats.dbset++;                 // update stats
   writing = 1;						// say we are writing
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { i = msleep(5000);					// wait a bit
+  { i = msleep(WRLOCK_SLEEP);				// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
@@ -909,7 +909,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     writing = 0;					// flag we are reading
 
     while (systab->vol[volnum - 1]->writelock)		// check for write lock
-    { i = msleep(5000);					// wait a bit
+    { i = msleep(WRLOCK_SLEEP);				// wait a bit
       if (partab.jobtab->attention)
       { return -(ERRZLAST+ERRZ51);			// for <Control><C>
       }

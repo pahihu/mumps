@@ -68,6 +68,7 @@ short Kill_data()					// remove tree
   cstring *c;						// and another
   u_int *ui;						// and another
   TIMER_T tim;                                          // timer w/ timeout
+  int pass = 0;                                         // pass number
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -75,7 +76,7 @@ short Kill_data()					// remove tree
   SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
   systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
 
-  TimerStart(&tim, 60, "Kill_data: waiting for %d garbage slots",
+  TimerStart(&tim, 60, "Kill_data: waiting for %d garbage slots\r\n",
                    MAXTREEDEPTH * 2);
 start:
   Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
@@ -86,7 +87,11 @@ start:
     }
   }
   SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
-  msleep(1000);
+  pass++;                                               // increment a pass
+  if (pass & 3)                                         // either
+    SchedYield();                                       //   yield time
+  else                                                  // OR
+    msleep(GQ_SLEEP);                                   //   wait a bit
   if (TimerCheck(&tim))
   { panic("Kill_data: Couldn't get enough garbage slots after 60 seconds");
   }
