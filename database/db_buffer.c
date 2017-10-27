@@ -45,6 +45,7 @@
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
+#include <assert.h>					// for assert()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -97,6 +98,13 @@ short Get_block(u_int blknum)                           // Get block
   gbd volatile *ptr;	                                // a handy pointer
   TIMER_T tim;                                          // timer for wait
 
+  if (writing)
+  { assert(curr_lock == WRITE);
+  }
+  else
+  { assert(curr_lock == READ);
+  }
+
   systab->vol[volnum-1]->stats.logrd++;                 // update stats
   ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
@@ -144,8 +152,6 @@ short Get_block(u_int blknum)                           // Get block
   Get_GBD();						// get a GBD
   blk[level]->block = blknum;				// set block number
   blk[level]->last_accessed = (time_t) 0;		// clear last access
-  blk[level]->blkver_high = systab->vol[volnum-1]->stats.phyrd;
-  blk[level]->blkver_low  = 0;
   i = blknum & (GBD_HASH - 1);				// get hash entry
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i]; // link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
@@ -214,6 +220,8 @@ short New_block()					// get new block
   u_char *c;						// character ptr
   u_char *end;						// end of map
 
+  assert(curr_lock == WRITE);
+
 // NEED TO ADD A CHECK FOR A DIRTY MAP SCAN IN PROGRESS HERE
 
   Get_GBD();						// get a GBD
@@ -267,6 +275,7 @@ void Get_GBDs(int greqd)				// get n free GBDs
   int pass = 0;						// pass number
   TIMER_T tim;
 
+  assert(curr_lock == 0);
   TimerStart(&tim, 60, "Get_GBDs: waiting for %d GBDs\r\n", greqd);
 start:
   while (SemOp(SEM_GLOBAL, WRITE));			// get write lock
@@ -362,6 +371,7 @@ void Get_GBD()						// get a GBD
   gbd *last;						// points to ptr
   int pass = 0;                                         // pass number
 
+  assert(curr_lock == WRITE);
 start:
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
@@ -456,6 +466,7 @@ exit:
 void Free_GBD(gbd *free)				// Free a GBD
 { gbd *ptr;						// a handy pointer
 
+  assert(curr_lock == WRITE);
   if (free->block)					// if there is a blk#
   { ptr = systab->vol[volnum-1]->gbd_hash[free->block & (GBD_HASH -1)];
     if (ptr == free)					// if this one

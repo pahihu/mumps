@@ -289,6 +289,9 @@ void TimerStart(TIMER_T *p_tim,
                 int p_timeout_sec, const char *p_msg, int p_msgarg);
 int TimerCheck(TIMER_T *p_tim);
 
+void UTIL_assert(int cond,const char *expr,const char *path,int lno);
+#define ASSERT(expr)	UTIL_assert(expr,#expr,__FILE__,__LINE__)
+
 // Xcalls
 //
 short Xcall_host ( char *ret_buffer, cstring *name, cstring *dum2 );

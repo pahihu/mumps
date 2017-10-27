@@ -43,6 +43,7 @@
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
+#include <assert.h>					// for assert()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -96,7 +97,7 @@ short Locate(u_char *key)				// find key
 //	     Index, chunk, record and keybuf
 // Input(s): none (extern vars must be setup)
 // Return:   0 -> Ok, negative MUMPS error
-// Note:     Must be be called with a read lock
+// Note:     Must be be called with a lock
 //	     External vars setup as for Locate() above.
 //
 
@@ -104,6 +105,7 @@ short Locate_next()					// point at next key
 { int i;						// a handy int
   short s;						// function returns
 
+  assert(curr_lock);
   Index++;						// point at next
   if (Index > blk[level]->mem->last_idx)		// passed end?
   { if (!blk[level]->mem->right_ptr)			// any more there?

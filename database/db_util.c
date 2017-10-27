@@ -45,6 +45,7 @@
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
 #include <sys/stat.h>					// for fchmod
+#include <assert.h>					// for assert()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -170,15 +171,14 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
 void Queit()						// que a gbd for write
 { int i;						// a handy int
-  gbd *ptr;						// a handy ptr
+  gbd *ptr;					        // a handy ptr
   TIMER_T tim;                                          // timer w/ timeout
 
-  ptr = blk[level];					// point at the block
-  ptr->blkver_low++;
+  assert(curr_lock == WRITE);
+  ptr = blk[level];				        // point at the block
   systab->vol[volnum-1]->stats.logwt++;			// incr logical
   while (ptr->dirty != ptr)				// check it
-  { ptr->blkver_low++;
-    ptr = ptr->dirty;					// point at next
+  { ptr = ptr->dirty;					// point at next
     systab->vol[volnum-1]->stats.logwt++;		// incr logical
   }
 
@@ -208,6 +208,7 @@ void Garbit(int blknum)					// que a blk for garb
 { int i;						// a handy int
   TIMER_T tim;                                          // timer w/ timeout
 
+  assert(curr_lock == WRITE);
   TimerStart(&tim, 10, "Garbit: waiting for a garbage slot\r\n", 0);
   i = systab->vol[volnum - 1]->garbQw;			// where to put it
   while (systab->vol[volnum - 1]->garbQ[i] != 0)        // if not empty
@@ -245,6 +246,7 @@ void Free_block(int blknum)				// free blk in map
   int off;						// and another
   u_char *map;						// map pointer
 
+  assert(curr_lock == WRITE);
   map = ((u_char *) systab->vol[volnum-1]->map);	// point at it
   i = blknum >> 3;					// map byte
   off = blknum & 7;					// bit number
@@ -277,6 +279,7 @@ void Used_block(int blknum)				// set blk in map
   int off;						// and another
   u_char *map;						// map pointer
 
+  assert(curr_lock == WRITE);
   map = ((u_char *) systab->vol[volnum-1]->map);	// point at it
   i = blknum >> 3;					// map byte
   off = blknum & 7;					// bit number
@@ -304,6 +307,7 @@ void Tidy_block()					// tidy current blk
 { gbd *ptr;						// a handy pointer
   DB_Block *btmp;					// ditto
 
+  assert(curr_lock == WRITE);
   ptr = blk[level];					// remember current
   Get_GBD();						// get another
   bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size); // zot
@@ -352,6 +356,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
   u_char ucc;						// uncommon char count
   short cs;						// new chunk size
 
+  assert(curr_lock == WRITE);
   isdata = ((blk[level]->mem->type > 64) && (level));	// block type
   sfidx = (u_short *) fptr->mem;			// point at it
   fiidx = (int *) fptr->mem;				// point at it
@@ -634,6 +639,7 @@ void ClearJournal(int vol)				// clear journal
   u_int ui;                                             // handy u_int
   off_t offs;                                           // handy offs
 
+  assert(curr_lock == WRITE);
   jfd = open(systab->vol[vol]->vollab->journal_file,
         O_TRUNC | O_RDWR | O_CREAT, 0770);		// open it
   if (jfd > 0)						// if OK
@@ -668,6 +674,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   int i;
   int j;
 
+  assert(curr_lock == WRITE);
   jptr = lseek(partab.jnl_fds[volnum - 1],
 	       systab->vol[volnum - 1]->jrn_next,
 	       SEEK_SET);				// address to locn
@@ -740,11 +747,11 @@ start:
   else
     qlen = NUM_DIRTY + wpos - rpos;
   qfree = NUM_DIRTY - qlen;
-  if (qfree >= greqd)                                   // have that many
+  if (qfree >= greqd)                               	// have that many
     goto cont;                                          //   continue
 
   systab->vol[volnum-1]->stats.dqstall++;               // update stats
-  SemOp( SEM_GLOBAL, -curr_lock);			            // release current lock
+  SemOp( SEM_GLOBAL, -curr_lock);	                // release current lock
 
   if (pass & 3)                                         // busy wait 3 times
   { SchedYield();
@@ -759,6 +766,7 @@ start:
   goto start;
 
 cont:
+  assert(curr_lock == WRITE);
   return;
 }
 
@@ -770,3 +778,10 @@ int msleep_(u_long mseconds,const char *path,int lno)
   return usleep(1000*mseconds);
 }
 
+void CheckGBD_(gbd *ptr, const char *path, int lno)
+{ char msg[128];
+  if (ptr < systab->vol[0]->gbd_head || ptr >= systab->vol[0]->gbd_head + systab->vol[0]->num_gbd)
+  { sprintf(msg,"%s:%d: invalid GBD (%#lx)",path,lno,(u_long)ptr);
+    panic(msg);
+  }
+}

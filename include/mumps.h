@@ -251,10 +251,11 @@ typedef union __attribute__ ((__packed__)) DATA_UNION // diff types of msg data
 } msg_data;                                     // end data msg union
 
 typedef struct __attribute__ ((__packed__)) WD_TAB // write daemon table
-{ int pid;                                      // the wd's pid
+{ msg_data currmsg;                             // the current gbd */block#
+  int pid;                                      // the wd's pid
   int chkpt;                                    // checkpoint
   int doing;                                    // what we are doing
-  msg_data currmsg;                             // the current gbd */block#
+  int dummy;					// alignment
 } wdtab_struct;                                 // end write daemon structure
 
 typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
@@ -312,28 +313,28 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   void *first_free;                             // first word with free bits
   struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
   struct GBD *gbd_head;                         // head of global buffer desc
-  int num_gbd;                                  // number of global buffers
   void *global_buf;                             // start of global buffers
   void *zero_block;                             // empty block in memory
   struct RBD *rbd_hash[RBD_HASH+1];             // head of routine buffer desc
   void *rbd_head;                               // head of routine buffer desc
   void *rbd_end;                                // first addr past routine area
-  int num_of_daemons;                           // number of daemons
+  struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
+  off_t jrn_next;                               // next free offset in jrn file
   wdtab_struct wd_tab[MAX_DAEMONS];             // write daemon info table
+  db_stat stats;                                // database statistics
+  char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
+  int num_gbd;                                  // number of global buffers
+  int num_of_daemons;                           // number of daemons
   int dismount_flag;                            // flag to indicate dismounting
   int map_dirty_flag;                           // set if map is dirty
   int writelock;                                // MUMPS write lock
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
-  struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   int dirtyQw;                                  // write ptr for dirty que
   int dirtyQr;                                  // read ptr for dirty que
   u_int garbQ[NUM_GARB];                        // garbage que (for daemons)
   int garbQw;                                   // write ptr for garbage que
   int garbQr;                                   // read ptr for garbage que
-  off_t jrn_next;                               // next free offset in jrn file
-  char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
-  db_stat stats;                                // database statistics
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
 

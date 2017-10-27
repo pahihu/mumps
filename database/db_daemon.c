@@ -49,6 +49,7 @@
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
 #include <sys/time.h>                                   // for gettimeofday()
+#include <assert.h>					// for assert()
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -278,6 +279,7 @@ start:
     garbQr  = systab->vol[volnum-1]->garbQr;
     if (systab->vol[volnum-1]->dirtyQ[dirtyQr] != NULL)	// any writes?
     { CHKPT;
+      CheckGBD(systab->vol[volnum-1]->dirtyQ[dirtyQr]);
       systab->vol[volnum-1]->wd_tab[myslot].currmsg.gbddata
         = systab->vol[volnum-1]->dirtyQ[dirtyQr];       // get
       systab->vol[volnum-1]->wd_tab[myslot].doing = DOING_WRITE;
@@ -426,6 +428,7 @@ void do_write()						// write GBDs
   gbdptr = systab->vol[volnum-1]->			// get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
 
+  CheckGBD(gbdptr);
   if (!gbdptr)
   { panic("Daemon: write msg gbd is NULL");		// check for null
   }
@@ -472,6 +475,7 @@ void do_write()						// write GBDs
     CHKPT;
     lastptr = gbdptr;					// remember this ptr
     gbdptr = gbdptr->dirty;  				// get next in list
+    CheckGBD(gbdptr);
 
     CHKPT;
     if (lastptr != gbdptr)  				// if not at end
@@ -559,13 +563,17 @@ int do_zot(u_int gb)					// zot block
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
   CHKPT;
-  while(SemOp(SEM_GLOBAL, READ));			// take a global lock
+  // NB. Get_block()-ban varnak arra, hogy last_accessed != 0
+  //     => csak WRITE lock mellett lehet modositani
+  //	 => toroljuk a block-ot is, nehogy valaki olvasni akarja
+  while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
   CHKPT;
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
+      ptr->block = 0;
       break;						// exit
     }
     ptr = ptr->next;					// point at next

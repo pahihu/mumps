@@ -173,3 +173,15 @@ int TimerCheck(TIMER_T *p_tim)
   }
   return 0;
 }
+
+void UTIL_assert(int cond, const char *expr, const char *path, int lno)
+{ char msg[128];
+  if (!cond)
+  { if (curr_lock)
+    { SemOp( SEM_GLOBAL, -curr_lock);
+    }
+    sprintf(msg,"%s:%d: assertion failed %s",path,lno,expr);
+    panic(msg);
+  }
+}
+

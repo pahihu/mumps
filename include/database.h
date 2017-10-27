@@ -70,7 +70,8 @@
 // Sleep times
 #define DQ_SLEEP        125
 #define GQ_SLEEP        125
-#define GBD_SLEEP       250
+// #define GBD_SLEEP       250
+#define GBD_SLEEP       30
 #define WRLOCK_SLEEP    1000
 
 // MUMPS time
@@ -99,13 +100,11 @@ typedef struct __attribute__ ((__packed__)) DB_BLOCK	// database block layout
 #endif
 
 typedef struct __attribute__ ((__packed__)) GBD		// global buf desciptor
-{ u_int block;						// block number
-  struct GBD *next;					// next entry in list
+{ struct GBD *next;					// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
   struct GBD *dirty;					// to write -> next
   time_t last_accessed;					// last time used
-  u_int  blkver_low;                                    // blk version LOW
-  u_int  blkver_high;                                   // blk version HIGH
+  u_int block;						// block number
 } gbd;							// end gbd struct
 
 typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
@@ -201,6 +200,8 @@ void Ensure_GBDs(int greqd);				// get n free GBDs and
                                                         //   dirty slots
 int msleep_(u_long mseconds,const char *path,int lno);  // sleep milliseconds
 #define msleep(ms)      msleep_(ms,__FILE__,__LINE__)
+void CheckGBD_(gbd *ptr,const char *path,int lno);	// check GBD ptr
+#define CheckGBD(x)	CheckGBD_(x,__FILE__,__LINE__)
 
 //*****************************************************************************
 
