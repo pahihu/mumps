@@ -26,5 +26,7 @@ Fixes:
   * socket communication options (SO_REUSEADDR, SO_NOSIGPIPE)
   * robust error handling in MUMPS environment initialization
   * no writer deadlock due to full dirty queue
+  * removed race in global KILL (block removal)
+  * atomic access in dirty/garbage queue
 
 **NOTE**: Use the code! Good luck!
