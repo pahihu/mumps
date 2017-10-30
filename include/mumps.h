@@ -40,8 +40,10 @@
 
 #if defined(__linux__) && defined(__PPC__)
 #undef MV1_SHSEM
+#define MEM_BARRIER
 #else
 #define MV1_SHSEM       1
+#define MEM_BARRIER     __sync_synchronize()
 #endif
 
 // #define MV1_CKIT        1
@@ -158,15 +160,11 @@
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
-// #define GBD_HASH     1024                    // hash size for global buffers
 #define GBD_HASH        4096                    // hash size for global buffers
-//#define NUM_DIRTY     1024                    // max queued dirty chains
-//#define NUM_DIRTY     2048                    // max queued dirty chains
-#define NUM_DIRTY       4096                    // max queued dirty chains
+#define NUM_DIRTY       8192                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
-// #define GBD_BUCKET(i)   ((i) & (GBD_HASH - 1))
 
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list

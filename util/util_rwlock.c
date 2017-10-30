@@ -278,12 +278,3 @@ short SemUnlock(int sem_num, int numb)
   semtab[x].held_count++;
   return s;
 }
-
-void UTIL_Barrier(void)
-{
-#ifdef MV1_SHSEM
-  do { ATOMIC_SYNC; } while(0);
-#else
-  return;
-#endif
-}

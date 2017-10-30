@@ -345,7 +345,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
     { blk[level] = ptr;					// save the ptr
-      UTIL_Barrier();
+      MEM_BARRIER;
       wait_start = MTIME(0);                            // remember time
       while (ptr->last_accessed == (time_t) 0)	        // if being read
       { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
@@ -355,7 +355,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
           panic(msg);
         }
         SchedYield();					// wait for it
-        UTIL_Barrier();
+        MEM_BARRIER;
       }
       ASSERT(blknum == ptr->block);
       goto exit;					// go common exit code
@@ -379,7 +379,6 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
         refd_inited = 1;
 #endif
         blk[level]->last_accessed = (time_t) 0;		// clear last access
-        UTIL_Barrier();
 #ifdef MV1_REFD
         Link_GBD(blknum, blk[level]);
 #else
@@ -409,7 +408,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
       refd_inited = 1;
 #endif
       blk[level]->last_accessed = (time_t) 0;		// clear last access
-      UTIL_Barrier();
+      MEM_BARRIER;
       goto unlocked;
     }
 #endif
@@ -424,7 +423,7 @@ writelock:
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
 	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
-        UTIL_Barrier();
+        MEM_BARRIER;
         wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.rdwait);
@@ -434,7 +433,7 @@ writelock:
             panic(msg);
           }
           SchedYield();					// wait for it
-          UTIL_Barrier();
+          MEM_BARRIER;
         }
         ASSERT(blknum == ptr->block);
         goto exit;					// go common exit code
@@ -457,7 +456,7 @@ writelock:
   blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
   systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
 #endif
-  UTIL_Barrier();
+  MEM_BARRIER;
   if (!writing)						// if reading
   { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
   }
@@ -514,7 +513,7 @@ exit:
   { REFD_MARK(blk[level]);
   }
 #endif
-  UTIL_Barrier();
+  MEM_BARRIER;
   Index = LOW_INDEX;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
@@ -588,7 +587,7 @@ short New_block()					// get new block
 	systab->vol[volnum-1]->gbd_hash[hash] = blk[level];
 #endif
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
-        UTIL_Barrier();
+        MEM_BARRIER;
 	systab->vol[volnum-1]->first_free = c;		// save this
         systab->vol[volnum-1]->stats.blkalloc++;        // update stats
 #ifdef MV1_CACHE_IO
@@ -641,7 +640,7 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   }
   systab->vol[volnum-1]->stats.phywt++;                 // count a write
   gbdptr->dirty = NULL;
-  UTIL_Barrier();
+  MEM_BARRIER;
 }							// end write code
 
 //-----------------------------------------------------------------------------
@@ -897,7 +896,7 @@ exit:
   REFD_READ_INIT(oldptr);                               // mark refd
   oldptr->prev = NULL;                                  // clear prev link
   oldptr->hash = -1;                                    // clear hash chain
-  UTIL_Barrier();
+  MEM_BARRIER;
   idx = (u_short *) oldptr->mem;			// set this up
   iidx = (int *) oldptr->mem;			        // and this
   return oldptr; 
@@ -954,7 +953,7 @@ void Free_GBD(gbd *free)				// Free a GBD
   free->block = 0;					// clear this
   free->dirty = NULL;					// and this
   free->last_accessed = (time_t) 0;			// and this
-  UTIL_Barrier();
+  MEM_BARRIER;
   return;						// and exit
 }
 

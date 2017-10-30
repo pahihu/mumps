@@ -579,7 +579,7 @@ void do_write()						// write GBDs
 		currmsg.gbddata = NULL;			// table JIC I vanish
       systab->vol[volnum-1]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
-      UTIL_Barrier();
+      MEM_BARRIER;
       break;						// break from while
     }
     lastptr = gbdptr;					// remember this ptr
@@ -596,7 +596,7 @@ void do_write()						// write GBDs
       		doing = DOING_NOTHING;			// and here
     }
     lastptr->dirty = NULL;				// clear old dirtyptr
-    UTIL_Barrier();
+    MEM_BARRIER;
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
   }							// end dirty write
@@ -669,7 +669,7 @@ int do_zot(u_int gb)					// zot block
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
       ptr->block = 0;
-      UTIL_Barrier();
+      MEM_BARRIER;
       break;						// exit
     }
     ptr = ptr->next;					// point at next
