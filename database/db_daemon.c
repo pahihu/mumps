@@ -43,6 +43,7 @@
 #include <errno.h>					// for errors
 #include <fcntl.h>					// for file stuff
 #include <signal.h>					// for kill()
+#include <stdarg.h>                                     // for va_ macros
 #include <sys/shm.h>
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -66,6 +67,36 @@ void ic_map(int flag, int dbfd);			// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write;                           // last map write
+
+int do_log(const char *fmt,...)
+{ int i;
+  va_list ap;
+  char tstamp[64];
+  struct timeval tv_result;
+  struct tm *tm_result;
+  int tstamp_filled;
+
+  tstamp_filled = 0;
+  if (0 == gettimeofday(&tv_result, 0))
+  { tm_result = gmtime(&tv_result.tv_sec);
+    if (tm_result != NULL)
+    { if (0 != strftime(tstamp, 64, "%Y-%m-%dT%H:%M:%S", tm_result))
+      { sprintf(tstamp + 19, ".%03d", (int) (tv_result.tv_usec / 1000));
+        tstamp_filled = 1;
+      }
+    }
+  }
+  if (0 == tstamp_filled)
+    strcpy(tstamp,"YYYY-MM-DDTHH:MM:SS.MMM");
+
+  fprintf(stderr,"%s [%5d] ", tstamp, getpid());
+  va_start(ap, fmt);
+  i = vfprintf(stderr,fmt,ap);
+  va_end(ap);
+
+  fflush(stderr);
+  return i;
+}
 
 //------------------------------------------------------------------------------
 // Function: MSLEEP
@@ -151,16 +182,14 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   wrbuf = (u_char *) mv1malloc(                         // alloc a write buffer
 		 systab->vol[volnum-1]->vollab->block_size);
   if (0 == wrbuf)
-  { fprintf(stderr, "Cannot alloc write buffer\n");
-    fflush( stderr );                                   // flush to the file
+  { do_log("Cannot alloc write buffer\n");
     return(ENOMEM);					// check for error
   }
 
   dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)
-  { fprintf(stderr, "Cannot open database file %s\n",
+  { do_log("Cannot open database file %s\n",
                   systab->vol[0]->file_name);
-    fflush( stderr );                                   // flush to the file
     return(errno);					// check for error
   }
 
@@ -168,9 +197,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   t = time(0);						// for ctime()
-  fprintf(stderr,"Daemon %d started successfully at %s\n",
+  do_log("Daemon %d started successfully at %s\n",
 	         myslot, ctime(&t));			// log success
-  fflush( stderr );                                     // flush to the file
 
   if (!myslot)
     systab->Mtime = time(0);
@@ -338,9 +366,8 @@ start:
     { if (myslot)					// first?
       { systab->vol[volnum-1]->wd_tab[myslot].pid = 0;	// say gone
 	t = time(0);					// for ctime()
-	fprintf(stderr,"Daemon %d shutting down at %s\n",
+	do_log("Daemon %d shutting down at %s\n",
 	         myslot, ctime(&t));			// log success
-        fflush( stderr );
         SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
@@ -393,13 +420,13 @@ void do_dismount()					// dismount volnum
 
     i = stat(systab->vol[0]->vollab->journal_file, &sb ); // check for file
     if (i < 0)		                        // if that's junk
-    { fprintf(stderr, "Failed to access journal file %s\n",
+    { do_log("Failed to access journal file %s\n",
     		systab->vol[0]->vollab->journal_file);
     }
     else					// do something
     { jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
       if (jfd < 0)				// on fail
-      { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
+      { do_log("Failed to open journal file %s\nerrno = %d\n",
 		systab->vol[0]->vollab->journal_file, errno);
       }
       else					// if open OK
@@ -412,14 +439,14 @@ void do_dismount()					// dismount volnum
 	errno = 0;
 	i = read(jfd, tmp, sizeof(u_int));	// read the magic
 	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
+	{ do_log("Failed to open journal file %s\nWRONG MAGIC\n",
 		  systab->vol[0]->vollab->journal_file);
 	  close(jfd);
 	}
 	else
 	{ i = FlushJournal(jfd, 1);
           if (i < 0)
-	  { fprintf(stderr, "Failed to flush journal file %s\nLast failed - %d\n",
+	  { do_log("Failed to flush journal file %s\nLast failed - %d\n",
 	        systab->vol[0]->vollab->journal_file, errno);
 	  }
           close(jfd);
@@ -466,26 +493,22 @@ void do_dismount()					// dismount volnum
     }
   }							// end wait for daemons
   SemStats();                                           // print sem stats
-  fprintf(stderr,"Writing out clean flag as clean\n");  // operation
-  fflush( stderr );
+  do_log("Writing out clean flag as clean\n");          // operation
   systab->vol[volnum-1]->vollab->clean = 1;		// set database as clean
   off =lseek( dbfd, 0, SEEK_SET);			// seek to start of file
   if (off < 0)
-  { fprintf(stderr, "do_dismount: lseek() to start of file failed");
-    fflush( stderr );
+  { do_log("do_dismount: lseek() to start of file failed");
   }
   i = write( dbfd, 					// write to database
 	 systab->vol[volnum-1]->vollab, 		// the map/label block
 	 systab->vol[volnum-1]->vollab->		// with the clean
 	 header_bytes );				// flag set.
   if (i != systab->vol[volnum-1]->vollab->header_bytes )
-  { fprintf(stderr, "do_dismount: write() map block failed");
-    fflush( stderr );
+  { do_log("do_dismount: write() map block failed");
   } 
   i = semctl(systab->sem_id, 0, (IPC_RMID), NULL);	// remove the semaphores
   if (i)
-  { fprintf(stderr, "do_dismount: semctl() failed to remove semaphores");
-    fflush( stderr );
+  { do_log("do_dismount: semctl() failed to remove semaphores");
   }
   return;						// done
 }
@@ -632,8 +655,7 @@ int do_zot(u_int gb)					// zot block
 
   bptr = mv1malloc(systab->vol[volnum-1]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
-  { fprintf(stderr, "do_zot: malloc for block %d failed\n", gb);
-    fflush( stderr );                                   // flush to the file
+  { do_log("do_zot: malloc for block %d failed\n", gb);
     return -1;						// return fail
   }
 
@@ -641,7 +663,7 @@ int do_zot(u_int gb)					// zot block
   file_off = (file_off * (off_t) systab->vol[volnum-1]->vollab->block_size)
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
-  while(SemOp(SEM_GLOBAL, READ));			// take a global lock
+  while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
   ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(gb)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -658,16 +680,14 @@ int do_zot(u_int gb)					// zot block
   if (ptr == NULL)					// if not found
   { file_ret = lseek( dbfd, file_off, SEEK_SET);	// seek to block
     if (file_ret < 1)
-    { fprintf(stderr, "do_zot: seek to block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: seek to block %d failed\n", gb);
       mv1free(bptr);					// free memory
       return -1;					// return error
     }
     ret = read( dbfd, bptr,
 	       systab->vol[volnum-1]->vollab->block_size); // read it
     if (ret < 0)					// if it failed
-    { fprintf(stderr, "do_zot: read of block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: read of block %d failed\n", gb);
       mv1free(bptr);					// free memory
       return -1;					// return error
     }
@@ -693,16 +713,14 @@ int do_zot(u_int gb)					// zot block
 		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
         file_ret = lseek( dbfd, file_ret, SEEK_SET);	// Seek to block
         if (file_ret < 1)	        		// check for fail
-        { fprintf(stderr, "do_zot: seek to block %d failed\n", i);
-          fflush( stderr );                             // flush to the file
+        { do_log("do_zot: seek to block %d failed\n", i);
           ret = -1;                                     // flag an error
         }
         else						// looks ok
         { ret = write( dbfd, systab->vol[volnum-1]->zero_block,
 	     systab->vol[volnum-1]->vollab->block_size); // write zeroes
           if (ret < 0)					// fail ?
-          { fprintf(stderr, "do_zot: zero of block %d failed\n", i);
-            fflush( stderr );                           // flush to the file
+          { do_log("do_zot: zero of block %d failed\n", i);
           }
         }
       }
@@ -725,16 +743,14 @@ zotit:
   if (systab->ZotData)                                  // if zero data
   { file_ret = lseek( dbfd, file_off, SEEK_SET);	// seek to block
     if (file_ret < 1)
-    { fprintf(stderr, "do_zot: zeroing seek to block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: zeroing seek to block %d failed\n", gb);
       mv1free(bptr);					// free memory
       return -1;					// return error
     }
     ret = write( dbfd, systab->vol[volnum-1]->zero_block,
 	       systab->vol[volnum-1]->vollab->block_size); // write zeroes
     if (ret < 0)					// if it failed
-    { fprintf(stderr, "do_zot: zero of block %d failed\n", gb);
-      fflush( stderr );                                 // flush to the file
+    { do_log("do_zot: zero of block %d failed\n", gb);
       typ = -1;						// flag fail
     }
   }
@@ -805,8 +821,7 @@ void daemon_check()					// ensure all running
       { fit = DB_Daemon(i, volnum); 			// restart the daemon
         // SHOULD LOG THIS SUCCESS OR FAIL
         if (fit < 0)
-        { fprintf(stderr, "daemon_check: failed to start Daemon %d\n", i);
-          fflush( stderr );                             // flush to the file
+        { do_log("daemon_check: failed to start Daemon %d\n", i);
         }
       }
     }
