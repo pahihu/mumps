@@ -44,6 +44,7 @@
 #include <fcntl.h>					// for file stuff
 #include <signal.h>					// for kill()
 #include <stdarg.h>                                     // for va_ macros
+#include <sys/time.h>                                   // for gettimeofday()
 #include <sys/shm.h>
 #include <sys/types.h>					// for semaphores
 #include <sys/ipc.h>					// for semaphores
@@ -197,8 +198,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   t = time(0);						// for ctime()
-  do_log("Daemon %d started successfully at %s\n",
-	         myslot, ctime(&t));			// log success
+  do_log("Daemon %d started successfully\n", myslot);   // log success
 
   if (!myslot)
     systab->Mtime = time(0);
@@ -366,8 +366,7 @@ start:
     { if (myslot)					// first?
       { systab->vol[volnum-1]->wd_tab[myslot].pid = 0;	// say gone
 	t = time(0);					// for ctime()
-	do_log("Daemon %d shutting down at %s\n",
-	         myslot, ctime(&t));			// log success
+	do_log("Daemon %d shutting down\n", myslot);	// log success
         SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
@@ -439,14 +438,14 @@ void do_dismount()					// dismount volnum
 	errno = 0;
 	i = read(jfd, tmp, sizeof(u_int));	// read the magic
 	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	{ do_log("Failed to open journal file %s\nWRONG MAGIC\n",
+	{ do_log("Failed to open journal file %s: WRONG MAGIC\n",
 		  systab->vol[0]->vollab->journal_file);
 	  close(jfd);
 	}
 	else
 	{ i = FlushJournal(jfd, 1);
           if (i < 0)
-	  { do_log("Failed to flush journal file %s\nLast failed - %d\n",
+	  { do_log("Failed to flush journal file %s: Last failed - %d\n",
 	        systab->vol[0]->vollab->journal_file, errno);
 	  }
           close(jfd);
@@ -555,7 +554,7 @@ void do_write()						// write GBDs
 		 systab->vol[volnum-1]->vollab->block_size);
       BLOCK_UNLOCK(gpdptr);
 #else
-      wrbuf = gbdptr->mem;
+      wrbuf = (u_char*) gbdptr->mem;
 #endif
       file_off = (off_t) blkno - 1;		        // block#
       file_off = (file_off * (off_t)
@@ -817,10 +816,10 @@ void daemon_check()					// ensure all running
   while (SemOp(SEM_WD, WRITE));				// lock WD
   for (i = 0; i < systab->vol[volnum - 1]->num_of_daemons; i++)
   { if (i != myslot)					// don't check self
-    { if (kill(systab->vol[volnum-1]->wd_tab[i].pid, 0) < 0) // if gone
+    { fit = kill(systab->vol[volnum-1]->wd_tab[i].pid, 0);
+      if ((fit < 0) && (errno == ESRCH))                // if gone
       { fit = DB_Daemon(i, volnum); 			// restart the daemon
-        // SHOULD LOG THIS SUCCESS OR FAIL
-        if (fit < 0)
+        if (fit != 0)
         { do_log("daemon_check: failed to start Daemon %d\n", i);
         }
       }
