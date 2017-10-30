@@ -28,5 +28,6 @@ Fixes:
   * no writer deadlock due to full dirty queue
   * removed race in global KILL (block removal)
   * atomic access in dirty/garbage queue
+  * reverse $QUERY() for locals
 
 **NOTE**: Use the code! Good luck!

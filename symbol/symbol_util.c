@@ -743,7 +743,9 @@ short ST_Query(mvar *var, u_char *buf, int dir)
   bcopy(current->bytes, outputVar.key, (int) current->keylen); // setup mvar
   if ((current == symtab[ptr1].data->deplnk) && (prev != current) &&
       (dir == -1) && (var->slen > 0))		// previous is a data block
-  { outputVar.slen = 0;				// flag is as such
+  { if (symtab[ptr1].data->dbc == VAR_UNDEFINED)
+      return 0;
+    outputVar.slen = 0;				// flag is as such
   }						// end if back to a data block
   askeylen = UTIL_String_Mvar(&outputVar, buf, 255); // convert mvar
   return askeylen;				// return length of key
