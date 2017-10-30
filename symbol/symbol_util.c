@@ -890,7 +890,9 @@ short ST_QueryEx(mvar *var, u_char *buf, int dir, cstring *dat)
   bcopy(current->bytes, outputVar.key, (int) current->keylen); // setup mvar
   if ((current == symtab[ptr1].data->deplnk) && (prev != current) &&
       (dir == -1) && (var->slen > 0))		// previous is a data block
-  { outputVar.slen = 0;				// flag is as such
+  { if (symtab[ptr1].data->dbc == VAR_UNDEFINED)
+      return 0;
+    outputVar.slen = 0;				// flag is as such
     isdbc = 1;
   }						// end if back to a data block
   if (dat)                                      // dat given
