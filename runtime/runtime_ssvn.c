@@ -413,59 +413,59 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.blkalloc);
+	  return uitocstring(buf, systab->vol[i]->stats.blkalloc);
 	if (strncasecmp( (char *) subs[2]->buf, "blkdeall\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.blkdeall);
+	  return uitocstring(buf, systab->vol[i]->stats.blkdeall);
 	if (strncasecmp( (char *) subs[2]->buf, "blkreorg\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.blkreorg);
+	  return uitocstring(buf, systab->vol[i]->stats.blkreorg);
 	if (strncasecmp( (char *) subs[2]->buf, "dbdat\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbdat);
+	  return uitocstring(buf, systab->vol[i]->stats.dbdat);
 	if (strncasecmp( (char *) subs[2]->buf, "dbget\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbget);
+	  return uitocstring(buf, systab->vol[i]->stats.dbget);
 	if (strncasecmp( (char *) subs[2]->buf, "dbkil\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbkil);
+	  return uitocstring(buf, systab->vol[i]->stats.dbkil);
 	if (strncasecmp( (char *) subs[2]->buf, "dbord\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbord);
+	  return uitocstring(buf, systab->vol[i]->stats.dbord);
 	if (strncasecmp( (char *) subs[2]->buf, "dbqry\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbqry);
+	  return uitocstring(buf, systab->vol[i]->stats.dbqry);
 	if (strncasecmp( (char *) subs[2]->buf, "dbset\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dbset);
+	  return uitocstring(buf, systab->vol[i]->stats.dbset);
 	if (strncasecmp( (char *) subs[2]->buf, "lastok\0", 7) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lastok);
+	  return uitocstring(buf, systab->vol[i]->stats.lastok);
 	if (strncasecmp( (char *) subs[2]->buf, "lasttry\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lasttry);
+	  return uitocstring(buf, systab->vol[i]->stats.lasttry);
 	if (strncasecmp( (char *) subs[2]->buf, "lastwtok\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lastwtok);
+	  return uitocstring(buf, systab->vol[i]->stats.lastwtok);
 	if (strncasecmp( (char *) subs[2]->buf, "lastwttry\0", 10) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lastwttry);
+	  return uitocstring(buf, systab->vol[i]->stats.lastwttry);
 	if (strncasecmp( (char *) subs[2]->buf, "eventcnt\0", 9) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.eventcnt);
+	  return uitocstring(buf, systab->vol[i]->stats.eventcnt);
 	if (strncasecmp( (char *) subs[2]->buf, "logrd\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.logrd);
+	  return uitocstring(buf, systab->vol[i]->stats.logrd);
 	if (strncasecmp( (char *) subs[2]->buf, "logwt\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.logwt);
+	  return uitocstring(buf, systab->vol[i]->stats.logwt);
 	if (strncasecmp( (char *) subs[2]->buf, "phyrd\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.phyrd);
+	  return uitocstring(buf, systab->vol[i]->stats.phyrd);
 	if (strncasecmp( (char *) subs[2]->buf, "phywt\0", 6) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.phywt);
+	  return uitocstring(buf, systab->vol[i]->stats.phywt);
 	if (strncasecmp( (char *) subs[2]->buf, "diskerrors\0", 11) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.diskerrors);
+	  return uitocstring(buf, systab->vol[i]->stats.diskerrors);
 	if (strncasecmp( (char *) subs[2]->buf, "dqstall\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.dqstall);
+	  return uitocstring(buf, systab->vol[i]->stats.dqstall);
 	if (strncasecmp( (char *) subs[2]->buf, "gqstall\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.gqstall);
+	  return uitocstring(buf, systab->vol[i]->stats.gqstall);
 	if (strncasecmp( (char *) subs[2]->buf, "gbwait\0", 7) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.gbwait);
+	  return uitocstring(buf, systab->vol[i]->stats.gbwait);
 	if (strncasecmp( (char *) subs[2]->buf, "gbswait\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.gbswait);
+	  return uitocstring(buf, systab->vol[i]->stats.gbswait);
 	if (strncasecmp( (char *) subs[2]->buf, "rdwait\0", 7) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.rdwait);
+	  return uitocstring(buf, systab->vol[i]->stats.rdwait);
 	if (strncasecmp( (char *) subs[2]->buf, "brdwait\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.brdwait);
+	  return uitocstring(buf, systab->vol[i]->stats.brdwait);
 	if (strncasecmp( (char *) subs[2]->buf, "bwrwait\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.bwrwait);
+	  return uitocstring(buf, systab->vol[i]->stats.bwrwait);
 	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
-	  return itocstring(buf, systab->vol[i]->stats.lckwait);
+	  return uitocstring(buf, systab->vol[i]->stats.lckwait);
       }						// end of "VOL"
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "wdptime\0", 8) == 0))
