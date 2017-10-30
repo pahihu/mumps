@@ -393,7 +393,7 @@ void UTIL_assert(int cond, const char *expr,
                const char *fn, const char *path, int line,
                const char *caller_path, int caller_line);
 
-int UTIL_Share(char *dbf);			// attach share and semaphores
+int UTIL_Share(const char *dbf);		   // attach share + semaphores
 #define Sleep(x)   SleepEx(x,__FILE__,__LINE__)
 u_int SleepEx(u_int seconds, const char *file, int line);
 int MSleep(u_int mseconds);

@@ -94,7 +94,7 @@ void UTIL_assert(int cond, const char *expr,
 //****************************************************************************
 //**  Function: UTIL_Share - attach shared memory section        ***
 //**  returns addr (or NULL on error)                            ***
-int UTIL_Share(char *dbf)                     	// pointer to dbfile name
+int UTIL_Share(const char *dbf)                 // pointer to dbfile name
 { key_t shar_mem_key;                           // memory "key"
   int shar_mem_id;                              // memory id
   int sem_id;					// semaphore id
@@ -112,11 +112,8 @@ int UTIL_Share(char *dbf)                     	// pointer to dbfile name
   }
   systab = (systab_struct *) sad->address;  	// get required address
   if ( sad != systab)				// if not in correct place
-  { // fprintf(stderr, "attach = %lX need = %lX\n", (u_long)sad, (u_long)systab);
-    i = shmdt( sad );				// unmap it
-    // fprintf(stderr, "shmdt return = %X\n", i);
+  { i = shmdt( sad );				// unmap it
     sad = shmat(shar_mem_id, (void *) systab, 0); // try again
-    // fprintf(stderr, "systab = %lX  sad = %lX\n", (u_long) systab, (u_long) sad);
     if ( systab != sad)
     { fprintf(stderr, "Unable to attach to systab at %lX\n", (u_long) systab);
       return(EADDRNOTAVAIL);			// die on error
