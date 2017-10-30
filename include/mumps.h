@@ -232,14 +232,15 @@
 #define SEM_ROU         3                       // routine buffers
 #define SEM_WD          4                       // write daemons
 #define SEM_GBDRO       5                       // read-only GBDs
+#define SEM_GBDGET      6                       // get GBDs
 
 #ifndef MV1_SHSEM
-#define SEM_MAX         6                       // total number of these
+#define SEM_MAX         7                       // total number of these
 #else
-#define SEM_GLOBAL_RD   6
-#define SEM_GLOBAL_WR   7
+#define SEM_GLOBAL_RD   7
+#define SEM_GLOBAL_WR   8
 
-#define SEM_MAX         8                       // total number of these
+#define SEM_MAX         9                       // total number of these
 #ifdef MV1_BLKSEM
 #define BLK_WRITE       ((short) 0x7FFF)        // block WRITE lock
 #define BLKSEM_MAX      16                      // total no. of block semaphores

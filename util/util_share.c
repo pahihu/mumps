@@ -159,7 +159,9 @@ short SemOpEx(int sem_num, int numb,
   if (numb == 0)				// check for junk
   { return 0;					// just return
   }
-  if ((abs(curr_lock) >= systab->maxjob) && (numb < 0))
+  if ((SEM_GLOBAL == sem_num) &&                // global lock ?
+      (abs(curr_lock) >= systab->maxjob) &&     //   AND already have WRITE lock
+      (numb < 0))                               //   AND acquire
   { sprintf(msg,"SemOp(): have WRITE lock, sem_num=%d numb=%d curr_lock=%d @ %s:%d",
                  sem_num, numb, curr_lock, file, line);
     panic(msg);

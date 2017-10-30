@@ -138,7 +138,8 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 // Return:   0 -> Ok, negative MUMPS error
 //
 
-gbd *ro_gbd = 0;
+gbd *ro_gbd[MAXTREEDEPTH];
+int nro_gbd = 0;
 
 #ifdef MV1_GBDRO
 gbd* Get_GBDRO()
@@ -153,6 +154,7 @@ gbd* Get_GBDRO()
                 &qentry);
   if (result)
   { ret = (gbd *) qentry;
+    ro_gbd[nro_gbd++] = ret;
   }
   return ret;
 }
@@ -276,9 +278,9 @@ void Block_Unlock(void)
 void DB_Unlocked(void)
 {
 #ifdef MV1_GBDRO
-  if (ro_gbd)
-  { Free_GBDRO(ro_gbd);
-    ro_gbd = 0;
+  if (nro_gbd)
+  { Free_GBDROs(ro_gbd, nro_gbd);
+    nro_gbd = 0;
   }
 #endif
 #ifdef MV1_BLKSEM
@@ -367,8 +369,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
   { 
 #ifdef MV1_GBDRO
     if (!wanna_writing)                                 // not pre-write mode ?
-    { SemOp( SEM_GBDRO, WRITE);
-      ptr = Get_RdGBD();                                // try to get a free GBD
+    { ptr = Get_RdGBD();                                // try to get a free GBD
       if (ptr)                                          //   if succeeded, done
       { // fprintf(stderr,"Get_FreeGBD(): success\r\n");
         systab->vol[volnum-1]->stats.phyrd++;           // update stats
@@ -386,21 +387,14 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
         blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
         systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
 #endif
-        SemOp( SEM_GBDRO, -WRITE);
+        SemOp( SEM_GBDGET, -WRITE);
         goto unlocked;
       }
-      SemOp( SEM_GBDRO, -WRITE);
-      if (!ro_gbd)                                      // if we have no R/O GBD
-      { // fprintf(stderr,"--- before Get_GBDRO() ---\r\n");
-        ro_gbd = Get_GBDRO();                           // try to get one
-        if (!ro_gbd)                                    // if failed, do a
-        { // fprintf(stderr, "Get_GBDRO(): failed\r\n");
-          goto writelock;                               //   write lock
-        }
+      blk[level] = Get_GBDRO();                         // try to get one
+      if (!blk[level])                                  // if failed, do a
+      { // systab->vol[volnum-1]->stats.eventcnt++;        // update stats
+        goto writelock;                                 //   write lock
       }
-      // fprintf(stderr,"--- use ro_gbd ---\r\n");
-      // ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt); // update stats
-      blk[level] = ro_gbd;                              // use the R/O GBD
       systab->vol[volnum-1]->stats.phyrd++;             // update stats
       blk[level]->block = blknum;			// set block number
 #ifdef MV1_REFD
@@ -788,6 +782,9 @@ start:
     // fprintf(stderr,"Get_GBD(): from free list\r\n"); fflush(stderr);
     goto exit;						// common exit code
   }
+  else if (rdonly)
+  { return 0;
+  }
 
   now = MTIME(0) + 1;				        // get current time
 
@@ -910,7 +907,14 @@ void Get_GBD(void)                                      // get a GBD
 }
 
 gbd* Get_RdGBD(void)                                    // get a read-only GBD
-{ return GetGBDEx(1);                                   // no I/O involved !!!
+{ gbd *ret = 0;
+  if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
+  { SemOp( SEM_GBDGET, WRITE);
+    ret = GetGBDEx(1);                                  // no I/O involved !!!
+    if (!ret)
+      SemOp( SEM_GBDGET, -WRITE);
+  }
+  return ret;
 }
 
 
