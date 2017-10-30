@@ -1,5 +1,5 @@
-MUMPS V1R2
-==========
+MUMPS V1R2DEV
+=============
 
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
 Work in progress.
@@ -20,4 +20,4 @@ Changes:
   * $ZHOROLOG special variable, returns fractional seconds
   * ZZ commands and functions (calls tags in ZZCMD and ZZFN)
 
-**NOTE**: There are excellent M implementations like Intersystems Cache, FIS GT.M or MiniM. They have excellent support. Otherwise here is the code. Good luck!
+**NOTE**: There are excellent M implementations like Intersystems Cache, FIS GT.M or MiniM. They have very good support. Otherwise here is the code. Good luck!
