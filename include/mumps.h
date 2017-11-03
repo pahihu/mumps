@@ -46,7 +46,6 @@
 #define MEM_BARRIER     __sync_synchronize()
 #endif
 
-// #define MV1_CKIT        1
 #ifdef MV1_CKIT
 #include <ck_ring.h>
 #endif
@@ -55,11 +54,13 @@
 
 #include <stdint.h>
 #ifdef MV1_SHSEM
-#ifdef MV1_CKIT
-#include "usync_ck.h"
+# ifdef MV1_CKIT
+#  include "usync_ck.h"
+# else
+#  include "usync_mv1.h"
+# endif
 #else
-#include "usync_mv1.h"
-#endif
+# define inter_add   __sync_add_and_fetch
 #endif
 
 #ifndef VOLATILE
