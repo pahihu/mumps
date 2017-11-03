@@ -52,9 +52,11 @@ typedef struct _RWLOCK_T
 
 int  RWLockInit(RWLOCK_T *lok, int maxjob);
 void LockWriter(RWLOCK_T *lok);
+int  TryLockWriter(RWLOCK_T *lok);
 void UnlockWriter(RWLOCK_T *lok);
 void UnlockWriterToReader(RWLOCK_T *lok);
 void LockReader(RWLOCK_T *lok);
+int  TryLockReader(RWLOCK_T *lok);
 void UnlockReader(RWLOCK_T *lok);
 
 

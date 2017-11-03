@@ -23,12 +23,14 @@ typedef uint32_t AO_t;
 // --- read-write lock -------------------------------------
 #define RWLOCK_T        ck_rwlock_t
 
-#define RWLockInit(x,y) ck_rwlock_init(x)
-#define LockWriter(x)   ck_rwlock_write_lock(x)
-#define UnlockWriter(x) ck_rwlock_write_unlock(x)
+#define RWLockInit(x,y)         ck_rwlock_init(x)
+#define LockWriter(x)           ck_rwlock_write_lock(x)
+#define TryLockWriter(x)        ck_rwlock_write_trylock(x)
+#define UnlockWriter(x)         ck_rwlock_write_unlock(x)
 #define UnlockWriterToReader(x) ck_rwlock_write_downgrade(x)
-#define LockReader(x)   ck_rwlock_read_lock(x)
-#define UnlockReader(x) ck_rwlock_read_unlock(x)
+#define LockReader(x)           ck_rwlock_read_lock(x)
+#define TryLockReader(x)        ck_rwlock_read_trylock(x)
+#define UnlockReader(x)         ck_rwlock_read_unlock(x)
 
 
 #endif

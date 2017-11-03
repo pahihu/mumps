@@ -148,6 +148,7 @@ static struct timeval sem_start[SEM_MAX];
 
 short TrySemLock(int sem_num, int numb)
 {
+  int i,j;
   short s;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
@@ -162,9 +163,29 @@ short TrySemLock(int sem_num, int numb)
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
+    { // LockWriter(&systab->glorw);
+      for (j = 1; j <= 16; j++)
+      { for (i = 0; i < 1000000; i++)
+        { if (TryLockWriter(&systab->glorw))
+            return s;
+        }
+        if (0 == (j & 3))
+          SchedYield();
+      }
       LockWriter(&systab->glorw);
+    }
     else if (numb == READ)
+    { // LockReader(&systab->glorw);
+      for (j = 1; j <= 16; j++)
+      { for (i = 0; i < 1000000; i++)
+        { if (TryLockReader(&systab->glorw))
+            return s;
+        }
+        if (0 == (j & 3))
+          SchedYield();
+      }
       LockReader(&systab->glorw);
+    }
     else
     { char msg[64];
       sprintf(msg, "TrySemLock(): numb=%d", numb);

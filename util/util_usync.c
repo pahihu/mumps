@@ -226,6 +226,26 @@ void LockWriter(RWLOCK_T *lok)
 }
 
 
+int TryLockWriter(RWLOCK_T *lok)
+{ int dowait, s;
+  char msg[128];
+
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("TryLockWriter(): failed [g_latch]");
+  }
+  dowait = 0;
+  if (lok->readers || lok->writers)
+  { dowait = 1;
+  }
+  else
+    lok->writers++;
+  LatchUnlock(&lok->g_latch);
+
+  return dowait ? 0 : 1;
+}
+
+
 void UnlockWriter(RWLOCK_T *lok)
 { int s;
 
@@ -264,6 +284,7 @@ void UnlockWriterToReader(RWLOCK_T *lok)
   LatchUnlock(&lok->g_latch);
 }
 
+
 void LockReader(RWLOCK_T *lok)
 { int dowait;
   int i, s;
@@ -286,6 +307,26 @@ void LockReader(RWLOCK_T *lok)
     // fflush(stderr);
     SemWait(&lok->rd_sem);
   }
+}
+
+
+int TryLockReader(RWLOCK_T *lok)
+{ int dowait;
+  int i, s;
+
+  s = LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("TryLockReader(): failed [g_latch]");
+  }
+  dowait = 0;
+  if (lok->writers)
+  { dowait = 1;
+  }
+  else
+    lok->readers++;
+  LatchUnlock(&lok->g_latch);
+
+  return dowait ? 0 : 1;
 }
 
 
