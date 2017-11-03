@@ -6,7 +6,7 @@
 CC	= gcc
 LIBS	= -lm -lcrypt
 
-EXTRA   = -O3 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1
+EXTRA   = -O3 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1 -DMV1_DLMALLOC=1
 ifeq ($(MAKECMDGOALS),test)
 EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
 endif
