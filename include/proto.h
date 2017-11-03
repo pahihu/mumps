@@ -99,7 +99,7 @@ int   X_take(u_char *a, chr_x *b);
 short DB_Get(mvar *var, u_char *buf);            // get global data
 short DB_GetEx(mvar *var, u_char *buf, int wrlock);// get global data
 short DB_Set(mvar *var, cstring *data);          // set global data
-short DB_SetEx(mvar *var, cstring *data, int wrlock);// set global data
+short DB_SetEx(mvar *var, cstring *data, int has_wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()
 short DB_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA() and value
 short DB_Kill(mvar *var);                        // remove sub-tree
@@ -304,7 +304,12 @@ short Vset(mvar *var, cstring *cptr);		// set a special variable
 // Symbol Table prototypes
 short ST_Get(mvar *var, u_char *buf);           // get local data
 short ST_GetAdd(mvar *var, cstring **add); 	// get local data address
+short ST_GetEx(mvar *var, u_char *buf, int *p_fwd);// get local data 
+                                                //   AND symtab pos
+short ST_GetAddEx(mvar *var, cstring **add, int *p_fwd); // get local data addr
+                                                //   AND symtab pos
 short ST_Set(mvar *var, cstring *data);         // set local data
+short ST_SetEx(int fwd, mvar *var, cstring *data);// set local data by symt. pos
 short ST_Data(mvar *var, u_char *buf);          // get $DATA()
 short ST_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA() and value
 

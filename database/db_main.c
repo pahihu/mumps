@@ -229,21 +229,17 @@ short DB_Set(mvar *var, cstring *data)    	        // set global data
 { return DB_SetEx(var, data, 0);
 }
 
-short DB_SetEx(mvar *var, cstring *data, int wrlock)    // set global data
+short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
 { short s;						// for returns
   int i;						// a handy int
   int curr_lock_sav;
 
-  curr_lock_sav = 0;                                    // $INCREMENT() locks
-  if (wrlock)                                           //   in DB_Get
-  { curr_lock_sav = curr_lock;                          //   save curr_lock
-    curr_lock = 0;                                      //   to make Copy2local
-  }                                                     //   happy
-  s = Copy2local(var,"DB_Set");				// get local copy
-  curr_lock = curr_lock_sav;                            //   restore curr_lock
-  if (s < 0)
-  { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
-    return s;						// exit on error
+  if (!has_wrlock)                                      // no wrlock ?
+  { s = Copy2local(var,"DB_Set");			//   get local copy
+    if (s < 0)
+    { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+      return s;						// exit on error
+    }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
   if (i & 3)						// if required
@@ -276,7 +272,7 @@ short DB_SetEx(mvar *var, cstring *data, int wrlock)    // set global data
     return -(ERRZLAST+ERRZ11);				// complain if failed
   }
 
-  s = Set_data(data);					// do the set
+  s = Set_data(data, has_wrlock);		        // do the set
 
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

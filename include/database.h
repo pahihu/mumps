@@ -284,7 +284,7 @@ short Re_key();						// re-key blocks
 void Un_key();						// un-key blk[level]
 
 // File: database/db_set.c
-short Set_data(cstring *data);				// set a record
+short Set_data(cstring *data, int has_wrlock);          // set a record
 
 // File: database/db_util.c
 void Allign_record();					// allign record (int)

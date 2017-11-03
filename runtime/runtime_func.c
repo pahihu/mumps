@@ -1972,9 +1972,10 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
 { short s;					// for return values 
   u_char num[128],temp[128];
   u_char *p;
+  int fwd = -1;                                 // symtab position
 
   if (var->uci == UCI_IS_LOCALVAR)		// for a local var
-  { s = ST_Get(var, ret->buf);		        // attempt to get the data
+  { s = ST_GetEx(var, ret->buf, &fwd);	        // attempt to get the data
     if (s >= 0) goto gotit;			// if we got data, return it
     if (s == -(ERRM6)) s = 0;			// flag undefined local var
   }
@@ -2007,7 +2008,7 @@ gotit:
   // fprintf(stderr, "Dincrement: len=%d buf=%s\r\n", ret->len, ret->buf);
   if (var->uci == UCI_IS_LOCALVAR)              // set as local
   { // fprintf(stderr, "Dincrement: set local\r\n");
-    s = ST_Set(var, ret);
+    s = (0 <= fwd) ? ST_SetEx(fwd, var, ret) : ST_Set(var, ret);
   }
   else
   { // fprintf(stderr, "Dincrement: set global\r\n");

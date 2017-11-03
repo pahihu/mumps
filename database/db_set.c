@@ -155,7 +155,7 @@ short TrySimpleSet(short s, cstring *data)
 
 static int last_written_failed = 0;                     // penalty for last wrtn
 
-short Set_data(cstring *data)				// set a record
+short Set_data(cstring *data, int has_wrlock)		// set a record
 { short s;						// for returns
   int i, j;						// a handy int
   u_int *ui;						// an int ptr
@@ -205,6 +205,9 @@ short Set_data(cstring *data)				// set a record
         { // last_written_failed = 10;                     // add penalty 
           break;					// exit the loop
 	}
+        if (has_wrlock)                                 // release GBDs
+        { Release_GBDs(0);
+        }
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
 	s = LocateEx(&db_var.slen, 1);		        // check for the key

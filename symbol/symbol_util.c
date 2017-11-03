@@ -342,7 +342,21 @@ short ST_Get(mvar *var, u_char *buf)		// get data at var/subscript
   short s;					// for return value
   cstring *data;				// ptr for ST_GetAdd()
 
-  s = ST_GetAdd(var, &data);			// get address of data
+  s = ST_GetAdd(var, &data);		        // get address of data
+  if (s < 0) return s;				// if error, quit
+  s = mcopy(&data->buf[0], buf, s);		// copy data (if any)
+  return s;					// return the size (or error)
+}						// end function ST_Get
+
+//****************************************************************************
+//**  Function: ST_GetEx - Retrieve data	                 ***
+//**  returns short ptr to length of data and symtab pos	 ***
+short ST_GetEx(mvar *var, u_char *buf, int *p_fwd)// get data at var/subscript
+{
+  short s;					// for return value
+  cstring *data;				// ptr for ST_GetAdd()
+
+  s = ST_GetAddEx(var, &data, p_fwd);	        // get address of data
   if (s < 0) return s;				// if error, quit
   s = mcopy(&data->buf[0], buf, s);		// copy data (if any)
   return s;					// return the size (or error)
@@ -381,7 +395,7 @@ void FixData(ST_data *old, ST_data *new, int count)
 //****************************************************************************
 //** Function: ST_Set - Set a variable in memory, create or replace	***
 //** returns 0 on success, negative otherwise				***
-short ST_Set(mvar *var, cstring *data)		// set var to be data
+short ST_SetEx(int fwd,mvar *var,cstring *data) // set var to be data
 {
   ST_depend *ptr1;				// a dependent pointer
   ST_depend *newPtrDp = ST_DEPEND_NULL;		// a dependent pointer
@@ -391,14 +405,8 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
   int i;					// loops
   int pad = 0;					// extra space padding
   short *ptr2short;				// needed for short into char
-  int fwd;					// position in symtab
 
   if ((var->slen & 1) != 0) pad = 1;		// set up for any extra space
-  if (var->volset)				// if volset defined
-    fwd = ST_LocateIdx(var->volset - 1);	// locate var by volset
-  else						// if no volset or volset zero
-    //fwd = ST_Create(var->name.var_qu);	// attempt to create new ST ent
-    fwd = ST_Create(&var->name.var_xu);		// attempt to create new ST ent
   if (symtab[fwd].data == ST_DATA_NULL)		// if not already exists
   { i = DTBLKSIZE + data->len;			// reqd memory
     if ((var->slen != 0) || (i < DTMINSIZ))	// not reqd or too small
@@ -520,6 +528,17 @@ short ST_Set(mvar *var, cstring *data)		// set var to be data
   }						// end else-data block not null
   return data->len;				// return length of data
 }						// end ST_Set
+
+short ST_Set(mvar *var, cstring *data)		// set var to be data
+{
+  int fwd;					// position in symtab
+  if (var->volset)				// if volset defined
+    fwd = ST_LocateIdx(var->volset - 1);	// locate var by volset
+  else						// if no volset or volset zero
+    //fwd = ST_Create(var->name.var_qu);	// attempt to create new ST ent
+    fwd = ST_Create(&var->name.var_xu);		// attempt to create new ST ent
+  return ST_SetEx(fwd,var,data);
+}
 
 //****************************************************************************
 //** Function: ST_Data - examine type of variable
@@ -912,7 +931,7 @@ short ST_QueryEx(mvar *var, u_char *buf, int dir, cstring *dat)
 }						// end ST_Query
 
 //****************************************************************************
-short ST_GetAdd(mvar *var, cstring **add)	// get local data address
+short ST_GetAddEx(mvar *var,cstring **add,int *p_fwd)// get local data address
 { int ptr1;					// position in symtab
   ST_depend *depPtr = ST_DEPEND_NULL;		// active pointer
   ST_depend *prevPtr = ST_DEPEND_NULL;		// pointer to previous element
@@ -928,6 +947,7 @@ short ST_GetAdd(mvar *var, cstring **add)	// get local data address
   if ((ptr1 >= ST_MAX) || (ptr1 < -1))
   { panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
   }
+  *p_fwd = ptr1;                                // save symtab pos
   if (ptr1 >= 0)				// think we found it
   { if (symtab[ptr1].data == ST_DATA_NULL)
     { return -(ERRM6); 				// not found
@@ -964,6 +984,12 @@ short ST_GetAdd(mvar *var, cstring **add)	// get local data address
   }						// end if - symtab posi valid
   return -(ERRM6);				// return if failed
 }						// end ST_GetAdd
+
+short ST_GetAdd(mvar *var, cstring **add)	// get local data address
+{ int ptr1;					// position in symtab
+  return ST_GetAddEx(var, add, &ptr1);
+}
+
 //****************************************************************************
 short ST_Dump()                                 // dump entire ST to $I
 // 1 to ST_MAX-1 (ie. 3071).
