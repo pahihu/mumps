@@ -148,8 +148,19 @@ void crcgen(void)				// build the crcTable
 // DEBUG() - Dump info on console
 //
 short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
-{ if (strcmp((char *)arg1->buf, "RBD") == 0)		// Routine Buf Desc
-    Dump_rbd();					// do it
+{ static char *sem_names[] = {                          // Semaphore names
+    "SEM_SYS",
+    "SEM_LOCK",
+    "SEM_GLOBAL",
+    "SEM_ROU",
+    "SEM_WD",
+    "SEM_GBDRO",
+    "SEM_GBDGET",
+    "SEM_GLO_RD",
+    "SEM_GLO_WR"
+  };
+  if (strcmp((char *)arg1->buf, "RBD") == 0)		// Routine Buf Desc
+    Dump_rbd();					        // do it
   else if (strcmp((char *)arg1->buf, "LTD") == 0)
     Dump_lt();
   else if (strcmp((char *)arg1->buf, "SEMS") == 0)	// semaphores
@@ -157,14 +168,10 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
     for (i=0; i<SEM_MAX; i++)
     { val = semctl(systab->sem_id, i, GETVAL, 0);
       sempid = semctl(systab->sem_id, i, GETPID, 0);
-      fprintf( stderr,"%d) %s",i,( i==SEM_SYS ? "SEM_SYS" :
-                                 ( i==SEM_ROU ? "SEM_ROU" :
-                                 ( i==SEM_LOCK ? "SEM_LOCK" :
-                                 ( i==SEM_GLOBAL ? "SEM_GLOBAL" :
-                                 ( i==SEM_WD ? "SEM_WD" : "?"))))) );
-      fprintf(stderr,"\t= %d \t(last pid %d)\r\n",val,sempid);
+      fprintf( stderr,"%d) %s", i, sem_names[i]);
+      fprintf( stderr,"\t= %d \t(last pid %d)\r\n",val,sempid);
     }
-    fprintf(stderr,"(maxjobs = %d)\r\n",systab->maxjob);
+    fprintf( stderr,"(maxjobs = %d)\r\n",systab->maxjob);
   }
 #if defined(__NetBSD__) && 0
   else if (strcmp((char *)arg1->buf, "STRUCT") == 0) // sanity check structs

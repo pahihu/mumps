@@ -896,10 +896,10 @@ void Dump_lt()
 
   lptr = (locktab *) systab->lockstart;
   
-  printf("Dump of Lockspace starting at %p\r\n", lptr);
-  printf("Lock Head starts at %p\r\n", systab->lockhead);
-  printf("Lock Free starts at %p\r\n", systab->lockfree);
-  printf("Lptr           Fwd_link       Size    Job  Lcnt Bcnt Vol  Uci  Var  Key\r\n");
+  printf("Dump of Lockspace starting at %#lx\r\n", (u_long)lptr);
+  printf("Lock Head starts at %#lx\r\n", (u_long)systab->lockhead);
+  printf("Lock Free starts at %#lx\r\n", (u_long)systab->lockfree);
+  printf("Lptr           Fwd_link       Size    Job  Lcnt Bcnt Vol  Uci   Var  Key\r\n");
 
   while (lptr != NULL)
   { keystr[0] = '\0';
@@ -911,8 +911,8 @@ void Dump_lt()
       { sprintf( (char *) keystr, " ERROR: %d", x );
       }
     }
-    printf("%14p %14p %5d   %4d %4d %4d %4d %4d  %s%s\r\n",
-           lptr, lptr->fwd_link,
+    printf("%#14lx %#14lx %5d   %4d %4d %4d %4d %4d  %s%s\r\n",
+           (u_long)lptr, (u_long)lptr->fwd_link,
            lptr->size, lptr->job, lptr->lock_count, lptr->byte_count,
            lptr->vol, lptr->uci, lptr->name.var_cu, keystr);
     lptr = (locktab *) (((u_char *) lptr) + lptr->size);

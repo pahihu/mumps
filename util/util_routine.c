@@ -86,9 +86,9 @@ void Dump_rbd()					// dump rbds
   i = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
   if (i < 0) return;				// exit on error
   p = (rbd *) systab->vol[0]->rbd_head;		// get the start
-  printf("Dump of all Routine Buffer Descriptors at %d\r\n", (int) time(0));
-  printf("   Free at %10p\r\n", systab->vol[0]->rbd_hash[RBD_HASH]);
-  printf("   Address     fwd_link chunk_sz atts last_acces rou_name UCI VOL Rsize\r\n");
+  printf("Dump of all Routine Buffer Descriptors at %ld\r\n", (long) time(0));
+  printf("Free at %#10lx\r\n", (u_long)systab->vol[0]->rbd_hash[RBD_HASH]);
+  printf("Address        fwd_link       chunk_sz atts last_acces rou_name                         UCI VOL Rsize\r\n");
   tmp[MAX_NAME_BYTES] = '\0';			// null terminate temp
   while (TRUE)					// for all
   { for (i = 0; i < MAX_NAME_BYTES; i++) tmp[i] = ' ';	// space fill tmp[]
@@ -96,8 +96,9 @@ void Dump_rbd()					// dump rbds
     { if (p->rnam.var_cu[i] == 0) break;
       tmp[i] = p->rnam.var_cu[i];
     }
-    printf("%10p %12p %8d %4d %10d %s %3d %4d %5d\r\n",
-      p, p->fwd_link, p->chunk_size, p->attached, (int) p->last_access,
+    printf("%#14lx %#14lx %8d %4d %10ld %31s %3d %3d %5d\r\n",
+      (u_long)p, (u_long)p->fwd_link,
+      p->chunk_size, p->attached, (long) p->last_access,
       tmp, p->uci, p->vol, p->rou_size);
     p = (rbd *) ((u_char *) p + p->chunk_size); // point at next
     if (p >= (rbd *) systab->vol[0]->rbd_end) break; // quit when done
