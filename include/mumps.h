@@ -302,6 +302,7 @@ typedef struct __attribute__ ((__packed__)) DB_STAT
   u_int diskerrors;                             // Disk write errors
 
   u_int dqstall;                                // Dirty Queue Stalls
+  u_int timwt;                                  // Timer Waits
 } db_stat;                                      // database statistics
 
 struct GBD;                                     // defined in "db_util.h"

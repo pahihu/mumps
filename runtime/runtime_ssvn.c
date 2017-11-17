@@ -434,6 +434,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return uitocstring(buf, systab->vol[i]->stats.diskerrors);
 	if (strncasecmp( (char *) subs[2]->buf, "dqstall\0", 8) == 0)
 	  return uitocstring(buf, systab->vol[i]->stats.dqstall);
+	if (strncasecmp( (char *) subs[2]->buf, "timwt\0", 6) == 0)
+	  return uitocstring(buf, systab->vol[i]->stats.timwt);
 #ifdef MV1_DEV
 	if (strncasecmp( (char *) subs[2]->buf, "eventcnt\0", 9) == 0)
 	  return uitocstring(buf, systab->eventcnt);

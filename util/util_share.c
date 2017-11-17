@@ -44,6 +44,7 @@
 #include "mumps.h"                              // standard includes
 #include "error.h"                              // standard includes
 #include "proto.h"                              // standard includes
+#include "database.h"                           // standard includes
 
 extern int curr_lock;				// for tracking SEM_GLOBAL
 
@@ -166,8 +167,9 @@ int TimerCheck(TIMER_T *p_tim)
     if (elapsed > p_tim->tim_timeout)
       return 1;
     if (elapsed > p_tim->tim_wait)
-    { fprintf(stderr, p_tim->tim_msg, p_tim->tim_msgarg);
-      fflush(stderr);
+    { systab->vol[volnum-1]->stats.timwt++;
+      // fprintf(stderr, p_tim->tim_msg, p_tim->tim_msgarg);
+      // fflush(stderr);
       p_tim->tim_wait += ONE_SEC;
     }
   }
