@@ -390,6 +390,14 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	{ (void) strcpy((char *)buf, systab->vol[i]->vollab->journal_file);
 	  return strlen((char *)buf);
 	}
+	if (strncasecmp( (char *) subs[2]->buf, "journal_buffer_size\0", 20) == 0)
+        { j = systab->vol[i]->jrnkb;
+          if (0 == systab->vol[i]->syncjrn)
+            j = -j;
+	  return itocstring(buf, j);
+        }
+	if (strncasecmp( (char *) subs[2]->buf, "global_buffer_size\0", 19) == 0)
+	  return itocstring(buf, systab->vol[i]->gmb);
 	if (strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0)
 	{ for (j = 0; j < MAX_NAME_BYTES; j++)
 	    if ((buf[j] = systab->vol[i]->vollab->volnam.var_cu[j]) == 0)

@@ -412,47 +412,50 @@ void do_dismount()					// dismount volnum
     }
   }
 
-  if ((systab->vol[0]->vollab->journal_requested) &&    // flush journal
-           (systab->vol[0]->vollab->journal_file[0]))
-  { struct stat   sb;				// File attributes
-    int jfd;					// file descriptor
+  for (i = 0; i < MAX_VOL; i++)                         // flush journal
+  { if (systab->vol[i] && 
+           (systab->vol[i]->vollab->journal_requested) &&
+           (systab->vol[i]->vollab->journal_file[0]))
+    { struct stat   sb;				        // File attributes
+      int jfd;					        // file descriptor
 
-    i = stat(systab->vol[0]->vollab->journal_file, &sb ); // check for file
-    if (i < 0)		                        // if that's junk
-    { do_log("Failed to access journal file %s\n",
-    		systab->vol[0]->vollab->journal_file);
-    }
-    else					// do something
-    { jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
-      if (jfd < 0)				// on fail
-      { do_log("Failed to open journal file %s\nerrno = %d\n",
-		systab->vol[0]->vollab->journal_file, errno);
+      j = stat(systab->vol[i]->vollab->journal_file, &sb ); // check for file
+      if (j < 0)		                        // if that's junk
+      { do_log("Failed to access journal file %s\n",
+    		  systab->vol[i]->vollab->journal_file);
       }
-      else					// if open OK
-      { u_char tmp[sizeof(u_int) + sizeof(off_t)];
+      else					        // do something
+      { jfd = open(systab->vol[i]->vollab->journal_file, O_RDWR);
+        if (jfd < 0)				        // on fail
+        { do_log("Failed to open journal file %s\nerrno = %d\n",
+		  systab->vol[i]->vollab->journal_file, errno);
+        }
+        else					        // if open OK
+        { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
 #ifdef MV1_F_NOCACHE
-         i = fcntl(jfd, F_NOCACHE, 1);
+          j = fcntl(jfd, F_NOCACHE, 1);
 #endif
-	lseek(jfd, 0, SEEK_SET);
-	errno = 0;
-	i = read(jfd, tmp, sizeof(u_int));	// read the magic
-	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	{ do_log("Failed to open journal file %s: WRONG MAGIC\n",
-		  systab->vol[0]->vollab->journal_file);
-	  close(jfd);
-	}
-	else
-	{ i = FlushJournal(jfd, 1);
-          if (i < 0)
-	  { do_log("Failed to flush journal file %s: Last failed - %d\n",
-	        systab->vol[0]->vollab->journal_file, errno);
+	  lseek(jfd, 0, SEEK_SET);
+	  errno = 0;
+	  j = read(jfd, tmp, sizeof(u_int));	        // read the magic
+	  if ((j != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+	  { do_log("Failed to open journal file %s: WRONG MAGIC\n",
+		    systab->vol[i]->vollab->journal_file);
+	    close(jfd);
 	  }
-          close(jfd);
-	}
+	  else
+	  { j = FlushJournal(i, jfd, 1);
+            if (j < 0)
+	    { do_log("Failed to flush journal file %s: Last failed - %d\n",
+	          systab->vol[i]->vollab->journal_file, errno);
+	    }
+            close(jfd);
+	  }
+        } // open jrn file
       }
-    }
-  }						        // end journal stuff
+    } // flush jrn file
+  }                                             // end journal stuff 
 
   for (i=0; i<systab->vol[volnum-1]->num_gbd; i++)	// look for unwritten
   { if ((systab->vol[volnum-1]->gbd_head[i].block) && 	// if there is a blk

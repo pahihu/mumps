@@ -698,7 +698,7 @@ start:
 
   // fprintf(stderr,"Get_GBDs(): search begin\r\n"); fflush(stderr);
 
-  i = (systab->hash_start + 1) % num_gbd;	        // where to start
+  i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if (GBD_HASH == ptr->hash)                          // skip GBDs on free lst
@@ -788,7 +788,7 @@ start:
 
   now = MTIME(0) + 1;				        // get current time
 
-  i = (systab->hash_start + 1) % num_gbd;		// where to start
+  i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
     if (ptr->dirty && (ptr->dirty < (gbd *) 5))         // reserved ?
@@ -878,7 +878,7 @@ Lcontinue:
     }
   }							// end for every GBD
 unlink_gbd:
-  systab->hash_start = oldpos;
+  systab->vol[volnum-1]->hash_start = oldpos;
 
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
   Unlink_GBD(oldptr);                                   // unlink oldptr

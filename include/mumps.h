@@ -81,6 +81,7 @@
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
 #define VERSION_TEST	0                       // Test version number
+#define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
@@ -212,7 +213,7 @@
 #define SIG_U2          (1 << 31)               // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
-#define MAX_VOL             	2               // max number of vols
+#define MAX_VOL             	16              // max number of vols
 #define VOL_FILENAME_MAX	256             // max chars in stored filename
 //#define JNL_FILENAME_MAX	226             // max chars in journal filenam
 #define JNL_FILENAME_MAX   (234-MAX_NAME_BYTES) // max chars in journal filenam
@@ -397,6 +398,7 @@ typedef struct __PACKED__ VOL_DEF
   struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
   struct GBD *gbd_head;                         // head of global buffer desc
   int num_gbd;                                  // number of global buffers
+  int hash_start;                               // GBD search starts here
   void *global_buf;                             // start of global buffers
   void *zero_block;                             // empty block in memory
   struct RBD *rbd_hash[RBD_HASH+1];             // head of routine buffer desc
@@ -426,7 +428,13 @@ typedef struct __PACKED__ VOL_DEF
   VOLATILE int garbQw;                          // write ptr for garbage que
   VOLATILE int garbQr;                          // read ptr for garbage que
 #endif
+  int syncjrn;                                  // fsync() jrn file
+  VOLATILE u_int jrnbufsize;                    // current jrn buffer size
+  u_int   jrnbufcap;                            // jrn buffer capacity
+  u_char *jrnbuf;                               // jrn buffer
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
+  int gmb;                                      // global buffer cache in MB
+  int jrnkb;                                    // jrn buffer cache in KB
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
 } vol_def;                                      // end of volume def
@@ -565,10 +573,6 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE u_int WDPtime;                       // Write Daemon Poll time (msec)
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
-  int syncjrn;                                  // fsync() journal file
-  VOLATILE u_int jrnbufsize;                    // current journal buffer size
-  u_int   jrnbufcap;                            // journal buffer capacity
-  u_char *jrnbuf;                               // journal buffer
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_MAX];                       // shared semaphores
   RWLOCK_T glorw;
@@ -576,7 +580,6 @@ typedef struct __PACKED__ SYSTAB                // system tables
   LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
 #endif
 #endif
-  int hash_start;                               // GBD search starts here
   u_int *last_blk_written;                      // actually setup for real jobs
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   u_int last_blk_used[1];                       // actually setup for real jobs

@@ -108,7 +108,7 @@ int INIT_Start( char *file,                     // database
   u_char *ptr;					// and a byte one
   label_block *labelblock;			// label block pointer
   int syncjrn;                                  // sync jrn buf
-  int jrnsize;                                  // JRN buf size
+  int minjrnkb;                                 // min JRN buf size
 
   if ((jobs < 1)||(jobs > 256))                 // check number of jobs
   { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
@@ -176,19 +176,20 @@ int INIT_Start( char *file,                     // database
   { syncjrn = 0;                                //   then disable fsync()
     jrnkb   = -jrnkb;
   }
-  jrnsize = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
-  if (jrnsize < jrnkb)
-  { jrnsize = jrnkb;
+  minjrnkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
+  if (minjrnkb > jrnkb)
+  { jrnkb = minjrnkb;
   }
-  jrnsize *= 1024;
-  jrnsize = (((jrnsize - 1) / pagesize) + 1) * pagesize;
+  jrnkb *= 1024;
+  jrnkb = (((jrnkb - 1) / pagesize) + 1) * pagesize;
+  jrnkb /= 1024;
 
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
   printf( "and %lukb for locktab.\n", locksize/1024);
-  if (jrnsize) printf("With %dkb of journal buffer (%s flush).\n",
-                        jrnsize/1024, syncjrn ? "sync" : "async");
+  if (jrnkb) printf("With %dkb of journal buffer (%s flush).\n",
+                        jrnkb, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
@@ -203,15 +204,15 @@ int INIT_Start( char *file,                     // database
 	    + (sizeof(u_int) * (jobs - 1))	// adj for last_blk_used[1]
             + (sizeof(u_int) * (jobs))          // adj for last_blk_written
             + (sizeof(jobtab_t) * jobs)		// size of JOBTAB
-            + locksize 				// size of LOCKTAB
-            + jrnsize;                          // size of JRN buf
+            + locksize;				// size of LOCKTAB
 
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
-  volset_size = sizeof(vol_def)			// size of VOL_DEF (one for now)
+  volset_size = MAX_VOL * sizeof(vol_def)	// size of VOL_DEF
 	      + hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
+              + jrnkb * KBYTE                   // size of JRN buf
               + (rmb * MBYTE);		 	// mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
   share_size = sjlt_size + volset_size;         // shared memory size
@@ -290,18 +291,13 @@ int INIT_Start( char *file,                     // database
   systab->lockfree->fwd_link = NULL;		// only one
   systab->lockfree->size = locksize;		// the whole space
   systab->lockfree->job = -1;			// means free
-  systab->jrnbuf    =                           // JRN buf
-    (void *)((void *)systab->lockstart + systab->locksize);
-  systab->jrnbufcap  = jrnsize;                 // the size
-  systab->jrnbufsize = 0;                       // buffer empty
-  systab->syncjrn    = syncjrn;                 // sync flag
   systab->addoff = addoff;                      // Add buffer offset
   systab->addsize = addmb * MBYTE;              // and size in bytes
   systab->vol[0] = (vol_def *) ((void *)systab + sjlt_size);// jump to start of
 						// volume set memory
 
   systab->vol[0]->vollab =
-    (label_block *) ((void *)systab->vol[0] + sizeof(vol_def));
+    (label_block *) ((void *)systab->vol[0] + MAX_VOL * sizeof(vol_def));
 						// and point to label blk
 
   systab->vol[0]->map =
@@ -317,18 +313,26 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->global_buf =
     (void *) &systab->vol[0]->gbd_head[n_gbd + NUM_GBDRO];//glob buffs
   systab->vol[0]->zero_block =
-    (void *)&(((u_char *)systab->vol[0]->global_buf)[gmb*MBYTE]);
-						     // pointer to zero blk
+    (void *) &(((u_char *)systab->vol[0]->global_buf)[gmb*MBYTE]);
+						// pointer to zero blk
+
+  systab->vol[0]->jrnbuf =                      // JRN buf
+    (void *)((void *)systab->vol[0]->zero_block + hbuf[3]);
+  systab->vol[0]->jrnbufcap  = jrnkb * KBYTE;   // the size
+  systab->vol[0]->jrnbufsize = 0;               // buffer empty
+  systab->vol[0]->syncjrn    = syncjrn;         // sync flag
 
   systab->vol[0]->rbd_head = 
-    (void *) ((void*)systab->vol[0]->zero_block + hbuf[3]); //rbds
+    (void *) ((void*)systab->vol[0]->jrnbuf + jrnkb * KBYTE); //rbds
   systab->vol[0]->rbd_end = ((void *)systab 
 	+ share_size - systab->addsize); 	// end of share
 
   systab->vol[0]->shm_id = shar_mem_id;		// set up share id
   systab->sem_id = sem_id;			// set up semaphore id
   systab->vol[0]->map_dirty_flag = 0;		// clear dirty map flag
-  systab->hash_start = 0;                       // start searching here
+  systab->vol[0]->hash_start = 0;               // start searching here
+  systab->vol[0]->gmb        = gmb;             // global bufffer cache in MB
+  systab->vol[0]->jrnkb      = jrnkb;           // jrn buffer cache in KB
 
   bzero(semtab, sizeof(semtab));
 

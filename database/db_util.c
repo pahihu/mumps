@@ -782,49 +782,49 @@ short Compress1()
 //-----------------------------------------------------------------------------
 // Function: FlushJournal
 // Descript: Flush journal buffer contents
-// Input(s): journal file descriptor or 0, flag an fsync()
+// Input(s): volume index, journal file descriptor or 0, flag an fsync()
 // Return:   none
 // Note:     Must be called with a write lock
 //
-short FlushJournal(int jfd, int dosync)
+short FlushJournal(int vol, int jfd, int dosync)
 { off_t jptr;                                           // offset
   int j;
   u_int currsize;                                       // curr. JNL buffer size
 
   if (0 == jfd)
-  { jfd = partab.jnl_fds[volnum - 1];
+  { jfd = partab.jnl_fds[vol];
   }
-  currsize = systab->jrnbufsize;
+  currsize = systab->vol[vol]->jrnbufsize;
   if (currsize)
-  { jptr = lseek(jfd, systab->vol[volnum - 1]->jrn_next,// address to locn
+  { jptr = lseek(jfd, systab->vol[vol]->jrn_next,       // address to locn
                  SEEK_SET);
-    if (jptr != systab->vol[volnum  - 1]->jrn_next)	// if failed
+    if (jptr != systab->vol[vol]->jrn_next)	        // if failed
     { goto fail;
     }
-    j = write(jfd, systab->jrnbuf, currsize);
+    j = write(jfd, systab->vol[vol]->jrnbuf, currsize);
     if (j != currsize)                                  // flush buffer
     { goto fail;
     }
-    systab->vol[volnum  - 1]->jrn_next += currsize;	// update next
+    systab->vol[vol]->jrn_next += currsize;	        // update next
     jptr = lseek(jfd, sizeof(u_int), SEEK_SET);
     if (jptr != sizeof(u_int))
     { goto fail;
     }
-    j = write(jfd, &systab->vol[volnum  - 1]->jrn_next,
+    j = write(jfd, &systab->vol[vol]->jrn_next,
 	          sizeof(off_t));			// write next
     if (j < 0)
     { goto fail;
     }
   }
-  systab->jrnbufsize = 0;                               // clear buffer
+  systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   if (dosync)                                           // if requested
     fsync(jfd);                                         //   do a sync.
   return 0;
 
 fail:
-  systab->jrnbufsize = 0;                               // clear buffer
-  systab->vol[volnum - 1]->vollab->journal_available = 0; // turn it off
-  close(partab.jnl_fds[volnum - 1]);			// close the file
+  systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
+  systab->vol[vol]->vollab->journal_available = 0;      // turn it off
+  close(partab.jnl_fds[vol]);			        // close the file
   return -1;
 }
 
@@ -842,7 +842,7 @@ void ClearJournal(int jfd, int vol)			// clear journal
   u_char tmp[sizeof(u_int) + sizeof(off_t)];            // was 12bytes
 
   if (jfd)                                              // sync prev. contents
-  { FlushJournal(jfd, 1);                        
+  { FlushJournal(vol, jfd, 1);                        
   }
 
   fd = open(systab->vol[vol]->vollab->journal_file,
@@ -891,7 +891,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   { goto fail;
   }
 #endif
-  currsize = systab->jrnbufsize;                        // get current size
+  currsize = systab->vol[volnum - 1]->jrnbufsize;       // get current size
   jj->time = MTIME(0);					// store the time
   jj->size = sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t) + sizeof(var_u) + sizeof(u_char) + jj->slen;
   if ((jj->action != JRN_SET) && (jj->action != JRN_KILL)) // not SET of KILL
@@ -905,22 +905,24 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jj->size & 3)
   { jj_alignment = (4 - (jj->size & 3));		// round it
   }
-  if (currsize + jj->size + jj_alignment > systab->jrnbufcap) // does not fit
-  { s = FlushJournal(0, systab->syncjrn);               // flush buffer
+  if (currsize + jj->size + jj_alignment >              // does not fit
+                            systab->vol[volnum - 1]->jrnbufcap)
+  { s = FlushJournal(volnum - 1, 0,                     // flush buffer
+                            systab->vol[volnum - 1]->syncjrn); 
     if (s < 0)
       return;
-    currsize = systab->jrnbufsize;                      // init currsize again
+    currsize = systab->vol[volnum - 1]->jrnbufsize;     // init currsize again
   }
-  bcopy(jj, systab->jrnbuf + currsize, i);              // copy buffer
+  bcopy(jj, systab->vol[volnum - 1]->jrnbuf + currsize, i); // copy buffer
   currsize += i;
   if (jj->action == JRN_SET)                            // copy data
   { i = sizeof(short) + data->len;
-    bcopy(data, systab->jrnbuf + currsize, i);
+    bcopy(data, systab->vol[volnum - 1]->jrnbuf + currsize, i);
     currsize += i;
   }
   if (jj_alignment)
     currsize += jj_alignment;
-  systab->jrnbufsize = currsize;                        // update systab
+  systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
 #if 0
   j = write(partab.jnl_fds[volnum - 1], jj, i);		// write header
   if (j != i)						// if that failed
@@ -951,7 +953,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   return;
 
 fail:
-  systab->jrnbufsize = 0;                               // clear buffer
+  systab->vol[volnum - 1]->jrnbufsize = 0;              // clear buffer
   systab->vol[volnum - 1]->vollab->journal_available = 0; // turn it off
   close(partab.jnl_fds[volnum - 1]);			// close the file
   return;						// and exit
