@@ -49,6 +49,7 @@ COMOBJS	= 	compile/dollar.o \
 		database/db_uci.o \
 		database/db_util.o \
 		database/db_view.o \
+		database/db_mount.o \
 		init/init_create.o \
 		init/init_run.o \
 		init/init_start.o \

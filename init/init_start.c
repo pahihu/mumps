@@ -331,8 +331,9 @@ int INIT_Start( char *file,                     // database
   systab->sem_id = sem_id;			// set up semaphore id
   systab->vol[0]->map_dirty_flag = 0;		// clear dirty map flag
   systab->vol[0]->hash_start = 0;               // start searching here
-  systab->vol[0]->gmb        = gmb;             // global bufffer cache in MB
-  systab->vol[0]->jrnkb      = jrnkb;           // jrn buffer cache in KB
+  systab->vol[0]->volset_size = volset_size;    // save vol_def size
+  systab->vol[0]->gmb         = gmb;            // global bufffer cache in MB
+  systab->vol[0]->jrnkb       = jrnkb;          // jrn buffer cache in KB
 
   bzero(semtab, sizeof(semtab));
 

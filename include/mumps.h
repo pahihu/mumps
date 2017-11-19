@@ -433,6 +433,7 @@ typedef struct __PACKED__ VOL_DEF
   u_int   jrnbufcap;                            // jrn buffer capacity
   u_char *jrnbuf;                               // jrn buffer
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
+  size_t volset_size;                           // shared memory size of vol_def
   int gmb;                                      // global buffer cache in MB
   int jrnkb;                                    // jrn buffer cache in KB
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile

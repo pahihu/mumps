@@ -104,7 +104,7 @@ short DB_Data(mvar *var, u_char *buf);           // get $DATA()
 short DB_DataEx(mvar *var, u_char *buf, cstring *dat);// get $DATA() and value
 short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_KillEx(mvar *var, int what);            // remove sub-tree
-short DB_Mount( char *file, int volnum, int gmb); // mount dataset
+short DB_Mount( char *file, int volnum, int gmb, int jrnkb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
                                                 // get next subscript and value
