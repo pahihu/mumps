@@ -1571,6 +1571,15 @@ UCI() ; Return the current UCI and volume set
  S VOLN=^$S("VOL",VOL,"NAME"),UCIN=^$S("VOL",VOL,"UCI",UCI)
  S Y=UCIN_","_VOLN
  Q Y
+CREAT(NUCI) ; Create a UCI but not MGR
+ N X,VOL,UCI,FLG
+ S VOL=1,UCI="",FLG=0
+ I NUCI="MGR"!(NUCI'?3U) Q:$Q "INVALID" Q
+ D GET(VOL,.UCI)
+ F X=1:1:UCI I UCI(X)=NUCI S FLG=1 Q
+ I FLG Q:$Q "EXISTS" Q
+ S UCI=UCI+1,^$S("VOL",VOL,"UCI",UCI)=NUCI
+ Q:$Q "" Q
 
 UCI
 UCI ;WAA-This routine will be for UCI management. 5/30/00
