@@ -676,10 +676,13 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
+  int doenque;
 
 start:
   if (!haslock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  return;
+
   haslock = 0;                                          // clear for next turns
   curr = 0;						// clear current  
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
@@ -698,8 +701,7 @@ start:
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if ((GBD_HASH == ptr->hash) ||                      // skip GBDs on free lst
-        (NULL     != ptr->dirty))                       //   or dirty
+    if (GBD_HASH == ptr->hash)                          // skip GBDs on free lst
       continue;
     if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
@@ -787,10 +789,10 @@ start:
   now = MTIME(0) + 1;				        // get current time
 
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
-  for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)  // for each GBD
+  for (j = 0; j < num_gbd; j++)                         // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (ptr->dirty)                                     // skip if dirty
-      continue;
+    if (ptr->dirty && (ptr->dirty < (gbd *) 5))         // reserved ?
+      goto Lcontinue;                                   //   skip it
     if (0 == ptr->block)  				// no block ?
     { oldptr = ptr;                                     // mark this
       oldpos = i;				        // remember this
@@ -811,13 +813,21 @@ start:
         }
       }
       if (0 == REFD_VALUE(ptr))                         // nem hasznalt ?
-      { oldptr = ptr;                                   //  hasznaljuk
+      { if (ptr->dirty)                                 // modositottuk ?
+        { if (rdonly)                                   // ha csak olvasot
+            return 0;                                   //   kertunk, nem irjuk
+          WriteBlock(ptr);                              //   irjuk ki
+        }
+        oldptr = ptr;                                   //  hasznaljuk
         oldpos = i;
         goto unlink_gbd;
       }
     }
+Lcontinue:
+    i = (i + 1) % num_gbd;			        // next GBD entry
   }							// end for every GBD
 
+/*
   if (NULL == oldptr)
   { if (writing)				        // SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
@@ -836,6 +846,18 @@ start:
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }
+*/
+
+  if (NULL == oldptr)
+  { { panic("Get_GBD: Failed to find an available GBD"); // die
+    }
+  }
+
+  if (oldptr->dirty)                                    // modositottuk ?
+  { if (rdonly)                                         // ha csak olvasnivalo,
+      return 0;                                         //   nem irjuk ki
+    WriteBlock(oldptr);                                 //   irjuk ki
+  }
 
   // NB.
   // - oldval lehet nulla, ha eppen 1-rol csokkentettuk
@@ -843,9 +865,9 @@ start:
   if (oldval && --oldval)
   { for (i = 0; i < num_gbd; i++)                       // for each GBD
     { ptr = &systab->vol[volnum-1]->gbd_head[i];
-      if ((0    == ptr->block) ||                       // no block ?
-          (NULL != ptr->dirty))                         //   or dirty ?
-        continue;
+      if ((0 == ptr->block) ||                          // no block ?
+          (ptr->dirty && (ptr->dirty < (gbd *) 5)))     //   OR reserved ?
+        continue;                                       //     skip it
       avail = (now > ptr->last_accessed) &&             // not viewed
               (0   < ptr->last_accessed);               //   and not being read
       if (avail)
