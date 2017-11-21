@@ -117,7 +117,7 @@ short Copy2local(mvar *var, char *rtn)
   if (db_var.volset > MAX_VOL)				// within limits?
   { return (-ERRM26);					// no - error
   }
-  if (systab->vol[db_var.volset-1] == NULL)	        // is it mounted?
+  if (systab->vol[db_var.volset-1]->vollab == NULL)	// is it mounted?
   { return (-ERRM26);					// no - error
   }
   if (db_var.uci == 0)					// uci specified?
@@ -880,10 +880,15 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
   u_char *p;						// for malloc
   int dbfd;						// for open
 
-  // XXX missing mounted check
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+
+  if (vol >= MAX_VOL)				        // within limits?
+  { return (-ERRM26);					// no - error
+  }
+  if (systab->vol[vol]->vollab == NULL)	                // is it mounted?
+  { return (-ERRM26);					// no - error
+  }
 
   p = mv1malloc(systab->vol[vol]->vollab->block_size);	// get some space
   if (p == NULL)

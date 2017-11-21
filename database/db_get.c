@@ -86,7 +86,7 @@ short Get_data(int dir)					// locate a record
     }
   }
 
-  if (systab->vol[db_var.volset-1] == NULL)		// vol still mounted?
+  if (systab->vol[db_var.volset-1]->vollab == NULL)	// vol still mounted?
   { return logit(2,(-ERRM26));				// no - error
   }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G

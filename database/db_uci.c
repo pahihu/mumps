@@ -81,7 +81,7 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
   if (s < 0)						// on error
   { return s;						// return it
   }
-  if (systab->vol[volnum-1] == NULL)			// is it mounted?
+  if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);
     return (-ERRM26);					// no - error
   }
@@ -151,7 +151,7 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   if (s < 0)						// on error
   { return s;						// return it
   }
-  if (systab->vol[volnum-1] == NULL)			// is it mounted?
+  if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);
     return (-ERRM26);					// no - error
   }

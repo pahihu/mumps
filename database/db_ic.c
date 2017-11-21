@@ -78,7 +78,7 @@ int DB_ic(int volume, int block)                  	 // integrity checker
   if (volume > MAX_VOL)					// within limits?
   { return (-ERRM26);					// no - error
   }
-  if (systab->vol[volume-1] == NULL)			// is it mounted?
+  if (systab->vol[volume-1]->vollab == NULL)		// is it mounted?
   { return (-ERRM26);					// no - error
   }
   volnum = volume;					// save this
@@ -547,7 +547,7 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   lock = (flag == -1) ? READ : WRITE;			// what we need
   c = (u_char *) systab->vol[vol]->map;		        // point at it

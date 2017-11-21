@@ -207,7 +207,7 @@ int INIT_Start( char *file,                     // database
             + locksize;				// size of LOCKTAB
 
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
-  volset_size = sizeof(vol_def)	                // size of VOL_DEF
+  volset_size = MAX_VOL * sizeof(vol_def)	// size of VOL_DEF
 	      + hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
@@ -293,11 +293,13 @@ int INIT_Start( char *file,                     // database
   systab->addoff = addoff;                      // Add buffer offset
   systab->addsize = addmb * MBYTE;              // and size in bytes
 
-  systab->vol[0] = (vol_def *) ((void *)systab + sjlt_size);
+  for (i = 0; i < MAX_VOL; i++)                 // foreach vol[]
+    systab->vol[i] = (vol_def *) ((void *)systab + sjlt_size
+                                        + i * sizeof(vol_def));
 						// volume set memory
 
   systab->vol[0]->vollab =
-    (label_block *) ((void *)systab->vol[0] + sizeof(vol_def));
+    (label_block *) ((void *)systab->vol[0] + MAX_VOL * sizeof(vol_def));
 						// and point to label blk
 
   systab->vol[0]->map =
@@ -419,75 +421,8 @@ int INIT_Start( char *file,                     // database
   }
   else if ((systab->vol[0]->vollab->journal_requested) &&
            (systab->vol[0]->vollab->journal_file[0]))
-  { struct stat   sb;				// File attributes
-    off_t jptr;					// file ptr
-    jrnrec jj;					// to write with
-    int jfd;					// file descriptor
-
-    while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
-    systab->vol[0]->vollab->journal_available = 0; // assume fail
-    i = stat(systab->vol[0]->vollab->journal_file, &sb ); // check for file
-    if ((i < 0) && (errno != ENOENT))		// if that's junk
-    { fprintf(stderr, "Failed to access journal file %s\n",
-    		systab->vol[0]->vollab->journal_file);
-    }
-    else					// do something
-    { if (i < 0)				// if doesn't exist
-      { ClearJournal(0, 0);			// create it
-      }						// end create code
-      jfd = open(systab->vol[0]->vollab->journal_file, O_RDWR);
-      if (jfd < 0)				// on fail
-      { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
-		systab->vol[0]->vollab->journal_file, errno);
-      }
-      else					// if open OK
-      { u_char tmp[sizeof(u_int) + sizeof(off_t)];
-
-#ifdef MV1_F_NOCACHE
-        i = fcntl(jfd, F_NOCACHE, 1);
-#endif
-	lseek(jfd, 0, SEEK_SET);
-	errno = 0;
-	i = read(jfd, tmp, sizeof(u_int));	// read the magic
-	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
-		  systab->vol[0]->vollab->journal_file);
-	  close(jfd);
-	}
-	else
-	{ i = read(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
-	  if (i != sizeof(off_t))
-	  { fprintf(stderr, "Failed to use journal file %s\nRead failed - %d\n",
-		    systab->vol[0]->vollab->journal_file, errno);
-	    close(jfd);
-	  }
-	  else
-	  { jptr = lseek(jfd, systab->vol[0]->jrn_next, SEEK_SET);
-	    if (jptr != systab->vol[0]->jrn_next)
-	    { fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
-		      systab->vol[0]->vollab->journal_file, errno);
-	      close(jfd);
-	    }
-	    else
-	    { jj.action = JRN_START;
-	      jj.time = MTIME(0);
-	      jj.uci = 0;
-	      jj.size = MIN_JRNREC_SIZE;
-	      i = write(jfd, &jj,               // write the create record
-                                MIN_JRNREC_SIZE);
-	      systab->vol[0]->jrn_next += 
-                                MIN_JRNREC_SIZE;// adjust pointer
-	      lseek(jfd, sizeof(u_int), SEEK_SET);
-	      i = write(jfd, &systab->vol[0]->jrn_next, sizeof(off_t));
-	      i = close(jfd);			// and close it
-	      systab->vol[0]->vollab->journal_available = 1;
-	      fprintf(stderr, "Journaling started to %s.\n",
-		      systab->vol[0]->vollab->journal_file); // say it worked
-	    }
-	  }
-	}
-      }
-    }
+  { while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
+    OpenJournal(0, 1);
     SemOp( SEM_GLOBAL, -WRITE);			// unlock global
   }						// end journal stuff
   

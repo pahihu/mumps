@@ -91,7 +91,7 @@ void UnlinkGBD(int vol, gbd *oldptr,                    // unlink a GBD
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   hash = oldptr->hash;                                  // the chain
   // fprintf(stderr,"Unlink_GBD(): hash=%d\r\n",hash); fflush(stderr);
@@ -914,7 +914,7 @@ void Free_GBD(int vol, gbd *free)			// Free a GBD
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
   ASSERT(free->vol == vol);                             // same volume
   if (free->block)					// if there is a blk#
   { 

@@ -1073,13 +1073,13 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 	buf[0] = '\0';				// JIC
 	if (dir > 0)				// forward?
 	{ for (j = i + 1; j < MAX_VOL; j++)
-	    if (systab->vol[j] != NULL) break;
+	    if (systab->vol[j]->vollab != NULL) break;
 	  if (j == MAX_VOL) return 0;		// ran out
 	  return itocstring(buf, j + 1);	// return vol#
 	}
 	if (i == -1) i = MAX_VOL;		// fix the seed
 	for (j = i-1; j >= 0; j--)
-	    if (systab->vol[j] != NULL) break;
+	    if (systab->vol[j]->vollab != NULL) break;
 	  if (j < 0) return 0;			// ran out
 	  return itocstring(buf, j + 1);	// return vol#
       }
@@ -1090,7 +1090,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 	j = cstringtoi(subs[3]) - 1;		// and uci#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if ((j < -1) || (j >= UCIS)) return (-ERRM60); // out of range
-	if (systab->vol[i] == NULL) return (-ERRM60); // not mounted
+	if (systab->vol[i]->vollab == NULL) return (-ERRM60); // not mounted
 	buf[0] = '\0';				// JIC
 	if (dir > 0)				// forward?
 	{ for (j = j + 1; j < UCIS; j++)

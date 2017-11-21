@@ -176,8 +176,7 @@ short DB_Mount( char *file,                     // database
 #endif
   semvals.array = sem_val;
 
-  volset_size = sizeof(vol_def)                 // vol_def size
-              + hbuf[2]				// size of head and map block
+  volset_size = hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
@@ -210,10 +209,9 @@ short DB_Mount( char *file,                     // database
 
   bzero(systab + addoff, volset_size);		// zot the lot
 
-  systab->vol[vol] = (vol_def *) ((void *)systab + addoff);
 						// volume set memory
   systab->vol[vol]->vollab =
-    (label_block *) ((void *)systab->vol[0] + sizeof(vol_def));
+    (label_block *) ((void *)systab + addoff);
                                                 // and point to label blk
 
   systab->vol[vol]->map =

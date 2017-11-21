@@ -240,8 +240,8 @@ start:
   daemon_check();					// ensure all running
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { for (vol = 0; vol < MAX_VOL; vol++)
-    { if (NULL == systab->vol[vol])                     // skip if volume
-        continue;                                       //   not mounted
+    { if (NULL == systab->vol[vol]->vollab)             // stop at first
+        break;                                          //   not mounted
       if ((!myslot) && (systab->vol[vol]->map_dirty_flag))// first daemon
       { if (last_map_write[vol] != MTIME(0))
         { do_mount(vol);                                // mount db file
@@ -262,7 +262,9 @@ start:
         }
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
-      { while (TRUE)					// loop
+      { // XXX ez igy egyszeru, mert mindenkit megfogunk !!!
+        //     mi van ha tobb vol[]-on egyszerre irunk/olvasunk ?
+        while (TRUE)					// loop
         { 
 #ifdef MV1_CKIT
           i = (0 < ck_ring_size(&systab->vol[0]->dirtyQ));
@@ -329,17 +331,18 @@ start:
 #endif
   }							// end looking for work
 
+  // XXX most ne lehessen kulon/kulon dismount-olni, csak egyben
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { if (systab->vol[0]->dismount_flag)		        // dismounting?
     { if (myslot)					// first?
       { systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
-	t = time(0);					// for ctime()
+        t = time(0);					// for ctime()
 	do_log("Daemon %d shutting down\n", myslot);	// log success
         SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
-      do_dismount();					// dismount it
-      exit (0);						// and exit
+      do_dismount(vol);				        // dismount it
+      exit (0);					        // and exit
     }							// end dismount code
     else
     { return;						// nothing to do
@@ -382,8 +385,10 @@ void do_dismount()					// dismount volnum
   }
 
   for (vol = 0; vol < MAX_VOL; vol++)                   // flush journal
-  { if (systab->vol[vol] &&                             // mounted ?
-           (systab->vol[vol]->vollab->journal_requested) &&
+  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+      break;
+    if ((systab->vol[vol]->vollab->journal_available) &&
+        (systab->vol[vol]->vollab->journal_requested) &&
            (systab->vol[vol]->vollab->journal_file[0]))
     { struct stat   sb;				        // File attributes
       int jfd;					        // file descriptor
@@ -427,8 +432,8 @@ void do_dismount()					// dismount volnum
   }                                                     // end journal stuff 
 
   for (vol = 0; vol < MAX_VOL; vol++)
-  { if (NULL == systab->vol[vol])                       // skip if volume
-      continue;                                         //   not mounted
+  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+      break;
     for (i=0; i<systab->vol[vol]->num_gbd; i++)	        // look for unwritten
     { if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
           (systab->vol[vol]->gbd_head[i].last_accessed != (time_t) 0) &&
@@ -469,9 +474,9 @@ void do_dismount()					// dismount volnum
   }							// end wait for daemons
   SemStats();                                           // print sem stats
   do_log("Writing out clean flag as clean\n");          // operation
-  for (vol = 0; vol < MAX_VOL; vol++)                   // skip empty volume
-  { if (NULL == systab->vol[vol])                       // skip if volume
-      continue;                                         //   not mounted
+  for (vol = 0; vol < MAX_VOL; vol++)
+  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+      break;
     systab->vol[vol]->vollab->clean = 1;		// set database as clean
     do_mount(vol);                                      // mount db file
     off =lseek( dbfds[vol], 0, SEEK_SET);		// seek to start of file
@@ -643,7 +648,7 @@ int do_zot(int vol,u_int gb)				// zot block
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
@@ -766,7 +771,7 @@ void do_free(int vol, u_int gb)				// free from map et al
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
@@ -834,7 +839,7 @@ void do_mount(int vol)                                  // mount volume
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (dbfds[vol])
     return;

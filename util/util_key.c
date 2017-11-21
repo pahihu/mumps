@@ -550,7 +550,7 @@ short UTIL_MvarFromCStr( cstring *src,		// the string
         }
         ptr++;					// go past closing "
         for (i = 0; i < MAX_VOL; i++)		// scan vol list
-          if (systab->vol[i] != NULL)		// vol here ?
+          if (systab->vol[i]->vollab != NULL)	// vol here ?
             //if (systab->vol[i]->vollab->volnam.var_qu == vol.var_qu)
             if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, vol.var_xu))
 	      break;				// quit if found

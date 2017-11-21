@@ -61,7 +61,7 @@ struct GBD *DB_ViewGet(int volume, int block)		// return gbd for blk
 
   ASSERT(0 < volume);                                   // valid volume
   ASSERT(volume <= MAX_VOL);
-  ASSERT(NULL != systab->vol[volume-1]);                // mounted
+  ASSERT(NULL != systab->vol[volume-1]->vollab);        // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewGet: %d\r\n",block);fflush(stderr);
@@ -98,7 +98,7 @@ void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 
   ASSERT(0 < volume);                                   // valid volume
   ASSERT(volume <= MAX_VOL);
-  ASSERT(NULL != systab->vol[volume-1]);                // mounted
+  ASSERT(NULL != systab->vol[volume-1]->vollab);        // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewPut: %d\r\n",ptr->block);fflush(stderr);
@@ -142,7 +142,7 @@ void DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
 
   ASSERT(0 < volume);                                   // valid volume
   ASSERT(volume <= MAX_VOL);
-  ASSERT(NULL != systab->vol[volume-1]);                // mounted
+  ASSERT(NULL != systab->vol[volume-1]->vollab);        // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewRel: %d\r\n",ptr->block);fflush(stderr);

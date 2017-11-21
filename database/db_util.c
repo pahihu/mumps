@@ -224,9 +224,9 @@ void Queit()						// que a gbd for write
   bool result;
 #endif
 
-  ASSERT(0 < volnum);
+  ASSERT(0 < volnum);                                   // valid volnum
   ASSERT(volnum <= MAX_VOL);
-  ASSERT(NULL != systab->vol[volnum-1]);                // mounted
+  ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
@@ -283,8 +283,9 @@ void Garbit(int blknum)					// que a blk for garb
 
   ASSERT(0 < volnum);                                   // valid vol[] index
   ASSERT(volnum <= MAX_VOL);
-  ASSERT(NULL != systab->vol[volnum-1]);                // mounted
-  blknum = VOLBLK(volnum-1,blknum);                     // (vol,blkno)
+  ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
+
+  blknum = VOLBLK(volnum-1,blknum);                     // reformat (vol,blkno)
 
   if (curr_lock != WRITE)
   { char msg[32];
@@ -328,7 +329,7 @@ void Free_block(int vol, int blknum)			// free blk in map
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   map = ((u_char *) systab->vol[vol]->map);	        // point at it
   i = blknum >> 3;					// map byte
@@ -364,7 +365,7 @@ void Used_block(int vol, int blknum)			// set blk in map
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     //  mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             //  mounted
 
   map = ((u_char *) systab->vol[vol]->map);	        // point at it
   i = blknum >> 3;					// map byte
@@ -734,19 +735,22 @@ short FlushJournal(int vol, int jfd, int dosync)
   { if (vol)                                            // only VOL0 is open
     { if (vol + 1 > MAX_VOL) return -(ERRZ72+ERRMLAST); // must be in range
       if (partab.jnl_fds[vol] == 0)                     //   if not open
-      { if (systab->vol[vol] &&                         // mounted
-            (systab->vol[vol]->vollab->journal_available) &&
-            (systab->vol[vol]->vollab->journal_requested)) // if journaling
-        { partab.jnl_fds[vol] = open(systab->vol[vol]->vollab->journal_file, 
-                                                O_RDWR);
-          if (partab.jnl_fds[vol] < 0) return -(errno+ERRMLAST+ERRZLAST);
+      { if (systab->vol[vol]->vollab &&                 // mounted
+            (systab->vol[vol]->vollab->journal_requested) && // journal req.
+            (systab->vol[vol]->vollab->journal_file[0]))
+        { OpenJournal(vol, 0);
+          if (systab->vol[vol]->vollab->journal_available)
+            partab.jnl_fds[vol] = open(systab->vol[vol]->vollab->journal_file, 
+                                                        O_RDWR);
+          if (partab.jnl_fds[vol] <= 0) return -(errno+ERRMLAST+ERRZLAST);
+
         } 
         else
         { return -(ERRZ72+ERRMLAST);                    // give up on error
         }
       }
       else                                              // check still there
-      { if ((NULL == systab->vol[vol]) ||               // volume gone
+      { if ((NULL == systab->vol[vol]->vollab) ||       // volume gone
             (systab->vol[vol]->vollab->journal_file[0] == 0)) // or no jrn file
         { j = close( partab.jnl_fds[vol] );             // close the file
           partab.jnl_fds[vol] = 0;                      // flag not there
@@ -787,7 +791,7 @@ short FlushJournal(int vol, int jfd, int dosync)
   return 0;
 
 fail:
-  fprintf(stderr,"FlushJournal: ggg = %d\n",ggg);
+  // fprintf(stderr,"FlushJournal: ggg = %d\n",ggg);
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   systab->vol[vol]->vollab->journal_available = 0;      // turn it off
   close(partab.jnl_fds[vol]);			        // close the file
@@ -831,6 +835,90 @@ void ClearJournal(int jfd, int vol)			// clear journal
   return;						// done
 }
 
+//-----------------------------------------------------------------------------
+// Function: OpenJournal
+// Descript: Open/Create journal file
+// Input(s): internal volume number
+// Return:   none, but sets vollab->journal_available = 1, when succeeds
+// Note:     Must be called with a write lock
+//
+void OpenJournal(int vol, int printlog)
+{ int i;                                                // handy int
+  int jfd = -1;                                         // file descriptor
+  struct stat sb;
+  off_t jptr;
+  jrnrec jj;
+
+  systab->vol[vol]->vollab->journal_available = 0;      // assume fail
+  i = stat(systab->vol[vol]->vollab->journal_file, &sb );// check for file
+  if ((i < 0) && (errno != ENOENT))		        // if that's junk
+  { if (printlog)
+      fprintf(stderr, "Failed to access journal file %s\n",
+  		  systab->vol[vol]->vollab->journal_file);
+  }
+  else					                // do something
+  { if (i < 0)				                // if doesn't exist
+    { ClearJournal(0, vol);			        // create it
+    }						        // end create code
+    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    if (jfd < 0)				        // on fail
+    { if (printlog)
+        fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
+                  systab->vol[vol]->vollab->journal_file, errno);
+    }
+    else					        // if open OK
+    { u_char tmp[sizeof(u_int) + sizeof(off_t)];
+
+#ifdef MV1_F_NOCACHE
+      i = fcntl(jfd, F_NOCACHE, 1);
+#endif
+      lseek(jfd, 0, SEEK_SET);
+      errno = 0;
+      i = read(jfd, tmp, sizeof(u_int));	        // read the magic
+      if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+      { if (printlog)
+          fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
+                    systab->vol[vol]->vollab->journal_file);
+        close(jfd);
+      }
+      else
+      { i = read(jfd, &systab->vol[vol]->jrn_next, sizeof(off_t));
+	if (i != sizeof(off_t))
+	{ if (printlog)
+            fprintf(stderr, "Failed to use journal file %s\nRead failed - %d\n",
+		      systab->vol[vol]->vollab->journal_file, errno);
+	  close(jfd);
+	}
+	else
+	{ jptr = lseek(jfd, systab->vol[vol]->jrn_next, SEEK_SET);
+	  if (jptr != systab->vol[vol]->jrn_next)
+	  { if (printlog)
+              fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
+		        systab->vol[vol]->vollab->journal_file, errno);
+	    close(jfd);
+	  }
+	  else
+	  { jj.action = JRN_START;
+	    jj.time = MTIME(0);
+	    jj.uci = 0;
+	    jj.size = MIN_JRNREC_SIZE;
+	    i = write(jfd, &jj,                         // write the create rec.
+                                MIN_JRNREC_SIZE);
+	    systab->vol[vol]->jrn_next += 
+                                MIN_JRNREC_SIZE;        // adjust pointer
+	    lseek(jfd, sizeof(u_int), SEEK_SET);
+	    i = write(jfd, &systab->vol[vol]->jrn_next, sizeof(off_t));
+	    i = close(jfd);			        // and close it
+	    systab->vol[vol]->vollab->journal_available = 1;
+            if (printlog)                               // say it worked
+	      fprintf(stderr, "Journaling started to %s.\n",
+		        systab->vol[vol]->vollab->journal_file); 
+	  }
+	}
+      }
+    }
+  }
+}
 
 //-----------------------------------------------------------------------------
 // Function: DoJournal
@@ -849,14 +937,6 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   u_int currsize;                                       // curr. JNL buffer size
   short s;
 
-#if 0
-  jptr = lseek(partab.jnl_fds[volnum - 1],
-	       systab->vol[volnum - 1]->jrn_next,
-	       SEEK_SET);				// address to locn
-  if (jptr != systab->vol[volnum  - 1]->jrn_next)	// if failed
-  { goto fail;
-  }
-#endif
   currsize = systab->vol[volnum - 1]->jrnbufsize;       // get current size
   jj->time = MTIME(0);					// store the time
   jj->size = sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t) + sizeof(var_u) + sizeof(u_char) + jj->slen;
@@ -889,33 +969,6 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jj_alignment)
     currsize += jj_alignment;
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
-#if 0
-  j = write(partab.jnl_fds[volnum - 1], jj, i);		// write header
-  if (j != i)						// if that failed
-  { goto fail;
-  }
-  if (jj->action == JRN_SET)
-  { i = (sizeof(short) + data->len);			// data size
-    j = write(partab.jnl_fds[volnum - 1], data, i);	// write data
-    if (j != i)						// if that failed
-    { goto fail;
-    }
-  }
-  if (jj->size & 3)
-  { jj->size += (4 - (jj->size & 3));			// round it
-  }
-  systab->vol[volnum  - 1]->jrn_next += jj->size;	// update next
-  jptr = lseek(partab.jnl_fds[volnum - 1], sizeof(u_int), SEEK_SET);
-  if (jptr != sizeof(u_int))
-  { goto fail;
-  }
-  j = write(partab.jnl_fds[volnum - 1],
-	    &systab->vol[volnum  - 1]->jrn_next,
-	    sizeof(off_t));				// write next
-  if (j < 0)
-  { goto fail;
-  }
-#endif
   return;
 
 fail:
@@ -998,7 +1051,7 @@ short Check_BlockNo(int vol, u_int blkno, int checks,
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (checks & CBN_INRANGE)                             // out of range ?       
     failed = failed || (blkno > systab->vol[vol]->vollab->max_block);
