@@ -59,7 +59,7 @@ short getvol(cstring *vol)			// get vol number for vol
   s = vol->len;					// get len
   if (s < MAX_NAME_BYTES) s++;			// include term null if poss
   for (i = 0; i < MAX_VOL; i++)			// scan the volumes
-  { if (systab->vol[i]->vollab == NULL) continue; // continue if none in slot
+  { if (systab->vol[i]->vollab == NULL) break;  // continue if none in slot
     if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0],
 	     vol->buf, s) != 0) continue;	// if not the same continue
     return (short) i + 1;			// return vol number

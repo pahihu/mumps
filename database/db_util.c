@@ -210,7 +210,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
 }
 
 //-----------------------------------------------------------------------------
-// Function: Queit2
+// Function: Queit
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
 // Return:   0 - on success, 1 - on failed (queue empty)
@@ -246,20 +246,20 @@ void Queit()						// que a gbd for write
   }
 #ifdef MV1_CKIT
   result = ck_ring_enqueue_spmc(
-                &systab->vol[volnum-1]->dirtyQ,
-                &systab->vol[volnum-1]->dirtyQBuffer[0],
+                &systab->vol[0]->dirtyQ,
+                &systab->vol[0]->dirtyQBuffer[0],
                 blk[level]);
   if (false == result)
   { panic("Queit(): dirtyQ overflow");
   }
 #else
   // we have the WRITE lock, at least NUM_DIRTY/2 is free
-  i = systab->vol[volnum - 1]->dirtyQw;			// where to put it
-  if (systab->vol[volnum - 1]->dirtyQ[i] != NULL)
+  i = systab->vol[0]->dirtyQw;			        // where to put it
+  if (systab->vol[0]->dirtyQ[i] != NULL)
   { panic("Queit(): dirtyQ overflow");
   }
-  systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
-  systab->vol[volnum - 1]->dirtyQw = (i + 1) & (NUM_DIRTY - 1); // reset ptr
+  systab->vol[0]->dirtyQ[i] = blk[level];	        // stuff it in
+  systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
 #endif
 
   return;						// and exit
@@ -296,20 +296,20 @@ void Garbit(int blknum)					// que a blk for garb
 #ifdef MV1_CKIT
   qentry = (void*) blknum;
   result = ck_ring_enqueue_spmc(
-                &systab->vol[volnum-1]->garbQ,
-                &systab->vol[volnum-1]->garbQBuffer[0],
+                &systab->vol[0]->garbQ,
+                &systab->vol[0]->garbQBuffer[0],
                 qentry);
   if (result == false)
   { panic("Garbit(): garbQ overflow");
   }
 #else
   // we have the WRITE lock
-  i = systab->vol[volnum - 1]->garbQw;			// where to put it
-  if (systab->vol[volnum - 1]->garbQ[i] != 0)
+  i = systab->vol[0]->garbQw;			        // where to put it
+  if (systab->vol[0]->garbQ[i] != 0)
   { panic("Garbit(): garbQ overflow");
   }
-  systab->vol[volnum - 1]->garbQ[i] = blknum;		// stuff it in
-  systab->vol[volnum - 1]->garbQw = (i + 1) & (NUM_GARB - 1); // reset ptr
+  systab->vol[0]->garbQ[i] = blknum;		        // stuff it in
+  systab->vol[0]->garbQw = (i + 1) & (NUM_GARB - 1);    // reset ptr
 #endif
   return;						// and exit
 }
@@ -1078,12 +1078,12 @@ int DirtyQ_Len(void)
 { int qlen = 0;
 
 #ifdef MV1_CKIT
-  qlen = ck_ring_size(&systab->vol[volnum-1]->dirtyQ);
+  qlen = ck_ring_size(&systab->vol[0]->dirtyQ);
 #else
   int qpos, wpos, rpos;
 
-  wpos = systab->vol[volnum - 1]->dirtyQw;
-  rpos = systab->vol[volnum - 1]->dirtyQr;
+  wpos = systab->vol[0]->dirtyQw;
+  rpos = systab->vol[0]->dirtyQr;
   if (rpos <= wpos)
     qlen = wpos - rpos;
   else
