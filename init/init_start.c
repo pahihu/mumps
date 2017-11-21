@@ -279,7 +279,6 @@ int INIT_Start( char *file,                     // database
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
-  systab->WDPtime = WDP_TIME_MAX;               // write daemon poll time
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
 

@@ -571,7 +571,6 @@ typedef struct __PACKED__ SYSTAB                // system tables
   size_t addsize;                               // add buff size
   VOLATILE u_int64 TxId;                        // TX id
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
-  VOLATILE u_int WDPtime;                       // Write Daemon Poll time (msec)
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
 #ifdef MV1_SHSEM

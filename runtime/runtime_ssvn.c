@@ -476,10 +476,6 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return uitocstring(buf, systab->vol[i]->stats.lckwait);
       }						// end of "VOL"
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "wdptime\0", 8) == 0))
-      { return itocstring(buf, systab->WDPtime);// return the value
-      }
-      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "zotdata\0", 8) == 0))
       { return itocstring(buf, systab->ZotData);// return the value
       }
