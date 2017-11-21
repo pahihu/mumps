@@ -435,7 +435,7 @@ typedef struct __PACKED__ VOL_DEF
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
   size_t volset_size;                           // shared memory size of vol_def
   int gmb;                                      // global buffer cache in MB
-  int jrnkb;                                    // jrn buffer cache in KB
+  int jkb;                                      // jrn buffer cache in KB
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
 } vol_def;                                      // end of volume def

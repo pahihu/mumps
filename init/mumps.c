@@ -97,7 +97,7 @@ int main(int argc,char **argv)                  // main entry point
     }
   }
   if (argc < 2) help();                         // they need help
-  while ((c = getopt(argc, argv, "b:e:g:hj:l:m:r:s:v:x:")) != EOF)
+  while ((c = getopt(argc, argv, "a:b:e:g:hj:l:m:r:s:v:x:")) != EOF)
   { switch(c)
     { case 'a':                                 // switch -a
         addmb = atoi(optarg);                   // additional buffer

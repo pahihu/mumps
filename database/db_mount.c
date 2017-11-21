@@ -81,9 +81,9 @@ void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
 // Init an environment
 //
 short DB_Mount( char *file,                     // database
-                int volnum,                     // where to mount
+                int volume,                     // where to mount
                 int gmb,                        // mb of global buf
-                int jrnkb)                      // kb of jrn buf
+                int jkb)                        // kb of jrn buf
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i;                                        // usefull int
@@ -97,21 +97,21 @@ short DB_Mount( char *file,                     // database
   u_char *ptr;					// and a byte one
   label_block *labelblock;			// label block pointer
   int syncjrn;                                  // sync jrn buf
-  int minjrnkb;                                 // min JRN buf size
+  int minjkb;                                   // min JRN buf size
   int vol;                                      // vol[] indx
   int jobs;                                     // no. of jobs
   size_t addoff;                                // where to add this volume
 
-  if ((volnum < 2) || (volnum > MAX_VOL))       // validate volnum
+  if ((volume < 2) || (volume > MAX_VOL))       // validate volume
     return -(ERRZ74+ERRMLAST);
-  if (systab->vol[volnum-1]->file_name[0] != 0) // check for already open
+  if (systab->vol[volume-1]->file_name[0] != 0) // check for already open
     return -(ERRZ74+ERRMLAST);
 
-  vol  = volnum - 1;                            // vol[] index
+  vol  = volume - 1;                            // vol[] index
   jobs = systab->maxjob;                        
 
-  if (systab->maxjob != 1)                      // if not in single user mode
-  { return -(ERRZ60+ERRMLAST);                  //   complain
+  if (systab->maxjob == 1)                      // if single user mode
+  { return -(ERRZ74+ERRMLAST);                  //   complain
   }
   // ERRZ60 insuff global buffer space
   pagesize = getpagesize();                     // get sys pagesize (bytes)
@@ -133,6 +133,7 @@ short DB_Mount( char *file,                     // database
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of lable block failed\n - %s\n", // complain
              strerror(errno));
+    close(dbfd);
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }
 
@@ -141,10 +142,12 @@ short DB_Mount( char *file,                     // database
   { fprintf(stderr,
 	 "Database is version %04x, image requires version %04x - start failed!!\n",
 	 labelblock->db_ver, DB_VER);
+      close(dbfd);
       return -(ERRZ73+ERRMLAST);
   }						// end upgrade proceedure
   if (labelblock->magic != MUMPS_MAGIC)
   { fprintf( stderr, "Invalid MUMPS database (wrong magic) - start failed!!\n");
+    close(dbfd);
     return -(ERRZ73+ERRMLAST);
   }
 
@@ -156,17 +159,17 @@ short DB_Mount( char *file,                     // database
   n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
   syncjrn = 1;                                  // buffer flush w/ fsync()
-  if (jrnkb < 0)                                // if negative
+  if (jkb < 0)                                  // if negative
   { syncjrn = 0;                                //   then disable fsync()
-    jrnkb   = -jrnkb;
+    jkb   = -jkb;
   }
-  minjrnkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
-  if (minjrnkb > jrnkb)
-  { jrnkb = minjrnkb;
+  minjkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
+  if (minjkb > jkb)
+  { jkb = minjkb;
   }
-  jrnkb *= 1024;
-  jrnkb = (((jrnkb - 1) / pagesize) + 1) * pagesize;
-  jrnkb /= 1024;
+  jkb *= 1024;
+  jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
+  jkb /= 1024;
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
 #ifdef MV1_SHSEM
@@ -180,11 +183,12 @@ short DB_Mount( char *file,                     // database
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
-              + jrnkb * KBYTE;                  // size of JRN buf
+              + jkb * KBYTE;                    // size of JRN buf
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
 
   if (volset_size > systab->addsize)            // check avail additional mem.
-  { return -(ERRZ60+ERRMLAST);
+  { close(dbfd);
+    return -(ERRZ60+ERRMLAST);
   }
   addoff = systab->addoff;                      // where to put them
 
@@ -207,7 +211,7 @@ short DB_Mount( char *file,                     // database
   }
 #endif
 
-  bzero(systab + addoff, volset_size);		// zot the lot
+  bzero((void *)systab + addoff, volset_size);		// zot the lot
 
 						// volume set memory
   systab->vol[vol]->vollab =
@@ -231,7 +235,7 @@ short DB_Mount( char *file,                     // database
 
   systab->vol[vol]->jrnbuf =                    // JRN buf
     (void *)((void *)systab->vol[vol]->zero_block + hbuf[3]);
-  systab->vol[vol]->jrnbufcap  = jrnkb * KBYTE; // the size
+  systab->vol[vol]->jrnbufcap  = jkb * KBYTE;   // the size
   systab->vol[vol]->jrnbufsize = 0;             // buffer empty
   systab->vol[vol]->syncjrn    = syncjrn;       // sync flag
 
@@ -239,7 +243,7 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->map_dirty_flag = 0;		// clear dirty map flag
   systab->vol[vol]->hash_start = 0;             // start searching here
   systab->vol[vol]->gmb        = gmb;           // global bufffer cache in MB
-  systab->vol[vol]->jrnkb      = jrnkb;         // jrn buffer cache in KB
+  systab->vol[vol]->jkb        = jkb;           // jrn buffer cache in KB
 
   // bzero(semtab, sizeof(semtab));
 
@@ -256,6 +260,7 @@ short DB_Mount( char *file,                     // database
     }							// end realpath worked
   else						// otherwise there was an error
     { // XXX - SEM i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
+      close(dbfd);
       return -(errno+ERRMLAST+ERRZLAST);	// exit with error
     }
 
@@ -265,6 +270,7 @@ short DB_Mount( char *file,                     // database
   { fprintf( stderr, "Read of label/map block failed\n - %s\n", //complain
             strerror(errno));                   // what was returned
     // XXX - SEM = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
+    close(dbfd);
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }
 
@@ -320,75 +326,9 @@ short DB_Mount( char *file,                     // database
 
   if ((systab->vol[vol]->vollab->journal_requested) &&
            (systab->vol[vol]->vollab->journal_file[0]))
-  { struct stat   sb;				// File attributes
-    off_t jptr;					// file ptr
-    jrnrec jj;					// to write with
-    int jfd;					// file descriptor
-
+  { 
     while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
-    systab->vol[vol]->vollab->journal_available = 0; // assume fail
-    i = stat(systab->vol[vol]->vollab->journal_file, &sb ); // check for file
-    if ((i < 0) && (errno != ENOENT))		// if that's junk
-    { fprintf(stderr, "Failed to access journal file %s\n",
-    		systab->vol[vol]->vollab->journal_file);
-    }
-    else					// do something
-    { if (i < 0)				// if doesn't exist
-      { ClearJournal(0, vol);			// create it
-      }						// end create code
-      jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
-      if (jfd < 0)				// on fail
-      { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
-		systab->vol[vol]->vollab->journal_file, errno);
-      }
-      else					// if open OK
-      { u_char tmp[sizeof(u_int) + sizeof(off_t)];
-
-#ifdef MV1_F_NOCACHE
-        i = fcntl(jfd, F_NOCACHE, 1);
-#endif
-	lseek(jfd, 0, SEEK_SET);
-	errno = 0;
-	i = read(jfd, tmp, sizeof(u_int));	// read the magic
-	if ((i != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	{ fprintf(stderr, "Failed to open journal file %s\nWRONG MAGIC\n",
-		  systab->vol[vol]->vollab->journal_file);
-	  close(jfd);
-	}
-	else
-	{ i = read(jfd, &systab->vol[vol]->jrn_next, sizeof(off_t));
-	  if (i != sizeof(off_t))
-	  { fprintf(stderr, "Failed to use journal file %s\nRead failed - %d\n",
-		    systab->vol[vol]->vollab->journal_file, errno);
-	    close(jfd);
-	  }
-	  else
-	  { jptr = lseek(jfd, systab->vol[vol]->jrn_next, SEEK_SET);
-	    if (jptr != systab->vol[vol]->jrn_next)
-	    { fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
-		      systab->vol[vol]->vollab->journal_file, errno);
-	      close(jfd);
-	    }
-	    else
-	    { jj.action = JRN_START;
-	      jj.time = MTIME(0);
-	      jj.uci = 0;
-	      jj.size = MIN_JRNREC_SIZE;
-	      i = write(jfd, &jj,               // write the create record
-                                MIN_JRNREC_SIZE);
-	      systab->vol[vol]->jrn_next += 
-                                MIN_JRNREC_SIZE;// adjust pointer
-	      lseek(jfd, sizeof(u_int), SEEK_SET);
-	      i = write(jfd, &systab->vol[vol]->jrn_next, sizeof(off_t));
-	      i = close(jfd);			// and close it
-	      systab->vol[vol]->vollab->journal_available = 1;
-	      fprintf(stderr, "Journaling started to %s.\n",
-		      systab->vol[vol]->vollab->journal_file); // say it worked
-	    }
-	  }
-	}
-      }
-    }
+    OpenJournal( vol, 1);
     SemOp( SEM_GLOBAL, -WRITE);			// unlock global
   }						// end journal stuff
   

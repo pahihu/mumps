@@ -391,7 +391,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return strlen((char *)buf);
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "journal_buffer_size\0", 20) == 0)
-        { j = systab->vol[i]->jrnkb;
+        { j = systab->vol[i]->jkb;
           if (0 == systab->vol[i]->syncjrn)
             j = -j;
 	  return itocstring(buf, j);
@@ -793,6 +793,33 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  }
 	  return DB_Expand(i, vsiz);		// do it
 	}
+	if ((strncasecmp( (char *) subs[2]->buf, 
+                "global_buffer_size\0", 19) == 0) &&
+            (systab->maxjob != 1))
+        { systab->vol[i]->gmb = cstringtoi(data);
+          if (systab->vol[i]->gmb < 0)
+          { systab->vol[i]->gmb = 0;
+            return -(ERRM38);
+          }
+          return 0;
+        }
+	if ((strncasecmp( (char *) subs[2]->buf, 
+                "journal_buffer_size\0", 20) == 0) &&
+            (systab->maxjob != 1))
+        { systab->vol[i]->jkb = cstringtoi(data);
+          return 0;
+        }
+	if ((strncasecmp( (char *) subs[2]->buf, 
+                "file\0", 5) == 0) &&
+            (systab->maxjob != 1))
+        { SemOp( SEM_SYS, -systab->maxjob);
+          s = DB_Mount((char *) &data->buf[0],
+                        i + 1,
+                        systab->vol[i]->gmb,
+                        systab->vol[i]->jkb);
+          SemOp( SEM_SYS, systab->maxjob);
+          return s;
+        }
       }
       return (-ERRM38);				// do vol mount next vers
   }
