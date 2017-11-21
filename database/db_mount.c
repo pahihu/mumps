@@ -176,7 +176,8 @@ short DB_Mount( char *file,                     // database
 #endif
   semvals.array = sem_val;
 
-  volset_size = hbuf[2]				// size of head and map block
+  volset_size = sizeof(vol_def)                 // vol_def size
+              + hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
@@ -209,11 +210,11 @@ short DB_Mount( char *file,                     // database
 
   bzero(systab + addoff, volset_size);		// zot the lot
 
-  // NB. systab->vol[] already allocated in vol[0]
+  systab->vol[vol] = (vol_def *) ((void *)systab + addoff);
 						// volume set memory
-
   systab->vol[vol]->vollab =
-    (label_block *) ((void *)systab + addoff); // and point to label blk
+    (label_block *) ((void *)systab->vol[0] + sizeof(vol_def));
+                                                // and point to label blk
 
   systab->vol[vol]->map =
     (void*)((void *)systab->vol[vol]->vollab + SIZEOF_LABEL_BLOCK);
@@ -414,6 +415,7 @@ short DB_Mount( char *file,                     // database
 #ifdef MV1_BLKSEM
     gptr[i].curr_lock = 0;                      // block lock flag
 #endif
+    gptr[i].vol = vol;                          // vol[] index
   }						// end setup gbds
 #ifdef MV1_GBDRO
   for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail

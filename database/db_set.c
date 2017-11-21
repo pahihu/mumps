@@ -328,8 +328,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     s = Insert(tmp, ptr);				// insert a node
     if (s < 0)						// if that failed
     { level++;						// point at new blk
-      Free_block(blk[level]->block);			// give block back
-      Free_GBD(blk[level]);				// free gbd
+      Free_block(volnum-1, blk[level]->block);		// give block back
+      Free_GBD(volnum-1, blk[level]);			// free gbd
       level--;						// back at the dir
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = NULL;			// clear it
@@ -610,7 +610,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     btmp = blk[level]->mem;				// save this
     blk[level]->mem = cblk[3]->mem;			// copy in this
     cblk[3]->mem = btmp;				// end swap 'mem'
-    Free_GBD(blk[level]);				// give it back
+    Free_GBD(volnum-1, blk[level]);			// give it back
 
     blk[level] = cblk[0];				// orig blk again
     idx = (u_short *) blk[level]->mem;			// point at it

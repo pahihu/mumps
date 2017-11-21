@@ -82,6 +82,12 @@
 // #define ATOMIC_INCREMENT(x)      __sync_add_and_fetch(&(x), 1)
 #define ATOMIC_INCREMENT(x)         inter_add(&(x),1)
 
+#define BLK_MASK        0x003FFFFF                      // 22bit block number
+#define VOL_MASK        0x03C00000                      //  4bit vol[] index
+#define BLKNO(x)        ((x) & BLK_MASK)
+#define VOLNO(x)        (((x) & VOL_MASK) >> 22)
+#define VOLBLK(vol,blk) ((((vol) & 15) << 22) | (blk))
+
 // **** Structures ***********************************************************
 
 typedef struct __PACKED__ DB_BLOCK	                // database block layout
@@ -173,6 +179,7 @@ typedef struct __PACKED__ GBD		                // global buf desciptor
 #ifdef MV1_BLKSEM
   short  curr_lock;                                     // current block lock
 #endif
+  u_char vol;                                           // vol[] index
 } gbd;							// end gbd struct
 
 #define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))
@@ -242,7 +249,7 @@ short New_block();					// get new block
 void Get_GBD();				                // get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
 void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
-void Free_GBD(gbd *free);				// Free a GBD
+void Free_GBD(int vol, gbd *free);			// Free a GBD
 void Release_GBDs(int stopat);                          // release rsvd blk[]
 
 #ifdef MV1_BLKSEM
@@ -290,16 +297,16 @@ short Set_data(cstring *data, int has_wrlock);          // set a record
 void Allign_record();					// allign record (int)
 void Copy_data(gbd *fptr, int fidx);			// copy records
 void DoJournal(jrnrec *jj, cstring *data); 		// Write journal
-void Free_block(int blknum);				// free blk in map
+void Free_block(int vol, int blknum);			// free blk in map
 void Garbit(int blknum);				// que a blk for garb
 short Insert(u_char *key, cstring *data);		// insert a node
 int Queit2(gbd *p_gbd);				        // que a gbd for write
 void Queit();						// que blk[level] for write
 void Tidy_block();					// tidy current blk
-void Used_block(int blknum);				// set blk in map
+void Used_block(int vol, int blknum);			// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
-short Check_BlockNo(u_int blkno,int checks,             // check blkno
+short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
            char *where,char *file,int lno,int dopanic);
 #define CBN_INRANGE     1
 #define CBN_ALLOCATED   2

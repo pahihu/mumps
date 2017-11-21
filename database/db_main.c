@@ -113,10 +113,11 @@ short Copy2local(mvar *var, char *rtn)
   if (db_var.volset == 0)				// if volset is zero
   { db_var.volset = partab.jobtab->vol;			// get current volset
   }
+  ASSERT(0 < db_var.volset);
   if (db_var.volset > MAX_VOL)				// within limits?
   { return (-ERRM26);					// no - error
   }
-  if (systab->vol[db_var.volset-1] == NULL)		// is it mounted?
+  if (systab->vol[db_var.volset-1] == NULL)	        // is it mounted?
   { return (-ERRM26);					// no - error
   }
   if (db_var.uci == 0)					// uci specified?
@@ -151,6 +152,8 @@ short Copy2local(mvar *var, char *rtn)
   { return (-ERRM26);					// error
   }
   volnum = db_var.volset;				// save this for ron
+  ASSERT(0 < volnum);
+  ASSERT(volnum <= MAX_VOL);
 #ifndef NDEBUG
   if (db_var.nsubs != 255)
   { int actsubs;
@@ -877,12 +880,17 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
   u_char *p;						// for malloc
   int dbfd;						// for open
 
+  // XXX missing mounted check
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
+
   p = mv1malloc(systab->vol[vol]->vollab->block_size);	// get some space
   if (p == NULL)
   { return -(ERRMLAST+ERRZLAST+errno);			// die
   }
   bzero(p, systab->vol[vol]->vollab->block_size);	// clear it
-  dbfd = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
+  dbfd = open(systab->vol[vol]->file_name, O_RDWR);	// open database r/wr
   if (dbfd < 0)						// if failed
   { mv1free(p);						// free memory
     return -(ERRMLAST+ERRZLAST+errno);			// and die
@@ -920,11 +928,11 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 // Return:   0
 //
 
-int DB_Dismount(int vol)	                       	// dismount a volume
-{ if (vol == 1)
-  { DB_StopJournal(vol, JRN_ESTOP);
+int DB_Dismount(int volume)	                       	// dismount a volume
+{ if (volume > 1)                                       // XXX csak 1-nel ?
+  { DB_StopJournal(volume, JRN_ESTOP);
   }
-  systab->vol[vol-1]->dismount_flag = 1;		// set the flag
+  systab->vol[volume-1]->dismount_flag = 1;		// set the flag
   return 0;						// that's all for now
 }
 
@@ -936,11 +944,11 @@ int DB_Dismount(int vol)	                       	// dismount a volume
 // Return:   none
 //
 
-void DB_StopJournal(int vol, u_char action)		// Stop journal
+void DB_StopJournal(int volume, u_char action)		// Stop journal
 { jrnrec jj;
 
-  volnum = vol;						// set common var
-  if (!systab->vol[vol - 1]->vollab->journal_available) // if no journal
+  volnum = volume;					// set common var
+  if (!systab->vol[volnum-1]->vollab->journal_available)// if no journal
   { return;						// just exit
   }
   while (SemOp( SEM_GLOBAL, WRITE))
@@ -952,7 +960,7 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   X_Clear(jj.name.var_xu);
   jj.slen = 0;
   DoJournal(&jj, NULL);
-  systab->vol[vol - 1]->vollab->journal_available = 0;
+  systab->vol[volnum-1]->vollab->journal_available = 0;
   SemOp( SEM_GLOBAL, -curr_lock);
   return;
 }

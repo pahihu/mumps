@@ -207,7 +207,7 @@ int INIT_Start( char *file,                     // database
             + locksize;				// size of LOCKTAB
 
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
-  volset_size = MAX_VOL * sizeof(vol_def)	// size of VOL_DEF
+  volset_size = sizeof(vol_def)	                // size of VOL_DEF
 	      + hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
@@ -293,11 +293,12 @@ int INIT_Start( char *file,                     // database
   systab->lockfree->job = -1;			// means free
   systab->addoff = addoff;                      // Add buffer offset
   systab->addsize = addmb * MBYTE;              // and size in bytes
-  systab->vol[0] = (vol_def *) ((void *)systab + sjlt_size);// jump to start of
+
+  systab->vol[0] = (vol_def *) ((void *)systab + sjlt_size);
 						// volume set memory
 
   systab->vol[0]->vollab =
-    (label_block *) ((void *)systab->vol[0] + MAX_VOL * sizeof(vol_def));
+    (label_block *) ((void *)systab->vol[0] + sizeof(vol_def));
 						// and point to label blk
 
   systab->vol[0]->map =
@@ -512,6 +513,7 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_BLKSEM
     gptr[i].curr_lock = 0;                      // block lock flag
 #endif
+    gptr[i].vol = 0;                            // vol[] index
   }						// end setup gbds
 #ifdef MV1_GBDRO
   for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail

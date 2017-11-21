@@ -227,7 +227,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     btmp = blk[level]->mem;				// save this
     blk[level]->mem = cblk[2]->mem;			// copy in this
     cblk[2]->mem = btmp;				// end swap 'mem'
-    Free_GBD(blk[level]);				// give it back
+    Free_GBD(volnum-1, blk[level]);			// give it back
 
     blk[level] = cblk[0];				// orig blk again
     idx = (u_short *) blk[level]->mem;			// point at it

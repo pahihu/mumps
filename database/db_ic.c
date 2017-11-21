@@ -63,9 +63,7 @@ void ic_full();						// full check
 void ic_bits(u_int block, int flag, u_int points_at);	// check bits
 u_int ic_block(u_int block, u_int points_at,
 	      u_char *kin, chr_x *global);		// check block
-void ic_map(int flag, int dbfd);			// check the map
-
-// extern int dbfd;					// global db file desc
+void ic_map(int flag, int vol, int dbfd);		// check the map
 
 //-----------------------------------------------------------------------------
 // Function: DB_ic
@@ -75,15 +73,15 @@ void ic_map(int flag, int dbfd);			// check the map
 // Return:   Number of errors found
 //
 
-int DB_ic(int vol, int block)                  		// integrity checker
+int DB_ic(int volume, int block)                  	 // integrity checker
 { 
-  if (vol > MAX_VOL)					// within limits?
+  if (volume > MAX_VOL)					// within limits?
   { return (-ERRM26);					// no - error
   }
-  if (systab->vol[vol-1] == NULL)			// is it mounted?
+  if (systab->vol[volume-1] == NULL)			// is it mounted?
   { return (-ERRM26);					// no - error
   }
-  volnum = vol;						// save this
+  volnum = volume;					// save this
   // curr_lock = 0;					// ensure this is clear
   if (curr_lock)
     SemOp(SEM_GLOBAL, -curr_lock);
@@ -110,7 +108,7 @@ int DB_ic(int vol, int block)                  		// integrity checker
     return icerr;					// and return
   }
   // dbfd = partab.vol_fds[volnum - 1];			// set this up
-  ic_map(block, partab.vol_fds[volnum - 1]);		// map check
+  ic_map(block, volnum-1, partab.vol_fds[volnum-1]);	// map check
   return icerr;						// and return
 }
 
@@ -534,7 +532,7 @@ u_int ic_block(u_int block, u_int points_at,
 // Return:   none
 //
 
-void ic_map(int flag, int dbfd)				// check the map
+void ic_map(int flag, int vol, int dbfd)		// check the map
 { int i;						// a handy int
   u_int block;						// current block
   u_int base;						// current block base
@@ -547,22 +545,26 @@ void ic_map(int flag, int dbfd)				// check the map
   int status;						// block status
   u_char type_byte;					// for read
 
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
+
   lock = (flag == -1) ? READ : WRITE;			// what we need
-  c = (u_char *) systab->vol[volnum - 1]->map;		// point at it
-  e = &c[systab->vol[volnum - 1]->vollab->max_block >> 3]; // and the end
+  c = (u_char *) systab->vol[vol]->map;		        // point at it
+  e = &c[systab->vol[vol]->vollab->max_block >> 3];     // and the end
   off = 1;						// start at 1
   while (c <= e)					// scan the map
-  { base = ((u_int) (c - (u_char *) systab->vol[volnum - 1]->map)) << 3;
+  { base = ((u_int) (c - (u_char *) systab->vol[vol]->map)) << 3;
 							// base block number
     while (SemOp(SEM_GLOBAL, lock));			// grab a lock
 
     for (off = off; off < 8; off++)			// scan the byte
     { block = base + off;				// the block#
       status = -1;					// not yet known
-      if (block > systab->vol[volnum - 1]->vollab->max_block)
+      if (block > systab->vol[vol]->vollab->max_block)
       { continue;
       }
-      ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(block)];
+      ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(block)];
       while (ptr != NULL)				// scan for block
       { if (ptr->block == block)			// if found
 	{ type_byte = ptr->mem->type;			// save this
@@ -579,8 +581,8 @@ void ic_map(int flag, int dbfd)				// check the map
       if (status == -1)					// if not found
       { file_off = (off_t) block - 1;			// block#
         file_off = (file_off * (off_t)
-    			systab->vol[volnum-1]->vollab->block_size)
-		 + (off_t) systab->vol[volnum-1]->vollab->header_bytes;
+    			systab->vol[vol]->vollab->block_size)
+		 + (off_t) systab->vol[vol]->vollab->header_bytes;
         file_off = lseek( dbfd, file_off, SEEK_SET);	// Seek to block
         if (file_off < 1)
         { panic("ic_map: lseek failed!!");		// die on error
@@ -607,17 +609,17 @@ void ic_map(int flag, int dbfd)				// check the map
       else						// free
       { *c &= (u_char) (~(1 << off));			// clear it
       }
-      systab->vol[volnum-1]->map_dirty_flag = 1;	// map needs writing
+      systab->vol[vol]->map_dirty_flag = 1;	        // map needs writing
     }							// end byte scan
     SemOp(SEM_GLOBAL, -curr_lock);			// free lock
     c++;						// point at next
     off = 0;						// now start at 0
     if (flag == -3)					// daemon?
-    { systab->vol[volnum - 1]->upto = ((u_int) (e - c)) << 3;
+    { systab->vol[vol]->upto = ((u_int) (e - c)) << 3;
     }
   }							// end main while
   if (flag == -3)					// daemon?
-  { systab->vol[volnum - 1]->upto = 0;			// clear this
+  { systab->vol[vol]->upto = 0;			        // clear this
   }
   return;						// done
 }

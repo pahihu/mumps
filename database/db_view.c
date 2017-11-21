@@ -56,17 +56,21 @@
 // Return:   Address of gbd or null on error
 //
 
-struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
+struct GBD *DB_ViewGet(int volume, int block)		// return gbd for blk
 { short s;						// for func
+
+  ASSERT(0 < volume);                                   // valid volume
+  ASSERT(volume <= MAX_VOL);
+  ASSERT(NULL != systab->vol[volume-1]);                // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewGet: %d\r\n",block);fflush(stderr);
 #endif
-  if ((block < 1) || (block > systab->vol[vol-1]->vollab->max_block))
+  if ((block < 1) || (block > systab->vol[volume-1]->vollab->max_block))
   { return NULL;					// validate
   }
   level = 0;						// where it goes
-  volnum = vol;						// need this
+  volnum = volume;					// need this
   writing = 0;						// clear this
   s = SemOp(SEM_GLOBAL, READ);				// write lock
   if (s < 0)						// check error
@@ -89,13 +93,17 @@ struct GBD *DB_ViewGet(int vol, int block)		// return gbd for blk
 // Return:   none
 //
 
-void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
+void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 { short s;						// for funcs
+
+  ASSERT(0 < volume);                                   // valid volume
+  ASSERT(volume <= MAX_VOL);
+  ASSERT(NULL != systab->vol[volume-1]);                // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewPut: %d\r\n",ptr->block);fflush(stderr);
 #endif
-  volnum = vol;						// for ron
+  volnum = volume;					// for ron
   writing = 0;						// clear this
   s = SemOp(SEM_GLOBAL, WRITE);				// write lock
   if (s < 0)						// check error
@@ -103,11 +111,11 @@ void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
   }
   ptr->last_accessed = MTIME(0);			// reset access
   if (ptr->mem->type)					// if used
-  { Used_block(ptr->block);				// mark it so
+  { Used_block(volnum-1, ptr->block);			// mark it so
   }
   else 							// trying to free it
-  { Free_block(ptr->block);				// do so
-    bzero(ptr->mem, systab->vol[(volnum)-1]->vollab->block_size); // clear it
+  { Free_block(volnum-1, ptr->block);			// do so
+    bzero(ptr->mem, systab->vol[volnum-1]->vollab->block_size); // clear it
   }
   level = 0;						// for Queit
   if (ptr->dirty == NULL)				// check dirty ptr
@@ -129,8 +137,12 @@ void DB_ViewPut(int vol, struct GBD *ptr)		// que block for write
 // Return:   none
 //
 
-void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
+void DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
 { short s;						// for functions
+
+  ASSERT(0 < volume);                                   // valid volume
+  ASSERT(volume <= MAX_VOL);
+  ASSERT(NULL != systab->vol[volume-1]);                // mounted
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"--- DB_ViewRel: %d\r\n",ptr->block);fflush(stderr);
@@ -146,7 +158,7 @@ void DB_ViewRel(int vol, struct GBD *ptr)	      	// release block, gbd
 #ifdef MV1_CACHE_DEBUG
     fprintf(stderr,"--- DB_ViewRel: !!! free !!!\r\n");fflush(stderr);
 #endif
-    Free_GBD(ptr);					// free it
+    Free_GBD(volume-1, ptr);				// free it
     SemOp(SEM_GLOBAL, -curr_lock);			// release lock
   }
   return;						// and exit

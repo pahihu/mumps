@@ -39,6 +39,7 @@
 #include <strings.h>
 #include <unistd.h>					// for file reading
 #include <time.h>					// for gbd stuff
+#include <errno.h>                                      // for errno
 #include <fcntl.h>					// for expand
 #include <ctype.h>					// for gbd stuff
 #include <sys/types.h>					// for semaphores
@@ -223,6 +224,10 @@ void Queit()						// que a gbd for write
   bool result;
 #endif
 
+  ASSERT(0 < volnum);
+  ASSERT(volnum <= MAX_VOL);
+  ASSERT(NULL != systab->vol[volnum-1]);                // mounted
+
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];					// point at the block
   // fprintf(stderr,"Queit: %d",ptr->block);
@@ -276,6 +281,11 @@ void Garbit(int blknum)					// que a blk for garb
   bool result;                                          // ck result
 #endif
 
+  ASSERT(0 < volnum);                                   // valid vol[] index
+  ASSERT(volnum <= MAX_VOL);
+  ASSERT(NULL != systab->vol[volnum-1]);                // mounted
+  blknum = VOLBLK(volnum-1,blknum);                     // (vol,blkno)
+
   if (curr_lock != WRITE)
   { char msg[32];
     sprintf(msg, "Garbit(): curr_lock = %d", curr_lock);
@@ -311,25 +321,28 @@ void Garbit(int blknum)					// que a blk for garb
 // Note:     Must hold a write lock before calling this function
 //
 
-void Free_block(int blknum)				// free blk in map
+void Free_block(int vol, int blknum)			// free blk in map
 { int i;						// a handy int
   int off;						// and another
   u_char *map;						// map pointer
 
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
 
-  map = ((u_char *) systab->vol[volnum-1]->map);	// point at it
+  map = ((u_char *) systab->vol[vol]->map);	        // point at it
   i = blknum >> 3;					// map byte
   off = blknum & 7;					// bit number
   off = 1 << off;					// convert to mask
   if ((map[i] & off) == 0)				// if it's already free
   { return;						// just exit
   }
-  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.blkdeall); // update stats
+  ATOMIC_INCREMENT(systab->vol[vol]->stats.blkdeall);   // update stats
   map[i] &= ~off;					// clear the bit
-  if (systab->vol[volnum-1]->first_free > (void *) &map[i])	// if earlier
-  { systab->vol[volnum-1]->first_free = &map[i]; // reset first free
+  if (systab->vol[vol]->first_free > (void *) &map[i])	// if earlier
+  { systab->vol[vol]->first_free = &map[i];             // reset first free
   }
-  systab->vol[volnum-1]->map_dirty_flag++;		// mark map dirty
+  systab->vol[vol]->map_dirty_flag++;		        // mark map dirty
   return;						// and exit
 }
 
@@ -344,21 +357,25 @@ void Free_block(int blknum)				// free blk in map
 // This is only called from database/db_view.c
 //
 
-void Used_block(int blknum)				// set blk in map
+void Used_block(int vol, int blknum)			// set blk in map
 { int i;						// a handy int
   int off;						// and another
   u_char *map;						// map pointer
 
-  map = ((u_char *) systab->vol[volnum-1]->map);	// point at it
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     //  mounted
+
+  map = ((u_char *) systab->vol[vol]->map);	        // point at it
   i = blknum >> 3;					// map byte
   off = blknum & 7;					// bit number
   off = 1 << off;					// convert to mask
   if ((map[i] & off))					// if it's already used
   { return;						// just exit
   }
-  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.blkalloc); // update stats
+  ATOMIC_INCREMENT(systab->vol[vol]->stats.blkalloc);   // update stats
   map[i] |= off;					// set the bit
-  systab->vol[volnum-1]->map_dirty_flag++;		// mark map dirty
+  systab->vol[vol]->map_dirty_flag++;		        // mark map dirty
   return;						// and exit
 }
 
@@ -395,7 +412,7 @@ void Tidy_block()					// tidy current blk
   blk[level]->mem = ptr->mem;				// copy in this
   ptr->mem = btmp;					// end swap 'mem'
 
-  Free_GBD(blk[level]);					// release it
+  Free_GBD(volnum-1, blk[level]);			// release it
   blk[level] = ptr;					// restore the ptr
   idx = (u_short *) blk[level]->mem;			// set this up
   iidx = (int *) blk[level]->mem;			// and this
@@ -707,30 +724,61 @@ short FlushJournal(int vol, int jfd, int dosync)
 { off_t jptr;                                           // offset
   int j;
   u_int currsize;                                       // curr. JNL buffer size
+  int ggg = 0;
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  // ASSERT(NULL != systab->vol[vol]->vollab);
 
   if (0 == jfd)
-  { jfd = partab.jnl_fds[vol];
+  { if (vol)                                            // only VOL0 is open
+    { if (vol + 1 > MAX_VOL) return -(ERRZ72+ERRMLAST); // must be in range
+      if (partab.jnl_fds[vol] == 0)                     //   if not open
+      { if (systab->vol[vol] &&                         // mounted
+            (systab->vol[vol]->vollab->journal_available) &&
+            (systab->vol[vol]->vollab->journal_requested)) // if journaling
+        { partab.jnl_fds[vol] = open(systab->vol[vol]->vollab->journal_file, 
+                                                O_RDWR);
+          if (partab.jnl_fds[vol] < 0) return -(errno+ERRMLAST+ERRZLAST);
+        } 
+        else
+        { return -(ERRZ72+ERRMLAST);                    // give up on error
+        }
+      }
+      else                                              // check still there
+      { if ((NULL == systab->vol[vol]) ||               // volume gone
+            (systab->vol[vol]->vollab->journal_file[0] == 0)) // or no jrn file
+        { j = close( partab.jnl_fds[vol] );             // close the file
+          partab.jnl_fds[vol] = 0;                      // flag not there
+          return -(ERRZ72+ERRMLAST);                    // exit complaining
+        }
+      }
+    }
+    jfd = partab.jnl_fds[vol];
   }
+
   currsize = systab->vol[vol]->jrnbufsize;
+  ASSERT(0 <= currsize);
+  ASSERT(currsize <= systab->vol[vol]->jrnbufcap);
   if (currsize)
   { jptr = lseek(jfd, systab->vol[vol]->jrn_next,       // address to locn
                  SEEK_SET);
     if (jptr != systab->vol[vol]->jrn_next)	        // if failed
-    { goto fail;
+    { ggg = 1; goto fail;
     }
     j = write(jfd, systab->vol[vol]->jrnbuf, currsize);
     if (j != currsize)                                  // flush buffer
-    { goto fail;
+    { ggg = 2; goto fail;
     }
     systab->vol[vol]->jrn_next += currsize;	        // update next
     jptr = lseek(jfd, sizeof(u_int), SEEK_SET);
     if (jptr != sizeof(u_int))
-    { goto fail;
+    { ggg = 3; goto fail;
     }
     j = write(jfd, &systab->vol[vol]->jrn_next,
 	          sizeof(off_t));			// write next
     if (j < 0)
-    { goto fail;
+    { ggg = 4; goto fail;
     }
   }
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
@@ -739,6 +787,7 @@ short FlushJournal(int vol, int jfd, int dosync)
   return 0;
 
 fail:
+  fprintf(stderr,"FlushJournal: ggg = %d\n",ggg);
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   systab->vol[vol]->vollab->journal_available = 0;      // turn it off
   close(partab.jnl_fds[vol]);			        // close the file
@@ -940,15 +989,19 @@ cont:
 }
 
 
-short Check_BlockNo(u_int blkno, int checks,
+short Check_BlockNo(int vol, u_int blkno, int checks,
                         char *where, char *file, int lno, int dopanic)
 {
   char msg[128];
-  u_char *bitmap = (u_char *) systab->vol[volnum-1]->map;
+  u_char *bitmap = (u_char *) systab->vol[vol]->map;
   int failed = 0;
 
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
+
   if (checks & CBN_INRANGE)                             // out of range ?       
-    failed = failed || (blkno > systab->vol[volnum-1]->vollab->max_block);
+    failed = failed || (blkno > systab->vol[vol]->vollab->max_block);
   if (checks & CBN_ALLOCATED)                           // unallocated ?
     failed = failed || (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
 
@@ -958,11 +1011,11 @@ short Check_BlockNo(u_int blkno, int checks,
 
   if (failed)                                           // panic when failed
   { if (file)
-      sprintf((char *) msg, "invalid block (%u) in %s(%s:%d)!!",
-                                  blkno, where, file, lno);
+      sprintf((char *) msg, "invalid block (%d:%u) %s(%s:%d)!!",
+                                  vol, blkno, where, file, lno);
     else
-      sprintf((char *) msg, "invalid block (%u) in %s()!!",
-                                blkno, where);
+      sprintf((char *) msg, "invalid block (%d:%u) %s()!!",
+                                vol, blkno, where);
     panic((char *) msg);
   }
   return 0;

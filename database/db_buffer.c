@@ -82,20 +82,24 @@
 
 #ifdef MV1_REFD
 
-#define Unlink_GBD(x)   UnlinkGBD(x,__FILE__,__LINE__)
+#define Unlink_GBD(vol,x)   UnlinkGBD(vol,x,__FILE__,__LINE__)
 
-void UnlinkGBD(gbd *oldptr,                             // unlink a GBD
+void UnlinkGBD(int vol, gbd *oldptr,                    // unlink a GBD
         const char *caller_path, int caller_line)
 { int hash;
   gbd *ptr;
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
 
   hash = oldptr->hash;                                  // the chain
   // fprintf(stderr,"Unlink_GBD(): hash=%d\r\n",hash); fflush(stderr);
   ASSERT2(0 <= hash);
   ASSERT2(hash < GBD_HASH);
-  ptr = systab->vol[volnum-1]->gbd_hash[hash];	        // get the list
+  ptr = systab->vol[vol]->gbd_hash[hash];	        // get the list
   if (ptr == oldptr)					// is this it
-  { systab->vol[volnum-1]->gbd_hash[hash] = oldptr->next;// unlink it
+  { systab->vol[vol]->gbd_hash[hash] = oldptr->next;    // unlink it
     ptr = 0;                                            // removed
   }
   else						        // inside the chain
@@ -519,14 +523,15 @@ exit:
 
 short GetBlock(u_int blknum,char *file,int line)        // Get block
 {
-  Check_BlockNo(blknum, CBN_ALLOCATED | CBN_INRANGE,    // check blknum, die
-                        "Get_block", file, line, 1);
+  Check_BlockNo(volnum-1, blknum,                       // check blknum, die
+                CBN_ALLOCATED | CBN_INRANGE,    
+                "Get_block", file, line, 1);
   return GetBlockEx(blknum,file,line);
 }
 
 short GetBlockRaw(u_int blknum, char *file, int line)   // Get block, raw
 { short s;
-  s = Check_BlockNo(blknum, CBN_INRANGE,                // check blknum
+  s = Check_BlockNo(volnum-1, blknum, CBN_INRANGE,      // check blknum
                         "Get_block", file, line, 0);
   if (s < 0)
     return s;
@@ -593,7 +598,7 @@ short New_block()					// get new block
     }
     c++;						// point at next
   }							// end map scan
-  Free_GBD(blk[level]);					// give it back
+  Free_GBD(volnum-1, blk[level]);			// give it back
   return -(ERRMLAST + ERRZ11);				// error - no room
 }
 
@@ -614,9 +619,10 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   fflush(stderr);
 #endif
   blkno = gbdptr->block;
-  dbfd = partab.vol_fds[0];
-  Check_BlockNo(blkno, CBN_INRANGE | CBN_ALLOCATED,
-                        "WriteBlock", 0, 0, 1);         // check blkno validity
+  dbfd = partab.vol_fds[volnum - 1];
+  Check_BlockNo(volnum-1, blkno,                        // check blkno validity
+                CBN_INRANGE | CBN_ALLOCATED,
+                "WriteBlock", 0, 0, 1);         
   file_off = (off_t) blkno - 1;		                // block#
   file_off = (file_off * (off_t)
 	systab->vol[volnum-1]->vollab->block_size)
@@ -704,7 +710,7 @@ start:
     if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
       // fprintf(stderr,"Get_GBDs(): before Unlink_GBD\r\n"); fflush(stderr);
-      Unlink_GBD(ptr);                                  // unlink ptr
+      Unlink_GBD(volnum-1, ptr);                        // unlink ptr
       // fprintf(stderr,"Get_GBDs(): after Unlink_GBD\r\n"); fflush(stderr);
       ptr->prev = NULL;                                 // no dbllnk in free lst
       ptr->next = systab->vol[volnum-1]->gbd_hash [GBD_HASH]; // hook to free
@@ -859,7 +865,7 @@ unlink_gbd:
   systab->vol[volnum-1]->hash_start = oldpos;
 
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
-  Unlink_GBD(oldptr);                                   // unlink oldptr
+  Unlink_GBD(volnum-1, oldptr);                         // unlink oldptr
   // fprintf(stderr,"Get_GBD(): after Unlink_GBD\r\n"); fflush(stderr);
 
 exit:
@@ -903,15 +909,19 @@ gbd* Get_RdGBD(void)                                    // get a read-only GBD
 // Return:   none
 // Note:     curr_lock MUST be WRITE when calling this function
 //
-void Free_GBD(gbd *free)				// Free a GBD
+void Free_GBD(int vol, gbd *free)			// Free a GBD
 { gbd *ptr;						// a handy pointer
 
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]);                     // mounted
+  ASSERT(free->vol == vol);                             // same volume
   if (free->block)					// if there is a blk#
   { 
 #ifdef MV1_CACHE
-    ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(free->block)];
+    ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(free->block)];
     if (ptr == free)					// if this one
-    { systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(free->block)]
+    { systab->vol[vol]->gbd_hash[GBD_BUCKET(free->block)]
         = free->next;					// unlink it
     }
     else						// look for it
@@ -921,7 +931,7 @@ void Free_GBD(gbd *free)				// Free a GBD
       ptr->next = free->next;				// unlink it
     }
 #else
-    Unlink_GBD(free);                                   // unlink GBD ptr
+    Unlink_GBD(vol, free);                              // unlink GBD ptr
 #endif
   }
 
@@ -930,8 +940,8 @@ void Free_GBD(gbd *free)				// Free a GBD
   REFD_CLEAR(free);
   free->hash = GBD_HASH;
 #endif
-  free->next = systab->vol[volnum-1]->gbd_hash[GBD_HASH]; // get free list
-  systab->vol[volnum-1]->gbd_hash[GBD_HASH] = free; 	// link it in
+  free->next = systab->vol[vol]->gbd_hash[GBD_HASH];    // get free list
+  systab->vol[vol]->gbd_hash[GBD_HASH] = free; 	        // link it in
   free->block = 0;					// clear this
   free->dirty = NULL;					// and this
   free->last_accessed = (time_t) 0;			// and this
