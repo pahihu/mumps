@@ -69,7 +69,7 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
 %C ;^%C contents
  S ^%C="MCL Version 0.9"
  S ^%C("CD")="D CD^%U(CCL)"
- S ^%C("CD",1)="Change directory (UCI)"
+ S ^%C("CD",1)="Change directory (UCI[,VOL])"
  S ^%C("CLEAR")="W $C(27)_""[H""_$C(27)_""[J"""
  S ^%C("CLEAR",1)="Clear the screen."
  S ^%C("COPY")="M ^$R($P(CCL,"" "",2))=^$R($P(CCL,"" ""))"
@@ -696,15 +696,20 @@ PAT(STR,S,N,C,P,ZR) S ZR="PAT^%U"
  S P="" F  Q:STR=""  S S=$P(STR,","),STR=$P(STR,",",2,99) I $L(S) S P=P_"," D
  .F N=1:1:$L(S) S C=$E(S,N),P=P_$S(C="*":".E",C="?":"1E",C="""":"1""""""""",1:"1"""_C_"""")
  S P=$E(P,2,999) S:P["," P="1("_P_")" Q P
-CD(UCI,%,ZR) S ZR="CD^%U"
+CD(UCIVOL,%,UCI,VOL,ZR) S ZR="CD^%U"
+ S UCI=$P(UCIVOL,",",1),VOL=^$J($J,"GLOBAL_VOL")
+ S:$L(UCIVOL,",")=2 VOL=$P(UCIVOL,",",2) I 1
  I 'UCI F %=1:1:64 I ^$S("VOL",1,"UCI",%)=UCI S UCI=% Q
+ I 'VOL F %=1:1:16 I ^$S("VOL",%,"NAME")=VOL S VOL=% Q
 ;Make it into a number if possible
- G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",1,"UCI",UCI))
+ G CDE:VOL<1!(VOL>16),CDE:'$L(^$S("VOL",VOL,"NAME"))
+ G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",VOL,"UCI",UCI))
 ;Validate it
+ F %="GLOBAL_VOL","LOCK_VOL","ROUTINE_VOL" S ^$J($J,%)=VOL
  F %="GLOBAL","LOCK","ROUTINE" S ^$J($J,%)=UCI
 ;Set all the bits
  Q
-CDE W "?Invalid uci specified",! Q
+CDE W "?Invalid uci[,vol] specified",! Q
 
 %WWW
 %WWW ;WWW Stuf

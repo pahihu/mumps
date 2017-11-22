@@ -151,6 +151,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
   if (!buf[1])                                  // if no uci
   { if (var->name.var_cu[0] == '%')             // if % var
     { buf[1] = 1;                               // MGR
+      buf[0] = 1;
     }
     else
     { buf[1] = partab.jobtab->luci;             // default

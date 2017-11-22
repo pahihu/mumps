@@ -123,8 +123,10 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
 	  var->volset = partab.jobtab->rvol;	// ensure non-zero
 	if (var->uci == 0)			// check uci
 	{
-	  if (var->key[1] == '%')
-	    var->uci = 1;			// manager
+	  if (var->key[1] == '%')               // manager
+	  { var->uci = 1;
+            var->volset = 1;
+          }
 	  else
 	    var->uci = partab.jobtab->ruci;	// or here
 	}

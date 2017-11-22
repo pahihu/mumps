@@ -1305,7 +1305,10 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     X_set("$ROUTINE", &var->name.var_cu[0], 8); // copy in $ROUTINE
     var->volset = systab->jobtab[job].rvol;	// vol number
     var->uci = systab->jobtab[job].ruci;	// uci number
-    if (rounam->var_cu[0] == '%') var->uci = 1;	// check for a percent rou
+    if (rounam->var_cu[0] == '%')               // check for a percent rou
+    { var->uci    = 1; 
+      var->volset = 1;
+    }	
     cptr = (cstring *) temp;			// some spare space
     for (i = 0; i < MAX_NAME_BYTES; i++)	// copy name
     { if (rounam->var_cu[i] == 0) break;	// quit when done
@@ -1423,7 +1426,9 @@ short Dtext(u_char *ret_buffer, cstring *str)	// $TEXT()
   partab.src_var.volset = partab.jobtab->rvol;	// vol
   partab.src_var.uci = partab.jobtab->ruci;	// uci
   if (cr->buf[0] == '%')			// manager routine?
-    partab.src_var.uci = 1;			// point there
+  { partab.src_var.uci = 1;			// point there
+    partab.src_var.volset = 1;
+  }
   partab.src_var.slen = 0;			// init key size
   s = UTIL_Key_BuildEx(&partab.src_var, cr, &partab.src_var.key[0]);// first key
   if (s < 0) return s;				// die on error

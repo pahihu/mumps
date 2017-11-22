@@ -122,7 +122,8 @@ short Copy2local(mvar *var, char *rtn)
   }
   if (db_var.uci == 0)					// uci specified?
   { if (db_var.name.var_cu[0] == '%')
-    { db_var.uci = 1;					// MGR
+    { db_var.uci    = 1;					// MGR
+      db_var.volset = 1;
     }
     else
     { db_var.uci = partab.jobtab->uci;			// or current
@@ -148,7 +149,7 @@ short Copy2local(mvar *var, char *rtn)
   { return (-ERRM26);					// no - error
   }
   if ((db_var.name.var_cu[0] == '%') &&			// if a %global
-      (db_var.uci != 1))				// and uci is not 1
+      (db_var.uci != 1) && (db_var.volset != 1))	// and uci,vol is not 1
   { return (-ERRM26);					// error
   }
   volnum = db_var.volset;				// save this for ron
