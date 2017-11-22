@@ -323,13 +323,15 @@ S1 S TER=$O(@EG@(ER,"z"),-1),%DT=$G(@EG@(ER,TER,"$H"))
 %GD
 %GD ;Do a global directory for current uci
  D INT(0,".E") Q
-INT(FL,PAT,UCI,ST,END,G,%,F,L,ZR) S ZR="INT^%GD"
+INT(FL,PAT,UCI,ST,END,G,%,VOL,F,L,ZR) S ZR="INT^%GD"
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"GLOBAL"))
+ S VOL=^$J($J,"GLOBAL_VOL")
  S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
- S ST=$G(ST),END=$G(END,"z"),L=ST I UCI S UCI=^$S("VOL",1,"UCI",UCI)
+ S ST=$G(ST),END=$G(END,"z"),L=ST I UCI S UCI=^$S("VOL",VOL,"UCI",UCI)
+ S VOL=^$S("VOL",VOL,"NAME")
  I FL=3,'$D(G) S G="SEL"
- I FL-3 W "Global Directory of ["_UCI_"] matching '"_PAT_"'.",!!
- F  S L=$O(^[UCI]$G(L)) Q:L=""!($E(L)]END)  I L?@PAT D
+ I FL-3 W "Global Directory of ["_UCI_","_VOL_"] matching '"_PAT_"'.",!!
+ F  S L=$O(^[UCI,VOL]$G(L)) Q:L=""!($E(L)]END)  I L?@PAT D
  .I 'FL W:$X>70 ! W L,?$X\10+1*10 Q
  .I FL=3,$E(L)'="$" S @G@(L)=""
  Q
@@ -495,18 +497,20 @@ ERROR U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" G %M
 %RD ;Do a routine directory for current uci or MGR %
  D INT(0,".E") Q
 LIB D INT(0,"1""%"".E",1,"%","%") Q
-INT(FL,PAT,UCI,ST,END,G,%,F,R,ZR) S ZR="INT^%RD"
+INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
  S WEB=$P($D,",",2)=2
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"ROUTINE"))
+ S VOL=^$J($J,"ROUTINE_VOL")
  S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
- S ST=$G(ST),END=$G(END,"z"),R=ST I UCI S UCI=^$S("VOL",1,"UCI",UCI)
+ S ST=$G(ST),END=$G(END,"z"),R=ST I UCI S UCI=^$S("VOL",VOL,"UCI",UCI)
+ S VOL=^$S("VOL",VOL,"NAME")
  I FL=3,'$D(G) S G="SEL"
- I FL-3 W "Routine Directory of ["_UCI_"] matching '"_PAT_"'.",!!
+ I FL-3 W "Routine Directory of ["_UCI_","_VOL_"] matching '"_PAT_"'.",!!
  I FL=2 W "Routine",?10," Size",?20,"Owner",?30,"Compiled",!!
- F  S R=$O(^[UCI]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
+ F  S R=$O(^[UCI,VOL]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
  .I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
- .I FL=1 W R,?10,^[UCI]$R(R,1),! Q
- .I FL=2 S F=^[UCI]$R(R,0),%=R D  Q
+ .I FL=1 W R,?10,^[UCI,VOL]$R(R,1),! Q
+ .I FL=2 S F=^[UCI,VOL]$R(R,0),%=R D  Q
  ..I $E(R)="%" S %="%25"_$E(R,2,9)
  ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
  ..E  W R
@@ -609,23 +613,24 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
-INT(INT,%,O,N,EX,I,LS,D,M,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
+INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
+ S VOL=^$J($J,"GLOBAL_VOL")
  S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W $&V(1,1),$C(27)_"[J" S:'INT INT=1
  D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
  W $&V(23,1),! Q
 ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
-GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",1,$P(LS,",",I))
+GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",VOL,$P(LS,",",I))
  S N=$H Q
 MAX F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>$G(M(%),-1) M(%)=D
  Q
 PRT W $&V(1,1),"System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
- W "Volume: ",^$S("VOL",1,"NAME")
- W " in file: ",^$S("VOL",1,"FILE"),!
- W ^$S("VOL",1,"SIZE")," x ",^$S("VOL",1,"BLOCK")/1024,"kb blocks - "
- W ^$S("VOL",1,"FREE")," available ("
- W $J(^$S("VOL",1,"FREE")/^$S("VOL",1,"SIZE")*100,0,2),"%)",!
+ W "Volume: ",^$S("VOL",VOL,"NAME")
+ W " in file: ",^$S("VOL",VOL,"FILE"),!
+ W ^$S("VOL",VOL,"SIZE")," x ",^$S("VOL",VOL,"BLOCK")/1024,"kb blocks - "
+ W ^$S("VOL",VOL,"FREE")," available ("
+ W $J(^$S("VOL",VOL,"FREE")/^$S("VOL",VOL,"SIZE")*100,0,2),"%)",!
  W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),!
  W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Max",10),!
  F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(M(%),10),!
