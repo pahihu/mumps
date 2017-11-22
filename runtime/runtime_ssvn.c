@@ -989,7 +989,7 @@ short SS_Kill(mvar *var)                        // remove sub-tree
       s = DB_Kill(var);				// give it to the database
       if (s >= 0)				// if OK
         //Routine_Delete(rou.var_qu, var->uci);	// mark as deleted
-        Routine_Delete(rou.var_xu, var->uci);	// mark as deleted
+        Routine_Delete(rou.var_xu, var->uci,var->volset); // mark as deleted
       i = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return s;					// exit
 

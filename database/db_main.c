@@ -235,7 +235,6 @@ short DB_Set(mvar *var, cstring *data)    	        // set global data
 short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
 { short s;						// for returns
   int i;						// a handy int
-  int curr_lock_sav;
 
   if (!has_wrlock)                                      // no wrlock ?
   { s = Copy2local(var,"DB_Set");			//   get local copy

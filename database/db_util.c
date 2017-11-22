@@ -930,9 +930,7 @@ void OpenJournal(int vol, int printlog)
 //	     the date/time and size are filled in here
 //
 void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
-{ off_t jptr;
-  int i;
-  int j;
+{ int i;                                                // handy int
   int jj_alignment;                                     // align. to 4byte bound
   u_int currsize;                                       // curr. JNL buffer size
   short s;

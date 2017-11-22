@@ -446,7 +446,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       return s;					// exit
     }
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
-    Routine_Delete(rounam.var_xu, rou->uci);	// delete the routine
+    Routine_Delete(rounam.var_xu, rou->uci, rou->volset);// delete the routine
   }
   src_slen = src->slen;				// save source key size
   src_nsubs = src->nsubs;
@@ -704,7 +704,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   s = DB_Set(rou, line);			// set it
   if (same)
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
-    Routine_Delete(rounam.var_xu, rou->uci);	// delete the routine
+    Routine_Delete(rounam.var_xu, rou->uci, rou->volset); // delete the routine
   i = SemOp(SEM_ROU, systab->maxjob);		// release sem
   return s;					// NEED MORE HERE
 }

@@ -376,7 +376,8 @@ void SemStats(void);                            // semaphore statistics
 void panic(char *msg); 				// die on error
 struct RBD *Routine_Attach(chr_x routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine
-void Routine_Delete(chr_x routine, int uci);	// mark mapped routine deleted
+void Routine_Delete(chr_x routine, int uci, int vol);
+                                                // mark mapped routine deleted
 void Dump_rbd();				// dump descriptors
 void Dump_lt();					// dump used/free lockspace
 

@@ -88,7 +88,7 @@ int INIT_Start( char *file,                     // database
                 int jkb)                        // kb of jrn buf
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
-  int i, j;                                     // usefull int
+  int i;                                        // usefull int
   int n_gbd;                                    // number of gbd
   size_t addoff;                                // offset for add buff
   int indx;                                     // loop control

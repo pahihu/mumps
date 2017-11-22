@@ -170,7 +170,6 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   DB_Block *btmp;					// ditto
   gbd *gptr;
   int trysimple;                                        // flag a simple set
-  int vol;                                              // vol[] index
 
   if (!curr_lock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock

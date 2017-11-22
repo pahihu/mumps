@@ -425,9 +425,8 @@ void Routine_Detach(rbd *pointer)		// Detach from routine
 }
 
 //void Routine_Delete(chr_q routine, int uci)	// mark routine deleted
-void Routine_Delete(chr_x routine, int uci)	// mark routine deleted
+void Routine_Delete(chr_x routine, int uci, int vol) // mark routine deleted
 // NOTE: Semaphore must be held BEFORE calling this routine
-// MORE NOTE: Needs to be changed to specify the volume in the call !!!
 { int hash = 0;					// for rbd_hash[]
   rbd *ptr;					// a pointer for this
 
@@ -436,7 +435,8 @@ void Routine_Delete(chr_x routine, int uci)	// mark routine deleted
   while (ptr != NULL)				// while we have something
   //{ if ((ptr->rnam.var_qu == routine) &&
   { if (X_EQ(ptr->rnam.var_xu, routine) &&
-	(ptr->uci == uci)) 			// if this is the right one
+	(ptr->uci == uci) &&
+        (ptr->vol == vol)) 			// if this is the right one
     { ptr->uci = 0;				// mark as deleted
       if (ptr->attached == 0)			// if not in use
 	Routine_Free(ptr);			// free the space
