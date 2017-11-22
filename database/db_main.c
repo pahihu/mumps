@@ -181,6 +181,7 @@ short DB_Get(mvar *var, u_char *buf)	                // get global data
 
 short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
 { short s;						// for returns
+  int i;                                                // handy int
 
   s = Copy2local(var,"DB_Get");				// get local copy
   if (s < 0)
@@ -200,6 +201,14 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
 
   if (wrlock)
   { writing = 1;
+    while (systab->vol[volnum - 1]->writelock ||	// check for write lock
+           systab->delaywt)                             //   or delay WRITEs
+    { i = Sleep(5);					// wait a bit
+      if (partab.jobtab->attention)
+      { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+        return -(ERRZLAST+ERRZ51);			// for <Control><C>
+      }
+    }							// end writelock check
     Ensure_GBDs(0);
   }
 
@@ -254,13 +263,16 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
   }
   writing = 1;						// say we are writing
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
-  while (systab->vol[volnum - 1]->writelock)		// check for write lock
-  { i = Sleep(5);					// wait a bit
-    if (partab.jobtab->attention)
-    { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
-      return -(ERRZLAST+ERRZ51);			// for <Control><C>
-    }
-  }							// end writelock check
+  if (!has_wrlock)                                      // has no WRITE lock ?
+  { while (systab->vol[volnum - 1]->writelock ||	// check for write lock
+           systab->delaywt)                               //   or delay WRITEs
+    { i = Sleep(5);					// wait a bit
+      if (partab.jobtab->attention)
+      { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
+        return -(ERRZLAST+ERRZ51);			// for <Control><C>
+      }
+    }							
+  }                                                     // end writelock check
 
   i = systab->vol[volnum-1]->vollab->max_block >> 3;	// last map byte
   while (i)						// check from the end
@@ -383,7 +395,8 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
   if (s < 0)
   { return s;						// exit on error
   }
-  while (systab->vol[volnum - 1]->writelock)		// check for write lock
+  while (systab->vol[volnum - 1]->writelock ||	        // check for write lock
+         systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
@@ -1022,7 +1035,8 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   }
   writing = 1;						// say we are writing
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
-  while (systab->vol[volnum - 1]->writelock)		// check for write lock
+  while (systab->vol[volnum - 1]->writelock ||		// check for write lock
+         systab->delaywt)                               //   or delay WRITEs
   { i = Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
@@ -1088,7 +1102,8 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   { bcopy(var, &db_var, sizeof(mvar));			// get next key
     writing = 0;					// flag we are reading
 
-    while (systab->vol[volnum - 1]->writelock)		// check for write lock
+    while (systab->vol[volnum - 1]->writelock ||	// check for write lock
+           systab->delaywt)                             //   or delay WRITEs
     { i = Sleep(5);					// wait a bit
       if (partab.jobtab->attention)
       { return -(ERRZLAST+ERRZ51);			// for <Control><C>

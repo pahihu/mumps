@@ -244,6 +244,7 @@ void Queit()						// que a gbd for write
     sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+
 #ifdef MV1_CKIT
   result = ck_ring_enqueue_spmc(
                 &systab->vol[0]->dirtyQ,

@@ -288,6 +288,8 @@ start:
         }						// end while (TRUE)
         i = MSLEEP(1000);				// just a bit more
         systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
+        inter_add(&systab->delaywt, -1);
+        MEM_BARRIER;
         // Set the writelock to a positive value when all quiet
       }							// end wrtlock
     }                                                   // end foreach vol

@@ -583,6 +583,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
 #endif
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
+  VOLATILE u_int delaywt;                       // delay WRITEs
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

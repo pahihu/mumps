@@ -728,6 +728,10 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (cstringtob(data))
 	    ? -((partab.jobtab - systab->jobtab) + 1)	// set it
 	    : 0;					// clear it
+        if (systab->vol[i]->writelock)          // block Queit()
+        { inter_add(&systab->delaywt, 1);
+          MEM_BARRIER;
+        }
 	return 0;				// return OK
       }
 

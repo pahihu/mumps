@@ -68,7 +68,8 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
   { return (-ERRM26);					// too big
   }
 
-  while (systab->vol[volume - 1]->writelock)		// check for write lock
+  while (systab->vol[volume - 1]->writelock ||		// check for write lock
+         systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
@@ -138,7 +139,8 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   if ((uci > UCIS) || (uci < 1))
   { return (-ERRM26);					// too big
   }
-  while (systab->vol[volume - 1]->writelock)		// check for write lock
+  while (systab->vol[volume - 1]->writelock ||		// check for write lock
+         systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
     { return -(ERRZLAST+ERRZ51);			// for <Control><C>
