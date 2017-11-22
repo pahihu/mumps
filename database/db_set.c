@@ -153,8 +153,6 @@ short TrySimpleSet(short s, cstring *data)
   return s;
 }
 
-static int last_written_failed = 0;                     // penalty for last wrtn
-
 short Set_data(cstring *data, int has_wrlock)		// set a record
 { short s;						// for returns
   int i, j;						// a handy int
@@ -172,24 +170,21 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   DB_Block *btmp;					// ditto
   gbd *gptr;
   int trysimple;                                        // flag a simple set
+  int vol;                                              // vol[] index
 
   if (!curr_lock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
 
   trysimple = 0;
   if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0)// if ^$G
-  { systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot this
+  { systab->vol[volnum - 1]->last_blk_written[MV1_PID] = 0; // zot this
   }
   else
-  { i = systab->last_blk_written[partab.jobtab - systab->jobtab];
+  { i = systab->vol[volnum - 1]->last_blk_written[MV1_PID];
                                                         // get last written
-    // i = 0;
-    if (last_written_failed)                            // failed recently?
-    { last_written_failed--;                            //   decrement counter
-      i = 0;                                            //   clear last_written
-    }
-    if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
-							// if one there
+    if ((i) &&                                          // used ?
+        ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
+							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwttry); // count a try
       gptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)];// get listhead
       while (gptr != NULL)				// for each in list
@@ -202,8 +197,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
             (X_NE(gptr->mem->global, 
                               db_var.name.var_xu)))     // wrong global
-        { // last_written_failed = 10;                     // add penalty 
-          break;					// exit the loop
+        { break;					// exit the loop
 	}
         if (has_wrlock)                                 // release GBDs
         { Release_GBDs(0);
@@ -213,7 +207,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	s = LocateEx(&db_var.slen, 1);		        // check for the key
 	if (((s == 0) &&                                // found it
              (Index == LOW_INDEX) &&                    //   at the beginning
-             (partab.jobtab->last_written_flags         //   and top defined
+             (partab.jobtab->last_written_flags[volnum - 1]//   and top defined
                                      & GL_TOP_DEFINED)) || // --- OR ---
             ((Index > LOW_INDEX) &&                     // not at beginning
              ((s == 0) ||                               //   and found it
@@ -225,7 +219,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	{ trysimple = 1;
           if ((systab->vol[volnum - 1]->vollab->journal_available) &&
               (systab->vol[volnum - 1]->vollab->journal_requested) &&
-              (partab.jobtab->last_written_flags & GL_JOURNAL))
+              (partab.jobtab->last_written_flags[volnum - 1] & GL_JOURNAL))
                                                         // if journaling
           { jrnrec jj;				        // jrn structure
              jj.action = JRN_SET;			// doing set
@@ -255,13 +249,12 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
           { return s;					//   except did not fit
           }
 	}
-        // last_written_failed = 10;                       // add penalty
 	blk[level] = NULL;				// clear this
 	level = 0;					// and this
 	break;					        // and exit loop
       }							// end while gptr
     }							// end last used stuff
-    systab->last_blk_written[partab.jobtab - systab->jobtab] = 0; // zot it
+    systab->vol[volnum - 1]->last_blk_written[MV1_PID] = 0; // zot it
   }
 
   Ensure_GBDs(1);                                       // reserve GBDs w/ lock
@@ -274,7 +267,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   if (0 == trysimple)                                   // when not tried a
   { if ((systab->vol[volnum - 1]->vollab->journal_available) && // simple set
         (systab->vol[volnum - 1]->vollab->journal_requested) && // not jrned yet
-        (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+        (partab.jobtab->last_block_flags[volnum - 1] & GL_JOURNAL)) // journaled
     { jrnrec jj;					// jrn structure
       jj.action = JRN_SET;				// doing set
       jj.uci = db_var.uci;				// copy UCI
@@ -353,14 +346,14 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   }				// end of create global code
 
   if (db_var.slen == 0)					// changing top node?
-  { if ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0)
+  { if ((partab.jobtab->last_block_flags[volnum - 1] & GL_TOP_DEFINED) == 0)
     { if (blk[0] == NULL)				// was it a trylast?
       { if (blk[level]->dirty == (gbd *) 1)		// if we reserved it
         { blk[level]->dirty = NULL;			// clear that
         }
         blk[level] = NULL;				// clear that
         level = 0;					// reset level
-        systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+        systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // clear last
         s = Get_data(0);				// try to find that
       }
       this_level = level;				// save level
@@ -385,7 +378,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       { blk[level]->dirty = blk[level];			// point at self
 	Queit();					// que for write
       }
-      partab.jobtab->last_block_flags |= GL_TOP_DEFINED; // mark top defined
+      partab.jobtab->last_block_flags[volnum - 1] |=
+                                        GL_TOP_DEFINED; // mark top defined
       level = this_level;				// restore level
     }
     s = 0;						// actually a modify
@@ -411,10 +405,10 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	Queit();					// que for write
       }
 
-      partab.jobtab->last_written_flags =               // remember flags
-              partab.jobtab->last_block_flags;
-      systab->last_blk_written[partab.jobtab - systab->jobtab] =
-                                blk[level]->block;      //   and block
+      partab.jobtab->last_written_flags[volnum - 1] =   // remember flags
+              partab.jobtab->last_block_flags[volnum - 1];
+      systab->vol[volnum - 1]->last_blk_written[MV1_PID] =
+              blk[level]->block;                        //   and block
 
       level--;						// point up a level
       Release_GBDs(0);
@@ -435,10 +429,10 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         Queit();					// que for write
       }
 
-      partab.jobtab->last_written_flags =               // remember flags
-              partab.jobtab->last_block_flags;
-      systab->last_blk_written[partab.jobtab - systab->jobtab] =
-                                blk[level]->block;      //   and block
+      partab.jobtab->last_written_flags[volnum - 1] =   // remember flags
+              partab.jobtab->last_block_flags[volnum - 1];
+      systab->vol[volnum - 1]->last_blk_written[MV1_PID] =
+              blk[level]->block;                        //   and block
 
       level--;						// point up a level
       Release_GBDs(0);
@@ -452,7 +446,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         }
         blk[level] = NULL;				// clear that
         level = 0;					// reset level
-        systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+        systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // clear last
         s = Get_data(0);				// try to find that
         if (s < 0)					// if error
         { return -(ERRMLAST+ERRZ61);			// database stuffed
@@ -480,7 +474,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     }
     blk[level] = NULL;					// clear that
     level = 0;						// reset level
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+    systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;// clear last
     s = Get_data(0);					// try to find that
     if (s != -ERRM7)					// must be undefined
     { return -(ERRMLAST+ERRZ61);			// database stuffed

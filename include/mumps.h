@@ -433,6 +433,8 @@ typedef struct __PACKED__ VOL_DEF
   u_int   jrnbufcap;                            // jrn buffer capacity
   u_char *jrnbuf;                               // jrn buffer
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
+  u_int *last_blk_used;                         // actually setup for real jobs
+  u_int *last_blk_written;                      // actually setup for real jobs
   size_t volset_size;                           // shared memory size of vol_def
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB
@@ -505,8 +507,8 @@ typedef struct __PACKED__ JOBTAB
   int cur_do;	                             	// current do frame addr
   u_int commands;                               // commands executed
   u_int grefs;                                  // global references
-  u_int last_block_flags;                       // journal etc of last db block
-  u_int last_written_flags;                     // last written db blk flags
+  u_int last_block_flags[MAX_VOL];              // journal etc of last db block
+  u_int last_written_flags[MAX_VOL];            // last written db blk flags
   short error_frame;                            // frame error happened in
   short etrap_at;                               // where $ET was invoked
   int trap;                                     // outstanding traps
@@ -580,9 +582,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
 #endif
 #endif
-  u_int *last_blk_written;                      // actually setup for real jobs
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
-  u_int last_blk_used[1];                       // actually setup for real jobs
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256
@@ -618,6 +618,8 @@ extern partab_struct partab;                    // globalize partab
 extern u_char *astk[];                          // address stack
 extern u_char sstk[];                           // string stack
 extern u_char *mumpspc;                         // mumps prog pointer
+
+#define MV1_PID (partab.jobtab - systab->jobtab)
 
 
 #endif                                          // !_MUMPS_MUMPS_H_

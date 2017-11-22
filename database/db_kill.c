@@ -85,7 +85,7 @@ short Kill_data_ex(int what)				// remove tree
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
 
   SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
-  systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+  systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;  // clear last
 
   writing = 1;						// say we are killing
 start:
@@ -117,7 +117,8 @@ cont:
   }
   if ((systab->vol[volnum - 1]->vollab->journal_available) &&
       (systab->vol[volnum - 1]->vollab->journal_requested) &&
-      (partab.jobtab->last_block_flags & GL_JOURNAL))	// if journaling
+      (partab.jobtab->last_block_flags[volnum - 1] & 
+                                        GL_JOURNAL))    // if journaling
   { jrnrec jj;						// jrn structure
     jj.action = JRN_KILL;				// doing kill
     jj.uci = db_var.uci;				// copy UCI
@@ -179,14 +180,16 @@ FullGlobalKill:
       }
       level = save_level;
     }
-    bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
-    bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int));// zot all
+    bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
+                systab->maxjob * sizeof(u_int)); 
+    bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
+                systab->maxjob * sizeof(u_int));
     level--;						// backup a level
 
     return 0;						// and exit
   }							// end full kill
 
-  systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+  systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;  // clear last
   Release_GBDs(0);
 
   db_var.key[db_var.slen++] = 255;			// modify key
@@ -201,7 +204,7 @@ FullGlobalKill:
   { rblk[i] = blk[i];					// copy gbd
   }
   level = 0;						// reset level
-  systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // clear last
+  systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;  // clear last
   s = Get_data(-1);					// get left side
   if ((s < 0) && (s != -ERRM7))				// error, not undef
   { return s;						// return it
@@ -482,8 +485,10 @@ FullGlobalKill:
   { Queit();						// yes - do so
   }							// end right edge stuff
 
-  bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
-  bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int)); // zot all
+  bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
+                systab->maxjob * sizeof(u_int)); 
+  bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
+                systab->maxjob * sizeof(u_int)); 
 
   return Re_key();					// re-key and return
 }

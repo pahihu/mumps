@@ -179,8 +179,10 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   systab->vol[volnum-1]->map_dirty_flag = 1;		// mark map dirty
   blk[level]->mem->last_idx = LOW_INDEX - 1;		// say no index
   Garbit(gb);						// garbage it
-  bzero(&systab->last_blk_used[0], systab->maxjob * sizeof(int)); // zot all
-  bzero(&systab->last_blk_written[0], systab->maxjob * sizeof(int)); // zot all
+  bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
+                        systab->maxjob * sizeof(u_int)); 
+  bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
+                        systab->maxjob * sizeof(u_int));
   SemOp( SEM_GLOBAL, -curr_lock);
   return 0;						// exit
 }

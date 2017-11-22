@@ -120,7 +120,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
     record = (cstring *) &chunk->buf[chunk->buf[1] + 2];
     Allign_record();					// allign it
     flags = ((u_int *) record)[1];			// get default flags
-    partab.jobtab->last_block_flags = flags;
+    partab.jobtab->last_block_flags[volnum - 1] = flags;
   }
 
   if (1 /*locate_used == 0*/)                           // XXX

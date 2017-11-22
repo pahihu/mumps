@@ -57,9 +57,11 @@ short Resolve_UCI_VOLSET(MV1DB *hnd, MV1VAR* var)
 
   if (!X_Empty(var->volset))
   { for (i = 0; i < MAX_VOL; i++)
-      if (systab->vol[i]->vollab != NULL)
-        if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, var->volset))
-          break;
+    { if (systab->vol[i]->vollab == NULL)
+        return -ERRM26;
+      if (X_EQ(systab->vol[i]->vollab->volnam.var_xu, var->volset))
+        break;
+    }
     if (i == MAX_VOL)
       return -ERRM26;
     var->var_m.volset = i + 1;

@@ -627,7 +627,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
     if ((!chunk->buf[0]) && (!chunk->buf[1]) &&		// if first node
-        ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+        ((partab.jobtab->last_block_flags[volnum - 1] &
+                                        GL_TOP_DEFINED) == 0))
     { buf[0] = '\0';					// null terminate ret
       if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

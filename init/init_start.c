@@ -201,8 +201,6 @@ int INIT_Start( char *file,                     // database
   semvals.array = sem_val;
 
   sjlt_size = sizeof(systab_struct)		// size of Systab
-	    + (sizeof(u_int) * (jobs - 1))	// adj for last_blk_used[1]
-            + (sizeof(u_int) * (jobs))          // adj for last_blk_written
             + (sizeof(jobtab_t) * jobs)		// size of JOBTAB
             + locksize;				// size of LOCKTAB
 
@@ -213,6 +211,8 @@ int INIT_Start( char *file,                     // database
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
+	      + (sizeof(u_int) * (jobs))	// size of last_blk_used[]
+              + (sizeof(u_int) * (jobs))        // size of last_blk_written[]
               + (rmb * MBYTE);		 	// mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
   share_size = sjlt_size + volset_size;         // shared memory size
@@ -270,12 +270,8 @@ int INIT_Start( char *file,                     // database
   bzero(systab, share_size);			// zot the lot
   systab->address = systab;                     // store the address for ron
 
-  systab->last_blk_written =
-     (u_int*)&systab->last_blk_used[jobs];      // setup last_blk_written
-  // systab->jobtab =
-  //   (jobtab *)&systab->last_blk_used[jobs + 1]; // setup jobtab pointer
-  systab->jobtab =
-     (jobtab_t *)&systab->last_blk_written[jobs];  // setup jobtab pointer
+  systab->jobtab =                              // setup jobtab pointer
+     (jobtab_t *)((void *)systab + sizeof(systab_struct));
   systab->maxjob = jobs;                        // save max jobs
   systab->start_user = getuid();		// remember who started this
   systab->precision = DEFAULT_PREC;		// decimal precision
@@ -324,8 +320,13 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->jrnbufsize = 0;               // buffer empty
   systab->vol[0]->syncjrn    = syncjrn;         // sync flag
 
-  systab->vol[0]->rbd_head = 
-    (void *) ((void*)systab->vol[0]->jrnbuf + jkb * KBYTE); //rbds
+  systab->vol[0]->last_blk_used =               // setup last_blk_used[]
+    (void *) ((void*)systab->vol[0]->jrnbuf + jkb * KBYTE);
+  systab->vol[0]->last_blk_written =            // setup last_blk_written[]
+    (void *) ((void*)systab->vol[0]->last_blk_used + sizeof(u_int) * jobs);
+
+  systab->vol[0]->rbd_head =                    //rbds
+    (void *) ((void*)systab->vol[0]->last_blk_written + sizeof(u_int) * jobs);
   systab->vol[0]->rbd_end = ((void *)systab 
 	+ share_size - systab->addsize); 	// end of share
 

@@ -234,8 +234,9 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   failed_tty = tcgetattr ( 0, &hnd->tty_settings );
   i = SQ_Init();				// have seqio setup chan 0
 
-  systab->last_blk_used[partab.jobtab - systab->jobtab] = 0;
-						// clear last global block
+  systab->vol[0]->last_blk_used[MV1_PID] = 0;   // clear last global block
+  systab->vol[0]->last_blk_written[MV1_PID] = 0;// clear last global block wr.
+
   partab.debug = 0;				// clear debug flag
   partab.sstk_start = &sstk[0];			// address of sstk
   partab.sstk_last =  &sstk[MAX_SSTK];		// and the last char

@@ -71,13 +71,12 @@ short logit(int where,short ret)
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or journaling is on and writing
 
-static int last_used_failed = 0;                        // penalty for last used
-
 short Get_data(int dir)					// locate a record
 { int i;						// a handy int
   short s;						// for function returns
   u_char tmp[2*MAX_NAME_BYTES-1];			// spare string
   gbd *ptr;						// handy pointer
+  int vol;                                              // vol[] index
 
   if (!curr_lock)					// ensure locked
   { s = SemOp( SEM_GLOBAL, READ);			// take a read lock
@@ -93,17 +92,13 @@ short Get_data(int dir)					// locate a record
       (dir != 0) ||					// or level or backward
       ((systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
        (writing)))					// and writing
-  { systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // zot this
+  { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // zot this
   }
-			// NOTE - LASTUSED NEEDS TO BE BY VOLUME SET
   else
-  { i = systab->last_blk_used[partab.jobtab - systab->jobtab]; // get last used
-    if (last_used_failed)                               // last try failed ?
-    { last_used_failed--;                               //   decr penalty
-      i = 0;                                            //   clear blk
-    }
-    if ((i) && ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
-							// if one there
+  { i = systab->vol[volnum - 1]->last_blk_used[MV1_PID];// get last used
+    if ((i) &&                                          // any used ?
+        ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
+							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
       ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)]; // get listhead
       while (ptr != NULL)				// for each in list
@@ -113,8 +108,7 @@ short Get_data(int dir)					// locate a record
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
 	      (ptr->last_accessed == (time_t) 0))	// not available
-          { // last_used_failed = 5;                       // add penalty
-            break;					// exit the loop
+          { break;					// exit the loop
 	  }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = ptr;				// point at it
@@ -137,12 +131,12 @@ short Get_data(int dir)					// locate a record
 	    { blk[level]->dirty = (gbd *) 1;		// reserve it
 	    }
 	    if ((!db_var.slen) && (!s) &&
-	        ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+	        ((partab.jobtab->last_block_flags[volnum - 1] &
+                        GL_TOP_DEFINED) == 0))
 	    { s = -ERRM7;				// check for top node
 	    }
 	    return logit(3,s);				// and return
 	  }
-          // last_used_failed = 5;                         // add penalty
 	  blk[level] = NULL;				// clear this
 	  level = 0;					// and this
 	  break;					// and exit loop
@@ -150,7 +144,7 @@ short Get_data(int dir)					// locate a record
         ptr = ptr->next;				// get next
       }							// end while ptr
     }							// end last used stuff
-    systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // zot it
+    systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;// zot it
   }
 
   i = systab->vol[db_var.volset-1]->vollab->uci[db_var.uci-1].global;
@@ -188,17 +182,19 @@ short Get_data(int dir)					// locate a record
   if (s < 0)						// failed?
   { return logit(7,s);					// return error
   }
-  partab.jobtab->last_block_flags = 0;			// clear JIC
+  partab.jobtab->last_block_flags[volnum -1] = 0;       // clear JIC
   Allign_record();					// if not alligned
   i = *(int *) record;					// get block#
   if (!i)						// none there?
   { return logit(8,-ERRM7);				// say nosuch
   }
-  partab.jobtab->last_block_flags = ((u_int *) record)[1]; // save flags
+  partab.jobtab->last_block_flags[volnum - 1] = 
+                        ((u_int *) record)[1];          // save flags
 
-  if (partab.jobtab->last_block_flags > 3)		// **** TEMP      ????
-  { partab.jobtab->last_block_flags &= 3;		// CLEAR UNUSED   ????
-    ((u_int *) record)[1] = partab.jobtab->last_block_flags; // RESET     ????
+  if (partab.jobtab->last_block_flags[volnum - 1] > 3)  // **** TEMP      ????
+  { partab.jobtab->last_block_flags[volnum - 1] &= 3;	// CLEAR UNUSED   ????
+    ((u_int *) record)[1] = 
+           partab.jobtab->last_block_flags[volnum - 1]; // RESET     ????
   }							//		  ????
 
   level++;						// where we want it
@@ -246,10 +242,10 @@ short Get_data(int dir)					// locate a record
   }
   s = Locate(&db_var.slen);				// locate key in data
   if (dir < 1)					        // if not a pointer
-  { systab->last_blk_used[partab.jobtab - systab->jobtab] = i; // set last used
+  { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = i;// set last used
   }
   if ((!db_var.slen) && (!s) &&
-      ((partab.jobtab->last_block_flags & GL_TOP_DEFINED) == 0))
+      ((partab.jobtab->last_block_flags[volnum - 1] & GL_TOP_DEFINED) == 0))
   { if (!record->len)
     { s = -ERRM7;					// check for top node
     }
