@@ -53,7 +53,6 @@
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
 
-// #define LCK_SLEEP       250
 #define LCK_SLEEP            1
 
 //****************************************************************

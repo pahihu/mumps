@@ -1063,11 +1063,14 @@ short Check_BlockNo(int vol, u_int blkno, int checks,
 
   if (failed)                                           // panic when failed
   { if (file)
-      sprintf((char *) msg, "invalid block (%d:%u) %s(%s:%d)!!",
-                                  vol, blkno, where, file, lno);
+      sprintf((char *) msg, "%s(%s:%d): invalid block (%d:%u) in file %s!!",
+                                where, file, lno,
+                                vol, blkno, 
+                                systab->vol[vol]->file_name);
     else
-      sprintf((char *) msg, "invalid block (%d:%u) %s()!!",
-                                vol, blkno, where);
+      sprintf((char *) msg, "%s(): invalid block (%d:%u) in file %s!!",
+                                where, vol, blkno, 
+                                systab->vol[vol]->file_name);
     panic((char *) msg);
   }
   return 0;

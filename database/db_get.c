@@ -76,7 +76,6 @@ short Get_data(int dir)					// locate a record
   short s;						// for function returns
   u_char tmp[2*MAX_NAME_BYTES-1];			// spare string
   gbd *ptr;						// handy pointer
-  int vol;                                              // vol[] index
 
   if (!curr_lock)					// ensure locked
   { s = SemOp( SEM_GLOBAL, READ);			// take a read lock

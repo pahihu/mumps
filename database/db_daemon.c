@@ -102,24 +102,14 @@ int do_log(const char *fmt,...)
 
 //------------------------------------------------------------------------------
 // Function: MSLEEP
-// Descript: sleep given milliseconds, if daemon 0 update Mtime
-// Input(s): seconds to wait
-// Return:   return value of sleep() system call
+// Descript: sleep given milliseconds
+// Input(s): milliseconds to wait
+// Return:   return value of usleep() system call
 //
-
-static u_int mtime_mseconds = 1000;
-static u_int last_mtime_mseconds = 0;
 
 static
 u_int MSLEEP(u_int mseconds)
 {
-  mtime_mseconds += mseconds;
-  if (!myslot && (mtime_mseconds - last_mtime_mseconds) > 250)
-  { systab->Mtime = time(0);
-    last_mtime_mseconds = mtime_mseconds;
-  }
-
-  //return sleep(seconds);
   return usleep(1000 * mseconds);
 }
 
@@ -234,37 +224,41 @@ void do_daemon()					// do something
   void *qentry;                                         // queue entry
 #endif
   int vol;                                              // vol[] index
+  char msg[128];                                        // msg buffer
 
 start:
+  if (!myslot)                                          // update M time
+  { systab->Mtime = time(0);
+  }
 
   daemon_check();					// ensure all running
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { for (vol = 0; vol < MAX_VOL; vol++)
     { if (NULL == systab->vol[vol]->vollab)             // stop at first
         break;                                          //   not mounted
-      if ((!myslot) && (systab->vol[vol]->map_dirty_flag))// first daemon
-      { if (last_map_write[vol] != MTIME(0))
-        { do_mount(vol);                                // mount db file
-          file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
-          if (file_off<0)
-          { systab->vol[vol]->stats.diskerrors++;	// count an error
-            panic("do_daemon: lseek() to start of file failed");
-          }
-          i = write( dbfds[vol], systab->vol[vol]->vollab,
-		     systab->vol[vol]->vollab->header_bytes);// map/label
-          if (i < 0)
-          { systab->vol[vol]->stats.diskerrors++;	// count an error
-            panic("do_daemon: write() map block failed");
-          }
-          systab->vol[vol]->map_dirty_flag = 0;	        // unset dirty flag
-          ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);// count a write
-          last_map_write[vol] = MTIME(0);
+      if ((!myslot) &&                                  // first daemon ?
+          (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
+          (MTIME(0) != last_map_write[vol]))            //     not updated ?
+      { do_mount(vol);                                  // mount db file
+        file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
+        if (file_off<0)
+        { systab->vol[vol]->stats.diskerrors++;	        // count an error
+          sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
+          panic(msg);
         }
+        i = write( dbfds[vol], systab->vol[vol]->vollab,
+		     systab->vol[vol]->vollab->header_bytes);// map/label
+        if (i < 0)
+        { systab->vol[vol]->stats.diskerrors++;	        // count an error
+          sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
+          panic(msg);
+        }
+        systab->vol[vol]->map_dirty_flag = 0;	        // unset dirty flag
+        ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);// count a write
+        last_map_write[vol] = MTIME(0);
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
-      { // XXX ez igy egyszeru, mert mindenkit megfogunk !!!
-        //     mi van ha tobb vol[]-on egyszerre irunk/olvasunk ?
-        while (TRUE)					// loop
+      { while (TRUE)					// loop
         { 
 #ifdef MV1_CKIT
           i = (0 < ck_ring_size(&systab->vol[0]->dirtyQ));
@@ -287,10 +281,10 @@ start:
 	  i = MSLEEP(1000);				// wait a bit
         }						// end while (TRUE)
         i = MSLEEP(1000);				// just a bit more
-        systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
-        inter_add(&systab->delaywt, -1);
-        MEM_BARRIER;
         // Set the writelock to a positive value when all quiet
+        systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
+        inter_add(&systab->delaywt, -1);                // decr. delay WRITEs
+        MEM_BARRIER;
       }							// end wrtlock
     }                                                   // end foreach vol
 #ifdef MV1_CKIT
@@ -375,6 +369,7 @@ void do_dismount()					// dismount volnum
   struct shmid_ds sbuf;					// for shmctl
   off_t off;                                            // for lseek
   int vol;                                              // vol[] index
+  char msg[128];                                        // msg buffer
 
   i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); //remove share
   for (i = 0; i < systab->maxjob; i++)			// for each job
@@ -432,6 +427,26 @@ void do_dismount()					// dismount volnum
       }
     } // flush jrn file
   }                                                     // end journal stuff 
+
+  for (vol = 0; vol < MAX_VOL; vol++)                   // check vol maps
+  { if (NULL == systab->vol[vol]->vollab)               // stop at first
+      break;                                            //   not mounted
+    if (systab->vol[vol]->map_dirty_flag)               // vol map dirty ?
+    { do_mount(vol);                                    // mount db file
+      off = lseek( dbfds[vol], 0, SEEK_SET);	        // move to start of file
+      if (off < 0)
+      { sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
+        panic(msg);
+      }
+      i = write( dbfds[vol], systab->vol[vol]->vollab,
+	     systab->vol[vol]->vollab->header_bytes);   // map/label
+      if (i < 0)
+      { sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
+        panic(msg);
+      }
+      systab->vol[vol]->map_dirty_flag = 0;	        // unset dirty flag
+    }
+  }
 
   for (vol = 0; vol < MAX_VOL; vol++)
   { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
@@ -512,10 +527,10 @@ void do_write()						// write GBDs
   int i;						// a handy int
   gbd *gbdptr;						// for the gbd
   gbd *lastptr = NULL;					// for the gbd
-  short s;
   u_int blkno;                                          // block#
   u_char *wrbuf;                                        // write buffer
   int vol;                                              // vol[] index
+  char msg[128];                                        // msg buffer
 
   gbdptr = systab->vol[0]->			        // get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -555,13 +570,15 @@ void do_write()						// write GBDs
       file_off = lseek( dbfds[vol], file_off, SEEK_SET);// Seek to block
       if (file_off < 1)
       { systab->vol[vol]->stats.diskerrors++;	        // count an error
-        panic("lseek failed in Write_Chain()!!");	// die on error
+        sprintf(msg, "lseek of vol %d failed in Write_Chain()!!", vol);
+        panic(msg);                                     // die on error
       }
       i = write( dbfds[vol], wrbuf,
 		 systab->vol[vol]->vollab->block_size); // write it
       if (i < 0)
       { systab->vol[vol]->stats.diskerrors++;	        // count an error
-        panic("write failed in Write_Chain()!!");
+        sprintf(msg, "write of vol %d failed in Write_Chain()!!", vol);   
+        panic(msg);                                     // die on error
       }
       ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);  // count a write
     }							// end write code
@@ -646,7 +663,6 @@ int do_zot(int vol,u_int gb)				// zot block
   int typ;						// block type
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
-  short s;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -838,6 +854,7 @@ void daemon_check()					// ensure all running
 
 void do_mount(int vol)                                  // mount volume
 { int i;                                                // handy int
+  char msg[VOL_FILENAME_MAX + 128];                     // msg buffer
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -851,7 +868,9 @@ void do_mount(int vol)                                  // mount volume
   { do_log("Cannot open database file %s - %s\n",
                   systab->vol[vol]->file_name,
                   strerror(errno));
-    panic("do_mount: open() of database file failed");
+    sprintf(msg, "do_mount: open() of database file %s failed",
+                    systab->vol[vol]->file_name);
+    panic(msg);                                         // die on error
   }
 
 #ifdef MV1_F_NOCACHE
