@@ -676,12 +676,14 @@ int UTIL_Key_Chars_In_Subs( char *Key, int keylen, int maxsubs, int *subs,
   i = 0;						// these two
   while ( ( i < keylen ) && ( cnt < maxsubs ) )		// while still in key
   { if ( (Key[i]&128) || (Key[i]&64) )			// if +ve no. or string
-    { for (i++; Key[i]; i++);				// loop til find NULL
-        i++;						// skip NULL char
+    { for (i++; Key[i]; i++)				// loop til find NULL
+        ;
+      i++;						// skip NULL char
     }
     else						// else if -ve
-    { for (i++; (Key[i] != -1); i++);			// loop til find $C(255)
-        i++;						// skip past 255
+    { for (i++; (Key[i] != -1); i++)			// loop til find $C(255)
+        ;
+      i++;						// skip past 255
     }
     cnt++;						// increment subs count
   }
@@ -720,12 +722,14 @@ int UTIL_Key_Subs( char *Key, int keylen, u_char *subs, u_char *subsPos )
   while ( ( i < keylen ) && ( cnt < 255 ) )		// while still in key
   { subsPos[cnt++] = i;                                 // save subscript pos
     if ( (Key[i]&128) || (Key[i]&64) )			// if +ve no. or string
-    { for (i++; Key[i]; i++);				// loop til find NULL
-        i++;						// skip NULL char
+    { for (i++; Key[i]; i++)				// loop til find NULL
+        ;
+      i++;						// skip NULL char
     }
     else						// else if -ve
-    { for (i++; (Key[i] != -1); i++);			// loop til find $C(255)
-        i++;						// skip past 255
+    { for (i++; (Key[i] != -1); i++)			// loop til find $C(255)
+        ;
+      i++;						// skip past 255
     }
   }
   subsPos[cnt] = keylen;                                // sentinel is keylen

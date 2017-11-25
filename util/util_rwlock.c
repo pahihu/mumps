@@ -18,12 +18,6 @@
 
 static u_int          semop_time;
 
-static u_int lrsucc = 0, lros = 0;
-static u_int ulrsucc = 0;
-static u_int lwsucc = 0, lwos = 0;
-static u_int ulwsucc = 0;
-static u_int ulw2rsucc = 0;
-
 extern const char *sem_file;
 extern       int   sem_line;
 extern     pid_t   mypid;
@@ -53,24 +47,6 @@ int Semop(int semid, struct sembuf *sops, size_t nsops)
   return s;
 }
 
-static
-short DoSem(int sem_num, int numb)
-{
-  int rc;
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
-
-  buf.sem_num = (u_short) sem_num;              // get the one we want
-  buf.sem_op = (short) numb;                    // and the number of them
-  if (numb < 0)
-  { do
-    { rc = semop(systab->sem_id, &buf, 1);
-    } while (rc == -1 && rc == EINTR);
-  }
-  else
-    rc = semop(systab->sem_id, &buf, 1);        // doit
-  assert(rc == 0); 
-  return rc;
-}
 
 #define MAX_NTRCBUF     1024
 
@@ -116,30 +92,6 @@ void mv1_log_flush(void)
   }
 }
 
-#ifdef MV1_SHSEM
-
-static
-void myassert(uint32_t val, uint32_t expr, const char *file, int line)
-{
-  if (expr) return;
-  fprintf(stderr, "%5d %20lld %08X xxx %s:%d %s()\r\n",
-                  mypid, monotonic_time(),
-                  val, file, line, rtn);
-  fprintf(stderr, "  LRsucc = %u (%u)\r\n", lrsucc, lros);
-  fprintf(stderr, "  URsucc = %u\r\n", ulrsucc);
-  fprintf(stderr, "  LWsucc = %u (%u)\r\n", lwsucc, lwos);
-  fprintf(stderr, "  UWsucc = %u\r\n", ulwsucc);
-  fprintf(stderr, "UW2Rsucc = %u\r\n", ulw2rsucc);
-  mv1_log_flush();
-  fflush(stderr);
-  assert(0);
-}
-
-#define ASSERT(x,y)     myassert(x, y, __FILE__, __LINE__)
-#define ASSERT0(x,y)
-
-#endif
-
 
 // Checking and profiling versions of semaphore operations
 // Source: pahia@t-online.hu
@@ -148,7 +100,6 @@ static struct timeval sem_start[SEM_MAX];
 
 short TrySemLock(int sem_num, int numb)
 {
-  int i,j;
   short s;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
@@ -163,28 +114,10 @@ short TrySemLock(int sem_num, int numb)
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
-    { // LockWriter(&systab->glorw);
-      for (j = 1; j <= 16; j++)
-      { for (i = 0; i < 1000000; i++)
-        { if (TryLockWriter(&systab->glorw))
-            return s;
-        }
-        if (0 == (j & 3))
-          SchedYield();
-      }
-      LockWriter(&systab->glorw);
+    {  LockWriter(&systab->glorw[volnum - 1]);
     }
     else if (numb == READ)
-    { // LockReader(&systab->glorw);
-      for (j = 1; j <= 16; j++)
-      { for (i = 0; i < 1000000; i++)
-        { if (TryLockReader(&systab->glorw))
-            return s;
-        }
-        if (0 == (j & 3))
-          SchedYield();
-      }
-      LockReader(&systab->glorw);
+    { LockReader(&systab->glorw[volnum - 1]);
     }
     else
     { char msg[64];
@@ -201,6 +134,9 @@ short TrySemLock(int sem_num, int numb)
     }
   }
 #else
+  if (SEM_GLOBAL == sem_num)                    // adjust sem_num
+  { sem_num += volnum - 1;                      //   take volume into account
+  }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
   s = Semop(systab->sem_id, &buf, 1);           // doit
@@ -217,15 +153,21 @@ short TrySemLock(int sem_num, int numb)
 short SemLock(int sem_num, int numb)
 {
   short s;
-  int x;
   u_int semop_time_sav;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
 #endif
+#ifdef MV1_PROFILE
+  int stx;                                      // semtab[] index
+#endif
 
-  x = 2*sem_num;
+#ifdef MV1_PROFILE
+  stx = sem_num;                                // calc. semtab[] index
+  if (SEM_GLOBAL == sem_num) stx += volnum - 1;
+  stx <<= 1;
   if (-1 == numb)       // READ lock
-    x += 1;
+    stx++;
+#endif
 
   semop_time = 0;
   s = TrySemLock(sem_num, numb);
@@ -236,7 +178,10 @@ short SemLock(int sem_num, int numb)
   }
 #else
   if (s != 0)
-  { buf.sem_num = (u_short) sem_num;            // get the one we want
+  { if (SEM_GLOBAL == sem_num)                  // adjust sem_num
+    { sem_num += volnum - 1;                    //   take volume into account
+    }
+    buf.sem_num = (u_short) sem_num;            // get the one we want
     buf.sem_op = (short) numb;                  // and the number of them
     s = Semop(systab->sem_id, &buf, 1);         // doit
   }
@@ -244,7 +189,7 @@ short SemLock(int sem_num, int numb)
 
 #ifdef MV1_PROFILE
   if (s == 0)
-  { semtab[x].semop_time += semop_time_sav;
+  { semtab[stx].semop_time += semop_time_sav;
     gettimeofday(&sem_start[sem_num], NULL);
   }
 #endif
@@ -253,25 +198,33 @@ short SemLock(int sem_num, int numb)
  
 short SemUnlock(int sem_num, int numb)
 {
-  struct timeval tv;
   short s;
-  u_int curr_held_time;
-  int x;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
 #endif
+#ifdef MV1_PROFILE
+  int stx;                                      // semtab[] index
+  struct timeval tv;
+  u_int curr_held_time;
+#endif
 
-  x = 2*sem_num + (1 == abs(numb) ? 1 : 0);
+#ifdef MV1_PROFILE
+  stx = sem_num;                                // calc. semtab[] index
+  if (SEM_GLOBAL == sem_num) stx += volnum - 1;
+  stx <<= 1;
+  if (-1 == numb)                               // READ lock
+    stx++;
+#endif
 
   s = 0;
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == -WRITE)
-      UnlockWriter(&systab->glorw);
+      UnlockWriter(&systab->glorw[volnum - 1]);
     else if (numb == WR_TO_R)
-      UnlockWriterToReader(&systab->glorw);
+      UnlockWriterToReader(&systab->glorw[volnum - 1]);
     else if (numb == -READ)
-      UnlockReader(&systab->glorw);
+      UnlockReader(&systab->glorw[volnum - 1]);
     else
     { char msg[64];
       sprintf(msg, "SemUnLock(): numb=%d", numb);
@@ -282,6 +235,9 @@ short SemUnlock(int sem_num, int numb)
     LatchUnlock(&systab->shsem[sem_num]);
   }
 #else
+  if (SEM_GLOBAL == sem_num)                    // adjust sem_num
+  { sem_num += volnum - 1;                      //   take volume into account
+  }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
   s = Semop(systab->sem_id, &buf, 1);
@@ -291,11 +247,11 @@ short SemUnlock(int sem_num, int numb)
   gettimeofday(&tv, NULL);
   curr_held_time = 1000000 * (tv.tv_sec  - sem_start[sem_num].tv_sec) +
                              (tv.tv_usec - sem_start[sem_num].tv_usec);
-  semtab[x].held_time += curr_held_time;
+  semtab[stx].held_time += curr_held_time;
   sem_start[sem_num] = tv;
-  semtab[x].semop_time += semop_time;
+  semtab[stx].semop_time += semop_time;
+  semtab[stx].held_count++;
 #endif
 
-  semtab[x].held_count++;
   return s;
 }

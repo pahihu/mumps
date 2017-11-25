@@ -539,6 +539,9 @@ void do_write()						// write GBDs
   { panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
+  // NB. egy lancban egy volume-hoz tartoznak!
+  volnum = gbdptr->vol + 1;                             // set volnum
+
   if (!curr_lock)					// if we need a lock
   { SemOp( SEM_GLOBAL, READ);				// take a read lock
   }
@@ -678,6 +681,7 @@ int do_zot(int vol,u_int gb)				// zot block
   file_off = (file_off * (off_t) systab->vol[vol]->vollab->block_size)
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
+  volnum = vol + 1;                                     // set volnum
   while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
@@ -791,6 +795,7 @@ void do_free(int vol, u_int gb)				// free from map et al
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
+  volnum = vol + 1;                                     // set volnum
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock

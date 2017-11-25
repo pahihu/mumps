@@ -51,8 +51,6 @@
 #include "database.h"                           // for MTIME()
 #include "rwlock.h"                             // for SemLock()/SemUnlock()
 
-extern int curr_lock;				// for tracking SEM_GLOBAL
-
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 u_int64 monotonic_time(void)

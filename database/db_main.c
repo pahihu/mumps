@@ -51,7 +51,7 @@
 #include "error.h"					// error strings
 
 
-int curr_lock;						// lock on globals
+int curr_locks[MAX_VOL];				// lock on globals
 mvar db_var;						// local copy of var
 int volnum;                                             // current volume
 

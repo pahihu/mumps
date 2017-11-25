@@ -890,6 +890,7 @@ void Get_GBD(void)                                      // get a GBD
 #endif
 }
 
+#ifdef MV1_GBDRO
 gbd* Get_RdGBD(void)                                    // get a read-only GBD
 { gbd *ret = 0;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
@@ -900,6 +901,7 @@ gbd* Get_RdGBD(void)                                    // get a read-only GBD
   }
   return ret;
 }
+#endif
 
 
 //-----------------------------------------------------------------------------

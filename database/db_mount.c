@@ -88,8 +88,6 @@ short DB_Mount( char *file,                     // database
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i;                                        // usefull int
   int n_gbd;                                    // number of gbd
-  u_short sem_val[SEM_MAX];			// to init them
-  union semun semvals;				// for a ptr to sem_val
   size_t volset_size;                           // size of volset struct (bytes)
   size_t pagesize;                              // system pagesize (bytes)
   char fullpathvol[MAXPATHLEN];			// full pathname of vol file
@@ -170,14 +168,6 @@ short DB_Mount( char *file,                     // database
   jkb *= 1024;
   jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
   jkb /= 1024;
-
-  for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
-#ifdef MV1_SHSEM
-    sem_val[i] = 0;
-#else
-    sem_val[i] = jobs;
-#endif
-  semvals.array = sem_val;
 
   volset_size = hbuf[2]				// size of head and map block
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd

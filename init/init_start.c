@@ -386,9 +386,10 @@ int INIT_Start( char *file,                     // database
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
 #ifdef MV1_SHSEM
-  for (i = 0; i < SEM_MAX; i++)                 // init shared IPC
+  for (i = 0; i < SEM_GLOBAL; i++)              // init shared IPC
     LatchInit(&systab->shsem[i]);
-  RWLockInit(&systab->glorw, systab->maxjob);
+  for (i = 0; i < MAX_VOL; i++)
+    RWLockInit(&systab->glorw[i], systab->maxjob);
 #ifdef MV1_BLKSEM
   for (i = 0; i < BLKSEM_MAX; i++)              // init shared block semaphores
     LatchInit(&systab->blksem[i]);

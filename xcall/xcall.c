@@ -151,13 +151,9 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
 { static char *sem_names[] = {                          // Semaphore names
     "SEM_SYS",
     "SEM_LOCK",
-    "SEM_GLOBAL",
     "SEM_ROU",
     "SEM_WD",
-    "SEM_GBDRO",
-    "SEM_GBDGET",
-    "SEM_GLO_RD",
-    "SEM_GLO_WR"
+    "SEM_GLOBAL"
   };
   if (strcmp((char *)arg1->buf, "RBD") == 0)		// Routine Buf Desc
     Dump_rbd();					        // do it
@@ -168,7 +164,10 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
     for (i=0; i<SEM_MAX; i++)
     { val = semctl(systab->sem_id, i, GETVAL, 0);
       sempid = semctl(systab->sem_id, i, GETPID, 0);
-      fprintf( stderr,"%d) %s", i, sem_names[i]);
+      if (i >= SEM_GLOBAL)
+        fprintf( stderr,"%d) %s%d", i, sem_names[SEM_GLOBAL], i - SEM_GLOBAL);
+      else
+        fprintf( stderr,"%d) %s", i, sem_names[i]);
       fprintf( stderr,"\t= %d \t(last pid %d)\r\n",val,sempid);
     }
     fprintf( stderr,"(maxjobs = %d)\r\n",systab->maxjob);

@@ -230,23 +230,18 @@
 
 #define SEM_SYS         0                       // Systab Semaphore
 #define SEM_LOCK        1                       // Lock Table Semaphore
-#define SEM_GLOBAL      2                       // global database module
-#define SEM_ROU         3                       // routine buffers
-#define SEM_WD          4                       // write daemons
-#define SEM_GBDRO       5                       // read-only GBDs
-#define SEM_GBDGET      6                       // get GBDs
+#define SEM_ROU         2                       // routine buffers
+#define SEM_WD          3                       // write daemons
+#define SEM_GLOBAL      4                       // global database module
 
-#ifndef MV1_SHSEM
-#define SEM_MAX         7                       // total number of these
-#else
-#define SEM_GLOBAL_RD   7
-#define SEM_GLOBAL_WR   8
+// #define SEM_GBDRO       5                       // read-only GBDs
+// #define SEM_GBDGET      6                       // get GBDs
 
-#define SEM_MAX         9                       // total number of these
+#define SEM_MAX         (SEM_GLOBAL + MAX_VOL) // total number of these
+
 #ifdef MV1_BLKSEM
 #define BLK_WRITE       ((short) 0x7FFF)        // block WRITE lock
 #define BLKSEM_MAX      16                      // total no. of block semaphores
-#endif
 #endif
 
 #define KILL_VAL        1                       // kill only value
@@ -576,8 +571,8 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
 #ifdef MV1_SHSEM
-  LATCH_T shsem[SEM_MAX];                       // shared semaphores
-  RWLOCK_T glorw;
+  LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
+  RWLOCK_T glorw[MAX_VOL];
 #ifdef MV1_BLKSEM
   LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
 #endif

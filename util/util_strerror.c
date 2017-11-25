@@ -52,6 +52,7 @@
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard includes
 #include "error.h"				// mumps errors
+#include "database.h"                           // for curr_lock
 
 static struct 
 {
@@ -215,7 +216,6 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
   return (short)(strlen((char *) ptr));                 // and return length
 }
 
-extern int curr_lock;
 int dopanic = 0;                                        // flag doing panic()
 
 void panic(char *msg)					// print msg and exit
