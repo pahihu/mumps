@@ -948,8 +948,14 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 //
 
 int DB_Dismount(int volume)	                       	// dismount a volume
-{ if (volume > 1)                                       // XXX csak 1-nel ?
-  { DB_StopJournal(volume, JRN_ESTOP);
+{ if (volume > 1)
+  { int old_volnum = volnum;
+    volnum = volume;                                    // set volnum
+    while (SemOp( SEM_GLOBAL, WRITE))
+      ;
+    DB_StopJournal(volume, JRN_ESTOP);
+    SemOp( SEM_GLOBAL, -curr_lock);
+    volnum = old_volnum;
   }
   systab->vol[volume-1]->dismount_flag = 1;		// set the flag
   return 0;						// that's all for now
@@ -966,12 +972,11 @@ int DB_Dismount(int volume)	                       	// dismount a volume
 void DB_StopJournal(int volume, u_char action)		// Stop journal
 { jrnrec jj;
 
+  ASSERT(curr_lock == WRITE);
+
   volnum = volume;					// set common var
   if (!systab->vol[volnum-1]->vollab->journal_available)// if no journal
   { return;						// just exit
-  }
-  while (SemOp( SEM_GLOBAL, WRITE))
-  { Sleep(1);
   }
   jj.action = action;
   jj.uci = 0;
@@ -979,8 +984,8 @@ void DB_StopJournal(int volume, u_char action)		// Stop journal
   X_Clear(jj.name.var_xu);
   jj.slen = 0;
   DoJournal(&jj, NULL);
+  FlushJournal(volnum-1, 0, 1);                         // flush jrn file
   systab->vol[volnum-1]->vollab->journal_available = 0;
-  SemOp( SEM_GLOBAL, -curr_lock);
   return;
 }
 

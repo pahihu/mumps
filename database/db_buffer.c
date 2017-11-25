@@ -918,6 +918,7 @@ void Free_GBD(int vol, gbd *free)			// Free a GBD
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
   ASSERT(free->vol == vol);                             // same volume
+
   if (free->block)					// if there is a blk#
   { 
 #ifdef MV1_CACHE

@@ -49,6 +49,7 @@
 #include <time.h>                               // for $H
 #include <sys/time.h>				// for priority
 #include <sys/resource.h>			// ditto
+#include <fcntl.h>                              // for open()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
@@ -744,27 +745,57 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0) &&
 	    (cstringtoi(data) == 0))		// clear journal
-	{ while (SemOp( SEM_GLOBAL, -systab->maxjob)); // lock GLOBAL
+	{ int old_volnum = volnum;              // set volnum
+          volnum = i + 1;
+          while (SemOp( SEM_GLOBAL, -systab->maxjob)); // lock GLOBAL
 	  ClearJournal(partab.jnl_fds[i], i);	// do it
 	  SemOp( SEM_GLOBAL, systab->maxjob);	// unlock global
+          volnum = old_volnum;
 	  return 0;				// done
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "journal_requested\0", 18) == 0)
 	{ systab->vol[i]->vollab->journal_requested = cstringtob(data);
 	  if (!systab->vol[i]->vollab->journal_requested)
-	  { DB_StopJournal(i + 1, 2);		// JRN_STOP
+	  { int old_volnum = volnum;
+            volnum = i + 1;                     // set volnum
+            while (SemOp( SEM_GLOBAL, WRITE))
+              ;
+            DB_StopJournal(i + 1, 2);		// JRN_STOP
+            SemOp( SEM_GLOBAL, -curr_lock);
+            volnum = old_volnum;
 	  }
 	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
 	  return 0;
 	}
-	if ((strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0) &&
-	    (systab->maxjob == 1))
-	{ if (data->len > JNL_FILENAME_MAX)
+	if ((strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0))
+	{ int old_volnum = volnum;
+          if (data->len > JNL_FILENAME_MAX)
 	  { return -ERRM56;			// too long
 	  }
-	  (void) strcpy(systab->vol[i]->vollab->journal_file, (char *)data->buf);
+          volnum = i + 1;                       // set volnum
+          while (SemOp( SEM_GLOBAL, WRITE))     // lock GLOBAL
+            ;
+          DB_StopJournal(i + 1, 2);             // write JRN_STOP
+          if (partab.jnl_fds[i])                // close old jrn file
+          { close( partab.jnl_fds[i]);
+            partab.jnl_fds[i] = 0;
+          }
+	  (void) strcpy(systab->vol[i]->vollab->journal_file, 
+                          (char *)data->buf);   // write new name
 	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
-	  return 0;
+          s = 0;
+          OpenJournal(i, 0);                    // open new jrn file
+          if (systab->vol[i]->vollab->journal_available)
+          { partab.jnl_fds[i] =                 // open if available
+                    open(systab->vol[i]->vollab->journal_file, O_RDWR);
+            if (partab.jnl_fds[i] <= 0)         // failed ?
+              s = -(errno+ERRMLAST+ERRZLAST);   //   complain
+          }
+          else                                  // open jrn file failed
+              s = -(ERRZ72+ERRMLAST);           //   complain
+          SemOp( SEM_GLOBAL, -curr_lock);
+          volnum = old_volnum;
+	  return s;
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0) &&
 	    (systab->maxjob == 1) &&
