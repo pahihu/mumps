@@ -73,6 +73,29 @@ int writing;						// set when writing
 int wanna_writing;                                      // 
 
 //-----------------------------------------------------------------------------
+// Function: ROU_Process
+// Descript: Call entry in systab->tt[tti].to_global.var_cu routine
+//           with var passed as string, and buf/buflen passed as
+//           reference.
+// Input(s): Pointer to entry, trantab index, var, buf/buflen.
+//              buf/buflen - buflen is -1, when output only
+// Return:   0 -> Ok, negative MUMPS error
+//
+short ROU_Process(char *entry,
+                  short tti,
+                  mvar *var,
+                  u_char *buf,
+                  short buflen)
+{ short s;
+  char tmp[1024];
+
+  s = UTIL_String_Mvar(var, (u_char *) &tmp[0], 9999);
+  if (s < 0)
+    return s;
+  return -(ERRZLAST+ERRZ52);                            // not implemented yet
+}
+
+//-----------------------------------------------------------------------------
 // Function: Copy2local
 // Descript: Copy passed in mvar to db_var, adjusting volset and uci
 //	     The local copy of the mvar, db_var, is then used by all
@@ -222,7 +245,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
   { return s;						// exit on error
   }
   if (s > 0)						// ROU process
-  { s++;						// point at trantab ent
+  { s--;						// point at trantab ent
     // This code needs to invoke XXX^ systab->tt[s].to_global.var_cu
     // as a routine where XXX is GET (this example), SET, KILL etc
     // with mvar *var converted to cstring as arg1 and buf as
@@ -230,6 +253,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
     //
     // This code must then be copied to all 10 other calls to Copy2local
     //
+    return ROU_Process("GET", s, var, buf, -1);
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
 
@@ -284,6 +308,10 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     if (s < 0)
     { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
       return s;						// exit on error
+    }
+    if (s > 0)
+    { s--;                                              // point at trantab ent
+      return ROU_Process("SET", s, var, &data->buf[0], data->len);
     }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
@@ -348,6 +376,10 @@ short DB_DataEx(mvar *var, u_char *buf, cstring *dat)   // get $DATA()
   s = Copy2local(var,"DATA");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
+  }
+  if (s > 0)
+  { s--;                                                // point at trantab ent
+    return ROU_Process("DATA", s, var, buf, -1);
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbdat); // update stats
   // fprintf(stderr,"--- S:Get_data\r\n"); fflush(stderr);
@@ -424,10 +456,16 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
 
 short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
 { short s;						// for returns
+  u_char buf[16];
 
   s = Copy2local(var,"KILL");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
+  }
+  if (s > 0)
+  { s--;                                                // point at trantab ent
+    sprintf((char *) &buf[0], "%d", what);
+    return ROU_Process("KILL", s, var, &buf[0], strlen((char *) buf));
   }
   while (systab->vol[volnum - 1]->writelock ||	        // check for write lock
          systab->delaywt)                               //   or delay WRITEs
@@ -517,6 +555,11 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   s = Copy2local(var,"ORDER");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
+  }
+  if (s > 0)
+  { s--;                                                // point at trantab ent
+    sprintf((char *) buf, "%d", dir);
+    return ROU_Process("ORDER", s, var, buf, strlen((char *) buf));
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbord); // update stats
   last_key = UTIL_Key_Last(&db_var);			// get start of last
@@ -631,6 +674,11 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   s = Copy2local(var,"QUERY");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
+  }
+  if (s > 0)
+  { s--;                                                // point at trantab ent
+    sprintf((char *) buf, "%d", dir);
+    return ROU_Process("QUERY", s, var, buf, strlen((char *) buf));
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (dir < 0)						// if it's backward
@@ -778,6 +826,13 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
   if (s < 0)
   { return s;						// exit on error
   }
+  if (s > 0)
+  { s--;                                                // point at trantab ent
+    sprintf((char *) buf, "%d", 1);
+    s = ROU_Process("QUERY", s, var, buf, strlen((char *) buf));
+    // XXX kezeljuk le a fentieket, update MVAR stb.
+    return s;
+  }
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
   { if (curr_lock)					// if locked
@@ -859,7 +914,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
   }
   sav = curr_lock;					// save this
   curr_lock = 0;
-  s = Copy2local(var,"LENGTH");			        // get local copy
+  s = Copy2local(var,":DB_GetLen");			// get local copy
   curr_lock = sav;					// restore current lock
   if (s < 0)						// check for error
   { if (curr_lock)					// if locked
