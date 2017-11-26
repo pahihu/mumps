@@ -92,6 +92,7 @@ void BAD_MVAR()
 
 void DB_Unlocked(void);                                 // proto for DB unlock
 
+// NB. ha rtn eleje ":", akkor nem kell meghivni, mint rutint
 short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
   char msg[128];
@@ -133,17 +134,49 @@ short Copy2local(mvar *var, char *rtn)
   { return (-ERRM26);					// too big
   }
 
-  if ((var->volset == 0) && (var->uci == 0))		// no vol or uci
-  { for (i = 0; i < systab->max_tt; i++)		// scan trantab
-    if (bcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) // if a match
-    { if (systab->tt[i].to_vol == 0)
-      { return (i+1);					// flag routine proc
+  if ((var->volset == 0) &&                             // no vol or uci
+      (var->uci == 0) &&		
+      (systab->max_tt))                                 //   and has translation
+  { int j = FNV1aHash(sizeof(var_u) + 2,                // calc. hash
+                        (u_char *) &db_var) & (2 * MAX_TRANTAB - 1);
+    int k, found = 0;                                   // scan trantab hash
+    for (i = 0; systab->tthash[j].tti && i < 2 * MAX_TRANTAB; i++)
+    { if (bcmp(&db_var, &systab->tthash[j].from_global, // if a match
+                            sizeof(var_u) + 2) == 0)
+      { k = systab->tthash[j].tti;                      // check trantab[] index
+        if (k == -1)                                    // not translated ?
+          goto EndTTLookup;                             //   end lookup
+        if (systab->tt[k].to_vol == 0)
+        { return (k+1);					// flag routine proc
+        }
+        bcopy(&systab->tt[k].to_global, &db_var.name, sizeof(var_u) + 2);
+        found = 1;                                      // flag as found
       }
-      bcopy(&systab->tt[i].to_global, &db_var.name, sizeof(var_u) + 2);
-      break;
-    }							// end found one
+      j = (j + 1) & (2 * MAX_TRANTAB - 1);              // next hash entry
+    }
+    if (!found)                                         // linear search
+    { for (i = 0; i < systab->max_tt; i++)		// scan trantab
+      if (bcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) // if a match
+      { if (0 == systab->tthash[j].tti)                 // slot empty ?
+        { systab->tthash[j].tti = i;                    // enter in trantab hash
+          bcopy(&db_var, &systab->tthash[j].from_global, sizeof(var_u) + 2);
+        }
+        found = 1;                                      // flag as found
+        if (systab->tt[i].to_vol == 0)
+        { return (i+1);					// flag routine proc
+        }
+        bcopy(&systab->tt[i].to_global, &db_var.name, sizeof(var_u) + 2);
+        break;
+      }							// end found one
+      if (!found &&                                     // still not found ?
+          (0 == systab->tthash[j].tti))                 //   and slot empty ?
+      { systab->tthash[j].tti = -1;                     // flag not translated
+        bcopy(&db_var, &systab->tthash[j].from_global, sizeof(var_u) + 2);
+      }
+    }
   }							// end trantab lookup
 
+EndTTLookup:
   if (systab->vol[db_var.volset-1]->vollab->
       uci[db_var.uci-1].name.var_cu[0] == '\0')		// does uci exits?
   { return (-ERRM26);					// no - error
@@ -184,7 +217,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
 { short s;						// for returns
   int i;                                                // handy int
 
-  s = Copy2local(var,"DB_Get");				// get local copy
+  s = Copy2local(var,"GET");				// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -247,7 +280,7 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
   int i;						// a handy int
 
   if (!has_wrlock)                                      // no wrlock ?
-  { s = Copy2local(var,"DB_Set");			//   get local copy
+  { s = Copy2local(var,"SET");			        //   get local copy
     if (s < 0)
     { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
       return s;						// exit on error
@@ -312,7 +345,7 @@ short DB_DataEx(mvar *var, u_char *buf, cstring *dat)   // get $DATA()
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var,"DB_Data");			// get local copy
+  s = Copy2local(var,"DATA");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -392,7 +425,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
 short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
 { short s;						// for returns
 
-  s = Copy2local(var,"DB_Kill");			// get local copy
+  s = Copy2local(var,"KILL");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -481,7 +514,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   int i;						// a handy int
   int last_key;						// start of last key
 
-  s = Copy2local(var,"DB_Order");			// get local copy
+  s = Copy2local(var,"ORDER");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -595,7 +628,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var,"DB_Query");			// get local copy
+  s = Copy2local(var,"QUERY");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -741,7 +774,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
 //  int i;						// a handy int
 
-  s = Copy2local(var,"DB_QueryD");			// get local copy
+  s = Copy2local(var,"QUERYD");			        // get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -826,7 +859,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
   }
   sav = curr_lock;					// save this
   curr_lock = 0;
-  s = Copy2local(var,"DB_GetLen");			// get local copy
+  s = Copy2local(var,"LENGTH");			        // get local copy
   curr_lock = sav;					// restore current lock
   if (s < 0)						// check for error
   { if (curr_lock)					// if locked
@@ -1000,7 +1033,7 @@ int DB_GetFlags(mvar *var)	                       	// Get flags
 { short s;						// for returns
   int i;						// a handy int
 
-  s = Copy2local(var,"DB_GetFlags");			// get local copy
+  s = Copy2local(var,":DB_GetFlags");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -1035,7 +1068,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   { clearit = 1;					// setup to clear
     flags = -flags;					// get flags correct
   }
-  s = Copy2local(var,"DB_SetFlags");			// get local copy
+  s = Copy2local(var,":DB_SetFlags");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }
@@ -1086,7 +1119,7 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   int retlevel;						// the ACTUAL level
 
   flags &= 15;						// clear high bits
-  s = Copy2local(var,"DB_Compress");			// get local copy
+  s = Copy2local(var,":DB_Compress");			// get local copy
   if (s < 0)
   { return s;						// exit on error
   }

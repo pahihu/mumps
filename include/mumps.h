@@ -258,7 +258,7 @@ typedef union semun semun_t;
 
 #endif
 
-#define MAX_TRANTAB	8                       // total number of entries
+#define MAX_TRANTAB	256                     // total number of entries
 
 typedef unsigned long long      u_int64;        // unix unsigned quadword
 
@@ -550,6 +550,13 @@ typedef struct __PACKED__ TRANTAB               // translation table
   u_char to_uci;                                //      uci#
 } trantab;             				// define trantab
 
+typedef struct __PACKED__ TRANHASH              // trantab hash entry
+{ int    tti;                                   // trantab[] index
+  var_u  from_global;                           // from global
+  u_char from_vol;                              //      volumeset#
+  u_char from_uci;                              //      uci#
+} tranhash;                                     // define tranhash
+
 typedef struct __PACKED__ SYSTAB                // system tables
 { void *address;
   jobtab_t *jobtab;                             // address of jobtab
@@ -559,6 +566,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   int precision;                                // decimal precision
   int max_tt;                                   // max TRANTAB used
   trantab tt[MAX_TRANTAB];                      // translation tables
+  tranhash tthash[2 * MAX_TRANTAB];             // trantab hash
   uid_t start_user;                             // he's priv too
   void *lockstart;                              // head of lock table
   size_t locksize;                              // how many bytes

@@ -317,3 +317,14 @@ void CleanJob(int job)				// tidy up a job
   bzero(&systab->jobtab[j], sizeof(jobtab_t));	// zot all
   return;					// and exit
 }
+
+
+uint32_t FNV1aHash(int n, u_char *buf)          // FNV-1a hash
+{ uint32_t h = 2166136261UL;                    
+  int i;
+  for (i = 0; i < n; i++)
+  { h ^= (unsigned char) buf[i];
+    h *= 16777619UL;
+  }
+  return h;
+}

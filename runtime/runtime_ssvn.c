@@ -672,6 +672,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	      break;				// exit
 	    }
 	  }
+          bzero(&systab->tthash[0],             // clear trantab hash
+                          sizeof(systab->tthash));
 	  return 0;				// and exit
 	}
 	subs[2] = (cstring *) tmp;		// some space
@@ -700,6 +702,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((cnt + 1) > systab->max_tt)		// check flag
 	{ systab->max_tt = cnt + 1;		// ensure current is there
 	}
+        bzero(&systab->tthash[0],               // clear trantab hash
+                          sizeof(systab->tthash));
 	return 0;
       }						// end trantab stuf
 
