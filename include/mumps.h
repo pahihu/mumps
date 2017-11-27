@@ -125,7 +125,7 @@
 #define NUM_GARB        8192                    // max queued garbage blocks
 #else
 #define GBD_HASH        4096                    // hash size for global buffers
-#define NUM_DIRTY       8192                    // max queued dirty chains
+#define NUM_DIRTY       1024                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 #endif
 
