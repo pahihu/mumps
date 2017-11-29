@@ -67,6 +67,9 @@
 #include "mumps.h"                              // standard includes
 #include "error.h"                              // errors
 #include "proto.h"                              // standard prototypes
+#include "compile.h"
+#include "database.h"
+#include "symbol.h"
 
 #ifdef __APPLE__
 #include <assert.h>
@@ -167,7 +170,6 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
     }
     fprintf(stderr,"(maxjobs = %d)\r\n",systab->maxjob);
   }
-#if defined(__NetBSD__) && 0
   else if (strcmp((char *)arg1->buf, "STRUCT") == 0) // sanity check structs
   {
      fprintf(stderr, "FOR_STACK size %ld\r\n", sizeof(struct FOR_STACK));
@@ -200,7 +202,6 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
      fprintf(stderr, "ST_NEWTAB size %ld\r\n", sizeof(struct ST_NEWTAB));
      fprintf(stderr, "KEY_STRUCT size %ld\r\n", sizeof(struct KEY_STRUCT));
   }
-#endif
   else return -(ERRMLAST+ERRZ18);		// no such
 
   ret_buffer[0] = '\0';
