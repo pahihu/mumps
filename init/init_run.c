@@ -168,8 +168,9 @@ start:
     if ((ret != pid) && (ret))			// if one there and not us
     { if (kill(ret, 0))				// check the job
       { if (errno == ESRCH)			// doesn't exist
-        { CleanJob(i + 1);			// zot if not there
-	  break;				// have at least one
+        { ret = CleanJob(i + 1);		// zot if not there
+          if (0 == ret)                         // success ?
+	    break;				//   have at least one
         }
       }
     }

@@ -261,7 +261,7 @@ void SemStats(void)
 
 extern void mv1_log_flush();
 
-void CleanJob(int job)				// tidy up a job
+short CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
   
@@ -274,7 +274,14 @@ void CleanJob(int job)				// tidy up a job
 #endif
 
   j = job - 1;					// copy argument to int job form
-  if (!job) j = partab.jobtab - systab->jobtab; // or get current int job#
+  if (job)
+  { SemOp( SEM_SYS, -systab->maxjob);           // lock SYS
+    if (0 == systab->jobtab[j].pid)             // zotted ?
+    { SemOp( SEM_SYS, systab->maxjob);          //   release SYS
+      return -1;                                //   flag failed
+    }
+  }
+  else j = partab.jobtab - systab->jobtab;      // or get current int job#
   LCK_Remove(j + 1);				// remove locks
   i = systab->jobtab[j].cur_do;			// get current do
 
@@ -315,7 +322,8 @@ void CleanJob(int job)				// tidy up a job
     partab.jobtab = NULL;			// clear jobtab
   }
   bzero(&systab->jobtab[j], sizeof(jobtab_t));	// zot all
-  return;					// and exit
+  if (job) SemOp( SEM_SYS, systab->maxjob);     // release SYS
+  return 0;					// and exit
 }
 
 
