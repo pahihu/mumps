@@ -1546,7 +1546,7 @@ short Xcall_v(char *ret_buffer, cstring *lin, cstring *col)
 //
 
 short Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
-{ unsigned long crc, ulldx;
+{ u_int crc, ulldx;
   int c;
 
   if (flag->len == 0)				// check for the old type
@@ -1566,8 +1566,11 @@ short Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
     crc = ((crc>>8) & 0x00FFFFFF) ^ crcTable[(crc^c) & 0xFF];
   }
   crc = crc^0xFFFFFFFF;
-  bcopy(&crc, ret_buffer, 4);
-  return sizeof(unsigned long);
+  for (c = 0; c < sizeof(u_int); c++)
+  { ret_buffer[c] = (u_char)(0x0FF & crc);
+    crc >>= 8;
+  }
+  return sizeof(u_int);
 }
 
 //***********************************************************************
