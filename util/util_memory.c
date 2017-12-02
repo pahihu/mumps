@@ -231,13 +231,21 @@ exit:
 // It is called with zero (current job) or the job# (ie. internal job+1)
 // If not the current job, also free jobtab entry.
 //
+// NB. check the return value, because of parallel CleanJobs
 
-void CleanJob(int job)				// tidy up a job
+short CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
   
   j = job - 1;					// copy argument to int job form
-  if (!job) j = partab.jobtab - systab->jobtab; // or get current int job#
+  if (job)
+  { SemOp( SEM_SYS, -systab->maxjob);           // lock SYS
+    if (0 == systab->jobtab[j].pid)             // zotted ?
+    { SemOp( SEM_SYS, systab->maxjob);          //   release SYS
+      return -1;                                //   flag failed
+    }
+  }
+  else j = partab.jobtab - systab->jobtab;      // or get current int job#
   LCK_Remove(j + 1);				// remove locks
   i = systab->jobtab[j].cur_do;			// get current do
 
@@ -278,5 +286,6 @@ void CleanJob(int job)				// tidy up a job
     partab.jobtab = NULL;			// clear jobtab
   }
   bzero(&systab->jobtab[j], sizeof(jobtab));	// zot all
-  return;					// and exit
+  if (job) SemOp( SEM_SYS, systab->maxjob);     // release SYS
+  return 0;					// and exit
 }

@@ -147,8 +147,9 @@ int ForkIt(int cft)				// Copy File Table True/False
     if (ret)					// if one there
     { if (kill(ret, 0))				// check the job
       { if (errno == ESRCH)			// doesn't exist
-        { CleanJob(i + 1);			// zot if not there
-	  break;				// have at least one
+        { ret = CleanJob(i + 1);		// zot if not there
+          if (ret == 0)                         // success ?
+	    break;				//   have at least one
         }
       }
     }

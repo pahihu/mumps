@@ -150,8 +150,9 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
     if ((hnd->ret != pid) && (hnd->ret))			// if one there and not us
     { if (kill(hnd->ret, 0))				// check the job
       { if (errno == ESRCH)			// doesn't exist
-        { CleanJob(i + 1);			// zot if not there
-	  break;				// have at least one
+        { hnd->ret = CleanJob(i + 1);		// zot if not there
+          if (hnd->ret == 0)                    // success ?
+	    break;				//   have at least one
         }
       }
     }

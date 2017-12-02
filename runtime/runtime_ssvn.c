@@ -966,7 +966,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
             if ((kill(systab->jobtab[i].pid, 0)) && // check the job
 	        (errno == ESRCH))		// doesn't exist
 	    {
-	      CleanJob(i + 1);		// zot if not there
+	      CleanJob(i + 1);		        // zot if not there
 	    }
 	    else
 	      break;				// else OK
