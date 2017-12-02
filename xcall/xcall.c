@@ -1562,7 +1562,10 @@ short Xcall_x(char *ret_buffer, cstring *str, cstring *flag)
     crc = ((crc>>8) & 0x00FFFFFF) ^ crcTable[(crc^c) & 0xFF];
   }
   crc = crc^0xFFFFFFFF;
-  bcopy(&crc, ret_buffer, sizeof(u_int));
+  for (c = 0; c < sizeof(u_int); c++)
+  { ret_buffer[c] = (u_char)(0x0FF & crc);
+    crc >>= 8;
+  }
   return sizeof(u_int);
 }
 
