@@ -535,7 +535,9 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
        
   while ((done < count) && (tryagain == 0))     // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
-    reqd = sizeof(short)*3 + sizeof(int) + sizeof(locktab *) + current->len;
+    reqd = sizeof(short)*3 + sizeof(int) + sizeof(locktab *) + current->len +
+                sizeof(short)*2;
+    if (reqd & 7) reqd = (reqd & ~7) + 8;       // round up to 8 byte boundary
     lptr = systab->lockhead;                    // start at first locktab
     plptr = NULL;                               // init previous pointer
     if (lptr == NULL)                           // add first lock

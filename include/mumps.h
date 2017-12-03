@@ -529,12 +529,14 @@ typedef struct __PACKED__ JOBTAB
 } jobtab_t;            				// define jobtab
 						// sizeof(jobtab) = 21939
 
-typedef struct __attribute__ ((__packed__)) LOCKTAB // internal lock tables
+typedef struct __PACKED__ LOCKTAB               // internal lock tables
 { struct LOCKTAB *fwd_link;                     // point at next one
   int size;                                     // how many bytes
   short job;                                    // int job (-1 = free)
   short lock_count;                             // how many times locked by job
   short byte_count;                             // size of following reference
+  short dummy1;
+  short dummy2;
   u_char vol;                                   // vol number
   u_char uci;                                   // uci number (255 = local)
   var_u name;                                   // var name
