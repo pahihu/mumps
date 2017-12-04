@@ -300,8 +300,9 @@ start:
         jfd = open_jrn(vol);                            // open jrn file
         if (jfd) 
         { SemOp( SEM_GLOBAL, WRITE);                    // lock GLOBALs
-          FlushJournal(vol, jfd, 1);                    // flush journal
+          FlushJournal(vol, jfd, 0);                    // flush journal
           SemOp( SEM_GLOBAL, -curr_lock);               // release GLOBALs
+          fsync(jfd);                                   // sync to disk
         }
         last_jrn_flush[vol] = MTIME(0);                 // save current time
         volnum = old_volnum;
