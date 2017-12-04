@@ -541,8 +541,8 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
       { *(int *) c = PTR_UNDEFINED;
       }
       if (!level)					// if GD
-      { ((u_int *) record)[1] = ((u_int *) c)[1] & 3;	// copy flags
-			// NOTE: ABOVE ALL FLAGS EXCEPT (3) CLEARED !!!!!!!!
+      { ((u_int *) record)[1] = ((u_int *) c)[1] & GL_FLAGS; // copy flags
+			// NOTE: ABOVE ALL FLAGS CLEARED !!!!!!!!
       }
     }
     bcopy(fk, keybuf, fk[0] + 1);			// save full key    

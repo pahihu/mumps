@@ -190,8 +190,8 @@ short Get_data(int dir)					// locate a record
   partab.jobtab->last_block_flags[volnum - 1] = 
                         ((u_int *) record)[1];          // save flags
 
-  if (partab.jobtab->last_block_flags[volnum - 1] > 3)  // **** TEMP      ????
-  { partab.jobtab->last_block_flags[volnum - 1] &= 3;	// CLEAR UNUSED   ????
+  if (partab.jobtab->last_block_flags[volnum - 1] > GL_FLAGS)// TEMP      ????
+  { partab.jobtab->last_block_flags[volnum - 1] &= GL_FLAGS; // CLEAR UNUSED   ????
     ((u_int *) record)[1] = 
            partab.jobtab->last_block_flags[volnum - 1]; // RESET     ????
   }							//		  ????

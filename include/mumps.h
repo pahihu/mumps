@@ -180,6 +180,8 @@
 // Global flags (from Global Directory) follow
 #define GL_JOURNAL      1                       // Journal global flag
 #define GL_TOP_DEFINED	2                       // Top node of global defined
+#define GL_STAMP        4                       // Automatic stamp subscript
+#define GL_FLAGS        7
 
 #define LOCKTAB_SIZE    1024                    // 1kb per job
 #define UCI_IS_LOCALVAR	255                     // for struct mvar
