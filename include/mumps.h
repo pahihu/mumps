@@ -428,6 +428,7 @@ typedef struct __PACKED__ VOL_DEF
   u_int   jrnbufcap;                            // jrn buffer capacity
   u_char *jrnbuf;                               // jrn buffer
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
+  VOLATILE time_t jrnflush;                     // jrn buffer flush time
   u_int *last_blk_used;                         // actually setup for real jobs
   u_int *last_blk_written;                      // actually setup for real jobs
   size_t volset_size;                           // shared memory size of vol_def

@@ -69,6 +69,9 @@ void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write[MAX_VOL];                  // last map write
+int open_jrn(int vol);                                  // open journal file
+static time_t last_jrn_flush[MAX_VOL];                  // last jrnbuf flush
+static int jnl_fds[MAX_VOL];                            // jrn file desc.
 
 int do_log(const char *fmt,...)
 { int i;
@@ -150,7 +153,9 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   last_daemon_check = (time_t) 0;
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;
+    last_jrn_flush[i] = (time_t) 0;
     dbfds[i] = 0;
+    jnl_fds[i] = 0;
   }
   mypid = 0;
 
@@ -225,6 +230,7 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
+  int jfd;                                              // jrn file desc.
 
 start:
   if (!myslot)                                          // update M time
@@ -286,6 +292,20 @@ start:
         inter_add(&systab->delaywt, -1);                // decr. delay WRITEs
         MEM_BARRIER;
       }							// end wrtlock
+      if ((!myslot) &&
+          (systab->vol[vol]->vollab->journal_available) &&
+          (last_jrn_flush[vol] < systab->vol[vol]->jrnflush)) // chk. jrn buffer
+      { int old_volnum = volnum;
+        volnum = vol + 1;                               // set volnum
+        jfd = open_jrn(vol);                            // open jrn file
+        if (jfd) 
+        { SemOp( SEM_GLOBAL, WRITE);                    // lock GLOBALs
+          FlushJournal(vol, jfd, 1);                    // flush journal
+          SemOp( SEM_GLOBAL, -curr_lock);               // release GLOBALs
+        }
+        last_jrn_flush[vol] = MTIME(0);                 // save current time
+        volnum = old_volnum;
+      }
     }                                                   // end foreach vol
 #ifdef MV1_CKIT
     if (ck_ring_dequeue_spmc(                           // any writes?
@@ -370,6 +390,7 @@ void do_dismount()					// dismount volnum
   off_t off;                                            // for lseek
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
+  int jfd;                                              // jrn file desc.
 
   i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); //remove share
   for (i = 0; i < systab->maxjob; i++)			// for each job
@@ -384,48 +405,15 @@ void do_dismount()					// dismount volnum
   for (vol = 0; vol < MAX_VOL; vol++)                   // flush journal
   { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
-    if ((systab->vol[vol]->vollab->journal_available) &&
-        (systab->vol[vol]->vollab->journal_requested) &&
-           (systab->vol[vol]->vollab->journal_file[0]))
-    { struct stat   sb;				        // File attributes
-      int jfd;					        // file descriptor
-
-      j = stat(systab->vol[vol]->vollab->journal_file, &sb ); // check for file
-      if (j < 0)		                        // if that's junk
-      { do_log("Failed to access journal file %s\n",
-    		  systab->vol[vol]->vollab->journal_file);
-      }
-      else					        // do something
-      { jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
-        if (jfd < 0)				        // on fail
-        { do_log("Failed to open journal file %s\nerrno = %d\n",
-		  systab->vol[vol]->vollab->journal_file, errno);
-        }
-        else					        // if open OK
-        { u_char tmp[sizeof(u_int) + sizeof(off_t)];
-
-#ifdef MV1_F_NOCACHE
-          j = fcntl(jfd, F_NOCACHE, 1);
-#endif
-	  lseek(jfd, 0, SEEK_SET);
-	  errno = 0;
-	  j = read(jfd, tmp, sizeof(u_int));	        // read the magic
-	  if ((j != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-	  { do_log("Failed to open journal file %s: WRONG MAGIC\n",
-		    systab->vol[vol]->vollab->journal_file);
-	    close(jfd);
-	  }
-	  else
-	  { j = FlushJournal(vol, jfd, 1);
-            if (j < 0)
-	    { do_log("Failed to flush journal file %s: Last failed - %d\n",
+    jfd = open_jrn(vol);                                // open jrn file
+    if (jfd)
+    { j = FlushJournal(vol, jfd, 1);
+      if (j < 0)
+      { do_log("Failed to flush journal file %s: Last failed - %d\n",
 	          systab->vol[vol]->vollab->journal_file, errno);
-	    }
-            close(jfd);
-	  }
-        } // open jrn file
       }
-    } // flush jrn file
+      close(jfd);
+    }
   }                                                     // end journal stuff 
 
   for (vol = 0; vol < MAX_VOL; vol++)                   // check vol maps
@@ -887,4 +875,51 @@ void do_mount(int vol)                                  // mount volume
   }
 
   return;
+}
+
+int open_jrn(int vol)
+{ int j;                                                // handy int
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  if (jnl_fds[vol])                                     // already open ?
+    return jnl_fds[vol];                                //   return file desc.
+
+  if ((systab->vol[vol]->vollab->journal_available) &&
+      (systab->vol[vol]->vollab->journal_requested) &&
+         (systab->vol[vol]->vollab->journal_file[0]))
+  { struct stat   sb;				        // File attributes
+    int jfd;					        // file descriptor
+    u_char tmp[sizeof(u_int) + sizeof(off_t)];
+
+    j = stat(systab->vol[vol]->vollab->journal_file, &sb ); // check for file
+    if (j < 0)		                                // if that's junk
+    { do_log("Failed to access journal file %s\n",
+  		  systab->vol[vol]->vollab->journal_file);
+      return 0;
+    }
+    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    if (jfd < 0)				        // on fail
+    { do_log("Failed to open journal file %s\nerrno = %d\n",
+		  systab->vol[vol]->vollab->journal_file, errno);
+      return 0;
+    }
+
+#ifdef MV1_F_NOCACHE
+    j = fcntl(jfd, F_NOCACHE, 1);
+#endif
+    lseek(jfd, 0, SEEK_SET);
+    errno = 0;
+    j = read(jfd, tmp, sizeof(u_int));	        // read the magic
+    if ((j != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
+    { do_log("Failed to open journal file %s: WRONG MAGIC\n",
+		    systab->vol[vol]->vollab->journal_file);
+      close(jfd);
+      return 0;
+    }
+    jnl_fds[vol] = jfd;
+  }
+  return jnl_fds[vol];
 }

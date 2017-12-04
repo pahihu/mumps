@@ -968,6 +968,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jj_alignment)
     currsize += jj_alignment;
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
+  systab->vol[volnum - 1]->jrnflush = 1 + MTIME(0);     // delay flush
   return;
 
 fail:
