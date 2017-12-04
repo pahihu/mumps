@@ -337,6 +337,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->volset_size = volset_size;    // save vol_def size
   systab->vol[0]->gmb         = gmb;            // global bufffer cache in MB
   systab->vol[0]->jkb         = jkb;            // jrn buffer cache in KB
+  systab->vol[0]->gbsync      = DEFAULT_GBSYNC; // global buffer sync in sec
 
   bzero(semtab, sizeof(semtab));
 

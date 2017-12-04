@@ -401,6 +401,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         }
 	if (strncasecmp( (char *) subs[2]->buf, "global_buffer_size\0", 19) == 0)
 	  return itocstring(buf, systab->vol[i]->gmb);
+	if (strncasecmp( (char *) subs[2]->buf, "global_buffer_sync\0", 19) == 0)
+	  return itocstring(buf, systab->vol[i]->gbsync);
 	if (strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0)
 	{ for (j = 0; j < MAX_NAME_BYTES; j++)
 	    if ((buf[j] = systab->vol[i]->vollab->volnam.var_cu[j]) == 0)
@@ -834,6 +836,16 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  }
 	  return DB_Expand(i, vsiz);		// do it
 	}
+	if ((strncasecmp( (char *) subs[2]->buf, 
+                "global_buffer_sync\0", 19) == 0) &&
+            (systab->maxjob != 1))
+        { j = cstringtoi(data);
+          if (j < 0)
+          { return -(ERRM38);
+          }
+          systab->vol[i]->gbsync = j;
+          return 0;
+        }
 	if ((strncasecmp( (char *) subs[2]->buf, 
                 "global_buffer_size\0", 19) == 0) &&
             (systab->maxjob != 1))

@@ -72,6 +72,8 @@ static time_t last_map_write[MAX_VOL];                  // last map write
 int open_jrn(int vol);                                  // open journal file
 static time_t last_jrn_flush[MAX_VOL];                  // last jrnbuf flush
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
+void do_quiescence(void);                               // reach quiet point
+static time_t last_sync[MAX_VOL];                       // last database sync
 
 int do_log(const char *fmt,...)
 { int i;
@@ -113,7 +115,9 @@ int do_log(const char *fmt,...)
 static
 u_int MSLEEP(u_int mseconds)
 {
-  return usleep(1000 * mseconds);
+  if (!myslot)                                          // update M time
+    systab->Mtime = time(0);
+  return usleep(1000 * mseconds);                       // sleep
 }
 
 //-----------------------------------------------------------------------------
@@ -152,10 +156,11 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   curr_sem_init = 1;
   last_daemon_check = (time_t) 0;
   for (i = 0; i < MAX_VOL; i++)
-  { last_map_write[i] = (time_t) 0;
-    last_jrn_flush[i] = (time_t) 0;
-    dbfds[i] = 0;
-    jnl_fds[i] = 0;
+  { last_map_write[i] = (time_t) 0;                     // clear last map write
+    dbfds[i] = 0;                                       // db file desc.
+    last_jrn_flush[i] = (time_t) 0;                     // last jrn flush time
+    jnl_fds[i] = 0;                                     // clear jrn file desc.
+    last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
   mypid = 0;
 
@@ -198,7 +203,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   do_log("Daemon %d started successfully\n", myslot);   // log success
 
   if (!myslot)
-    systab->Mtime = time(0);
+    systab->Mtime = time(0);                            // update M time
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
   { ic_map(-3, 0, dbfds[0]);				// doit
@@ -222,7 +227,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
 void do_daemon()					// do something
 { int i;						// handy int
-  int j;						// and another
   off_t file_off;					// for lseek()
   time_t t;						// for ctime()
 #ifdef MV1_CKIT
@@ -264,33 +268,11 @@ start:
         last_map_write[vol] = MTIME(0);
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
-      { while (TRUE)					// loop
-        { 
-#ifdef MV1_CKIT
-          i = (0 < ck_ring_size(&systab->vol[0]->dirtyQ));
-          i = (i) ||
-                  (0 < ck_ring_size(&systab->vol[0]->garbQ));
-#else
-          i = (systab->vol[0]->dirtyQ[systab->vol[0]->dirtyQr]
-	       != NULL);				// check dirty que
-	  i = ((i) ||
-	       (systab->vol[0]->garbQ[systab->vol[0]->garbQr]
-	        != 0));					// and garbQ
-#endif
-	  for (j = 1; j < systab->vol[0]->num_of_daemons; j++) // each one
-	  { i = ((i) || (systab->vol[0]->wd_tab[j].doing != 0));
-	  }
-	  if (!i)					// if all clear
-	  { break;					// leave loop
-	  }
-	  daemon_check();				// ensure all running
-	  i = MSLEEP(1000);				// wait a bit
-        }						// end while (TRUE)
-        i = MSLEEP(1000);				// just a bit more
-        // Set the writelock to a positive value when all quiet
-        systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
+      { do_quiescence();                                // reach quiet point
         inter_add(&systab->delaywt, -1);                // decr. delay WRITEs
         MEM_BARRIER;
+        // Set the writelock to a positive value when all quiet
+        systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
       }							// end wrtlock
       if ((!myslot) &&
           (systab->vol[vol]->vollab->journal_available) &&
@@ -305,6 +287,45 @@ start:
           fsync(jfd);                                   // sync to disk
         }
         last_jrn_flush[vol] = MTIME(0);                 // save current time
+        volnum = old_volnum;
+      }
+      if ((!myslot) &&
+          (systab->vol[vol]->gbsync) &&                 // need sync ?
+          (0 == systab->vol[vol]->writelock) &&         //   not locked ?
+          (last_sync[vol] < MTIME(0)))                  //     sync is over ?
+      { int old_volnum = volnum;
+        do_mount(vol);                                  // mount vol. 
+        inter_add(&systab->delaywt, 1);                 // delay WRITEs
+        do_quiescence();                                // reach quiet point
+        if (systab->vol[vol]->vollab->journal_available) // journal available ?
+        { jfd = open_jrn(vol);                          // open journal
+          if (jfd)
+          { volnum = vol + 1;
+            SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
+            FlushJournal(vol, jfd, 0);                  // flush journal
+            SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
+            fsync(jfd);                                 // sync JRN to disk
+          }
+        }
+        fsync(dbfds[vol]);                              // sync volume to disk
+        if (systab->vol[vol]->vollab->journal_available) // journal available ?
+        { jfd = open_jrn(vol);                          // open journal
+          if (jfd)
+          { jrnrec jj;                                  // write SYNC record
+            jj.action = JRN_SYNC;
+            jj.time = MTIME(0);
+            jj.uci = 0;
+            volnum = vol + 1;
+            SemOp( SEM_GLOBAL, WRITE);
+            DoJournal(&jj, 0);                          // do journal
+            FlushJournal(vol, jfd, 0);                  // flush journal
+            SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
+            fsync(jfd);                                 // sync to disk
+          }
+        }
+        inter_add(&systab->delaywt, -1);                // release WRITEs
+        MEM_BARRIER;
+        last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
         volnum = old_volnum;
       }
     }                                                   // end foreach vol
@@ -847,8 +868,7 @@ void daemon_check()					// ensure all running
 
 
 void do_mount(int vol)                                  // mount volume
-{ int i;                                                // handy int
-  char msg[VOL_FILENAME_MAX + 128];                     // msg buffer
+{ char msg[VOL_FILENAME_MAX + 128];                     // msg buffer
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -923,4 +943,35 @@ int open_jrn(int vol)
     jnl_fds[vol] = jfd;
   }
   return jnl_fds[vol];
+}
+
+
+void do_quiescence(void)
+{ int i, j;                                     // handy ints
+
+  ASSERT(systab->delaywt != 0);                 // only with delay WRITEs
+
+  while (TRUE)					// loop
+  { 
+#ifdef MV1_CKIT
+    i = (0 < ck_ring_size(&systab->vol[0]->dirtyQ));
+    i = (i) ||
+        (0 < ck_ring_size(&systab->vol[0]->garbQ));
+#else
+    i = (systab->vol[0]->dirtyQ[systab->vol[0]->dirtyQr]
+	       != NULL);			// check dirty que
+    i = ((i) ||
+	 (systab->vol[0]->garbQ[systab->vol[0]->garbQr]
+	 != 0));				// and garbQ
+#endif
+    for (j = 1; j < systab->vol[0]->num_of_daemons; j++) // each one
+    { i = ((i) || (systab->vol[0]->wd_tab[j].doing != 0));
+    }
+    if (!i)					// if all clear
+    { break;					// leave loop
+    }
+    daemon_check();				// ensure all running
+    i = MSLEEP(1000);				// wait a bit
+  }						// end while (TRUE)
+  i = MSLEEP(1000);				// just a bit more
 }

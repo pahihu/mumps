@@ -242,6 +242,8 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->hash_start = 0;             // start searching here
   systab->vol[vol]->gmb        = gmb;           // global bufffer cache in MB
   systab->vol[vol]->jkb        = jkb;           // jrn buffer cache in KB
+  systab->vol[vol]->gbsync     = DEFAULT_GBSYNC;// global buffer sync in sec
+
 
   // bzero(semtab, sizeof(semtab));
 

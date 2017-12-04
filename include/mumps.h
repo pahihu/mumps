@@ -101,6 +101,7 @@
 #define MAX_NAME_BYTES  32                      // max len for names
 #define MAX_SUBSCRIPTS  63                      // max no. of subscripts
 #define DEFAULT_ZMINSPACE 1024                  // Min. space for Compress
+#define DEFAULT_GBSYNC  300                     // Global Buffer Sync in sec
 
 #define SECDAY          86400                   // seconds per day ($H)
 #define YRADJ           47117                   // days from 1 Jan 1841 to 1970
@@ -436,6 +437,7 @@ typedef struct __PACKED__ VOL_DEF
   size_t volset_size;                           // shared memory size of vol_def
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB
+  int gbsync;                                   // global buffer sync in sec
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
 } vol_def;                                      // end of volume def
