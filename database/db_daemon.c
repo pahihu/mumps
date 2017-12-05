@@ -236,7 +236,9 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
+  int last_daemon;                                      // last daemon idx
 
+  last_daemon = systab->vol[0]->num_of_daemons - 1;
 start:
   if (!myslot)                                          // update M time
   { systab->Mtime = time(0);
@@ -275,12 +277,12 @@ start:
         // Set the writelock to a positive value when all quiet
         systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
       }							// end wrtlock
-      if ((!myslot) &&
+      if ((myslot == last_daemon) &&
           (systab->vol[vol]->vollab->journal_available) &&
           (last_jrn_flush[vol] < systab->vol[vol]->jrnflush)) // chk. jrn buffer
       { do_jrnflush(vol);                               // do jrn flush
       }
-      if ((!myslot) &&
+      if ((myslot == last_daemon) &&
           (systab->vol[vol]->gbsync) &&                 // need sync ?
           (0 == systab->vol[vol]->writelock) &&         //   not locked ?
           (last_sync[vol] < MTIME(0)))                  //     sync is over ?
@@ -974,10 +976,10 @@ void do_jrnflush(int vol)
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
   old_volnum = volnum;                          // save current vol
-  volnum = vol + 1;                             // set volnum
   jfd = open_jrn(vol);                          // open jrn file
   if (jfd) 
-  { SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
+  { volnum = vol + 1;                           // set volnum
+    SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
     fsync(jfd);                                 // sync to disk
@@ -1005,6 +1007,7 @@ void do_volsync(int vol)
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
   inter_add(&systab->delaywt, 1);               // delay WRITEs
+  MEM_BARRIER;
   do_quiescence();                              // reach quiet point
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = open_jrn(vol);                        // open journal
