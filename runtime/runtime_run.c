@@ -42,6 +42,7 @@
 #include <unistd.h>				// for sleep
 #include <errno.h>                              // error stuf
 #include <math.h>				// maths functions
+#include <sys/time.h>                           // for time()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
@@ -128,7 +129,9 @@ short run(long savasp, long savssp)		// run compiled code
   ssp = savssp;
 
   while (TRUE)					// keep going till done
-  { if (ssp >= MAX_SSTK)			// check ssp
+  { if (0 == (partab.jobtab->commands & 1023))  // keep track of time
+      systab->Mtime = time(0);
+    if (ssp >= MAX_SSTK)			// check ssp
     panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it

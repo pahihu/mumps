@@ -236,9 +236,7 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
-  int last_daemon;                                      // last daemon idx
 
-  last_daemon = systab->vol[0]->num_of_daemons - 1;
 start:
   if (!myslot)                                          // update M time
   { systab->Mtime = time(0);
@@ -277,12 +275,13 @@ start:
         // Set the writelock to a positive value when all quiet
         systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
       }							// end wrtlock
-      if ((myslot == last_daemon) &&
-          (systab->vol[vol]->vollab->journal_available) &&
-          (last_jrn_flush[vol] < systab->vol[vol]->jrnflush)) // chk. jrn buffer
+      if ((!myslot) &&
+          (systab->vol[vol]->vollab->journal_available) && // jrn available ?
+          (systab->vol[vol]->jrnflush < MTIME(0)) &&    // flush is over ?
+          (last_jrn_flush[vol] < MTIME(0)))             // chk. jrn buffer
       { do_jrnflush(vol);                               // do jrn flush
       }
-      if ((myslot == last_daemon) &&
+      if ((!myslot) &&
           (systab->vol[vol]->gbsync) &&                 // need sync ?
           (0 == systab->vol[vol]->writelock) &&         //   not locked ?
           (last_sync[vol] < MTIME(0)))                  //     sync is over ?

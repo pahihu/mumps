@@ -968,7 +968,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jj_alignment)
     currsize += jj_alignment;
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
-  systab->vol[volnum - 1]->jrnflush = 1 + MTIME(0);     // delay flush
+  systab->vol[volnum - 1]->jrnflush = MTIME(0);         // delay flush
   return;
 
 fail:
@@ -993,8 +993,18 @@ u_int SleepEx(u_int seconds, const char* file, int line)
 }
 
 int MSleep(u_int mseconds)
-{
-  return usleep(1000 * mseconds);
+{ int ret;
+
+  while (mseconds > 500)                                // while more than 500ms
+  { mseconds -= 500;                                    // reduce mseconds
+    systab->Mtime = time(0);                            // keep track of M time
+    ret = usleep(1000 * 500);                           // sleep a bit
+  }
+  if (mseconds)                                         // any remains ?
+  { systab->Mtime = time(0);                            // keep track of M time
+    ret = usleep(1000 * mseconds);                      // sleep a bit
+  }
+  return ret;
 }
 
 #define DQ_SLEEP        10
