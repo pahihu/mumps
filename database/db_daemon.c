@@ -74,6 +74,8 @@ static time_t last_jrn_flush[MAX_VOL];                  // last jrnbuf flush
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
+void do_jrnflush(int vol);                              // flush jrn to disk
+void do_volsync(int vol);                               // flush vol to disk
 
 int do_log(const char *fmt,...)
 { int i;
@@ -234,7 +236,6 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
-  int jfd;                                              // jrn file desc.
 
 start:
   if (!myslot)                                          // update M time
@@ -277,56 +278,13 @@ start:
       if ((!myslot) &&
           (systab->vol[vol]->vollab->journal_available) &&
           (last_jrn_flush[vol] < systab->vol[vol]->jrnflush)) // chk. jrn buffer
-      { int old_volnum = volnum;
-        volnum = vol + 1;                               // set volnum
-        jfd = open_jrn(vol);                            // open jrn file
-        if (jfd) 
-        { SemOp( SEM_GLOBAL, WRITE);                    // lock GLOBALs
-          FlushJournal(vol, jfd, 0);                    // flush journal
-          SemOp( SEM_GLOBAL, -curr_lock);               // release GLOBALs
-          fsync(jfd);                                   // sync to disk
-        }
-        last_jrn_flush[vol] = MTIME(0);                 // save current time
-        volnum = old_volnum;
+      { do_jrnflush(vol);                               // do jrn flush
       }
       if ((!myslot) &&
           (systab->vol[vol]->gbsync) &&                 // need sync ?
           (0 == systab->vol[vol]->writelock) &&         //   not locked ?
           (last_sync[vol] < MTIME(0)))                  //     sync is over ?
-      { int old_volnum = volnum;
-        do_mount(vol);                                  // mount vol. 
-        inter_add(&systab->delaywt, 1);                 // delay WRITEs
-        do_quiescence();                                // reach quiet point
-        if (systab->vol[vol]->vollab->journal_available) // journal available ?
-        { jfd = open_jrn(vol);                          // open journal
-          if (jfd)
-          { volnum = vol + 1;
-            SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
-            FlushJournal(vol, jfd, 0);                  // flush journal
-            SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
-            fsync(jfd);                                 // sync JRN to disk
-          }
-        }
-        fsync(dbfds[vol]);                              // sync volume to disk
-        if (systab->vol[vol]->vollab->journal_available) // journal available ?
-        { jfd = open_jrn(vol);                          // open journal
-          if (jfd)
-          { jrnrec jj;                                  // write SYNC record
-            jj.action = JRN_SYNC;
-            jj.time = MTIME(0);
-            jj.uci = 0;
-            volnum = vol + 1;
-            SemOp( SEM_GLOBAL, WRITE);
-            DoJournal(&jj, 0);                          // do journal
-            FlushJournal(vol, jfd, 0);                  // flush journal
-            SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
-            fsync(jfd);                                 // sync to disk
-          }
-        }
-        inter_add(&systab->delaywt, -1);                // release WRITEs
-        MEM_BARRIER;
-        last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
-        volnum = old_volnum;
+      { do_volsync(vol);                                // do volume sync
       }
     }                                                   // end foreach vol
 #ifdef MV1_CKIT
@@ -868,6 +826,13 @@ void daemon_check()					// ensure all running
 }
 
 
+//-----------------------------------------------------------------------------
+// Function: do_mount
+// Descript: Mount a volume, ie. open the corresponding file desc.
+// Input(s): vol to mount
+// Return:   none
+//
+
 void do_mount(int vol)                                  // mount volume
 { char msg[VOL_FILENAME_MAX + 128];                     // msg buffer
 
@@ -898,6 +863,14 @@ void do_mount(int vol)                                  // mount volume
 
   return;
 }
+
+
+//-----------------------------------------------------------------------------
+// Function: open_jrn
+// Descript: Open the jrn file of the given volume.
+// Input(s): vol - the volume
+// Return:   jrn file desc.
+//
 
 int open_jrn(int vol)
 { int j;                                                // handy int
@@ -947,6 +920,13 @@ int open_jrn(int vol)
 }
 
 
+//-----------------------------------------------------------------------------
+// Function: do_quiescence
+// Descript: Reach a quiet point, ie. the dirty and garbage queues are empty.
+// Input(s): None
+// Return:   None
+//
+
 void do_quiescence(void)
 { int i, j;                                     // handy ints
 
@@ -976,3 +956,85 @@ void do_quiescence(void)
   }						// end while (TRUE)
   i = MSLEEP(1000);				// just a bit more
 }
+
+
+//-----------------------------------------------------------------------------
+// Function: do_jrnflush
+// Descript: Flush the jrn file of vol to disk, sync the data.
+// Input(s): vol - the volume
+// Return:   None
+//
+
+void do_jrnflush(int vol)
+{ int old_volnum;                               // old volnum
+  int jfd;                                      // jrn file desc.
+
+  ASSERT(0 <= vol);                             // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
+
+  old_volnum = volnum;                          // save current vol
+  volnum = vol + 1;                             // set volnum
+  jfd = open_jrn(vol);                          // open jrn file
+  if (jfd) 
+  { SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
+    FlushJournal(vol, jfd, 0);                  // flush journal
+    SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
+    fsync(jfd);                                 // sync to disk
+  }
+  last_jrn_flush[vol] = MTIME(0);               // save current time
+  volnum = old_volnum;                          // restore volnum
+}
+
+
+//-----------------------------------------------------------------------------
+// Function: do_volsync
+// Descript: Flush the changes of a volume to disk, sync data.
+// Input(s): vol - the volume
+// Return:   None
+//
+
+void do_volsync(int vol)
+{ int old_volnum;                               // old volnum
+  int jfd;                                      // jrn file desc.
+
+  ASSERT(0 <= vol);                             // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
+
+  old_volnum = volnum;
+  do_mount(vol);                                // mount vol. 
+  inter_add(&systab->delaywt, 1);               // delay WRITEs
+  do_quiescence();                              // reach quiet point
+  if (systab->vol[vol]->vollab->journal_available) // journal available ?
+  { jfd = open_jrn(vol);                        // open journal
+    if (jfd)
+    { volnum = vol + 1;
+      SemOp( SEM_GLOBAL, WRITE);                // lock GLOBALs
+      FlushJournal(vol, jfd, 0);                // flush journal
+      SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
+      fsync(jfd);                               // sync JRN to disk
+    }
+  }
+  fsync(dbfds[vol]);                            // sync volume to disk
+  if (systab->vol[vol]->vollab->journal_available) // journal available ?
+  { jfd = open_jrn(vol);                        // open journal
+    if (jfd)
+    { jrnrec jj;                                // write SYNC record
+      jj.action = JRN_SYNC;
+      jj.time = MTIME(0);
+      jj.uci = 0;
+      volnum = vol + 1;
+      SemOp( SEM_GLOBAL, WRITE);
+      DoJournal(&jj, 0);                        // do journal
+      FlushJournal(vol, jfd, 0);                // flush journal
+      SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
+      fsync(jfd);                               // sync to disk
+    }
+  }
+  inter_add(&systab->delaywt, -1);              // release WRITEs
+  MEM_BARRIER;
+  last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
+  volnum = old_volnum;
+}
+
