@@ -90,7 +90,8 @@
 typedef struct __PACKED__ DB_BLOCK	                // database block layout
 { u_char type;						// block type
   u_char flags;						// flags
-  u_short spare;					// future
+  u_char blkrevno;                                      // block revision
+  u_char spare;					        // future
   u_int right_ptr;					// right pointer
   u_short last_idx;					// last used index off
   u_short last_free;					// last free lw in block

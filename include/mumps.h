@@ -333,6 +333,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
   char journal_file[JNL_FILENAME_MAX + 1];      // journal file name
   uci_tab uci[UCIS];                            // current ucis (at 256!!!)
   VOLATILE u_int64 txid;                        // TX id
+  VOLATILE u_char blkrevno;                     // Block Revision No.
 } label_block;         				// define the label block
 						// sizeof(label_block) = 1024
 #if MAX_NAME_BYTES == 8

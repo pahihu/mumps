@@ -538,7 +538,7 @@ void do_write()						// write GBDs
   gbd *gbdptr;						// for the gbd
   gbd *lastptr = NULL;					// for the gbd
   u_int blkno;                                          // block#
-  u_char *wrbuf;                                        // write buffer
+  DB_Block *wrbuf;                                      // write buffer
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
 
@@ -574,7 +574,7 @@ void do_write()						// write GBDs
 		 systab->vol[vol]->vollab->block_size);
       BLOCK_UNLOCK(gpdptr);
 #else
-      wrbuf = (u_char*) gbdptr->mem;
+      wrbuf = gbdptr->mem;
 #endif
       file_off = (off_t) blkno - 1;	                // block#
       file_off = (file_off * (off_t)
@@ -586,6 +586,7 @@ void do_write()						// write GBDs
         sprintf(msg, "lseek of vol %d failed in Write_Chain()!!", vol);
         panic(msg);                                     // die on error
       }
+      wrbuf->blkrevno = systab->vol[vol]->vollab->blkrevno;
       i = write( dbfds[vol], wrbuf,
 		 systab->vol[vol]->vollab->block_size); // write it
       if (i < 0)
