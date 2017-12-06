@@ -57,6 +57,8 @@
 
 static int dbfds[MAX_VOL];				// global db file desc
 static int myslot;					// my slot in WD table
+static int SLOT_JRN;                                    // JRN daemon
+static int SLOT_VOLSYNC;                                // VOLSYNC daemon
 
 void do_daemon();					// do something
 void do_dismount();					// dismount volnum
@@ -70,7 +72,6 @@ void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write[MAX_VOL];                  // last map write
 int open_jrn(int vol);                                  // open journal file
-static time_t last_jrn_flush[MAX_VOL];                  // last jrnbuf flush
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
@@ -160,7 +161,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
-    last_jrn_flush[i] = (time_t) 0;                     // last jrn flush time
     jnl_fds[i] = 0;                                     // clear jrn file desc.
     last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
@@ -206,6 +206,13 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   if (!myslot)
     systab->Mtime = time(0);                            // update M time
+
+  SLOT_JRN       =  0;                                  // default Daemon 0
+  SLOT_VOLSYNC   = -1;                                  // default none
+  if (systab->vol[0]->num_of_daemons > 1)               // more than 1 daemons ?
+    SLOT_JRN     =  1;                                  //   be Daemon 1
+  if (systab->vol[0]->num_of_daemons > 2)               // more than 2 daemons ?
+    SLOT_VOLSYNC =  2;                                  //   be Daemon 2
 
   if ((systab->vol[0]->upto) && (!myslot))		// if map needs check
   { ic_map(-3, 0, dbfds[0]);				// doit
@@ -275,13 +282,13 @@ start:
         // Set the writelock to a positive value when all quiet
         systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
       }							// end wrtlock
-      if ((!myslot) &&
+      if ((SLOT_JRN == myslot) &&
           (systab->vol[vol]->vollab->journal_available) && // jrn available ?
           (systab->vol[vol]->jrnflush < MTIME(0)) &&    // flush is over ?
-          (last_jrn_flush[vol] < MTIME(0)))             // chk. jrn buffer
+          (systab->vol[vol]->jrnbufsize))               // has records ?
       { do_jrnflush(vol);                               // do jrn flush
       }
-      if ((!myslot) &&
+      if ((SLOT_VOLSYNC == myslot) &&
           (systab->vol[vol]->gbsync) &&                 // need sync ?
           (0 == systab->vol[vol]->writelock) &&         //   not locked ?
           (last_sync[vol] < MTIME(0)))                  //     sync is over ?
@@ -983,7 +990,6 @@ void do_jrnflush(int vol)
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
     fsync(jfd);                                 // sync to disk
   }
-  last_jrn_flush[vol] = MTIME(0);               // save current time
   volnum = old_volnum;                          // restore volnum
 }
 
