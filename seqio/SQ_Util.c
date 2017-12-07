@@ -88,18 +88,23 @@ int getError (int type, int errnum)
 // "partab.jobtab->attention" to 1.  The process can then determine which
 // signal(s) have been caught by the bits in the mask "partab.jobtab->trap";
 // hence, if a bit has been set, then the signal corresponding to that bit has
-// been caught.
+// been caught.  Due to KILL ^$JOB command, the partab.jobtab could get invalid
+// during the signal delivery.
 
 void setSignalBitMask (int sig)
 { int	mask;
+  jobtab *jtab;
   if ( sig == SIGQUIT )
     DoInfo();
 //  else if ( sig == SIGCHLD )
 //    wait(&mask);
   else
-  { partab.jobtab->attention = 1;
-    mask = 1 << sig;
-    partab.jobtab->trap |= mask;
+  { jtab = partab.jobtab;                       // get jobtab ptr
+    if (jtab)                                   // valid ?
+    { jtab->attention = 1;                      //   set attention
+      mask = 1 << sig;
+      jtab->trap |= mask;                       //   set trap
+    }
   }
 }
 
