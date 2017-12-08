@@ -1316,6 +1316,7 @@ JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
 ;#define JRN_ESTOP       3                               // stop/dism environ
 ;#define JRN_SET         4                               // Set global
 ;#define JRN_KILL        5                               // Kill global
+;#define JRN_SYNC        6                               // sync environ
 ;
  N NREC,ANS,OD,CTIME,OTIME,HDR,$ET S $ET="D ^%ET",OTIME=""
 ASK R "Enter file: ",FILE,! Q:FILE=""
@@ -1334,7 +1335,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  .S CTIME=$E(HDR,5,5+TSIZE-1)
  .S:OTIME'=CTIME TIME=$$CVT(CTIME),TIME=(TIME\86400+47117)_","_(TIME#86400),OTIME=CTIME
 ;.Convert time
- .S ACTION=$S(ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
+ .S ACTION=$S(ACTION=6:"SYNC",ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
 ;.Setup ACTION
  .W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
 ;.Write the first bit
