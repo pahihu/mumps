@@ -114,12 +114,12 @@ int Routine_Hash(chr_x routine)			// return hash code
   //for (i = 0; i < 8; i++)                     // for each character
   //{ hash = (((routine & 0xFF) * p[i]) + hash);// add that char
   //  routine = (routine >> 8);                 // right shift one byte
-  int p[MAX_NAME_BYTES] = {                     // primes
+  static int p[MAX_NAME_BYTES] = {              // primes
       3,  5,  7, 11, 13, 17, 19, 23,
      29, 31, 37, 41, 43, 47, 53, 59,
      61, 67, 71, 73, 79, 83, 89, 97,
     101,103,107,109,113,127,131,137 };
-  for (i = 0; i < MAX_NAME_BYTES; i++)          // for each character
+  for (i = 0; routine.buf[i] && (i < MAX_NAME_BYTES); i++) // for each character
   { hash = ((routine.buf[i] * p[i]) + hash);    // add that char
   }                                             // end hash loop
   return (hash % RBD_HASH);			// return the code
@@ -370,7 +370,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
     return NULL;				// say no such
   }
   size = s + RBD_OVERHEAD + 1;			// space required
-  if (size & 7) size = (size & ~7) + 8;		// rount up to 8 byte boundary
+  if (size & 7) size = (size & ~7) + 8;		// round up to 8 byte boundary
   ptr = Routine_Find(size);			// find location
   if (ptr == NULL)				// no space mate!!
   { s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
