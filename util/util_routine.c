@@ -109,21 +109,28 @@ void Dump_rbd()					// dump rbds
 
 //int Routine_Hash(chr_q routine)			// return hash code
 int Routine_Hash(chr_x routine)			// return hash code
-{ int hash = 0;					// for the return
+{ // int hash = 0;			        // for the return
   int i;					// a handy int
   //int p[8] = {3,5,7,11,13,17,19,23};          // primes
   //for (i = 0; i < 8; i++)                     // for each character
   //{ hash = (((routine & 0xFF) * p[i]) + hash);// add that char
   //  routine = (routine >> 8);                 // right shift one byte
-  int p[MAX_NAME_BYTES] = {                     // primes
-      3,  5,  7, 11, 13, 17, 19, 23,
-     29, 31, 37, 41, 43, 47, 53, 59,
-     61, 67, 71, 73, 79, 83, 89, 97,
-    101,103,107,109,113,127,131,137 };
-  for (i = 0; i < MAX_NAME_BYTES; i++)          // for each character
-  { hash = ((routine.buf[i] * p[i]) + hash);    // add that char
-  }                                             // end hash loop
-  return (hash % RBD_HASH);			// return the code
+  // int p[MAX_NAME_BYTES] = {                  // primes
+  //     3,  5,  7, 11, 13, 17, 19, 23,
+  //    29, 31, 37, 41, 43, 47, 53, 59,
+  //    61, 67, 71, 73, 79, 83, 89, 97,
+  //   101,103,107,109,113,127,131,137 };
+  // for (i = 0; i < MAX_NAME_BYTES; i++)          // for each character
+  // { hash = ((routine.buf[i] * p[i]) + hash);    // add that char
+  // }                                             // end hash loop
+  // return (hash % RBD_HASH);			// return the code
+
+  uint32_t hash = 2166136261UL;                 // FNV-1a hash
+  for (i = 0; routine.buf[i] && (i < MAX_NAME_BYTES); i++)
+  { hash ^= (unsigned char) routine.buf[i];
+    hash *= 16777619UL;
+  }
+  return (hash % RBD_HASH);                     // return the code
 }
 
 void Routine_Combine(rbd *pointer)		// combine with following block
