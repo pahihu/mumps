@@ -284,7 +284,7 @@ start:
       }							// end wrtlock
       if ((SLOT_JRN == myslot) &&
           (systab->vol[vol]->vollab->journal_available) && // jrn available ?
-          (systab->vol[vol]->jrnflush < MTIME(0)) &&    // flush is over ?
+          (systab->vol[vol]->lastdojrn < MTIME(0)) &&   // DoJrn is old ?
           (systab->vol[vol]->jrnbufsize))               // has records ?
       { do_jrnflush(vol);                               // do jrn flush
       }

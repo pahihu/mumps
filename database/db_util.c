@@ -789,7 +789,6 @@ short FlushJournal(int vol, int jfd, int dosync)
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   if (dosync)                                           // if requested
     fsync(jfd);                                         //   do a sync.
-  systab->vol[volnum - 1]->jrnflush = MTIME(0);         // set flush time
   return 0;
 
 fail:
@@ -969,6 +968,7 @@ void DoJournal(jrnrec *jj, cstring *data) 		// Write journal
   if (jj_alignment)
     currsize += jj_alignment;
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
+  systab->vol[volnum - 1]->lastdojrn  = MTIME(0);       // save time
   return;
 
 fail:

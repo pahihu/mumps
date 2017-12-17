@@ -608,8 +608,8 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   u_int blkno;                                          // block#
   int dbfd;
 
-  if (!writing)
-    systab->vol[volnum-1]->stats.eventcnt++;            // update stats
+//  if (!writing)
+//    systab->vol[volnum-1]->stats.eventcnt++;            // update stats
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"WriteBlock: %d %p\r\n",gbdptr->block,gbdptr->dirty);fflush(stderr);
