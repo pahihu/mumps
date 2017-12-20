@@ -232,6 +232,9 @@ void do_daemon()					// do something
   int dirtyQr, garbQr;                                  // queue read positions
 
 start:
+  if (!myslot)                                          // update M time
+    systab->Mtime = time(0);
+
   CHKPT;
   daemon_check();					// ensure all running
   if (systab->vol[volnum-1]->wd_tab[myslot].doing == DOING_NOTHING)
