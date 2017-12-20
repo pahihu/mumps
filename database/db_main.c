@@ -788,6 +788,7 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   jj.slen = 0;
   DoJournal(&jj, NULL);
   systab->vol[vol - 1]->vollab->journal_available = 0;
+  SemOp( SEM_GLOBAL, -curr_lock);
   return;
 }
 
