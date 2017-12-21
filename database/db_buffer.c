@@ -295,8 +295,10 @@ start:
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
     while (ptr != NULL)					// while we have some
-    { if ((ptr->block == 0) &&                          // if no block
-          (ptr->dirty == NULL))                         //   and not garbaged
+    { if (ptr->block == 0)                              // if no block
+          // && (ptr->dirty == NULL)                    //   and not garbaged
+          // NB. ha ezt nem nezzuk, akkor megtorheti a dirty lancot a demonban
+          //     ha nezzuk, akkor ugy tunik, hogy marad dirty block a GBD-ben
       { if (last == NULL)				// if first one
         { systab->vol[volnum-1]->gbd_hash[i] = ptr->next; // hook it here
         }
@@ -390,8 +392,10 @@ start:
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
     while (ptr != NULL)					// while we have some
-    { if (((ptr->block == 0) &&                         // if no block
-           (ptr->dirty == NULL)) ||                     //   and not garbaged OR
+    { if ((ptr->block == 0) ||                          // if no block
+           // && (ptr->dirty == NULL)                   //   and not garbaged OR
+           // NB. ha ezt nem nezzuk, akkor megtorheti a dirty lancot a demonban
+           //     ha nezzuk, akkor ugy tunik, hogy marad dirty block a GBD-ben
 	  ((ptr->dirty == NULL) &&			// if free
 	   (ptr->last_accessed < exp) &&		// and time expired
 	   (ptr->last_accessed > 0)))			// and there is a time
