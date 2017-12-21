@@ -770,6 +770,7 @@ cont:
   return;
 }
 
+
 int msleep_(u_long mseconds,const char *path,int lno)
 {
 #ifdef MV1_DEV
@@ -778,10 +779,25 @@ int msleep_(u_long mseconds,const char *path,int lno)
   return usleep(1000*mseconds);
 }
 
+
 void CheckGBD_(gbd *ptr, const char *path, int lno)
 { char msg[128];
   if (ptr < systab->vol[0]->gbd_head || ptr >= systab->vol[0]->gbd_head + systab->vol[0]->num_gbd)
   { sprintf(msg,"%s:%d: invalid GBD (%#lx)",path,lno,(u_long)ptr);
     panic(msg);
   }
+}
+
+
+u_int DB_GetDirty(int vol)
+{ int i, num_gbd;
+  u_int cnt;
+
+  num_gbd = systab->vol[vol - 1]->num_gbd;
+  cnt = 0;
+  for (i = 0; i < num_gbd; i++)
+     if (systab->vol[vol - 1]->gbd_head[i].dirty)
+       cnt++;
+
+  return cnt;
 }

@@ -82,6 +82,7 @@ struct GBD *DB_ViewGet(int vol, int block);      // return gbd address of
                                                  // specified block, null on err
 void DB_ViewPut(int vol, struct GBD *ptr);       // que block for write
 void DB_ViewRel(int vol, struct GBD *ptr);       // release block, gbd -> free
+u_int DB_GetDirty(int vol);                      // no. of dirty blocks
 
 
 //****************************************************************************
