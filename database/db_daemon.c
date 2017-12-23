@@ -566,17 +566,13 @@ int do_zot(u_int gb)					// zot block
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
   CHKPT;
-  // NB. Get_block()-ban varnak arra, hogy last_accessed != 0
-  //     => csak WRITE lock mellett lehet modositani
-  //	 => toroljuk a block-ot is, nehogy valaki olvasni akarja
-  while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
+  while(SemOp(SEM_GLOBAL, READ));			// take a global lock
   CHKPT;
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
-      ptr->block = 0;
       break;						// exit
     }
     ptr = ptr->next;					// point at next
