@@ -157,16 +157,17 @@ short Xcall_debug(char *ret_buffer, cstring *arg1, cstring *arg2)
   else if (strcmp((char *)arg1->buf, "LTD") == 0)
     Dump_lt();
   else if (strcmp((char *)arg1->buf, "SEMS") == 0)	// semaphores
-  { int i,val,sempid;
+  { int i,val,sempid,ncnt;
     for (i=0; i<SEM_MAX; i++)
     { val = semctl(systab->sem_id, i, GETVAL, 0);
       sempid = semctl(systab->sem_id, i, GETPID, 0);
+      ncnt   = semctl(systab->sem_id, i, GETNCNT, 0);
       fprintf( stderr,"%d) %s",i,( i==SEM_SYS ? "SEM_SYS" :
                                  ( i==SEM_ROU ? "SEM_ROU" :
                                  ( i==SEM_LOCK ? "SEM_LOCK" :
                                  ( i==SEM_GLOBAL ? "SEM_GLOBAL" :
                                  ( i==SEM_WD ? "SEM_WD" : "?"))))) );
-      fprintf(stderr,"\t= %d \t(last pid %d)\r\n",val,sempid);
+      fprintf(stderr,"\t= %d \t(last pid %d ncnt %d)\r\n",val,sempid,ncnt);
     }
     fprintf(stderr,"(maxjobs = %d)\r\n",systab->maxjob);
   }
