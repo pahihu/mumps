@@ -67,11 +67,11 @@
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
 
-// Sleep times
-#define DQ_SLEEP        125
-#define GQ_SLEEP        125
+// Sleep times in milliseconds
+#define DQ_SLEEP         125
+#define GQ_SLEEP         125
 // #define GBD_SLEEP       250
-#define GBD_SLEEP       30
+#define GBD_SLEEP         30
 #define WRLOCK_SLEEP    1000
 
 // MUMPS time
@@ -198,8 +198,6 @@ void Used_block(int blknum);				// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int greqd);				// get n free GBDs and
                                                         //   dirty slots
-int msleep_(u_long mseconds,const char *path,int lno);  // sleep milliseconds
-#define msleep(ms)      msleep_(ms,__FILE__,__LINE__)
 void CheckGBD_(gbd *ptr,const char *path,int lno);	// check GBD ptr
 #define CheckGBD(x)	CheckGBD_(x,__FILE__,__LINE__)
 

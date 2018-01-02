@@ -293,6 +293,9 @@ int TimerCheck(TIMER_T *p_tim);
 void UTIL_assert(int cond,const char *expr,const char *path,int lno);
 #define ASSERT(expr)	UTIL_assert(expr,#expr,__FILE__,__LINE__)
 
+int msleep_(u_long mseconds,const char *path,int lno);  // sleep milliseconds
+#define msleep(ms)      msleep_(ms,__FILE__,__LINE__)
+
 // Xcalls
 //
 short Xcall_host ( char *ret_buffer, cstring *name, cstring *dum2 );

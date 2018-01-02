@@ -50,6 +50,7 @@
 #include <sys/sem.h>                            // semaphore stuff
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
+#define LCK_SLEEP       10
 
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
@@ -436,6 +437,7 @@ typedef struct _lck_add {
   time_t _strttime;
   short _x;
   locktab *_lptr;
+  int _pass;
 } lck_add_ctx;
 
 #define count     pctx->_count
@@ -446,6 +448,7 @@ typedef struct _lck_add {
 #define strttime  pctx->_strttime
 #define x         pctx->_x
 #define lptr      pctx->_lptr
+#define pass      pctx->_pass
 
 static
 int failed(lck_add_ctx *pctx)                 // common code
@@ -461,7 +464,11 @@ int failed(lck_add_ctx *pctx)                 // common code
 
   if (tryagain == 1)
   { x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
-    sleep(1);
+    pass++;
+    if (pass & 3)
+      SchedYield();
+    else
+      msleep(LCK_SLEEP);
   }
         
   if (tryagain == 0)
@@ -504,6 +511,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
   pctx = &ctx;
   done = 0;
   tryagain = 1;
+  pass = 0;
 
  strttime = time((time_t *) NULL);              // save op start time
  while (tryagain)                               // while we should give it a go
@@ -788,6 +796,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
 #undef strttime
 #undef x
 #undef lptr
+#undef pass
              
 //****************************************************************
 
