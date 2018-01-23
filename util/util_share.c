@@ -111,16 +111,20 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
-      if (partab.jobtab == NULL)		// from a daemon
+    { if (partab.jobtab == NULL)		// from a daemon
 	panic("SemOp() error in write daemon");	// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
         return -(ERRZ51+ERRMLAST);              // return an error
+    }
   }
   if (systab->start_user == -1)			// If shutting down
   { exit(0);					// just quit
   }
-  if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
-  return 0;                                     // shouldn't get here except lock
+  // NB. nonsense, why allow unlocking SEM_LOCK fail here ?
+  //     if fails, you could not LOCK anything after this
+  //     --- PROVEN WITH SIM4.ROU --- (32 processes on 16 CPUs)
+  panic("SemOp() failed");                      // die...
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

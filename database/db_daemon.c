@@ -373,7 +373,7 @@ void do_dismount()					// dismount volnum
   i = 1;
   while (i)						// while theres pids
   { i = 0;						// reset pid counter
-    SemOp( SEM_WD, WRITE );				// lock daemon table
+    while (SemOp( SEM_WD, WRITE ));			// lock daemon table
     for (j=1; j<systab->vol[volnum-1]->num_of_daemons; j++) // search
     { if (systab->vol[volnum-1]->wd_tab[j].pid)
       { if (kill(systab->vol[volnum-1]->wd_tab[j].pid, 0))
@@ -438,7 +438,7 @@ void do_write()						// write GBDs
 
   CHKPT;
   if (curr_lock == 0)					// if we need a lock
-  { SemOp( SEM_GLOBAL, READ);				// take a read lock
+  { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   CHKPT;
   while (TRUE)						// until we break
@@ -572,6 +572,16 @@ int do_zot(u_int gb)					// zot block
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
+      // NB. Since we have only a READ lock here, setting
+      //     last_accessed to zero could cause indefinite 
+      //     waiting in Get_buffer(), when a READER want to 
+      //     read a block which is not cached.  
+      //     It releases the READ lock and grabs a WRITE lock.
+      //     In between another process could delete the global
+      //     and the daemon here zeroes last_accessed.
+      //     The READER grabs the WRITE lock, it founds the block
+      //     in the cache, drops to READ lock, but last_accessed 
+      //     is zero and waits indefinitely.
       ptr->last_accessed = (time_t) 0;			// mark as zotted
       break;						// exit
     }

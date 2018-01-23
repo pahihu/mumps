@@ -239,7 +239,7 @@ short CleanJob(int job)				// tidy up a job
   
   j = job - 1;					// copy argument to int job form
   if (job)
-  { SemOp( SEM_SYS, -systab->maxjob);           // lock SYS
+  { while (SemOp( SEM_SYS, -systab->maxjob));   // lock SYS
     if (0 == systab->jobtab[j].pid)             // zotted ?
     { SemOp( SEM_SYS, systab->maxjob);          //   release SYS
       return -1;                                //   flag failed
