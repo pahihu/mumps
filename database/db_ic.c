@@ -291,25 +291,26 @@ u_int ic_block(u_int block, u_int points_at,
 
   s = Get_block(block);					// get it
   if (s < 0)						// if that failed
-  { s = UTIL_strerror(s, emsg);				// decode message
+  { s = SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
+    s = UTIL_strerror(s, emsg);				// decode message
     outc->len = sprintf((char *)&outc->buf[0],
       "%10d <- %10d - error getting - %s",
       block, points_at, emsg);				// error msg
     icerr++;						// count it
     s = SQ_Write(outc);					// output it
     s = SQ_WriteFormat(SQ_LF);				// and a !
-    s = SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
     return 0;						// and exit
   }
 
   if ((used[block/8] & (1 << (block & 7))) == 0)	// if marked free
-  { outc->len = sprintf((char *)&outc->buf[0],
+  { s = SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
+    outc->len = sprintf((char *)&outc->buf[0],
       "%10d <- %10d marked free, type = %d",
       block, points_at, blk[level]->mem->type);		// error msg
-      icerr++;						// count it
-      s = SQ_Write(outc);				// output it
-      s = SQ_WriteFormat(SQ_LF);			// and a !
-      return 0;						// give up
+    icerr++;						// count it
+    s = SQ_Write(outc);				        // output it
+    s = SQ_WriteFormat(SQ_LF);			        // and a !
+    return 0;						// give up
   }
 
   eob = (u_char *) blk[level]->mem

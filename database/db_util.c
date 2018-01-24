@@ -773,7 +773,7 @@ cont:
 
 int msleep_(u_long mseconds,const char *path,int lno)
 {
-#ifdef MV1_DEV
+#ifdef MV1_DEV_MSLEEP
   fprintf(stderr,"%s:%d: sleeping %lumsec\r\n",path,lno,mseconds);
 #endif
   return usleep(1000*mseconds);
