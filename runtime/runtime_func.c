@@ -534,6 +534,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   char *d1 = NULL;				// flag
   char *dp = NULL;				// decimal point pos
   short s;
+  int zero = 0;                                 // flag '0'
 
   ret_buffer[0] = '\0';
   a1 = strchr((const char *) &code->buf[0],'p');		// in code string ??
@@ -556,6 +557,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   }
   else
   { z = 0;
+    zero = '0' == numexp->buf[0];               // '0' ?
   }
   if ((z == 1) && (numexp->buf[1] == '.'))	// check for '0.bla'
   { z = 0;					// leave the leading zero
@@ -640,7 +642,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   }
   if ((c1 != NULL) || (c2 != NULL))		// trailing signs
   { if (numexp->buf[0] != '-')
-    { if (b1 != NULL) // force + sign at end
+    { if (!zero && (b1 != NULL))                // force + sign at end, except for '0'
       { if (dest->buf[0] == '+')		// if + sign already at front
         { bcopy(&dest->buf[1], &tempc->buf[0], dest->len-1);
           tempc->buf[dest->len-1] = '+';
@@ -674,7 +676,7 @@ short Dfnumber2(u_char *ret_buffer, cstring *numexp, cstring *code)
   }
   else						// non trailing signs
   { if (numexp->buf[0] != '-')
-    { if (b1 != NULL) // force + sign at front
+    { if (!zero && (b1 != NULL))                // force + sign at front, except for '0'
       { if (dest->buf[0] != '+')
         { if (numexp->buf[0] != '-')
           { tempc->buf[0] = '+';
