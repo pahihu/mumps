@@ -481,6 +481,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return uitocstring(buf, systab->vol[i]->stats.bwrwait);
 	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
 	  return uitocstring(buf, systab->vol[i]->stats.lckwait);
+	if (strncasecmp( (char *) subs[2]->buf, "dirty\0", 6) == 0)
+	  return uitocstring(buf, DB_GetDirty(i));
       }						// end of "VOL"
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "zotdata\0", 8) == 0))

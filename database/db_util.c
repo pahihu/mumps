@@ -1106,3 +1106,20 @@ int DirtyQ_Len(void)
   return qlen;
 }
 
+u_int DB_GetDirty(int vol)
+{ int i, num_gbd;
+  u_int cnt;
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  num_gbd = systab->vol[vol]->num_gbd;
+  cnt = 0;
+  for (i = 0; i < num_gbd; i++)
+     if (systab->vol[vol]->gbd_head[i].dirty)
+       cnt++;
+
+  return cnt;
+}
+
