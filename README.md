@@ -29,5 +29,6 @@ Fixes:
   * removed race in global KILL (block removal)
   * atomic access in dirty/garbage queue
   * reverse $QUERY() for locals
+  * $FNUMBER() suppress sign for 0
 
 **NOTE**: Use the code! Good luck!
