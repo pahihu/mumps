@@ -444,7 +444,7 @@ void do_dismount()					// dismount volnum
   i = 1;
   while (i)						// while theres pids
   { i = 0;						// reset pid counter
-    SemOp( SEM_WD, WRITE );				// lock daemon table
+    while (SemOp( SEM_WD, WRITE ));			// lock daemon table
     for (j=1; j<systab->vol[0]->num_of_daemons; j++)    // search
     { if (systab->vol[0]->wd_tab[j].pid)
       { if (kill(systab->vol[0]->wd_tab[j].pid, 0))
@@ -519,7 +519,7 @@ void do_write()						// write GBDs
   volnum = gbdptr->vol + 1;                             // set volnum
 
   if (!curr_lock)					// if we need a lock
-  { SemOp( SEM_GLOBAL, READ);				// take a read lock
+  { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
@@ -659,7 +659,7 @@ int do_zot(int vol,u_int gb)				// zot block
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
   volnum = vol + 1;                                     // set volnum
-  while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
+  while (SemOp(SEM_GLOBAL, WRITE));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -815,7 +815,7 @@ void daemon_check()					// ensure all running
   if (last_daemon_check == MTIME(0))
     return;
 
-  while (SemOp(SEM_WD, WRITE));				// lock WD
+  while (SemOp(SEM_WD, WRITE));			        // lock WD
   for (i = 0; i < systab->vol[0]->num_of_daemons; i++)
   { if (i != myslot)					// don't check self
     { fit = kill(systab->vol[0]->wd_tab[i].pid, 0);
@@ -985,7 +985,7 @@ void do_jrnflush(int vol)
   jfd = open_jrn(vol);                          // open jrn file
   if (jfd) 
   { volnum = vol + 1;                           // set volnum
-    SemOp( SEM_GLOBAL, WRITE);                  // lock GLOBALs
+    while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
     fsync(jfd);                                 // sync to disk
@@ -1018,7 +1018,7 @@ void do_volsync(int vol)
   { jfd = open_jrn(vol);                        // open journal
     if (jfd)
     { volnum = vol + 1;
-      SemOp( SEM_GLOBAL, WRITE);                // lock GLOBALs
+      while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
       fsync(jfd);                               // sync JRN to disk
@@ -1033,7 +1033,7 @@ void do_volsync(int vol)
       jj.time = MTIME(0);
       jj.uci = 0;
       volnum = vol + 1;
-      SemOp( SEM_GLOBAL, WRITE);
+      while (SemOp( SEM_GLOBAL, WRITE));
       DoJournal(&jj, 0);                        // do journal
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs

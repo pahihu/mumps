@@ -179,17 +179,18 @@ short SemOpEx(int sem_num, int numb,
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
-      if (partab.jobtab == NULL)		// from a daemon
+    { if (partab.jobtab == NULL)		// from a daemon
 	panic("SemOp() error in write daemon");	// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
         return -(ERRZ51+ERRMLAST);              // return an error
+    }
   }
   curr_sem[sem_num] -= numb;
   if (systab->start_user == -1)			// If shutting down
   { exit (0);					// just quit
   }
-  if ((sem_num != SEM_LOCK) || (numb != 1)) panic("SemOp() failed");  // die... unless a lock release
-  return 0;                                     // shouldn't get here except lock
+  panic("SemOp() failed");                      // die...
+  return 0;                                     // shouldn't get here
 }
 
 u_int semslot(int pass)

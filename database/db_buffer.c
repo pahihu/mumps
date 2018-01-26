@@ -168,7 +168,7 @@ void Free_GBDROs(gbd **ptrs, int nptrs)
   int  i;
   bool result;
 
-  SemOp(SEM_GBDRO, WRITE);
+  while(SemOp(SEM_GBDRO, WRITE));
   for (i = 0; i < nptrs; i++)
   { result = ck_ring_enqueue_spmc(
                 &systab->vol[volnum-1]->rogbdQ,
@@ -186,7 +186,7 @@ void Free_GBDRO(gbd *ptr)
 {
   bool result;
 
-  SemOp(SEM_GBDRO, WRITE);
+  while(SemOp(SEM_GBDRO, WRITE));
   result = ck_ring_enqueue_spmc(
                 &systab->vol[volnum-1]->rogbdQ,
                 &systab->vol[volnum-1]->rogbdQBuffer[0],
@@ -413,8 +413,8 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
 writelock:
     SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
-    if (s < 0)						// on error
-    { return s;						// return it
+    if (s < 0)                                          // on error
+    { return s;                                         // return it
     }
     ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
     while (ptr != NULL)					// for entire list
@@ -894,7 +894,7 @@ void Get_GBD(void)                                      // get a GBD
 gbd* Get_RdGBD(void)                                    // get a read-only GBD
 { gbd *ret = 0;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { SemOp( SEM_GBDGET, WRITE);
+  { while(SemOp( SEM_GBDGET, WRITE));
     ret = GetGBDEx(1);                                  // no I/O involved !!!
     if (!ret)
       SemOp( SEM_GBDGET, -WRITE);

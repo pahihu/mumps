@@ -2095,7 +2095,9 @@ short run(long savasp, long savssp)		// run compiled code
 	  if (i > MAX_VOL) ERROR(-(ERRMLAST+ERRZ63)) // junk
 	  if (j > -1)				// a release or get?
 	  { if (partab.jobtab->view[i - 1] != NULL) // anything there?
-	      DB_ViewRel(i, partab.jobtab->view[i - 1]); // yes - release it
+            { s =DB_ViewRel(i, partab.jobtab->view[i - 1]); // yes - release it
+              if (s < 0) ERROR(s)               // failed? then die
+            }
 	    partab.jobtab->view[i - 1] = NULL;	// say it's released
 	    if (j == 0) break;			// done if release
 	    partab.jobtab->view[i - 1] =
@@ -2109,7 +2111,8 @@ short run(long savasp, long savssp)		// run compiled code
 	    ERROR(-(ERRMLAST+ERRZ63))		// no - die
 	  if (partab.jobtab->view[i - 1]->block != j)
 	    ERROR(-(ERRMLAST+ERRZ63))		// wrong block - die
-	  DB_ViewPut(i, partab.jobtab->view[i - 1]); // mark for write
+	  s = DB_ViewPut(i, partab.jobtab->view[i - 1]); // mark for write
+          if (s < 0) ERROR(s)                   // failed? then die
 	  partab.jobtab->view[i - 1] = NULL;	// say it's released
 	  break;				// and exit
 	}

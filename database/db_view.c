@@ -90,10 +90,10 @@ struct GBD *DB_ViewGet(int volume, int block)		// return gbd for blk
 // Function: DB_ViewPut
 // Descript: Queue a block for write
 // Input(s): Vol# and gbd ptr of block
-// Return:   none
+// Return:   0 -> Ok, negative MUMPS error
 //
 
-void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
+short DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 { short s;						// for funcs
 
   ASSERT(0 < volume);                                   // valid volume
@@ -107,7 +107,7 @@ void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
   writing = 0;						// clear this
   s = SemOp(SEM_GLOBAL, WRITE);				// write lock
   if (s < 0)						// check error
-  { return;						// quit if so
+  { return s;						// quit if so
   }
   ptr->last_accessed = MTIME(0);			// reset access
   if (ptr->mem->type)					// if used
@@ -126,7 +126,7 @@ void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
   if (curr_lock)
   { SemOp(SEM_GLOBAL, -curr_lock);			// release lock
   }
-  return;						// and exit
+  return 0;						// and exit
 }
 
 
@@ -134,10 +134,10 @@ void DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 // Function: DB_ViewRel
 // Descript: Release specified gbd
 // Input(s): Vol# and gbd ptr of block
-// Return:   none
+// Return:   0 -> Ok, negative MUMPS error
 //
 
-void DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
+short DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
 { short s;						// for functions
 
   ASSERT(0 < volume);                                   // valid volume
@@ -152,8 +152,7 @@ void DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
   if (ptr->dirty && (ptr->dirty < (gbd *) 5))		// not owned elsewhere
   { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error
-    { return;						// quit if so
-// PROBABLY SHOULD PERSIST HERE
+    { return s;						// quit if so
     }
 #ifdef MV1_CACHE_DEBUG
     fprintf(stderr,"--- DB_ViewRel: !!! free !!!\r\n");fflush(stderr);
@@ -161,5 +160,5 @@ void DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
     Free_GBD(volume-1, ptr);				// free it
     SemOp(SEM_GLOBAL, -curr_lock);			// release lock
   }
-  return;						// and exit
+  return 0;						// and exit
 }

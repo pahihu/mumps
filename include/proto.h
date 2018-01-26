@@ -128,8 +128,8 @@ int DB_SetFlags(mvar *var, int flags);         	 // Set flags
 int DB_ic(int volume, int block);		 // integrity checker
 struct GBD *DB_ViewGet(int volume, int block);   // return gbd address of
                                                  // specified block, null on err
-void DB_ViewPut(int volume, struct GBD *ptr);    // que block for write
-void DB_ViewRel(int volume, struct GBD *ptr);    // release block, gbd -> free
+short DB_ViewPut(int volume, struct GBD *ptr);   // que block for write
+short DB_ViewRel(int volume, struct GBD *ptr);   // release block, gbd -> free
 
 
 //****************************************************************************
