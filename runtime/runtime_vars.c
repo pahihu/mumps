@@ -96,16 +96,24 @@ short Vetrap(u_char *ret_buffer)                // $ETRAP
 // $HOROLOG
 //
 short Vhorolog(u_char *ret_buffer)              // $HOROLOG
-{ time_t sec = time(NULL);                      // get secs from 1 Jan 1970 UTC
+{ static char buffer[14]; 
+  static short buflen = 0;
+  static time_t bufsec = 0;
+  time_t sec = MTIME(0) /*time(NULL)*/;         // get secs from 1 Jan 1970 UTC
   struct tm *buf;                               // struct for localtime()
   int day;                                      // number of days
-  buf = localtime(&sec);                        // get GMT-localtime
+  if (bufsec != sec)
+  { bufsec = sec;
+    buf = localtime(&sec);                      // get GMT-localtime
 #if !defined __CYGWIN__ && !defined __sun__
-  sec = sec + buf->tm_gmtoff;                   // adjust to local
+    sec = sec + buf->tm_gmtoff;                 // adjust to local
 #endif
-  day = sec/SECDAY+YRADJ;                       // get number of days
-  sec = sec%SECDAY;                             // and number of seconds
-  return sprintf( (char *)ret_buffer, "%d,%d", day, (int) sec); // return count and $H
+    day = sec/SECDAY+YRADJ;                     // get number of days
+    sec = sec%SECDAY;                           // and number of seconds
+    buflen = sprintf(buffer, "%d,%d", day, (int) sec); // construct horolog
+  }
+  bcopy(buffer, ret_buffer, buflen + 1);
+  return buflen;
 }
 
 //***********************************************************************
@@ -165,21 +173,34 @@ short Vy(u_char *ret_buffer)                    // $Y
 // $ZHOROLOG
 //
 short Vzhorolog(u_char *ret_buffer)             // $ZHOROLOG
-{ struct timeval tv;                            // struct for gettimeofday()
+{ static char buffer[32];
+  static short hbuflen;
+  static short buflen;
+  time_t bufsec = 0;
+  unsigned bufusec = 0;
+  struct timeval tv;                            // struct for gettimeofday()
   time_t sec;                                   // seconds
   struct tm *buf;                               // struct for localtime()
   int day;                                      // number of days
 
   gettimeofday(&tv, NULL);
   sec = tv.tv_sec;
-  buf = localtime(&sec);                        // get GMT-localtime
+  if (bufsec != sec)
+  { bufsec = sec;
+    buf = localtime(&sec);                      // get GMT-localtime
 #if !defined __CYGWIN__ && !defined __sun__
-  sec += buf->tm_gmtoff;                        // adjust to local
+    sec += buf->tm_gmtoff;                      // adjust to local
 #endif
-  day = sec/SECDAY+YRADJ;                       // get number of days
-  sec = sec%SECDAY;                             // and number of seconds
-  return sprintf( (char *)ret_buffer, "%d,%f", day, // return count and $ZH
-                  (double) sec + tv.tv_usec / 1000000.0);
+    day = sec/SECDAY+YRADJ;                     // get number of days
+    sec = sec%SECDAY;                           // and number of seconds
+    hbuflen = sprintf(buffer, "%d,%d.", day, (int) sec); // construct horolog
+    bufusec = 0;
+  }
+  if (bufusec != tv.tv_usec)
+  { buflen = hbuflen + sprintf(buffer + hbuflen, "%d", tv.tv_usec);
+  }
+  bcopy(buffer, ret_buffer, buflen + 1);
+  return buflen;
 }
 
 //***********************************************************************
