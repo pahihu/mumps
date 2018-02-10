@@ -98,6 +98,38 @@ void mv1_log_flush(void)
 
 static struct timeval sem_start[SEM_MAX];
 
+#define NUMTRY  (1024*1024)
+
+static
+void SpinLockWriter(RWLOCK_T *lok)
+{
+  int i, j;
+
+  for (i = 0; i < 16; i++)
+  { for (j = 0; j < NUMTRY; j++)
+      if (TryLockWriter(lok))
+        return;
+    if (i & 3)
+      SchedYield();
+  }
+  LockWriter(lok);
+}
+
+static
+void SpinLockReader(RWLOCK_T *lok)
+{
+  int i, j;
+
+  for (i = 0; i < 16; i++)
+  { for (j = 0; j < NUMTRY; j++)
+      if (TryLockReader(lok))
+        return;
+    if (i & 3)
+      SchedYield();
+  }
+  LockReader(lok);
+}
+
 short TrySemLock(int sem_num, int numb)
 {
   short s;
@@ -114,10 +146,10 @@ short TrySemLock(int sem_num, int numb)
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
-    {  LockWriter(&systab->glorw[volnum - 1]);
+    { SpinLockWriter(&systab->glorw[volnum - 1]);
     }
     else if (numb == READ)
-    { LockReader(&systab->glorw[volnum - 1]);
+    { SpinLockReader(&systab->glorw[volnum - 1]);
     }
     else
     { char msg[64];
@@ -255,3 +287,5 @@ short SemUnlock(int sem_num, int numb)
 
   return s;
 }
+
+/* vim:ts=8 sw=8 et */
