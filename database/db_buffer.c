@@ -785,6 +785,10 @@ start:
     systab->vol[volnum-1]->gbd_hash [GBD_HASH]
       = oldptr->next;			                // unlink it
     // fprintf(stderr,"Get_GBD(): from free list\r\n"); fflush(stderr);
+#ifdef MV1_CACHE_IO
+    fprintf(stderr,"%d %20lld F\r\n",mypid,monotonic_time());
+    fflush(stderr);
+#endif
     goto exit;						// common exit code
   }
   else if (rdonly)
@@ -864,6 +868,10 @@ start:
     }
   }							// end for every GBD
 unlink_gbd:
+#ifdef MV1_CACHE_IO
+  fprintf(stderr,"%d %20lld C %d(%d)\r\n",mypid,monotonic_time(),oldptr->block,oldptr->refd);
+  fflush(stderr);
+#endif
   systab->vol[volnum-1]->hash_start = oldpos;
 
   // fprintf(stderr,"Get_GBD(): before Unlink_GBD\r\n"); fflush(stderr);
