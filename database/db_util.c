@@ -581,7 +581,7 @@ short Compress1()
   u_char gtmp[2*MAX_NAME_BYTES];			// to find glob
 
   writing = 1;						// flag writing
-  Get_GBDs(MAXTREEDEPTH * 2);                           // ensure this many
+  Ensure_GBDs(0);                        		// ensure this many
 
   curlevel = level;
   s = Get_data(curlevel);				// get the data
