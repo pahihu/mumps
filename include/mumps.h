@@ -120,6 +120,7 @@
 #define MAX_SEQ_NAME	256                     // max file name size
 #define MAX_SEQ_OUT     6                       // max output terminator size
 #define MAX_DKEY_LEN	16                      // max $KEY seq stored
+#define MAX_IN_BUF	256			// max input buffer length
 #define SQ_FREE		0                       // SQ_Chan->type - free
 #define SQ_FILE		1                       // SQ_Chan->type - disk file
 #define SQ_TCP		2                       // SQ_Chan->type - tcpip
@@ -498,6 +499,9 @@ typedef struct __PACKED__ SQ_CHAN
   u_char out_term[MAX_SEQ_OUT];                 // the output terminator
   u_char in_terms[IN_TERMS_SIZE];               // input terminator bit mask
   int    in_terms_crlf;                         // Input Terminator is CRLF
+  u_char inbuf[MAX_IN_BUF];			// Input buffer
+  int    ninbuf;				// Input buffer length
+  int    inpos;					// Input buffer read position
   var_u nmspace;                                // routine for namespace
 } SQ_Chan;                                      // define the $I stuf
 

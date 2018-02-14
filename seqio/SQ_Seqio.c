@@ -1435,6 +1435,8 @@ int initObject (int chan, int type)
       c->type = (char)(SQ_FILE);
       ( void ) snprintf ( (char *)outerm.buf, MAX_STR_LEN, "%c", (char)10 );
       ( void ) snprintf ( (char *)interm.buf, MAX_STR_LEN, "%c", (char)10 );
+      c->ninbuf = 0;
+      c->inpos  = 0;
       break;
     case SQ_TCP:
       c->type = (char)(SQ_TCP);
@@ -1621,18 +1623,24 @@ int readFILE (int chan, u_char *buf, int maxbyt)
       c->dkey[0] = '\0';
       return ( bytesread );
     }
-    ret = SQ_File_Read ( c->fid, &(buf[bytesread]) ); // Read in one byte
-    if ( ret < 0 )			// An error has occured
-    { c->dkey_len = 0;
-      c->dkey[0] = '\0';
-      return ( ret );
+    if (c->inpos == c->ninbuf)
+    { // ret = SQ_File_Read ( c->fid, &(buf[bytesread]) ); // Read in one byte
+      ret =  SQ_File_Read ( c->fid, &(c->inbuf[0]), MAX_IN_BUF );
+      if ( ret < 0 )			// An error has occured
+      { c->dkey_len = 0;
+        c->dkey[0] = '\0';
+        return ( ret );
+      }
+      else if ( ret == 0 )		// EOF reached
+      { c->dkey_len = 1;
+        c->dkey[0] = (char)255;
+        c->dkey[1] = '\0';
+        return ( bytesread );
+      } 
+      c->inpos  = 0;
+      c->ninbuf = ret;
     }
-    else if ( ret == 0 )		// EOF reached
-    { c->dkey_len = 1;
-      c->dkey[0] = (char)255;
-      c->dkey[1] = '\0';
-      return ( bytesread );
-    } 
+    buf[bytesread] = c->inbuf[c->inpos++];
 
     // Support for escape sequences with sockets is still to be implemented
 

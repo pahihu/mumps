@@ -95,7 +95,7 @@ int seqioSelect ( int sid, int type, int tout );
 int getError ( int type, int errnum );
 int SQ_File_Open ( char *file, int op );
 int SQ_File_Write ( int fid, u_char *writebuf, int nbytes );
-int SQ_File_Read ( int fid, u_char *readbuf );
+int SQ_File_Read ( int fid, u_char *readbuf, int nbytes );
 int SQ_Device_Open ( char *device, int op );
 int SQ_Device_Write ( int did, u_char *writebuf, int nbytes );
 int SQ_Device_Read ( int did, u_char *readbuf, int tout );

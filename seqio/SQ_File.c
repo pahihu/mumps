@@ -107,10 +107,10 @@ int SQ_File_Write (int fid, u_char *writebuf, int nbytes)
 // actually read is returned.  Otherwise, a negative integer is returned to
 // indicate the error that has occured.
 
-int SQ_File_Read (int fid, u_char *readbuf)
+int SQ_File_Read (int fid, u_char *readbuf, int nbytes)
 { int	ret;
 
-  ret = read ( fid, readbuf, 1 );
+  ret = read ( fid, readbuf, nbytes );
   if ( ret == -1 ) return ( getError ( SYS, errno ) );
   else return ( ret );
 }
