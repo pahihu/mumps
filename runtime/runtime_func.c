@@ -1075,33 +1075,51 @@ short Dpiece4(u_char *ret_buffer, cstring *expr, cstring *delim, int i1, int i2)
   int end;                                      // copy to
   int pce = 1;                                  // current piece
   int f;                                        // found flag
-  int j;                                        // for delim scan
+  int i, j;                                     // for delim scan
+  u_char d;					// delim char
   ret_buffer[0] = '\0';                         // just in case
   if (delim->len == 0) return 0;                // null delimiter -> nul str
   if (i1 < 0) i1 = 0;                           // minus makes no sense
   if (i2 < 0) i2 = 0;                           // minus makes no sense
   if ((i1 == 0) && (i2 == 0)) return 0;         // piece 0 is null str
   if (i1 > i2) return 0;                        // that's also null
-  for (end = 0; end < expr->len; end++)         // scan expr
-  { if (expr->buf[end] == delim->buf[0])        // if first char matches
-    { f = 1;                                    // set found flag
-      for (j = 1; j < delim->len; j++)          // scan rest of delimiter
-      { if (expr->buf[end+j] != delim->buf[j])  // if we have a mismatch
-        { f = 0;                                // clear found flag
-          break;                                // and quit
-        }
-      }                                         // end delim scan
-      if (f == 1)                               // just quit the if on fail
+  if (1 == delim->len)
+  { d = delim->buf[0];				// save delim
+    for (end = 0; end < expr->len; end++)       // scan expr
+    { if (expr->buf[end] == d)      		// if matches
       { if (pce == i2)                          // if this is last piece
+        { end--;                                // point at last reqd char
+          break;                                // and quit for loop
+        }                                       // end last piece processing
+        pce++;                                  // increment current piece
+        if (pce == i1) beg = end + 1;  		// if this is the first pce
+      }                                         // end found code
+    }                                           // end of expr scan
+  }
+  else
+  { for (end = 0; end < expr->len; end++)       // scan expr
+    { if (expr->buf[end] == delim->buf[0])      // if first char matches
+      { f = 1;                                  // set found flag
+        for (j = 1; j < delim->len; j++)        // scan rest of delimiter
+        { i = delim->len - j;
+          if (expr->buf[end+i] != delim->buf[i])// if we have a mismatch
+          { f = 0;                              // clear found flag
+            break;                              // and quit
+          }
+        }                                       // end delim scan
+        if (f == 0)				// no match, continue
+          continue;
+        if (pce == i2)                          // if this is last piece
         { end--;                                // point at last reqd char
           break;                                // and quit for loop
         }                                       // end last piece processing
         pce++;                                  // increment current piece
         end = end + delim->len - 1;		// point at last char of delim
         if (pce == i1) beg = end + 1;  		// if this is the first pce
-      }                                         // end found code
-    }                                           // end of got match
-  }                                             // end of expr scan
+      }                                         // end of got match
+    }                                           // end of expr scan
+  }
+
   if (pce < i1) return 0;			// didn't find anything
   if (end == expr->len) end--;			// don't point past end
   j = end - beg + 1;				// number of bytes we want
@@ -1500,17 +1518,38 @@ short Dtranslate3(u_char *ret_buffer, cstring *expr1,
   int i2;                                       // for expr2
   int p = 0;                                    // ptr to ret_buffer
   int found;                                    // did we find that one
-  for (i1=0; i1 != expr1->len; i1++)            // scan expr1
-  { found = FALSE;                              // assume no match
-    for (i2=0; i2 != expr2->len; i2++)          // scan expr2 for char
-    { if (expr1->buf[i1] == expr2->buf[i2])     // if we have a match
-      { found = TRUE;                           // say so
-        if (i2 < expr3->len)                    // if there is a match in expr3
-          ret_buffer[p++] = expr3->buf[i2];     // copy in replacement char
-        break;                                  // and quit this loop
+  u_char c2, c3;				// for expr2 and expr3 char
+
+  if (1 == expr2->len)				// special cases
+  { c2 = expr2->buf[0];				// save char
+    if (0 == expr3->len)			// no expr3 given, remove chars
+    { for (i1=0; i1 != expr1->len; i1++)        // scan expr1
+      { if (expr1->buf[i1] != c2)     		// if we have no match
+          ret_buffer[p++] = expr1->buf[i1]; 	// copy character
+      }
+    } else
+    { c3 = expr3->buf[0];			// expr3 is at least 1 char
+      for (i1=0; i1 != expr1->len; i1++)        // scan expr1
+      { if (expr1->buf[i1] == c2)     		// if we have a match
+          ret_buffer[p++] = c3;     		// copy in replacement char
+	else
+          ret_buffer[p++] = expr1->buf[i1]; 	// copy character
       }
     }
-    if (!found) ret_buffer[p++] = expr1->buf[i1]; // copy character
+  }
+  else
+  { for (i1=0; i1 != expr1->len; i1++)            // scan expr1
+    { found = FALSE;                              // assume no match
+      for (i2=0; i2 != expr2->len; i2++)          // scan expr2 for char
+      { if (expr1->buf[i1] == expr2->buf[i2])     // if we have a match
+        { found = TRUE;                           // say so
+          if (i2 < expr3->len)                    // if there is a match in expr3
+            ret_buffer[p++] = expr3->buf[i2];     // copy in replacement char
+          break;                                  // and quit this loop
+        }
+      }
+      if (!found) ret_buffer[p++] = expr1->buf[i1]; // copy character
+    }
   }
   ret_buffer[p] = '\0';                         // terminate it
   return p;                                     // and return count
