@@ -156,7 +156,7 @@ typedef struct __PACKED__ DB_BLOCK	                // database block layout
           }                     \
           else                  \
           { (x)->refd -= (n);   \
-          }
+          }			\
         }
 
 #endif
