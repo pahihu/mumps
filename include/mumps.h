@@ -163,6 +163,9 @@
 
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
+#define MIN_REST_TIME	 125			// min. daemon rest time
+#define MAX_REST_TIME	1000			// max. daemon rest time
+
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        4096                    // hash size for global buffers
 #define NUM_DIRTY       8192                    // max queued dirty chains
@@ -590,6 +593,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
+  VOLATILE int ZRestTime;			// Current daemon rest time
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];

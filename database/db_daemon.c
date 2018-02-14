@@ -142,6 +142,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
+  int rest;						// rest time
+  unsigned stalls, old_stalls;				// no. of stalls
 
   volnum = vol;						// save vol# here
 
@@ -220,8 +222,29 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   i = MSLEEP(1000);					// wait a bit
 
+  old_stalls = 0;
   while (TRUE)						// forever
-  { i = MSLEEP(1000);                                   // rest
+  { if (!myslot)					// daemon 0 calculates
+    { stalls = 0; 					//   rest time
+      for (i = 0; i < MAX_VOL; i++)
+      { if (NULL == systab->vol[i]->vollab)		// stop at first
+          break;					//   unallocated vol.
+        stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
+		  systab->vol[i]->stats.gbswait;	//   and GBDs waits
+      }
+      rest = systab->ZRestTime;
+      if (stalls == old_stalls)
+        rest *= 1.1;
+      else
+        rest /= 2;
+      if (rest < MIN_REST_TIME)
+        rest = MIN_REST_TIME;
+      else if (rest > MAX_REST_TIME)
+        rest = MAX_REST_TIME;
+      systab->ZRestTime = rest;
+      old_stalls = stalls;
+    }
+    i = MSLEEP(systab->ZRestTime);                      // rest
     do_daemon();					// do something
   }
   return 0;						// never gets here

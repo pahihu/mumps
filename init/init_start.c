@@ -277,6 +277,7 @@ int INIT_Start( char *file,                     // database
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
+  systab->ZRestTime = MAX_REST_TIME;		// Daemon rest time
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
