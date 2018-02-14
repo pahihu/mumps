@@ -89,7 +89,7 @@ short Kill_data_ex(int what)				// remove tree
 
   writing = 1;						// say we are killing
 start:
-  Get_GBDs(MAXTREEDEPTH * 2);				// ensure this many
+  Ensure_GBDs(0);					// get GBDs, has no lock
 #ifdef MV1_CKIT
   qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
 #else
