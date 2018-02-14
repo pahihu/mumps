@@ -495,8 +495,8 @@ unlocked:
   }
   REFD_TYPED_INIT(blk[level]);
 exit:
-  // if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
-  if ((writing) && (blk[level]->dirty == NULL))	        // if writing
+  if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
+  // if ((writing) && (blk[level]->dirty == NULL))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
   if (!writing)                                         // if reading
@@ -704,8 +704,8 @@ start:
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if ((GBD_HASH == ptr->hash) ||                      // skip GBDs on free lst
-        (NULL     != ptr->dirty))                       //   or dirty
+    if (GBD_HASH == ptr->hash)                       	// skip GBDs on free lst
+        // || (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
       continue;
     if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
@@ -724,8 +724,9 @@ start:
         return;					        // just exit
       continue;					        // next ptr
     }							// end - no block
-    if ((now > ptr->last_accessed) &&                   // if not viewed
-        (0   < ptr->last_accessed))			// and there is a time
+    if ((ptr->dirty == NULL) &&				// if free
+        (now > ptr->last_accessed) &&                   //   and not viewed
+        (0   < ptr->last_accessed))			//   and there is a time
     { curr++;					        // count that
       if (curr >= greqd)				// if enough there
         return;					        // just exit
@@ -795,7 +796,7 @@ start:
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)  // for each GBD
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (ptr->dirty)                                     // skip if dirty
+    if (ptr->dirty && (ptr->dirty < (gbd *) 5))         // skip if reserved
       continue;
     if (0 == ptr->block)  				// no block ?
     { oldptr = ptr;                                     // mark this
@@ -804,7 +805,8 @@ start:
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
-    avail = (now > ptr->last_accessed) &&               // not viewed
+    avail = (ptr->dirty == NULL) &&			// if free
+	    (now > ptr->last_accessed) &&               //   and not viewed
             (0   < ptr->last_accessed);                 //   and not being read
     if (avail)
     { if (REFD_VALUE(ptr))                              // hasznalt ?
