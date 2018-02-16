@@ -347,12 +347,16 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "precision\0", 10) == 0))
-      { return itocstring(buf, systab->precision); // return the value
+      { return itocstring(buf, systab->precision);   // return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "$nextok\0", 8) == 0))
       { return itocstring(buf,
-      	       (systab->historic & HISTORIC_DNOK)); // return the value
+      	       (systab->historic & HISTORIC_DNOK));  // return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "resttime\0", 9) == 0))
+      { return itocstring(buf, systab->ZRestTime);   // return the value
       }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
