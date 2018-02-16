@@ -121,6 +121,7 @@
 #define MAX_SEQ_OUT     6                       // max output terminator size
 #define MAX_DKEY_LEN	16                      // max $KEY seq stored
 #define MAX_IN_BUF	256			// max input buffer length
+#define MAX_OUT_BUF	4096			// max output buffer length
 #define SQ_FREE		0                       // SQ_Chan->type - free
 #define SQ_FILE		1                       // SQ_Chan->type - disk file
 #define SQ_TCP		2                       // SQ_Chan->type - tcpip
@@ -163,7 +164,7 @@
 
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
-#define MIN_REST_TIME	 125			// min. daemon rest time
+#define MIN_REST_TIME	   8			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
 
 // Note the following three MUST be a power of 2 as they are masks for &
@@ -505,6 +506,8 @@ typedef struct __PACKED__ SQ_CHAN
   u_char inbuf[MAX_IN_BUF];			// Input buffer
   int    ninbuf;				// Input buffer length
   int    inpos;					// Input buffer read position
+  u_char outbuf[MAX_OUT_BUF];			// Output buffer
+  int    outpos;				// Output buffer write position
   var_u nmspace;                                // routine for namespace
 } SQ_Chan;                                      // define the $I stuf
 

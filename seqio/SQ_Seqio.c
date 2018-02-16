@@ -160,6 +160,8 @@ int readTCP ( int chan, u_char *buf, int maxbyt, int tout );
 int readPIPE ( int chan, u_char *buf, int maxbyt, int tout );
 int readTERM ( int chan, u_char *buf, int maxbyt, int tout );
 
+int writeFILE ( int chan, u_char *buf, int nbytes );
+
 void initFORK ( forktab *f );
 int initSERVER ( int chan, int size );
 int openSERVER ( int chan, char *oper );
@@ -631,6 +633,12 @@ short SQ_Close (int chan)
   c = &(partab.jobtab->seqio[chan]);
   switch ( (int)(c->type) )
   { case SQ_FILE:
+      // Flush any pending write, ignore write error.
+
+      if (c->outpos)
+      { ret = SQ_File_Write ( c->fid, &(c->outbuf[0]), c->outpos );
+        c->outpos = 0;
+      }
 
       // If the file is opened for writing or appending and it is empty,
       // then  delete it
@@ -1437,6 +1445,7 @@ int initObject (int chan, int type)
       ( void ) snprintf ( (char *)interm.buf, MAX_STR_LEN, "%c", (char)10 );
       c->ninbuf = 0;
       c->inpos  = 0;
+      c->outpos = 0;
       break;
     case SQ_TCP:
       c->type = (char)(SQ_TCP);
@@ -1553,7 +1562,8 @@ int objectWrite (int chan, char *writebuf, int nbytes)
   { bytestowrite = nbytes - byteswritten;
     switch ( (int)(c->type) )
     { case SQ_FILE:
-	ret = SQ_File_Write ( oid, (u_char *)&(writebuf[byteswritten]), bytestowrite );
+	// ret = SQ_File_Write ( oid, (u_char *)&(writebuf[byteswritten]), bytestowrite );
+	ret = writeFILE ( chan, (u_char *)&(writebuf[byteswritten]), bytestowrite );
 	break;
       case SQ_TERM:
 	ret = SQ_Device_Write ( oid, (u_char *)&(writebuf[byteswritten]), bytestowrite );
@@ -2341,3 +2351,26 @@ int closeSERVER (int chan)
   
   return ( 0 );
 }   
+
+// Buffered file write.
+int writeFILE (int chan, u_char *buf, int nbytes)
+{ SQ_Chan 	*c;				// Current channel
+  int		ret;				// Return value
+
+  c = &(partab.jobtab->seqio[chan]);	// Acquire a pointer to current channel
+  if (c->outpos + nbytes > MAX_OUT_BUF)		// overflow with new value ?
+  { if (c->outpos)				// any pending write ?
+    { ret = SQ_File_Write ( c->fid, &(c->outbuf[0]), c->outpos );
+      if (ret < 0) return ret;			// write it
+      c->outpos = 0;				// reset output position
+    }
+  }
+  if (nbytes > MAX_OUT_BUF)			// more than buf capacity ?
+  { ret = SQ_File_Write ( c->fid, buf, nbytes );// write directly
+    return ret;
+  }
+  bcopy( buf, &(c->outbuf[c->outpos]), nbytes );// fit inside the buffer
+  c->outpos += nbytes;				// reposition output
+  return nbytes;				// return bytes written
+}
+
