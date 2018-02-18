@@ -6,7 +6,7 @@ The master branch gets only bug fixes.
 
 If you are looking for speed, additional MUMPS commands and functions, 
 object-oriented syntactic sugar, multiple volume sets use the 
-**development** branch.
+[**development**](https://github.com/pahihu/mumps/tree/development) branch.
 
 Changes:
 
