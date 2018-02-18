@@ -858,7 +858,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
                 "global_buffer_sync\0", 19) == 0) &&
             (systab->maxjob != 1))
         { j = cstringtoi(data);
-          if (j < 0)
+          if ((j < 0) || 				// check prev. slot
+	      (i && (systab->vol[i-1]->vollab == NULL)))//   mounted
           { return -(ERRM38);
           }
           systab->vol[i]->gbsync = j;
@@ -867,7 +868,10 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, 
                 "global_buffer_size\0", 19) == 0) &&
             (systab->maxjob != 1))
-        { systab->vol[i]->gmb = cstringtoi(data);
+        { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
+          { return -(ERRM38);				//   mounted
+          }
+	  systab->vol[i]->gmb = cstringtoi(data);
           if (systab->vol[i]->gmb < 0)
           { systab->vol[i]->gmb = 0;
             return -(ERRM38);
@@ -877,13 +881,19 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, 
                 "journal_buffer_size\0", 20) == 0) &&
             (systab->maxjob != 1))
-        { systab->vol[i]->jkb = cstringtoi(data);
+        { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
+          { return -(ERRM38);				//   mounted
+          }
+	  systab->vol[i]->jkb = cstringtoi(data);
           return 0;
         }
 	if ((strncasecmp( (char *) subs[2]->buf, 
                 "file\0", 5) == 0) &&
             (systab->maxjob != 1))
-        { SemOp( SEM_SYS, -systab->maxjob);
+        { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
+          { return -(ERRM38);				//   mounted
+          }
+	  SemOp( SEM_SYS, -systab->maxjob);
           s = DB_Mount((char *) &data->buf[0],
                         i + 1,
                         systab->vol[i]->gmb,
