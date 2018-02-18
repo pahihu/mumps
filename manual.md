@@ -191,6 +191,7 @@ value of a global node. It used to be insignificant, for my problems it
 is not.
 
 `$D[ATA](glvn[,target])`
+
 Works like `$D[ATA]`, except when a *target* is given it is
 set to the value of *glvn*.
 
@@ -252,24 +253,36 @@ Once in a time I needed a bit index for a global. So there are the bitwise
 logical operators on bit strings.
 
 `$ZBITAND(bstr1,bstr2)`
+
 `$ZBITCOUNT(bstr)`
+
 `$ZBITFIND(bstr,flag[,pos])`
+
 `$ZBITGET(bstr,pos)`
+
 `$ZBITLEN(bstr)`
+
 `$ZBITNOT(bstr)`
+
 `$ZBITOR(bstr1,bstr2)`
+
 `$ZBITSET(bstr,pos,flag)`
+
 `$ZBITSTR(len[,flag])`
+
 `$ZBITXOR(bstr1,bstr2)`
+
 
 ### Variables
 
 `$S[TORAGE]`
+
 Returns the number of free slots in the local symbol table.
 
 ---
 
 `$ZH[OROLOG]`
+
 Similar to `$H[OROLOG]`, but returns fractional seconds with
 microsecond resolution.
 
@@ -286,12 +299,14 @@ and function to a call to the corresponding tag in the routine
 ---
 
 `ZZcmd a1:a2...`
+
 Calls `ZZcmd^ZZCMD(a1,a2...)`. Note the colon in the syntax to
 enter multiple parameters for the command.
 
 ---
 
 `$ZZfn(a1,a2...)`
+
 Calls `ZZfn^ZZFN(a1,a2...)`.
 
 
