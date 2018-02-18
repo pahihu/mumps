@@ -2,9 +2,11 @@ MUMPS V1R2
 ==========
 
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
-The master branch gets only bug fixes. If you are looking for speed, 
-additional MUMPS commands and functions, object-oriented syntactic sugar,
-multiple volume sets use the **development** branch.
+The master branch gets only bug fixes.
+
+If you are looking for speed, additional MUMPS commands and functions, 
+object-oriented syntactic sugar, multiple volume sets use the 
+**development** branch.
 
 Changes:
 
