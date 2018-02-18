@@ -23,34 +23,46 @@ manual of Ray Newman which can be get at http://sf.net/projects/mumps.
 Beware it is not a pure MUMPS-1995 implementation which is the goal of
 MUMPS V1. MV1R2DEV wants to be practical.
 
+
 ## Features
 
-#### Translation table
+#### Adaptive daemon rest time
 
-You could map globals with these feature from one volume set/uci to
-another. This is not new, just the implementation is changed. You could
-have up to 256 translations in the table.
+By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
+10 write daemons. The MUMPS engine and the daemons are connected by two
+queues: the dirty queue and the garbage queue respectively. Each daemon
+checks the queues to work to be done. By default each daemon polls the
+queues each 1000ms. When you make multiple pages dirty in the global cache
+and the queue gets full you need to wait for the next poll time. Here
+helps the adaptive rest time, which checks statistics counters in the MUMPS
+environment and when there are processes waiting for free queue slots
+it reduces the poll time. When the load vanishes it increases the poll time
+again. To query the current rest time between write daemon polls, query
+the *RESTTIME* system parameter.
 
-#### Device terminator characters
-
-In a `USE` command you can specify the input terminators with the
-`TERMINATOR=$C(n,...)` parameter. The terminators are **not** restricted
-to the control characters, any character can be specified.
 
 #### Buffered files
 
 In MV1R2 files are buffered: the `READ` and `WRITE` commands buffers
 their input/output respectively.
 
-#### Volume syncing
 
-By default every 300 seconds the contents of each volume is fsync()-ed
-to disk. There is a per volume parameter *GLOBAL_BUFFER_SYNC* which
-controls the syncing. It contains the number of seconds between volume
-syncs. Set to 0 to turn off volume syncing.
+#### Compressing globals
 
-    SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=180 ;Sync every 3 minutes
-    SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=0 ;Turn off vol sync
+The *ZMINSPACE* system parameter controls how much space should remain free
+in each database block when compressing globals in bytes.
+By default there should be 1024 bytes of free space in each 
+block. The minimum value is 128 bytes, the maximum is 90%
+of the database block size of the first volume.
+
+    SET ^$SYSTEM("ZMINSPACE")=1024 ;Leave 1024 bytes of free space
+
+
+#### Device terminator characters
+
+In a `USE` command you can specify the input terminators with the
+`TERMINATOR=$C(n,...)` parameter. The terminators are **not** restricted
+to the control characters, any character can be specified.
 
 
 #### Journal buffer
@@ -80,17 +92,6 @@ Example:
     mumps -l -512 testdb
 
 
-#### Compressing globals
-
-The *ZMINSPACE* system parameter controls how much space should remain free
-in each database block when compressing globals in bytes.
-By default there should be 1024 bytes of free space in each 
-block. The minimum value is 128 bytes, the maximum is 90%
-of the database block size of the first volume.
-
-    SET ^$SYSTEM("ZMINSPACE")=1024 ;Leave 1024 bytes of free space
-
-
 #### KILLing data
 
 When you `KILL` globals in the database, MUMPS does not overwrite
@@ -101,6 +102,24 @@ the system parameter *ZOTDATA* to 1. By default *ZOTDATA* is
 
     SET ^$SYSTEM("ZOTDATA")=0 ;Do not zero free blocks
     SET ^$SYSTEM("ZOTDATA")=1 ;Zero every free block
+
+
+#### Translation table
+
+You could map globals with these feature from one volume set/uci to
+another. This is not new, just the implementation is changed. You could
+have up to 256 translations in the table.
+
+
+#### Volume syncing
+
+By default every 300 seconds the contents of each volume is fsync()-ed
+to disk. There is a per volume parameter *GLOBAL_BUFFER_SYNC* which
+controls the syncing. It contains the number of seconds between volume
+syncs. Set to 0 to turn off volume syncing.
+
+    SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=180 ;Sync every 3 minutes
+    SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=0 ;Turn off vol sync
 
 
 #### Multiple volume sets
@@ -133,19 +152,13 @@ parameter:
     SET ^$SYSTEM("VOL",2,"FILE")="/home/user/MUMPS/db/app.dat"
 
 
-#### Adaptive daemon rest time
+#### MV1API
 
-By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
-10 write daemons. The MUMPS engine and the daemons are connected by two
-queues: the dirty queue and the garbage queue respectively. Each daemon
-checks the queues to work to be done. By default each daemon polls the
-queues each 1000ms. When you make multiple pages dirty in the global cache
-and the queue gets full you need to wait for the next poll time. Here
-helps the adaptive rest time, which checks statistics counters in the MUMPS
-environment and when there are processes waiting for free queue slots
-it reduces the poll time. When the load vanishes it increases the poll time
-again. To query the current rest time between write daemon polls, query
-the *RESTTIME* system parameter.
+You can connect to a MUMPS environment with the use of the [MV1 connect API]
+(https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
+C language binding. It is somewhat similar to the DSM and MSM C APIs. The MUMPS
+environment code is not thread-safe, thus do not use MV1 connect API from 
+multiple threads. The code is not tested against a multi-volume set environment yet.
 
 
 ### Commands
