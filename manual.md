@@ -154,8 +154,7 @@ parameter:
 
 #### MV1API
 
-You can connect to a MUMPS environment with the use of the [MV1 connect API]
-(https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
+You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
 C language binding. It is somewhat similar to the DSM and MSM C APIs. The MUMPS
 environment code is not thread-safe, thus do not use MV1 connect API from 
 multiple threads. The code is not tested against a multi-volume set environment yet.
