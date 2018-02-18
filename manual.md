@@ -31,6 +31,17 @@ You could map globals with these feature from one volume set/uci to
 another. This is not new, just the implementation is changed. You could
 have up to 256 translations in the table.
 
+#### Device terminator characters
+
+In a `USE` command you can specify the input terminators with the
+`TERMINATOR=$C(n,...)` parameter. The terminators are **not** restricted
+to the control characters, any character can be specified.
+
+#### Buffered files
+
+In MV1R2 files are buffered: the `READ` and `WRITE` commands buffers
+their input/output respectively.
+
 #### Volume syncing
 
 By default every 300 seconds the contents of each volume is fsync()-ed
