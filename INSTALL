@@ -1,19 +1,14 @@
-﻿                        MUMPS Version 1.65
+﻿                        MUMPS Version 1.70DEV
 
   This version of mumps runs on FreeBSD, NetBSD, many linux versions,
-  OSX 10.4 through 10.9 in 64 and 32 bit mode and Solaris.  This version
-  is also available for windows (tested on XP and Windows 7) and on
-  the Raspberry Pi (ARM) processor (for embeded MUMPS).
+  OSX 10.4 through 10.9 in 64 and 32 bit mode and Solaris even on 
+  big-endian machines.  This version is also available for windows 
+  (tested on XP and Windows 7) and on the Raspberry Pi (ARM) processor 
+  (for embeded MUMPS).
 
   First select a directory (such as your home directory) that does NOT
   contain a directory or file named mumps.
   
-  Then, download mumps-1.65-src.tar.gz from 	
-	https://sourceforge.net/projects/mumps/files/ and un-tar.
-  or enter:
-  cvs -z3 -d:pserver:anonymous@mumps.cvs.sf.net:/cvsroot/mumps checkout -P mumps
-
-  This will create a mumps directory in the current directory.
   Change to this directory and type make.  The resulting mumps executable
   will be optimised for this system.
 
@@ -22,12 +17,6 @@
 
 	On cygwin and solaris, $H is GMT as these implementations don't have
 	a local time offset.
-
-	On OSX 10.9 (Mavericks), you have to get cvs and gcc from somewhere.
-	The gcc included invokes clang which just doesn't work.  Once you
-	install gcc from gcc-4.9-bin.tar.gz - delete /usr/bin/gcc.
-	THIS STEP NO LONGER REQUIRED THANKS TO Andras Pahi who redid some of
-	my code that needed gcc.
 
   To use, first create a database, eg:
 	./mumps -v TEST -b 16 -s 1000 testdb
@@ -62,43 +51,12 @@
     edit /usr/include/cygwin/ipc.h
        move third last #endif 3 lines up
 
-		VISTA FILEMAN CODE
-
-  Download mumps-vista.tar.gz from:
-  https://sourceforge.net/projects/mumps/files/
-
-  Create group vista and ensure you are a member of this.
-
-  Prompt> sudo tar -C / -xzvf mumps-vista.tar.gz
-  Password: ********
-  x usr/vista/
-  x usr/vista/runvista
-  x usr/vista/startvista
-  x usr/vista/vistadb
-  Prompt> sudo chgrp -R vista /usr/vista
-  Prompt> sudo chmod -R g+w /usr/vista
-
-  Fetch the appropriate mumps executable from the above sourceforge location.
-
-  // To startup MUMPS with VISTA
-
-  Prompt> sudo /usr/vista/startvista
-  Password: ********
-  kern.sysv.shmmax: 536870912 -> 536870912
-  kern.sysv.shmall: 131072 -> 131072
-  Creating share for 16 jobs with 2mb routine space,
-  10mb (320) global buffers, 128kb label/map space
-  and 16kb for locktab.
-
-  // and to run that environment
-
-  Prompt> /usr/vista/runvista
-
-  // This runs in the MUMPS standard MCL environment
-  // to shutdown using MCL CD MGR then D ^SSD
 
 
-       enjoy
+    Enjoy
+
+	  Copyright (c) 2016 - 2018
+	  Andras Pahi.  All rights reserved.
 
           Copyright (c) 1999 - 2016
           Raymond Douglas Newman.  All rights reserved.
