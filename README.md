@@ -2,7 +2,7 @@ MUMPS V1R2DEV
 =============
 
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
-Work in progress. For more information see the [*manual*](https://github.com/pahihu/mumps/blob/development/manual.md).
+Work in progress. For more information see the [manual](https://github.com/pahihu/mumps/blob/development/manual.md).
 
 Changes:
 
