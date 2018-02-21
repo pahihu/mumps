@@ -119,8 +119,8 @@
 static int	MASK[MASKSIZE];			// Set bit mask
 // static int	CRLF;				// CRLF
 
-#define BIT_SET(bm,i)    (bm[(i) >> 3] |= (1 << ((i) & 3)))
-#define BIT_GET(bm,i)    (bm[(i) >> 3] &  (1 << ((i) & 3)))
+#define BIT_SET(bm,i)    (bm[(i) >> 3] |= (1 << ((i) & 7)))
+#define BIT_GET(bm,i)    (bm[(i) >> 3] &  (1 << ((i) & 7)))
 
 // ************************************************************************* //
 // The following required for linux					     //
