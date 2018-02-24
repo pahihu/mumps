@@ -1732,6 +1732,7 @@ short Dzbitstr2(u_char *ret, int len, int ff)
   if (1 + len > MAX_STR_LEN)                    // bitstr does not fit
     return -ERRM75;                             //   error
   memset(&ret[1], ff ? 255 : 0, len);           // set/clear contents
+  ret[len] &= BitMask[ret[0]];          	// mask trailing byte
   return (short)(1 + len);                      // return length
 }
 
@@ -1818,7 +1819,7 @@ short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
     }
     ret[0] = pos & 7;                           // set trailing bit cnt
   }
-  byt  = bstr->buf[1 + (--pos >> 3)];           // byte storing bit
+  byt  = ret[1 + (--pos >> 3)];           	// byte storing bit
   mask = 1 << (7 - (pos & 7));                  // bit mask
   byt &= ~mask;                                 // clear bit
   if (ff) byt |= mask;                          // if 1, then set
@@ -1977,23 +1978,38 @@ short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2)
 //
 short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
 { int i, bitlen, bitlen2;
-  short len;
+  short len, len2;
 
   len    = bstr1->len;                          // assume bit string 1 is longer
   bitlen = Dzbitlen(bstr1);                     // check bit string
   if (0 > bitlen)
     return bitlen;
+  len2   = bstr2->len;
   bitlen2 = Dzbitlen(bstr2);                    // check bit string
   if (0 > bitlen2)
     return bitlen2;
 
-  if (bitlen2 > bitlen)                         // result length is longer
-  { len = bstr2->len;                           //   bit string 1 & bit string 2
-    bitlen = bitlen2;
+  if (len2 == len)				// same length
+  { for (i = 1; i < len; i++)
+      ret[i] = bstr1->buf[i] ^ bstr2->buf[i];   // result is bitwise XOR of args
+  }
+  else if (len2 < len)				// bstr2 is shorter
+  { for (i = 1; i < len2; i++)
+      ret[i] = bstr1->buf[i] ^ bstr2->buf[i];
+    for (i = len2; i < len; i++)
+      ret[i] = bstr1->buf[i] ^ 0;
+  }
+  else						// bstr1 is shorter
+  { for (i = 1; i < len; i++)
+      ret[i] = bstr1->buf[i] ^ bstr2->buf[i];
+    for (i = len; i < len2; i++)
+      ret[i] = 0 ^ bstr2->buf[i];
   }
 
-  for (i = 1; i < len; i++)
-    ret[i] = bstr1->buf[i] ^ bstr2->buf[i];     // result is bitwise XOR of args
+  if (bitlen2 > bitlen)                         // result length is longer
+  { len = len2;                           	//   bit string 1 & bit string 2
+    bitlen = bitlen2;
+  }
 
   ret[0]        = bitlen & 7;                   // set result length
   ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
