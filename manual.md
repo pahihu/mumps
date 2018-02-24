@@ -250,27 +250,83 @@ pragmatist.
 #### Bit functions
 
 Once in a time I needed a bit index for a global. So there are the bitwise
-logical operators on bit strings.
+logical operators on bit strings. For the bitwise operators the bit string
+arguments are not required to be equal in length. The *missing* tail parts
+are assumed to be zero.
+
 
 `$ZBITAND(bstr1,bstr2)`
 
+Returns the bitwise logical AND of the bit string arguments. The length
+of the result is the length of the shorter argument.
+
+---
+
 `$ZBITCOUNT(bstr)`
+
+Returns the number of 1s in the bit string.
+
+---
 
 `$ZBITFIND(bstr,flag[,pos])`
 
+Returns the position of the first bit beginning at *pos* in the bit
+string. If *flag* is zero it searches for the first 0, if not zero
+it searches for the first 1. If *pos* is greater than the length of
+the bit string 0 is returned. If the *flag* indicated bit is not found
+then 0 is returned.
+
+---
+
 `$ZBITGET(bstr,pos)`
+
+Returns the bit at position *pos* in the bit string. Position is counted
+from 1. If *pos* is greater than the length of the bit string 0 is returned.
+
+---
 
 `$ZBITLEN(bstr)`
 
+Returns the length of the bit string, ie. the number of bits.
+
+---
+
 `$ZBITNOT(bstr)`
+
+Returns the bitwise logical NOT of the bit string.
+
+---
 
 `$ZBITOR(bstr1,bstr2)`
 
+Returns the bitwise logical OR of the bit string arguments. The length of
+the result is the length of the longer argument.
+
+---
+
 `$ZBITSET(bstr,pos,flag)`
+
+Sets the bit at *pos* in the bit string according to the *flag* specified.
+If *flag* is not zero, the bit is set, if zero then it is cleared. If *pos*
+is greater than the length of the string the bit string is extended. It
+returns the modified bit string.
+
+---
 
 `$ZBITSTR(len[,flag])`
 
+Returns a bit string of length *len*. If *flag* is not zero, the bit string
+is initialized with 1s, otherwise with 0s. The default value of *flag* is
+zero.
+
+---
+
 `$ZBITXOR(bstr1,bstr2)`
+
+Returns the bitwise logical XOR of the bit string arguments. The length of
+the result is the length of the longer argument.
+
+---
 
 
 ### Variables
