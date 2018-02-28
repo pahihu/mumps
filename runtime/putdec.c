@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 		putdec(n, &buf[0]);
 		// j = 0; while (buf[j] && buf[j] == '0') j++;
 		// if (buf[j] == 0) j--;
-		printf("%lu = %s\n", n, (char *)&buf[0]);
+		// printf("%lu = %s\n", n, (char *)&buf[0]);
 	}
 	et = clock();
 	printf("putdec() = %lu\n", (long)(et - st));

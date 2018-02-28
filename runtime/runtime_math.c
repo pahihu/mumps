@@ -101,10 +101,12 @@ int m_mtoapm(M_APM out, long *lout, char *buf)
     return 0;
 }
 
+#define MV1_PUTDEC	1
 extern int putdec( uint64_t, char* );
 
 short ltoa(char *buf, long n)
 {
+#ifdef MV1_PUTDEC
     int i;
 
     i = 0;
@@ -115,8 +117,7 @@ short ltoa(char *buf, long n)
     }
     i += putdec( (uint64_t) n, &buf[i]);
     return i;
- 
-#if 0
+#else
     int   sign = 0;
     short len;
     int   docpy = 0;
