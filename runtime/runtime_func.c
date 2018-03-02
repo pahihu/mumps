@@ -2478,21 +2478,25 @@ short DSetlist(u_char *tmp, cstring *cptr, mvar *var,
     return -(ERRMLAST+ERRZ76);
 
 done:
-  if (-1 == from)
-  { from = eltcnt;
+  if (-1 == from)				// change only last elt.
+  { from  = eltcnt;
     frompos = eltpos;
+    topos   = &vptr->buf[vptr->len];
   }
-  if (!frompos)
+  if (!frompos)					// append by default
   { frompos = &vptr->buf[vptr->len];
   }
-  if ((-1 == to) || !topos)
-  { to = eltcnt;
-    topos = &vptr->buf[vptr->len];
+  if ((-1 == to) && !topos)			// 2 argument form
+  { topos = frompos;				//   change single elt.
+  }
+  if (!topos)					// append by default
+  { topos = &vptr->buf[vptr->len];
   }
   trail = 0;                                    // assume empty trail
   len = Dlistlength(cptr);                      // assume cptr is a list
   if (topos < &vptr->buf[vptr->len])            // we have trailing bytes
-  { if (len < 0)                                // value is not a list
+  { if ((len < 0) ||				// value is not a list
+	(-1 == to))                		//   OR 2 argument form
     { disp = cptr->len;                         // calc. displacement
       if (VAR_UNDEFINED == cptr->len) disp += 2;
       else if (128 > cptr->len)       disp += 1;
@@ -2518,7 +2522,8 @@ done:
   }
   else
     vptr->len = frompos - &vptr->buf[0];        // adjust result length
-  if (len < 0)                                  // value is not a list
+  if ((len < 0) ||				// value is not a list
+      (-1 == to))                  		//   OR 2 argument form
   { s = Dlistbuild(&vptr->buf[vptr->len], cptr);// form a list from
     if ((s < 0) || (s + vptr->len > MAX_STR_LEN)) // check string length
       return -ERRM75;                           // if doesn't fit, error

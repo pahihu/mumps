@@ -1126,7 +1126,17 @@ void parse_set()				// SET
 	  eval();				// eval the first numeric arg
 	}
 	if (*source_ptr == ')')			// end of function?
-	{ *comp_ptr++ = OPDUPASP;		// same as last
+	{ if (setli)
+	  { *comp_ptr++ = OPSTR;            	// say string following
+            s = (short) 2;                      // length 2
+            bcopy(&s, comp_ptr, sizeof(short));
+            comp_ptr += sizeof(short);
+ 	    *comp_ptr++ = '-';			// the minus
+	    *comp_ptr++ = '1';			// and the one
+	    *comp_ptr++ = '\0';			// null terminated
+          }
+	  else
+            *comp_ptr++ = OPDUPASP;		// same as last
 	}
 	else
 	{ if (*source_ptr != ',') SYNTX		// need a comma
