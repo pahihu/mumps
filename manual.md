@@ -14,19 +14,21 @@ Copyright 2018, Andras Pahi. All rights reserved.
 
 [Structured System Variables](#ssvns)
 
+
+
 ## Foreword
 
-I need to solve problems. To solve a problem I need tools. Think of MUMPS
-such a tool, which gets the job done simply and efficiently. MV1R2DEV is
-small and efficient like a Swiss army knife. I do not repeat the MUMPS V1
-manual of Ray Newman which can be get at http://sf.net/projects/mumps.
-Beware it is not a pure MUMPS-1995 implementation which is the goal of
-MUMPS V1. MV1R2DEV wants to be practical.
+MV1 and its derivative MV1R2DEV is small and efficient like a Swiss 
+army knife. I do not repeat the MUMPS V1 manual of Ray Newman which 
+can be get at http://sf.net/projects/mumps. Beware it is not a pure 
+MUMPS-1995 implementation. If you want a MUMPS which does not contain 
+implementation specific commands and functions use MV1.
+
 
 
 ## Features
 
-#### Adaptive daemon rest time
+### Adaptive daemon rest time
 
 By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
 10 write daemons. The MUMPS engine and the daemons are connected by two
@@ -41,13 +43,13 @@ again. To query the current rest time between write daemon polls, query
 the *RESTTIME* system parameter.
 
 
-#### Buffered files
+### Buffered files
 
 In MV1R2 files are buffered: the `READ` and `WRITE` commands buffers
 their input/output respectively.
 
 
-#### Compressing globals
+### Compressing globals
 
 The *ZMINSPACE* system parameter controls how much space should remain free
 in each database block when compressing globals in bytes.
@@ -58,14 +60,14 @@ of the database block size of the first volume.
     SET ^$SYSTEM("ZMINSPACE")=1024 ;Leave 1024 bytes of free space
 
 
-#### Device terminator characters
+### Device terminator characters
 
 In a `USE` command you can specify the input terminators with the
 `TERMINATOR=$C(n,...)` parameter. The terminators are **not** restricted
 to the control characters, any character can be specified.
 
 
-#### Journal buffer
+### Journal buffer
 
 Journaling works using a journal buffer, which gets flushed when full
 or at least 1 seconds time is elapsed since the last journal entry.
@@ -92,7 +94,7 @@ Example:
     mumps -l -512 testdb
 
 
-#### KILLing data
+### KILLing data
 
 When you `KILL` globals in the database, MUMPS does not overwrite
 the free blocks with zeroes. If you need to ensure that the
@@ -104,14 +106,14 @@ the system parameter *ZOTDATA* to 1. By default *ZOTDATA* is
     SET ^$SYSTEM("ZOTDATA")=1 ;Zero every free block
 
 
-#### Translation table
+### Translation table
 
 You could map globals with these feature from one volume set/uci to
 another. This is not new, just the implementation is changed. You could
 have up to 256 translations in the table.
 
 
-#### Volume syncing
+### Volume syncing
 
 By default every 300 seconds the contents of each volume is fsync()-ed
 to disk. There is a per volume parameter *GLOBAL_BUFFER_SYNC* which
@@ -122,7 +124,7 @@ syncs. Set to 0 to turn off volume syncing.
     SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=0 ;Turn off vol sync
 
 
-#### Multiple volume sets
+### Multiple volume sets
 
 You can mount up to 16 volume sets in a multi-user MUMPS environment.
 The volumes should be mounted in sequence, and cannot be unmounted
@@ -152,7 +154,7 @@ parameter:
     SET ^$SYSTEM("VOL",2,"FILE")="/home/user/MUMPS/db/app.dat"
 
 
-#### MV1API
+### MV1API
 
 You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
 C language binding. It is somewhat similar to the DSM and MSM C APIs. The MUMPS
@@ -160,7 +162,30 @@ environment code is not thread-safe, thus do not use MV1 connect API from
 multiple threads. The code is not tested against a multi-volume set environment yet.
 
 
-### Commands
+## User defined commands and functions
+
+You could extend the command and function set of MUMPS with
+user defined commands and functions. The only restriction is
+that you should begin your commands and functions with the *ZZ*
+prefix. The bytecode compiler will translate each such command
+and function to a call to the corresponding tag in the routine
+*ZZCMD* or *ZZFN* respectively.
+
+---
+
+`ZZcmd a1:a2...`
+
+Calls `ZZcmd^ZZCMD(a1,a2...)`. Note the colon in the syntax to
+enter multiple parameters for the command.
+
+---
+
+`$ZZfn(a1,a2...)`
+
+Calls `ZZfn^ZZFN(a1,a2...)`.
+
+
+## Commands
 
 `H[ANG] expr`
 
@@ -168,7 +193,7 @@ Supports fractional seconds.
 
 ---
 
-#### KILL commands
+### KILL commands
 
 `KV[ALUE] glvn,...`
 
@@ -184,7 +209,7 @@ global node, but leaves the node intact.
 
 ---
 
-### Functions
+## Functions
 
 With these extensions you can spare an additional global read to get the
 value of a global node. It used to be insignificant, for my problems it
@@ -227,32 +252,82 @@ name. For more information see README.OOP.
 
 ---
 
-#### List functions
+### List functions
 
 Lists solve the problem of embedding lists inside lists. The canonical
 storage of multiple variable length fields in a single global is to use
 a separator character. When you want to embed a list in another list you
-should use another separator and so on. With lists it is simpler. I am a
-pragmatist.
+should use another separator and so on.
 
-| Function                         | Abbreviated form   |
-| -------------------------------- | ------------------ |
-| `$LIST(lst[,from[,to]])`         | `$LI(...)`         |
-| `$LISTBUILD(...)`                | `$LB(...)`         |
-| `$LISTDATA(lst[,pos])`           | `$LD(...)`         |
-| `$LISTFIND(lst,val[,after])`     | `$LF(...)`         |
-| `$LISTGET(lst[,pos[,def]])`      | `$LG(...)`         |
-| `$LISTLENGTH(lst)`               | `$LL(...)`         |
-| `SET $LIST(lst[,from[,to]])=...` | `SET $LI(...)=...` |
+`$LIST(lst[,from[,to]])`
+`$LI(lst[,from[,to]])`
+
+Returns list element in the range [*from*,*to*]. *From* defaults to 1
+and *to* defaults to *from*. If *from* is -1 returns the last element of
+list *lst*. If both *from* and *to* is given it returns a list.
+If the element at position *from* is empty, it generates an error.
 
 ---
 
-#### Bit functions
+`$LISTBUILD([elt[,elt...]])`
+`$LB([elt[,elt...]])`
 
-Once in a time I needed a bit index for a global. So there are the bitwise
-logical operators on bit strings. For the bitwise operators the bit string
-arguments are not required to be equal in length. The *missing* tail parts
-are assumed to be zero.
+Builds a list from *elt* elements. *Elt* can be empty.
+You can concatenate lists to get a new list.
+
+---
+
+`$LISTDATA(lst[,pos])`
+`$LD(lst[,pos])`
+
+Returns 1 if the element is present in *lst* at position *pos*.
+*Pos* defaults to 1.
+
+---
+
+`$LISTFIND(lst,val[,after])`
+`$LF(lst,val[,after])`
+
+Returns position of *val* in list *lst*. If *val* is not found
+it returns 0. Search begins after the position *after*. *After*
+defaults to 0.
+
+---
+
+`$LISTGET(lst[,pos[,def]])`
+`$LG(lst[,pos[,def]])`
+
+Returns element at *pos* in list *lst*. *Pos* defaults to 1. If list
+element is undefined at *pos* it returns the empty string or *def*
+if given.
+
+---
+
+`$LISTLENGTH(lst)`               
+`$LL(lst)`
+
+Returns the number of elements in list *lst*.
+
+---
+
+`SET $LIST(lst[,from[,to]])=expr` 
+`SET $LI(lst[,from[,to]])=expr`
+
+It is similar to `SET $PIECE(...)`. Set the list *lst* to the value
+given. *From* defaults to 1, *to* defaults to -1. If the 2 argument form
+is used it replaces the single element at *from* with the value of
+*expr*. If the value of *expr* is a list, it is stored as a single
+element. If the 3 argument form is used, it replaces the sublist from
+position *from* to position *to* with the value of *expr*. If the
+value of *expr* is a list, it replaces the sublist [*from*,*to*].
+
+---
+
+### Bit string functions
+
+A bit string contains an arbitrary number of bits. For the bitwise 
+operators the bit string arguments are not required to be equal in length. 
+The *missing* tail parts are assumed to be zero.
 
 
 `$ZBITAND(bstr1,bstr2)`
@@ -329,7 +404,7 @@ the result is the length of the longer argument.
 ---
 
 
-### Variables
+## Variables
 
 `$S[TORAGE]`
 
@@ -341,46 +416,6 @@ Returns the number of free slots in the local symbol table.
 
 Similar to `$H[OROLOG]`, but returns fractional seconds with
 microsecond resolution.
-
-
-### User defined commands and functions
-
-You could extend the command and function set of MUMPS with
-user defined commands and functions. The only restriction is
-that you should begin your commands and functions with the *ZZ*
-prefix. The bytecode compiler will translate each such command
-and function to a call to the corresponding tag in the routine
-*ZZCMD* or *ZZFN* respectively.
-
----
-
-`ZZcmd a1:a2...`
-
-Calls `ZZcmd^ZZCMD(a1,a2...)`. Note the colon in the syntax to
-enter multiple parameters for the command.
-
----
-
-`$ZZfn(a1,a2...)`
-
-Calls `ZZfn^ZZFN(a1,a2...)`.
-
-
-### More information
-
-The additional MUMPS commands and functions are inspired by several
-MUMPS implementations. If you want to know more please consult the
-repsective descriptions below:
-
-- `KVALUE`, `KSUBSCRIPT` see "The Annotated M[UMPS] Standards" by Ed de Moel
-- `$DATA()`,`$ORDER()`,`$QUERY()` see current Cache documentation
-- `$LIST` functions see documentation of MiniM or Cache 2.1
-- `$ZBIT` functions see documentation of GT.M or MiniM or Cache 2.1
-- `$ZSEND()` is similar to $ZMETHOD() of current Cache, but the inner
-workings are entirely different. See README.OOP
-- `$ZINCREMENT` function see documentation of GT.M
-- `ZZ` commands and functions are similar to DTM, you can extend
-MUMPS with commands/functions written in MUMPS
 
 
 ## SSVNs
@@ -413,4 +448,20 @@ Additional `^$SYSTEM` variables or changed behavior.
 | lckwait    | No. of waits before `LOCK` |
 | rdwait     | No. of waits because of block read |
 
+
+## More information
+
+The additional MUMPS commands and functions are inspired by several
+MUMPS implementations. If you want to know more please consult the
+repsective descriptions below:
+
+- `KVALUE`, `KSUBSCRIPT` see "The Annotated M[UMPS] Standards" by Ed de Moel
+- `$DATA()`,`$ORDER()`,`$QUERY()` see current Cache documentation
+- `$LIST` functions see documentation of MiniM or Cache 2.1
+- `$ZBIT` functions see documentation of GT.M or MiniM or Cache 2.1
+- `$ZSEND()` is similar to $ZMETHOD() of current Cache, but the inner
+workings are entirely different. See README.OOP
+- `$ZINCREMENT` function see documentation of GT.M
+- `ZZ` commands and functions are similar to DTM, you can extend
+MUMPS with commands/functions written in MUMPS
 
