@@ -22,7 +22,9 @@ MV1 and its derivative MV1R2DEV is small and efficient like a Swiss
 army knife. I do not repeat the MUMPS V1 manual of Ray Newman which 
 can be get at http://sf.net/projects/mumps. Beware it is not a pure 
 MUMPS-1995 implementation. If you want a MUMPS which does not contain 
-implementation specific commands and functions use MV1.
+implementation specific commands and functions use MV1. In this text
+MUMPS refers to the MV1R2DEV implementation of the language which is
+based on MUMPS V1.
 
 
 
@@ -34,7 +36,7 @@ By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
 10 write daemons. The MUMPS engine and the daemons are connected by two
 queues: the dirty queue and the garbage queue respectively. Each daemon
 checks the queues to work to be done. By default each daemon polls the
-queues each 1000ms. When you make multiple pages dirty in the global cache
+queues every 1000ms. When you make multiple pages dirty in the global cache
 and the queue gets full you need to wait for the next poll time. Here
 helps the adaptive rest time, which checks statistics counters in the MUMPS
 environment and when there are processes waiting for free queue slots
@@ -45,7 +47,7 @@ the *RESTTIME* system parameter.
 
 ### Buffered files
 
-In MV1R2 files are buffered: the `READ` and `WRITE` commands buffers
+In MUMPS files are buffered: the `READ` and `WRITE` commands buffers
 their input/output respectively.
 
 
