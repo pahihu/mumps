@@ -52,8 +52,9 @@ void help(void)                                 // give some help
   (void)mumps_version((u_char *)str);           // get version into str[]
   printf( "----------------------------------------------------\n");
   printf( "This is %s\n\n", str);               // print version string
-  printf( "Copyright (c) 1999 - 2016\n");
-  printf( "Raymond Douglas Newman.  All rights reserved.\n\n");
+  printf( "Copyright (c) 1999 - 2016 Raymond Douglas Newman.\n");
+  printf( "Copyright (c) 2016 - 2018 Andras Pahi.\n");
+  printf( "All rights reserved.\n\n");
   printf( "To create a database:\n");
   printf( "> mumps -v volnam -b blocksize(kb) -s dbsize(Blocks) filename\n");
   printf( "                   and optionally -m mapblocksize(kb)\n");
@@ -65,7 +66,7 @@ void help(void)                                 // give some help
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
-  printf( "      see http://mv1.mumps.org/\n");
+  printf( "      see http://github.com/pahihu/mumps/tree/development\n");
   printf( "----------------------------------------------------\n");
   exit (0);                                     // give help and exit
 }
