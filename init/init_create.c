@@ -51,9 +51,9 @@
 //****************************************************************************
 // Create a database - switches are:
 //      -v volset name          (1 to MAX_NAME_BYTES chars)             Reqd
-//      -b blocksize in kb      (8 to 256)                              Reqd
+//      -b blocksize in kb      (4 to 256)                              Reqd
 //      -s db size in blocks    (100 to MAX_DATABASE_BLKS)      	Reqd
-//      -m map block size in kb (dbsize/8192+1 to 256)                  Opt
+//      -m map block size in kb (dbsize/8192+1 to MAX_MAP_BYTES)        Opt
 //
 
 int INIT_Create_File(int blocks,                // number of blocks
@@ -64,9 +64,9 @@ int INIT_Create_File(int blocks,                // number of blocks
 { int namlen;                                   // length of volume name
   int i;                                        // for loops
   union temp_tag
-  { int buff[131072];                           // 512kb buffer
-    char cuff[SIZEOF_LABEL_BLOCK+1024];         // remap front bit
-  } x;                                          // end of union stuff
+  { int *buff;      				// map kbytes buffer
+    char *cuff;         			// remap front bit
+  } x;                                         	// end of union stuff
   int ret;                                      // for return values
   int fid;                                      // file handle
   DB_Block *mgrblk;				// mgr block ptr 
@@ -111,7 +111,7 @@ int INIT_Create_File(int blocks,                // number of blocks
   }
   if ((map < (blocks+7)/8+SIZEOF_LABEL_BLOCK+1)||  // if less than reqd
       (map < bsize)||                           // or less than bsize
-      (map > (512*1024)))                       // or too big
+      (map > MAX_MAP_BYTES))                    // or too big
   { fprintf(stderr, "Invalid map block size %d\n\n", map); // complain
     return (-1);                                // return an error
   }                                             // end map size check
@@ -130,6 +130,13 @@ int INIT_Create_File(int blocks,                // number of blocks
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
+  x.buff = (int *) malloc(map * 1024);		// allocate map kbytes
+  if (x.buff == NULL)
+  { fprintf(stderr, "Cannot allocate map bytes\n - %s\n", // complain
+	      strerror(errno));			// what was returned
+    return(errno);				// exit with error
+  }
+  x.cuff = (char *)x.buff;			// point to buff[]
   labelblock = (label_block *) x.buff;		// point structure at it
   bzero(x.buff, map);				// clear it
   labelblock->magic = MUMPS_MAGIC;		// mumps magic number
@@ -151,6 +158,7 @@ int INIT_Create_File(int blocks,                // number of blocks
   { i = close(fid);                             // close the file
     fprintf( stderr, "File write failed - %s\n", // complain
              strerror(errno));                  // what was returned
+    free(x.buff);				// release buff[]
     return(errno);                              // and return
   }                                             // probably should delete it
   // make MGR block & $GLOBAL record
@@ -180,10 +188,12 @@ int INIT_Create_File(int blocks,                // number of blocks
     { i = close(fid);                           // close the file
     fprintf( stderr, "File write failed - %s\n", // complain
              strerror(errno));                  // what was returned
+    free(x.buff);				// release buff[]
     return(errno);                              // and return
     }                                           // probably should delete it
   }                                             // end of write code
   i = close(fid);                               // close file
   printf( "Database file created.\n");          // say we've done that
+  free(x.buff);					// release buff[]
   return (0);                                   // indicate success
 }

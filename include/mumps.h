@@ -77,6 +77,7 @@
 
 #define MUMPS_MAGIC     4155766917U             // seems unique
 #define MUMPS_SYSTEM    50                      // MDC assigned number
+#define MAX_MAP_BYTES	(512*1024)		// 512kb map for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
@@ -330,7 +331,8 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
   u_int max_block;                              // maximum block number
   int header_bytes;                             // bytes in label/map
   int block_size;                               // bytes per data block
-  VOLATILE var_u volnam;                        // volume name (8 bytes)
+  VOLATILE var_u volnam;                        // volume name
+  						//   (MAX_NAME_BYTES bytes)
   short db_ver;                                 // database version
   u_char journal_available;                     // jrnl turned on at startup
   u_char journal_requested;                     // && journal_available = ON
