@@ -64,7 +64,7 @@ int INIT_Create_File(int blocks,                // number of blocks
 { int namlen;                                   // length of volume name
   int i;                                        // for loops
   union temp_tag
-  { int *buff;      				// map kbytes buffer
+  { int *buff;      				// map bytes buffer
     char *cuff;         			// remap front bit
   } x;                                         	// end of union stuff
   int ret;                                      // for return values
@@ -72,6 +72,7 @@ int INIT_Create_File(int blocks,                // number of blocks
   DB_Block *mgrblk;				// mgr block ptr 
   label_block *labelblock;			// first LABEL_BLOCK_SIZE bytes
   cstring * chunk;
+  int mapalloc;					// map alloc size
 
   namlen = strlen(volnam);                      // get the name length
   if ((namlen < 1)||(namlen > MAX_NAME_BYTES))  // check name length
@@ -104,8 +105,8 @@ int INIT_Create_File(int blocks,                // number of blocks
 
   if (map == 0)                                 // if map not sepecified
   { map = (blocks+7)/8+SIZEOF_LABEL_BLOCK+1;	// see what we need
-    if (map & 1023)				// if not even K
-    { map = ((map / 1024) + 1) * 1024;		// round up
+    if (map & (MAP_CHUNK - 1))			// if not even 4K
+    { map = ((map / MAP_CHUNK) + 1) * MAP_CHUNK;// round up
     }
     if (map < bsize) map = bsize;               // at least bsize
   }
@@ -130,7 +131,11 @@ int INIT_Create_File(int blocks,                // number of blocks
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
-  x.buff = (int *) malloc(map * 1024);		// allocate map kbytes
+  mapalloc = map;
+  if (mapalloc < SIZEOF_LABEL_BLOCK + 1024)	// label block + first part
+  { mapalloc = SIZEOF_LABEL_BLOCK + 1024;	//   should fit
+  }
+  x.buff = (int *) malloc(mapalloc);		// allocate mapalloc bytes
   if (x.buff == NULL)
   { fprintf(stderr, "Cannot allocate map bytes\n - %s\n", // complain
 	      strerror(errno));			// what was returned

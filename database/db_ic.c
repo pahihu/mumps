@@ -609,7 +609,7 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
       else						// free
       { *c &= (u_char) (~(1 << off));			// clear it
       }
-      systab->vol[vol]->map_dirty_flag = 1;	        // map needs writing
+      Mark_map_dirty(vol, block);			// map needs writing
     }							// end byte scan
     SemOp(SEM_GLOBAL, -curr_lock);			// free lock
     c++;						// point at next

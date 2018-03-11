@@ -378,7 +378,7 @@ int INIT_Start( char *file,                     // database
   }
   else
   { systab->vol[0]->vollab->clean = 0;		// mark as mounted, was 1
-    systab->vol[0]->map_dirty_flag = 1;		// and map needs writing
+    systab->vol[0]->map_dirty_flag |= VOLLAB_DIRTY; // and map needs writing
   }
   jobs = jobs/DAEMONS;                          // number of daemons
   if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;   // minimum of MIN_DAEMONS

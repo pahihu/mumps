@@ -344,7 +344,7 @@ void Free_block(int vol, int blknum)			// free blk in map
   if (systab->vol[vol]->first_free > (void *) &map[i])	// if earlier
   { systab->vol[vol]->first_free = &map[i];             // reset first free
   }
-  systab->vol[vol]->map_dirty_flag++;		        // mark map dirty
+  Mark_map_dirty(vol, blknum);
   return;						// and exit
 }
 
@@ -377,7 +377,7 @@ void Used_block(int vol, int blknum)			// set blk in map
   }
   ATOMIC_INCREMENT(systab->vol[vol]->stats.blkalloc);   // update stats
   map[i] |= off;					// set the bit
-  systab->vol[vol]->map_dirty_flag++;		        // mark map dirty
+  Mark_map_dirty(vol, blknum);
   return;						// and exit
 }
 
@@ -418,6 +418,32 @@ void Tidy_block()					// tidy current blk
   blk[level] = ptr;					// restore the ptr
   idx = (u_short *) blk[level]->mem;			// set this up
   iidx = (int *) blk[level]->mem;			// and this
+  return;						// and exit
+}
+
+//-----------------------------------------------------------------------------
+// Function: Mark_map_dirty
+// Descript: Mark the specified 4K chunk of map as dirty
+// Input(s): vol - volume index, block number
+// Return:   none
+// Note:     Must hold a write lock before calling this function
+//
+
+void Mark_map_dirty(int vol, int blknum)		// mark map dirty
+{ int off;						// chunk offset
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  // NB. map is written in 4K chunks, each chunk holds
+  //     data for 4K*8 blocks, each dirty_map_blocks[]
+  //     entry contains a bitmap for 32 chunks.
+  off = blknum >> 15;
+
+  ASSERT((off >> 5) < MAX_MAP_CHUNKS);			// offset should fit
+  systab->vol[vol]->map_chunks[off >> 5] |= (1U << (off & 31)); // mark chunk
+  systab->vol[vol]->map_dirty_flag++;		        // mark map dirty
   return;						// and exit
 }
 

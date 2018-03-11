@@ -778,7 +778,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             SemOp( SEM_GLOBAL, -curr_lock);
             volnum = old_volnum;
 	  }
-	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
+	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;// tell to write it
 	  return 0;
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0))
@@ -796,7 +796,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           }
 	  (void) strcpy(systab->vol[i]->vollab->journal_file, 
                           (char *)data->buf);   // write new name
-	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
+	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;// tell to write it
           s = 0;
           OpenJournal(i, 0);                    // open new jrn file
           if (systab->vol[i]->vollab->journal_available)
@@ -823,7 +823,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  X_Clear(systab->vol[i]->vollab->volnam.var_xu); // zot name
 	  bcopy(data->buf, systab->vol[i]->vollab->volnam.var_cu, data->len);
 //	  (void) strcpy(systab->vol[i]->vollab->volnam.var_cu, data->buf);
-	  systab->vol[i]->map_dirty_flag = 1;	// tell them to write it
+	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY; // tell to write it
 	  return 0;
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, "size\0", 5) == 0) &&
@@ -851,7 +851,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           { return -(ERRM38);
           }
           systab->vol[i]->vollab->blkrevno = j;
-          systab->vol[i]->map_dirty_flag = 1;
+          systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;
           return 0;
         }
 	if ((strncasecmp( (char *) subs[2]->buf, 

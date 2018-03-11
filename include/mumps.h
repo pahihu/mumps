@@ -77,11 +77,13 @@
 
 #define MUMPS_MAGIC     4155766917U             // seems unique
 #define MUMPS_SYSTEM    50                      // MDC assigned number
-#define MAX_MAP_BYTES	(512*1024)		// 512kb map for now
+#define MAX_MAP_CHUNKS	32			// 32 * 32 4K blocks for map
+#define MAP_CHUNK	(4*1024)		// map is written in 4K chunks
+#define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
-#define VERSION_TEST	0                       // Test version number
+#define VERSION_TEST	1                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
@@ -168,6 +170,8 @@
 #define MIN_REST_TIME	   8			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
 
+#define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
+
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        4096                    // hash size for global buffers
 #define NUM_DIRTY       8192                    // max queued dirty chains
@@ -182,7 +186,7 @@
 #define MAXROUSIZ       32767                   // max compiled rou size
 #define MAXROULIN       32767                   // max rou lines
 #define COMP_VER        (8+(MAX_NAME_BYTES-8)*256)  // compiler version
-#define DB_VER          (2+(MAX_NAME_BYTES-8)*256)  // database version
+#define DB_VER          (3+(MAX_NAME_BYTES-8)*256)  // database version
 
 // Global flags (from Global Directory) follow
 #define GL_JOURNAL      1                       // Journal global flag
@@ -347,7 +351,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
 #define SIZEOF_LABEL_BLOCK	1024            // (sizeof(label_block)+1023)
                                                 //      / 1024
 #else
-#define SIZEOF_LABEL_BLOCK	3072
+#define SIZEOF_LABEL_BLOCK	4096
 #endif
 
 typedef struct __PACKED__ DB_STAT
@@ -413,7 +417,7 @@ typedef struct __PACKED__ VOL_DEF
   int num_of_daemons;                           // number of daemons
   wdtab_struct wd_tab[MAX_DAEMONS];             // write daemon info table
   VOLATILE int dismount_flag;                   // flag to indicate dismounting
-  VOLATILE int map_dirty_flag;                  // set if map is dirty
+  VOLATILE u_int map_dirty_flag;                // set if map is dirty
   VOLATILE int writelock;                       // MUMPS write lock
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
@@ -448,6 +452,7 @@ typedef struct __PACKED__ VOL_DEF
   int gbsync;                                   // global buffer sync in sec
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   db_stat stats;                                // database statistics
+  u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
 

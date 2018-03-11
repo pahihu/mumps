@@ -298,6 +298,7 @@ void Allign_record();					// allign record (int)
 void Copy_data(gbd *fptr, int fidx);			// copy records
 void DoJournal(jrnrec *jj, cstring *data); 		// Write journal
 void Free_block(int vol, int blknum);			// free blk in map
+void Mark_map_dirty(int vol, int blknum);		// mark map dirty
 void Garbit(int blknum);				// que a blk for garb
 short Insert(u_char *key, cstring *data);		// insert a node
 int Queit2(gbd *p_gbd);				        // que a gbd for write

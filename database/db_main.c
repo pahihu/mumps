@@ -1024,7 +1024,7 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
   mv1free(p);						// free memory
   i = close(dbfd);					// close db file
   systab->vol[vol]->vollab->max_block = vsiz;		// store new size
-  systab->vol[vol]->map_dirty_flag = 1;			// say write this
+  systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY;	// say write this
   return 0;
 }
 

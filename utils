@@ -5,7 +5,7 @@ F  R R Q:R=""  U 0 W R,! U %I K A F I=1:1 R A(I) I A(I)="" M ^$R(R)=A Q
 GLOSIZE() ; global name size
   Q $S($$R2:32,1:8)
 LBLKSIZE() ;label block size
-  Q $S($$R2:3072,1:1024)
+  Q $S($$R2:4096,1:1024)
 HDRSIZE() ; db block header size
   Q 20+$$GLOSIZE
 LOWIDX()  ; low index

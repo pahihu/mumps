@@ -572,7 +572,7 @@ short New_block()					// get new block
       blknum = blknum + i;				// add the little bit
       if (blknum <= systab->vol[volnum-1]->vollab->max_block)
       { *c |= (1 << i);					// mark block as used
-        systab->vol[volnum-1]->map_dirty_flag++;	// mark map dirty
+	Mark_map_dirty(volnum-1, blknum);		// mark map dirty
         blk[level]->block = blknum;			// save in structure
 	blk[level]->dirty = (gbd *) 1;			// reserve it
 	blk[level]->last_accessed = MTIME(0);		// accessed

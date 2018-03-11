@@ -280,7 +280,7 @@ short DB_Mount( char *file,                     // database
   }
   else
   { systab->vol[vol]->vollab->clean = 0;	// mark as mounted, was 1
-    systab->vol[vol]->map_dirty_flag = 1;	// and map needs writing
+    systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY; // and map needs writing
   }
   systab->vol[vol]->num_of_daemons = 0;	        // initalise this
   systab->vol[vol]->volset_size = volset_size;  // save volset_size

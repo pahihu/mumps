@@ -126,6 +126,16 @@ syncs. Set to 0 to turn off volume syncing.
     SET ^$SYSTEM("VOL",1,"GLOBAL_BUFFER_SYNC")=0 ;Turn off vol sync
 
 
+### Maximum volume size
+
+The map block size defines the maximum possible volume size for a single
+volume. It's minimum size is the block size of the volume (ie. the volume
+file can grow to `8 * block size` blocks). The map block is allocated 
+in 4K chunks when the volume is created, with the maximum size of 4MB 
+(ie. the maximum volume file size is about 32M blocks). That means you
+can have a maximum volume file size of about 128GB using 4KB blocks.
+
+
 ### Multiple volume sets
 
 You can mount up to 16 volume sets in a multi-user MUMPS environment.

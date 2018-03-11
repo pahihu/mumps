@@ -178,7 +178,7 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   systab->vol[volnum-1]->vollab->uci[uci-1].global = 0;	// clear this
   //systab->vol[vol-1]->vollab->uci[uci-1].name.var_qu = 0; // and this
   X_Clear(systab->vol[volnum-1]->vollab->uci[uci-1].name.var_xu); // and this
-  systab->vol[volnum-1]->map_dirty_flag = 1;		// mark map dirty
+  systab->vol[volnum-1]->map_dirty_flag |= VOLLAB_DIRTY;// mark map dirty
   blk[level]->mem->last_idx = LOW_INDEX - 1;		// say no index
   Garbit(gb);						// garbage it
   bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all

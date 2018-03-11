@@ -77,6 +77,7 @@ void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
 void do_volsync(int vol);                               // flush vol to disk
+void do_map_write(int vol);				// write label/map
 
 int do_log(const char *fmt,...)
 { int i;
@@ -258,14 +259,11 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 //
 
 void do_daemon()					// do something
-{ int i;						// handy int
-  off_t file_off;					// for lseek()
-  time_t t;						// for ctime()
+{ time_t t;						// for ctime()
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
 #endif
   int vol;                                              // vol[] index
-  char msg[128];                                        // msg buffer
 
 start:
   if (!myslot)                                          // update M time
@@ -280,23 +278,7 @@ start:
       if ((!myslot) &&                                  // first daemon ?
           (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
           (MTIME(0) != last_map_write[vol]))            //     not updated ?
-      { do_mount(vol);                                  // mount db file
-        file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
-        if (file_off<0)
-        { systab->vol[vol]->stats.diskerrors++;	        // count an error
-          sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-          panic(msg);
-        }
-        i = write( dbfds[vol], systab->vol[vol]->vollab,
-		     systab->vol[vol]->vollab->header_bytes);// map/label
-        if (i < 0)
-        { systab->vol[vol]->stats.diskerrors++;	        // count an error
-          sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-          panic(msg);
-        }
-        systab->vol[vol]->map_dirty_flag = 0;	        // unset dirty flag
-        ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);// count a write
-        last_map_write[vol] = MTIME(0);
+      { do_map_write(vol);				// write map
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
       { do_quiescence();                                // reach quiet point
@@ -1069,3 +1051,93 @@ void do_volsync(int vol)
   volnum = old_volnum;
 }
 
+
+//-----------------------------------------------------------------------------
+// Function: do_map_write
+// Descript: Write the dirty map portions to disk
+// Input(s): vol - the volume
+// Return:   None
+//
+
+void do_map_write(int vol)
+{ int i, j;					// a handy int
+  int ret;					// for return value
+  int block;					// block position
+  off_t file_off;				// for lseek()
+  u_int dirty_flag;				// map_dirty_flag
+  u_int chunk;					// chunk bitmap
+  char msg[128];				// msg buffer
+
+  do_mount(vol);                                // mount db file
+  dirty_flag = systab->vol[vol]->map_dirty_flag;
+  if (dirty_flag & VOLLAB_DIRTY)		// check label block
+  { while (SemOp( SEM_GLOBAL, READ));		// take a READ lock
+    file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
+    if (file_off < 0)
+    { systab->vol[vol]->stats.diskerrors++;	// count an error
+      sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
+      panic(msg);
+    }
+    i = write( dbfds[vol], systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
+    if ((i < 0) || (i != SIZEOF_LABEL_BLOCK))
+    { systab->vol[vol]->stats.diskerrors++;	// count an error
+      sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
+      panic(msg);
+    }
+    systab->vol[vol]->map_dirty_flag ^= VOLLAB_DIRTY;
+    SemOp( SEM_GLOBAL, -curr_lock);		// release lock
+    dirty_flag ^= VOLLAB_DIRTY;			// clear VOLLAB flag
+  }
+  if (dirty_flag != VOLLAB_DIRTY)		// check map chunks
+  { block = 0;
+    for (i = 0; i < MAX_MAP_CHUNKS; i++)
+    { chunk = systab->vol[vol]->map_chunks[i];	// check bitmap
+      if (0 == chunk)				// skip if empty
+      { block += 32;
+	continue;
+      }
+      while (SemOp( SEM_GLOBAL, READ));		// take a READ lock
+      for (j = 0; j < 32; j++)			// check every bit
+      { if (chunk & 1)				// needs writing ?
+        { file_off = (off_t) SIZEOF_LABEL_BLOCK + // calc. map block offset
+		     block * MAP_CHUNK;
+	  file_off = lseek( dbfds[vol], file_off, SEEK_SET); // move to block
+          if (file_off < 0)
+          { systab->vol[vol]->stats.diskerrors++; // count an error
+            sprintf(msg, "do_daemon: lseek() to map block (%d) of vol %d failed", block, vol);
+            panic(msg);
+          }
+          ret = write( dbfds[vol], 		// write the map chunk
+		       systab->vol[vol]->vollab + block * MAP_CHUNK,
+	               MAP_CHUNK);
+  	  if (ret < 0)
+          { systab->vol[vol]->stats.diskerrors++; // count an error
+            sprintf(msg, "do_daemon: write() map block (%d) of vol %d failed", block, vol);
+            panic(msg);
+          }
+	}
+	block++; chunk >>= 1;
+      }
+      systab->vol[vol]->map_chunks[i] = 0;	// clear map chunk
+      SemOp( SEM_GLOBAL, -curr_lock);		// release lock
+    }
+  }
+/*
+  file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
+  if (file_off<0)
+  { systab->vol[vol]->stats.diskerrors++;	// count an error
+    sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
+    panic(msg);
+  }
+  i = write( dbfds[vol], systab->vol[vol]->vollab,
+	     systab->vol[vol]->vollab->header_bytes);// map/label
+  if (i < 0)
+  { systab->vol[vol]->stats.diskerrors++;	// count an error
+    sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
+    panic(msg);
+  }
+*/
+  inter_add(&systab->vol[vol]->map_dirty_flag, -dirty_flag); // alter dirty flag
+  ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt); // count a write
+  last_map_write[vol] = MTIME(0);
+}
