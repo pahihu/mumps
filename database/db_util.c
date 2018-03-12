@@ -756,7 +756,6 @@ short FlushJournal(int vol, int jfd, int dosync)
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  // ASSERT(NULL != systab->vol[vol]->vollab);
 
   if (0 == jfd)
   { if (vol)                                            // only VOL0 is open

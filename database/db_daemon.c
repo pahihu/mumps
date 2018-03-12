@@ -73,6 +73,7 @@ static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write[MAX_VOL];                  // last map write
 int open_jrn(int vol);                                  // open journal file
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
+static char jnl_files[MAX_VOL][JNL_FILENAME_MAX + 1];	// jrn file names
 void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
@@ -165,6 +166,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
     jnl_fds[i] = 0;                                     // clear jrn file desc.
+    jnl_files[i][0] = 0;				// clear jrn file name
     last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
   mypid = 0;
@@ -892,8 +894,16 @@ int open_jrn(int vol)
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  if (jnl_fds[vol])                                     // already open ?
+  if (jnl_fds[vol] && 					// already open ?
+      (0 == strcmp(jnl_files[vol], 			//   AND same name ?
+		   systab->vol[vol]->vollab->journal_file)))
     return jnl_fds[vol];                                //   return file desc.
+
+  if (jnl_fds[vol])					// jrn file changed
+  { close(jnl_fds[vol]);				//   close old fd
+    jnl_fds[vol] = 0;					// clear jrn fds
+    jnl_files[vol][0] = 0;				//   AND jrn file name
+  }
 
   if ((systab->vol[vol]->vollab->journal_available) &&
       (systab->vol[vol]->vollab->journal_requested) &&
@@ -920,14 +930,16 @@ int open_jrn(int vol)
 #endif
     lseek(jfd, 0, SEEK_SET);
     errno = 0;
-    j = read(jfd, tmp, sizeof(u_int));	        // read the magic
+    j = read(jfd, tmp, sizeof(u_int));	        	// read the magic
     if ((j != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
     { do_log("Failed to open journal file %s: WRONG MAGIC\n",
 		    systab->vol[vol]->vollab->journal_file);
       close(jfd);
       return 0;
     }
-    jnl_fds[vol] = jfd;
+    jnl_fds[vol] = jfd;					// save jrn fd
+    strcpy(jnl_files[vol], 				//   AND jrn file name
+	   systab->vol[vol]->vollab->journal_file);
   }
   return jnl_fds[vol];
 }
