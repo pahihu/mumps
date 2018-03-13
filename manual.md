@@ -96,6 +96,17 @@ Example:
     mumps -l -512 testdb
 
 
+### Journal file change
+
+You do not need to stop the MUMPS environment to change the journal 
+file. While the environment is on-line, you can simply change the
+journal file.
+
+Example:
+
+    SET ^$SYSTEM("VOL",1,"JOURNAL_FILE")="/path/to/newjrn"
+
+
 ### KILLing data
 
 When you `KILL` globals in the database, MUMPS does not overwrite
