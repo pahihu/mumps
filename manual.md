@@ -14,6 +14,8 @@ Copyright 2018, Andras Pahi. All rights reserved.
 
 [Structured System Variables](#ssvns)
 
+[Limits](#limits)
+
 
 
 ## Foreword
@@ -487,4 +489,21 @@ workings are entirely different. See README.OOP
 - `$ZINCREMENT` function see documentation of GT.M
 - `ZZ` commands and functions are similar to DTM, you can extend
 MUMPS with commands/functions written in MUMPS
+
+## Limits
+
+| Feature                           | Value                    |
+| --------------------------------- | ------------------------ |
+| Language			    | M-1995 with extensions   |
+| Maximum identifier length	    | 31 chars		       |
+| Maximum routine object size	    | min(block size, 32KB)    |
+| Maximum local variable length	    | 32KB		       |
+| Volume block size		    | 4KB - 256KB	       |
+| Volume size            	    | 32M blocks (128GB - 8TB) |
+| Namespaces per volume (UCI)	    | 63		       |
+| Maximum global key size	    | 255		       |
+| Maximum global value size	    | min(block size, 32KB)    |
+| Maximum number of volumes	    | 16		       |
+| Global translation table size	    | 255		       |
+| Maximum number of daemons	    | 10		       |
 
