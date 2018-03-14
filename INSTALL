@@ -43,14 +43,6 @@
 
   Setup the Cygserver using /usr/bin/cygserver-config.
 
-    edit /usr/include/cygwin/shm.h
-       add near end 
-       #define SHM_R       (IPC_R)
-       #define SHM_W       (IPC_W)
-
-    edit /usr/include/cygwin/ipc.h
-       move third last #endif 3 lines up
-
 
 
     Enjoy
