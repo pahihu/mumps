@@ -1005,6 +1005,7 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
+#ifdef MV1_PROFILE
   fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
            file, line, curr_lock, seconds,
 #ifdef MV1_CKIT
@@ -1014,6 +1015,7 @@ u_int SleepEx(u_int seconds, const char* file, int line)
 #endif
   );
   fflush(stderr);
+#endif
   return MSleep(1000 * seconds);
 }
 
