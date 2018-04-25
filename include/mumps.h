@@ -117,7 +117,7 @@
 #define K2_GREATER      -1                      // ***
 #define KNOTEQUAL        2
 
-#define MAX_DO_FRAMES   128                     // maximum permitted do_frame
+#define MAX_DO_FRAMES   256                     // maximum permitted do_frame
 #define STM1_FRAME	MAX_DO_FRAMES-1             // where $ST(-1) data goes
 #define MAX_SEQ_IO      16                      // maximum sequential io chans
 #define MAX_SEQ_NAME	256                     // max file name size
