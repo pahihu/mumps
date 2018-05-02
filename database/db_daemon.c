@@ -1120,7 +1120,7 @@ void do_map_write(int vol)
             panic(msg);
           }
           ret = write( dbfds[vol], 		// write the map chunk
-		       systab->vol[vol]->vollab + block * MAP_CHUNK,
+		       systab->vol[vol]->map + block * MAP_CHUNK,
 	               MAP_CHUNK);
   	  if (ret < 0)
           { systab->vol[vol]->stats.diskerrors++; // count an error
