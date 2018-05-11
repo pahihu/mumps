@@ -704,8 +704,8 @@ PAT(STR,S,N,C,P,ZR) S ZR="PAT^%U"
 CD(UCIVOL,%,UCI,VOL,ZR) S ZR="CD^%U"
  S UCI=$P(UCIVOL,",",1),VOL=^$J($J,"GLOBAL_VOL")
  S:$L(UCIVOL,",")=2 VOL=$P(UCIVOL,",",2) I 1
- I 'UCI F %=1:1:64 I ^$S("VOL",1,"UCI",%)=UCI S UCI=% Q
  I 'VOL F %=1:1:16 I ^$S("VOL",%,"NAME")=VOL S VOL=% Q
+ I 'UCI F %=1:1:64 I ^$S("VOL",VOL,"UCI",%)=UCI S UCI=% Q
 ;Make it into a number if possible
  G CDE:VOL<1!(VOL>16),CDE:'$L(^$S("VOL",VOL,"NAME"))
  G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",VOL,"UCI",UCI))
@@ -1615,7 +1615,7 @@ MNUDSP ; Display menu
  Q
 CREAT ; Create a UCI but not MGR
  N NUCI,X,FLG,VOL,UCI
- S VOL=1,UCI=""
+ S VOL=^$J($J,"ROUTINE_VOL"),UCI=""
  D DISP("Create a UCI...",.VOL,.UCI)
 CR1 ; Prompt
  R !!,"Enter new UCI name: ",NUCI Q:NUCI=""
@@ -1628,7 +1628,7 @@ CR1 ; Prompt
  Q
 EDIT ; Edit an existing UCI But not MGR
  N HEAD,OUCI,NUCI,VOL,UCI,X,Y
- S VOL=1,UCI=""
+ S VOL=^$J($J,"ROUTINE_VOL"),UCI=""
  D DISP("Rename a UCI...",.VOL,.UCI)
 ED1 ; Edit prompt
  R !,"Select UCI to Edit: ",OUCI Q:OUCI=""
@@ -1644,7 +1644,7 @@ ED2 ; Edit Prompt
  Q
 DELETE ; Delete an existing UCI but not MGR
  N DUCI,VOL,UCI
- S VOL=1,UCI=""
+ S VOL=^$J($J,"ROUTINE_VOL"),UCI=""
  D DISP("Delete a UCI...",.VOL,.UCI)
 DE1 ; Select Prompt
  R !,"Select UCI to DELETE: ",DUCI Q:DUCI=""
@@ -1657,7 +1657,7 @@ DE1 ; Select Prompt
 DISP(HEAD,VOL,UCI) ; Generic display of UCI
  N X
  I HEAD="" Q
- I VOL="" S VOL=1
+ I VOL="" S VOL=^$J($J,"ROUTINE_VOL")
  S UCI=""
  W !,HEAD
  D LIST
@@ -1666,7 +1666,7 @@ DISP(HEAD,VOL,UCI) ; Generic display of UCI
  Q
 LIST ; List all UCI's within a Volume set
  N VOL,UCI,X
- S VOL=1,UCI=""
+ S VOL=^$J($J,"ROUTINE_VOL"),UCI=""
  W !,"User Class Identifier's within the Volume set: ",^$S("VOL",VOL,"NAME")
  W !,?10,"UCI#",?40,"UCI"
  W !,?10,"----",?40,"---"
