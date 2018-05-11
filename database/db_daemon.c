@@ -266,6 +266,7 @@ void do_daemon()					// do something
   void *qentry;                                         // queue entry
 #endif
   int vol;                                              // vol[] index
+  int dirtyQr, garbQr;                                  // queue read indices
 
 start:
   if (!myslot)                                          // update M time
@@ -320,23 +321,21 @@ start:
     }
 #else
     while (SemOp(SEM_WD, WRITE));			// lock WD
-    if (systab->vol[0]->dirtyQ
-	[systab->vol[0]->dirtyQr] != NULL)	        // any writes?
+    dirtyQr = systab->vol[0]->dirtyQr;
+    garbQr  = systab->vol[0]->garbQr;
+    if (systab->vol[0]->dirtyQ[dirtyQr] != NULL)	// any writes?
     { systab->vol[0]->wd_tab[myslot].currmsg.gbddata
-        = systab->vol[0]->dirtyQ[systab->vol[volnum-1]->dirtyQr]; // get
+        = systab->vol[0]->dirtyQ[dirtyQr];              // get
       systab->vol[0]->wd_tab[myslot].doing = DOING_WRITE;
-      systab->vol[0]->dirtyQ[systab->vol[volnum-1]->dirtyQr] = NULL;
-      systab->vol[0]->dirtyQr++;			// increment ptr
-      systab->vol[0]->dirtyQr &= (NUM_DIRTY - 1);       // do wrap
+      systab->vol[0]->dirtyQ[dirtyQr] = NULL;
+      systab->vol[0]->dirtyQr = (dirtyQr+1) & (NUM_DIRTY-1); // increment ptr
     }
-    else if (systab->vol[0]->garbQ
-	       [systab->vol[0]->garbQr]) 	        // any garbage?
+    else if (systab->vol[0]->garbQ[garbQr]) 	        // any garbage?
     { systab->vol[0]->wd_tab[myslot].currmsg.intdata
-        = systab->vol[0]->garbQ[systab->vol[0]->garbQr]; // get
+        = systab->vol[0]->garbQ[garbQr];                // get
       systab->vol[0]->wd_tab[myslot].doing = DOING_GARB;
-      systab->vol[0]->garbQ[systab->vol[0]->garbQr] = 0;
-      systab->vol[0]->garbQr++;			        // increment ptr
-      systab->vol[0]->garbQr &= (NUM_GARB - 1);	        // do wrap
+      systab->vol[0]->garbQ[garbQr] = 0;
+      systab->vol[0]->garbQr = (garbQr+1) & (NUM_GARB-1); // increment ptr
     }
     SemOp( SEM_WD, -WRITE);				// release WD lock
 #endif
@@ -360,7 +359,8 @@ start:
     }
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_WRITE)
-  { do_write();						// do it 
+  { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
+    do_write();						// do it 
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
@@ -519,7 +519,8 @@ void do_write()						// write GBDs
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
 
   if (!gbdptr)
-  { panic("Daemon: write msg gbd is NULL");		// check for null
+  { systab->vol[0]->wd_tab[myslot].doing = DOING_NOTHING;
+    panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
   // NB. egy lancban egy volume-hoz tartoznak!

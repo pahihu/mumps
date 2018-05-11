@@ -146,10 +146,10 @@ short TrySemLock(int sem_num, int numb)
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
-    { SpinLockWriter(&systab->glorw[volnum - 1]);
+    { SpinLockWriter(&systab->glorw[0]);
     }
     else if (numb == READ)
-    { SpinLockReader(&systab->glorw[volnum - 1]);
+    { SpinLockReader(&systab->glorw[0]);
     }
     else
     { char msg[64];
@@ -252,11 +252,11 @@ short SemUnlock(int sem_num, int numb)
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == -WRITE)
-      UnlockWriter(&systab->glorw[volnum - 1]);
+      UnlockWriter(&systab->glorw[0]);
     else if (numb == WR_TO_R)
-      UnlockWriterToReader(&systab->glorw[volnum - 1]);
+      UnlockWriterToReader(&systab->glorw[0]);
     else if (numb == -READ)
-      UnlockReader(&systab->glorw[volnum - 1]);
+      UnlockReader(&systab->glorw[0]);
     else
     { char msg[64];
       sprintf(msg, "SemUnLock(): numb=%d", numb);

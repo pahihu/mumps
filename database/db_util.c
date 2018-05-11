@@ -1009,9 +1009,9 @@ u_int SleepEx(u_int seconds, const char* file, int line)
   fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
            file, line, curr_lock, seconds,
 #ifdef MV1_CKIT
-           NUM_DIRTY - ck_ring_size(&systab->vol[volnum-1]->dirtyQ) - 1
+           NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1
 #else
-           abs(systab->vol[volnum - 1]->dirtyQw - systab->vol[volnum - 1]->dirtyQr)
+           abs(systab->vol[0]->dirtyQw - systab->vol[0]->dirtyQr)
 #endif
   );
   fflush(stderr);
@@ -1050,10 +1050,10 @@ start:
   j = 0;                                                // clear counter
   MinSlots = 2 * MAXTREEDEPTH;
 #ifdef MV1_CKIT
-  qfree = NUM_DIRTY - ck_ring_size(&systab->vol[volnum-1]->dirtyQ) - 1;
+  qfree = NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1;
 #else
-  wpos = systab->vol[volnum - 1]->dirtyQw;
-  rpos = systab->vol[volnum - 1]->dirtyQr;
+  wpos = systab->vol[0]->dirtyQw;
+  rpos = systab->vol[0]->dirtyQr;
   if (rpos <= wpos) qlen = wpos - rpos;
   else
     qlen = NUM_DIRTY + wpos - rpos;
