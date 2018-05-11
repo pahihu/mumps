@@ -1036,7 +1036,7 @@ short DB_Expand(int vol, u_int vsiz)			// expand it
 //
 
 int DB_Dismount(int volume)	                       	// dismount a volume
-{ if (volume > 1)
+{ // if (volume > 1)
   { int old_volnum = volnum;
     volnum = volume;                                    // set volnum
     while (SemOp( SEM_GLOBAL, WRITE))
