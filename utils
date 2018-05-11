@@ -704,8 +704,8 @@ PAT(STR,S,N,C,P,ZR) S ZR="PAT^%U"
 CD(UCIVOL,%,UCI,VOL,ZR) S ZR="CD^%U"
  S UCI=$P(UCIVOL,",",1),VOL=^$J($J,"GLOBAL_VOL")
  S:$L(UCIVOL,",")=2 VOL=$P(UCIVOL,",",2) I 1
- I 'VOL F %=1:1:16 I ^$S("VOL",%,"NAME")=VOL S VOL=% Q
- I 'UCI F %=1:1:64 I ^$S("VOL",VOL,"UCI",%)=UCI S UCI=% Q
+ I 'VOL F %=1:1:16 Q:""=^$S("VOL",%,"FILE")  I ^$S("VOL",%,"NAME")=VOL S VOL=% Q
+ G CDE:'VOL I 'UCI F %=1:1:64 I ^$S("VOL",VOL,"UCI",%)=UCI S UCI=% Q
 ;Make it into a number if possible
  G CDE:VOL<1!(VOL>16),CDE:'$L(^$S("VOL",VOL,"NAME"))
  G CDE:UCI<1!(UCI>64),CDE:'$L(^$S("VOL",VOL,"UCI",UCI))

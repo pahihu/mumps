@@ -377,25 +377,9 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if ((!(i < MAX_VOL)) || (i < 0))	// validate it
 	  return (-ERRM38);			// junk
 	if (nsubs < 3) return (-ERRM38);	// must be 3 subs
-	if (strncasecmp( (char *) subs[2]->buf, "block\0", 6) == 0)
-	  return uitocstring(buf, systab->vol[i]->vollab->block_size);
 	if (strncasecmp( (char *) subs[2]->buf, "file\0", 5) == 0)
 	{ strcpy((char *)buf, systab->vol[i]->file_name); // copy it
 	  return strlen((char *)buf);			// return the length
-	}
-	if (strncasecmp( (char *) subs[2]->buf, "free\0", 5) == 0)
-	  return uitocstring(buf, DB_Free(i + 1)); // return free blocks
-	if (strncasecmp( (char *) subs[2]->buf, "header\0", 7) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->header_bytes);
-	if (strncasecmp( (char *) subs[2]->buf, "journal_available\0", 18) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->journal_available);
-	if (strncasecmp( (char *) subs[2]->buf, "journal_requested\0", 18) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->journal_requested);
-	if (strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0)
-	  return itocstring(buf, systab->vol[i]->jrn_next);
-	if (strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0)
-	{ (void) strcpy((char *)buf, systab->vol[i]->vollab->journal_file);
-	  return strlen((char *)buf);
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "journal_buffer_size\0", 20) == 0)
         { j = systab->vol[i]->jkb;
@@ -403,32 +387,6 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
             j = -j;
 	  return itocstring(buf, j);
         }
-	if (strncasecmp((char *)subs[2]->buf,"block_revision_number\0",22) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->blkrevno);
-	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_size\0", 19) == 0)
-	  return itocstring(buf, systab->vol[i]->gmb);
-	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_sync\0", 19) == 0)
-	  return itocstring(buf, systab->vol[i]->gbsync);
-	if (strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0)
-	{ for (j = 0; j < MAX_NAME_BYTES; j++)
-	    if ((buf[j] = systab->vol[i]->vollab->volnam.var_cu[j]) == 0)
-	      break;
-	  buf[j] = '\0';
-	  return j;
-	}
-	if (strncasecmp( (char *) subs[2]->buf, "size\0", 5) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->max_block);
-	if (strncasecmp( (char *) subs[2]->buf, "uci\0", 4) == 0)
-	{ if (nsubs != 4) return (-ERRM38);	// must be 4 subs
-	  j = cstringtoi(subs[3]) - 1;		// make an int of uci#
-	  if ((!(j < UCIS)) || (j < 0))		// validate it
-	    return (-ERRM38);			// junk
-	  for (s = 0; s < MAX_NAME_BYTES; s++)
-	    if ((buf[s] = systab->vol[i]->vollab->uci[j].name.var_cu[s]) == 0)
-	      break;
-	  buf[s] = '\0';
-	  return s;
-	}
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
@@ -485,6 +443,50 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return uitocstring(buf, systab->vol[i]->stats.bwrwait);
 	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
 	  return uitocstring(buf, systab->vol[i]->stats.lckwait);
+	if (systab->vol[i]->vollab == NULL)	// check volume
+	  return (-ERRM38);			//   mounted
+	if (strncasecmp( (char *) subs[2]->buf, "block\0", 6) == 0)
+	  return uitocstring(buf, systab->vol[i]->vollab->block_size);
+	if (strncasecmp( (char *) subs[2]->buf, "free\0", 5) == 0)
+	  return uitocstring(buf, DB_Free(i + 1)); // return free blocks
+	if (strncasecmp( (char *) subs[2]->buf, "header\0", 7) == 0)
+	  return itocstring(buf, systab->vol[i]->vollab->header_bytes);
+	if (strncasecmp( (char *) subs[2]->buf, "journal_available\0", 18) == 0)
+	  return itocstring(buf, systab->vol[i]->vollab->journal_available);
+	if (strncasecmp( (char *) subs[2]->buf, "journal_requested\0", 18) == 0)
+	  return itocstring(buf, systab->vol[i]->vollab->journal_requested);
+	if (strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0)
+	  return itocstring(buf, systab->vol[i]->jrn_next);
+	if (strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0)
+	{ (void) strcpy((char *)buf, systab->vol[i]->vollab->journal_file);
+	  return strlen((char *)buf);
+	}
+	if (strncasecmp((char *)subs[2]->buf,"block_revision_number\0",22) == 0)
+	  return itocstring(buf, systab->vol[i]->vollab->blkrevno);
+	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_size\0", 19) == 0)
+	  return itocstring(buf, systab->vol[i]->gmb);
+	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_sync\0", 19) == 0)
+	  return itocstring(buf, systab->vol[i]->gbsync);
+	if (strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0)
+	{ for (j = 0; j < MAX_NAME_BYTES; j++)
+	    if ((buf[j] = systab->vol[i]->vollab->volnam.var_cu[j]) == 0)
+	      break;
+	  buf[j] = '\0';
+	  return j;
+	}
+	if (strncasecmp( (char *) subs[2]->buf, "size\0", 5) == 0)
+	  return itocstring(buf, systab->vol[i]->vollab->max_block);
+	if (strncasecmp( (char *) subs[2]->buf, "uci\0", 4) == 0)
+	{ if (nsubs != 4) return (-ERRM38);	// must be 4 subs
+	  j = cstringtoi(subs[3]) - 1;		// make an int of uci#
+	  if ((!(j < UCIS)) || (j < 0))		// validate it
+	    return (-ERRM38);			// junk
+	  for (s = 0; s < MAX_NAME_BYTES; s++)
+	    if ((buf[s] = systab->vol[i]->vollab->uci[j].name.var_cu[s]) == 0)
+	      break;
+	  buf[s] = '\0';
+	  return s;
+	}
 	if (strncasecmp( (char *) subs[2]->buf, "dirty\0", 6) == 0)
 	  return uitocstring(buf, DB_GetDirty(i));
       }						// end of "VOL"
