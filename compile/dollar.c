@@ -834,28 +834,33 @@ Length: if (args == 1)
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitlen", 7)) // $ZBITLEN(bstr)
+        else if ((0 == strncasecmp(name, "zbitlen", 7)) || // $ZBITLEN(bstr)
+		 (0 == strncasecmp(name, "zbl", 3)))
         { if (1 == args)                        // one arg form
             *comp_ptr++ = FUNZBLEN;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitcount", 9)) // $ZBITCOUNT(bstr)
+        else if ((0 == strncasecmp(name, "zbitcount", 9)) || // $ZBITCOUNT(bstr)
+	         (0 == strncasecmp(name, "zbc", 3)))
         { if (1 == args)                        // one arg form
             *comp_ptr++ = FUNZBCNT;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitget", 7)) // $ZBITGET(bstr,pos)
+        else if ((0 == strncasecmp(name, "zbitget", 7)) || // $ZBITGET(bstr,pos)
+	         (0 == strncasecmp(name, "zbg", 3)))
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBGET;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitset", 7)) // $ZBITSET(bstr,pos,ff)
+						// $ZBITSET(bstr,pos,ff)
+        else if ((0 == strncasecmp(name, "zbitset", 7)) ||
+		 (0 == strncasecmp(name, "zbs", 3)))
         { if (3 == args)                        // three args form
             *comp_ptr++ = FUNZBSET;
           else
@@ -863,7 +868,8 @@ Length: if (args == 1)
           return;                               // done
         }
                                                 // $ZBITFIND(bstr,ff[,pos])
-        else if (0 == strncasecmp(name, "zbitfind", 8))
+        else if ((0 == strncasecmp(name, "zbitfind", 8)) ||
+		 (0 == strncasecmp(name, "zbf", 3)))
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBFND2;
           else if (3 == args)                   // three args form
@@ -872,28 +878,35 @@ Length: if (args == 1)
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitnot", 7)) // $ZBITNOT(bstr)
+        else if ((0 == strncasecmp(name, "zbitnot", 7)) || // $ZBITNOT(bstr)
+		 (0 == strncasecmp(name, "zbn", 3)))
         { if (1 == args)                        // one arg form
             *comp_ptr++ = FUNZBNOT;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitand", 7)) // $ZBITAND(bstr1,bstr2)
+						// $ZBITAND(bstr1,bstr2)
+        else if ((0 == strncasecmp(name, "zbitand", 7)) ||
+		 (0 == strncasecmp(name, "zba", 3)))
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBAND;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitor", 6)) // $ZBITOR(bstr1,bstr2)
+						// $ZBITOR(bstr1,bstr2)
+        else if ((0 == strncasecmp(name, "zbitor", 6)) ||
+		 (0 == strncasecmp(name, "zbo", 3)))
         { if ( 2 == args)                       // two args form
             *comp_ptr++ = FUNZBOR;
           else
             EXPRE                               // all others junk
           return;                               // done
         }
-        else if (0 == strncasecmp(name, "zbitxor", 7)) // $ZBITXOR(bstr1,bstr2)
+						// $ZBITXOR(bstr1,bstr2)
+        else if ((0 == strncasecmp(name, "zbitxor", 7)) ||
+		 (0 == strncasecmp(name, "zbx", 3)))
         { if (2 == args)                        // two args form
             *comp_ptr++ = FUNZBXOR;
           else

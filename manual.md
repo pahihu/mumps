@@ -356,6 +356,7 @@ The *missing* tail parts are assumed to be zero.
 
 
 `$ZBITAND(bstr1,bstr2)`
+`$ZBA(bstr1,bstr2)`
 
 Returns the bitwise logical AND of the bit string arguments. The length
 of the result is the length of the shorter argument.
@@ -363,12 +364,14 @@ of the result is the length of the shorter argument.
 ---
 
 `$ZBITCOUNT(bstr)`
+`$ZBC(bstr)`
 
 Returns the number of 1s in the bit string.
 
 ---
 
 `$ZBITFIND(bstr,flag[,pos])`
+`$ZBF(bstr,flag[,pos])`
 
 Returns the position of the first bit beginning at *pos* in the bit
 string. If *flag* is zero it searches for the first 0, if not zero
@@ -379,6 +382,7 @@ then 0 is returned.
 ---
 
 `$ZBITGET(bstr,pos)`
+`$ZBG(bstr,pos)`
 
 Returns the bit at position *pos* in the bit string. Position is counted
 from 1. If *pos* is greater than the length of the bit string 0 is returned.
@@ -386,18 +390,21 @@ from 1. If *pos* is greater than the length of the bit string 0 is returned.
 ---
 
 `$ZBITLEN(bstr)`
+`$ZBL(bstr)`
 
 Returns the length of the bit string, ie. the number of bits.
 
 ---
 
 `$ZBITNOT(bstr)`
+`$ZBN(bstr)`
 
 Returns the bitwise logical NOT of the bit string.
 
 ---
 
 `$ZBITOR(bstr1,bstr2)`
+`$ZBO(bstr1,bstr2)`
 
 Returns the bitwise logical OR of the bit string arguments. The length of
 the result is the length of the longer argument.
@@ -405,6 +412,7 @@ the result is the length of the longer argument.
 ---
 
 `$ZBITSET(bstr,pos,flag)`
+`$ZBS(bstr,pos,flag)`
 
 Sets the bit at *pos* in the bit string according to the *flag* specified.
 If *flag* is not zero, the bit is set, if zero then it is cleared. If *pos*
@@ -422,6 +430,7 @@ zero.
 ---
 
 `$ZBITXOR(bstr1,bstr2)`
+`$ZBX(bstr1,bstr2)`
 
 Returns the bitwise logical XOR of the bit string arguments. The length of
 the result is the length of the longer argument.
