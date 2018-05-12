@@ -285,6 +285,7 @@ a separator character. When you want to embed a list in another list you
 should use another separator and so on.
 
 `$LIST(lst[,from[,to]])`
+
 `$LI(lst[,from[,to]])`
 
 Returns list element in the range [*from*,*to*]. *From* defaults to 1
@@ -295,6 +296,7 @@ If the element at position *from* is empty, it generates an error.
 ---
 
 `$LISTBUILD([elt[,elt...]])`
+
 `$LB([elt[,elt...]])`
 
 Builds a list from *elt* elements. *Elt* can be empty.
@@ -303,6 +305,7 @@ You can concatenate lists to get a new list.
 ---
 
 `$LISTDATA(lst[,pos])`
+
 `$LD(lst[,pos])`
 
 Returns 1 if the element is present in *lst* at position *pos*.
@@ -311,6 +314,7 @@ Returns 1 if the element is present in *lst* at position *pos*.
 ---
 
 `$LISTFIND(lst,val[,after])`
+
 `$LF(lst,val[,after])`
 
 Returns position of *val* in list *lst*. If *val* is not found
@@ -320,6 +324,7 @@ defaults to 0.
 ---
 
 `$LISTGET(lst[,pos[,def]])`
+
 `$LG(lst[,pos[,def]])`
 
 Returns element at *pos* in list *lst*. *Pos* defaults to 1. If list
@@ -329,6 +334,7 @@ if given.
 ---
 
 `$LISTLENGTH(lst)`               
+
 `$LL(lst)`
 
 Returns the number of elements in list *lst*.
@@ -336,6 +342,7 @@ Returns the number of elements in list *lst*.
 ---
 
 `SET $LIST(lst[,from[,to]])=expr` 
+
 `SET $LI(lst[,from[,to]])=expr`
 
 It is similar to `SET $PIECE(...)`. Set the list *lst* to the value
@@ -356,6 +363,7 @@ The *missing* tail parts are assumed to be zero.
 
 
 `$ZBITAND(bstr1,bstr2)`
+
 `$ZBA(bstr1,bstr2)`
 
 Returns the bitwise logical AND of the bit string arguments. The length
@@ -364,6 +372,7 @@ of the result is the length of the shorter argument.
 ---
 
 `$ZBITCOUNT(bstr)`
+
 `$ZBC(bstr)`
 
 Returns the number of 1s in the bit string.
@@ -371,6 +380,7 @@ Returns the number of 1s in the bit string.
 ---
 
 `$ZBITFIND(bstr,flag[,pos])`
+
 `$ZBF(bstr,flag[,pos])`
 
 Returns the position of the first bit beginning at *pos* in the bit
@@ -382,6 +392,7 @@ then 0 is returned.
 ---
 
 `$ZBITGET(bstr,pos)`
+
 `$ZBG(bstr,pos)`
 
 Returns the bit at position *pos* in the bit string. Position is counted
@@ -390,6 +401,7 @@ from 1. If *pos* is greater than the length of the bit string 0 is returned.
 ---
 
 `$ZBITLEN(bstr)`
+
 `$ZBL(bstr)`
 
 Returns the length of the bit string, ie. the number of bits.
@@ -397,6 +409,7 @@ Returns the length of the bit string, ie. the number of bits.
 ---
 
 `$ZBITNOT(bstr)`
+
 `$ZBN(bstr)`
 
 Returns the bitwise logical NOT of the bit string.
@@ -404,6 +417,7 @@ Returns the bitwise logical NOT of the bit string.
 ---
 
 `$ZBITOR(bstr1,bstr2)`
+
 `$ZBO(bstr1,bstr2)`
 
 Returns the bitwise logical OR of the bit string arguments. The length of
@@ -412,6 +426,7 @@ the result is the length of the longer argument.
 ---
 
 `$ZBITSET(bstr,pos,flag)`
+
 `$ZBS(bstr,pos,flag)`
 
 Sets the bit at *pos* in the bit string according to the *flag* specified.
@@ -430,6 +445,7 @@ zero.
 ---
 
 `$ZBITXOR(bstr1,bstr2)`
+
 `$ZBX(bstr1,bstr2)`
 
 Returns the bitwise logical XOR of the bit string arguments. The length of
