@@ -47,19 +47,19 @@ static LATCH_T LATCH_FREE;
 #endif
 
 
-void LatchInit(LATCH_T *latch)
+void MV1LatchInit(MV1LATCH_T *latch)
 {
 #ifdef USE_LIBATOMIC_OPS
   *latch = AO_TS_INITIALIZER;
 #else
-  LatchUnlock(latch);
+  MV1LatchUnlock(latch);
   LATCH_FREE = *latch;
 #endif
 }
 
 
 static
-int LatchTryLock(LATCH_T *latch)
+int MV1LatchTryLock(MV1LATCH_T *latch)
 {
 #ifdef USE_LIBATOMIC_OPS
   AO_TS_t ret;
@@ -74,7 +74,7 @@ int LatchTryLock(LATCH_T *latch)
 }
 
 
-void LatchUnlock(LATCH_T *latch)
+void MV1LatchUnlock(MV1LATCH_T *latch)
 {
 #ifdef USE_LIBATOMIC_OPS
   AO_CLEAR(latch);
@@ -92,13 +92,13 @@ void MicroSleep(u_long useconds)
   select(0, NULL, NULL, NULL, &tout);
 }
 
-int LatchLock(LATCH_T *latch)
+int MV1LatchLock(MV1LATCH_T *latch)
 { int i, j;
   u_int slot;
 
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
-    { if (LatchTryLock(latch))
+    { if (MV1LatchTryLock(latch))
         return 0;
 #ifdef USE_EXPBACK
       slot = random() & ((1 << j) - 1);
@@ -123,21 +123,21 @@ int LatchLock(LATCH_T *latch)
 
 /* --- SEM --- */
 
-void SemInit(SEM_T *sem)
+void MV1SemInit(MV1SEM_T *sem)
 {
-  bzero(sem, sizeof(SEM_T));
-  LatchInit(&sem->g_latch);
+  bzero(sem, sizeof(MV1SEM_T));
+  MV1LatchInit(&sem->g_latch);
 }
 
 
-void SemWait(SEM_T *sem)
+void MV1SemWait(MV1SEM_T *sem)
 { int i, j, s, done;
   u_int slot;
   
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
     { done = 0;
-      s = LatchLock(&sem->g_latch);
+      s = MV1LatchLock(&sem->g_latch);
       if (s < 0)
       { panic("SemWait(): failed [g_latch]");
       }
@@ -145,7 +145,7 @@ void SemWait(SEM_T *sem)
       { sem->ntok--;
         done = 1;
       }
-      LatchUnlock(&sem->g_latch);
+      MV1LatchUnlock(&sem->g_latch);
       if (done)
         return;
 #ifdef USE_EXPBACK
@@ -169,41 +169,41 @@ void SemWait(SEM_T *sem)
 }
 
 
-void SemSignal(SEM_T *sem, int numb)
+void MV1SemSignal(MV1SEM_T *sem, int numb)
 { int s;
 
-  s = LatchLock(&sem->g_latch);
+  s = MV1LatchLock(&sem->g_latch);
   if (s < 0)
   { panic("SemSignal(): failed [g_latch]");
   }
   sem->ntok += numb;
-  LatchUnlock(&sem->g_latch);
+  MV1LatchUnlock(&sem->g_latch);
 }
 
 
 /* --- RWLOCK --- */
 
-int RWLockInit(RWLOCK_T *lok, int maxjob)
+int MV1RWLockInit(MV1RWLOCK_T *lok, int maxjob)
 {
-  bzero(lok, sizeof(RWLOCK_T));
+  bzero(lok, sizeof(MV1RWLOCK_T));
 
-  LatchInit(&lok->g_latch);
+  MV1LatchInit(&lok->g_latch);
 
-  LatchInit(&lok->wr_latch);
-  LatchLock(&lok->wr_latch);
+  MV1LatchInit(&lok->wr_latch);
+  MV1LatchLock(&lok->wr_latch);
 
-  SemInit(&lok->rd_sem);
+  MV1SemInit(&lok->rd_sem);
 
   return 0;
 }
 
 
-void LockWriter(RWLOCK_T *lok)
+void MV1LockWriter(MV1RWLOCK_T *lok)
 { int dowait, s;
   char msg[128];
 
   dowait = 0;
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("LockWriter(): failed [g_latch]");
   }
@@ -211,12 +211,12 @@ void LockWriter(RWLOCK_T *lok)
   { dowait = 1;
   }
   lok->writers++;
-  LatchUnlock(&lok->g_latch);
+  MV1LatchUnlock(&lok->g_latch);
 
   if (dowait)
   { // fprintf(stderr, "LockWriter(): %d waiting...\n", getpid());
     // fflush(stderr);
-    s = LatchLock(&lok->wr_latch);
+    s = MV1LatchLock(&lok->wr_latch);
     if (s < 0)
     { sprintf(msg,"LockWriter(): failed [wr_latch] %d,%d,%d",
                     lok->readers,lok->wait_to_read,lok->writers);
@@ -226,11 +226,11 @@ void LockWriter(RWLOCK_T *lok)
 }
 
 
-int TryLockWriter(RWLOCK_T *lok)
+int MV1TryLockWriter(MV1RWLOCK_T *lok)
 { int dowait, s;
   char msg[128];
 
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("TryLockWriter(): failed [g_latch]");
   }
@@ -240,16 +240,16 @@ int TryLockWriter(RWLOCK_T *lok)
   }
   else
     lok->writers++;
-  LatchUnlock(&lok->g_latch);
+  MV1LatchUnlock(&lok->g_latch);
 
   return dowait ? 0 : 1;
 }
 
 
-void UnlockWriter(RWLOCK_T *lok)
+void MV1UnlockWriter(MV1RWLOCK_T *lok)
 { int s;
 
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("UnlockWriter(): failed [g_latch]");
   }
@@ -259,19 +259,19 @@ void UnlockWriter(RWLOCK_T *lok)
   if (lok->wait_to_read)
   { lok->readers = lok->wait_to_read;
     lok->wait_to_read = 0;
-    SemSignal(&lok->rd_sem, lok->readers);
+    MV1SemSignal(&lok->rd_sem, lok->readers);
   }
   else if (lok->writers)
-    LatchUnlock(&lok->wr_latch);
-  LatchUnlock(&lok->g_latch);
+    MV1LatchUnlock(&lok->wr_latch);
+  MV1LatchUnlock(&lok->g_latch);
 }
 
 
-void UnlockWriterToReader(RWLOCK_T *lok)
+void MV1UnlockWriterToReader(MV1RWLOCK_T *lok)
 { int s;
   AO_t wait_to_read;
 
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("UnlockWriterToReader(): failed [g_latch]");
   }
@@ -280,17 +280,17 @@ void UnlockWriterToReader(RWLOCK_T *lok)
   wait_to_read = lok->wait_to_read;
   lok->readers = 1 + lok->wait_to_read;
   lok->wait_to_read = 0;
-  SemSignal(&lok->rd_sem, wait_to_read);
-  LatchUnlock(&lok->g_latch);
+  MV1SemSignal(&lok->rd_sem, wait_to_read);
+  MV1LatchUnlock(&lok->g_latch);
 }
 
 
-void LockReader(RWLOCK_T *lok)
+void MV1LockReader(MV1RWLOCK_T *lok)
 { int dowait;
   int i, s;
 
   dowait = 0;
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("LockReader(): failed [g_latch]");
   }
@@ -300,21 +300,21 @@ void LockReader(RWLOCK_T *lok)
   }
   else
     lok->readers++;
-  LatchUnlock(&lok->g_latch);
+  MV1LatchUnlock(&lok->g_latch);
 
   if (dowait)
   { // fprintf(stderr, "LockReader(): %d waiting...\n", getpid());
     // fflush(stderr);
-    SemWait(&lok->rd_sem);
+    MV1SemWait(&lok->rd_sem);
   }
 }
 
 
-int TryLockReader(RWLOCK_T *lok)
+int MV1TryLockReader(MV1RWLOCK_T *lok)
 { int dowait;
   int i, s;
 
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("TryLockReader(): failed [g_latch]");
   }
@@ -324,16 +324,16 @@ int TryLockReader(RWLOCK_T *lok)
   }
   else
     lok->readers++;
-  LatchUnlock(&lok->g_latch);
+  MV1LatchUnlock(&lok->g_latch);
 
   return dowait ? 0 : 1;
 }
 
 
-void UnlockReader(RWLOCK_T *lok)
+void MV1UnlockReader(MV1RWLOCK_T *lok)
 { int s;
 
-  s = LatchLock(&lok->g_latch);
+  s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
   { panic("UnlockReader(): failed [g_latch]");
   }
@@ -341,7 +341,97 @@ void UnlockReader(RWLOCK_T *lok)
   lok->readers--;
   ASSERT(0 <= lok->readers);
   if ((0 == lok->readers) && (0 < lok->writers))
-    LatchUnlock(&lok->wr_latch);
-  LatchUnlock(&lok->g_latch);
+    MV1LatchUnlock(&lok->wr_latch);
+  MV1LatchUnlock(&lok->g_latch);
+}
+
+
+// --- Slim R/W lock -------------------------
+
+#define SRWLOCK_EXCLUSIVE	((AO_t) -1L)
+
+void SRWInit(SRWLOCK_T *lok)
+{ 
+  *lok = SRWLOCK_INIT;
+}
+
+void SRWLockExclusive(SRWLOCK_T *lok)
+{ u_int count;
+
+  count = 0;
+  do
+  { if (0 == (++count & 3))
+      sched_yield();
+  } while (!__sync_bool_compare_and_swap(lok, 0L, SRWLOCK_EXCLUSIVE));
+}
+
+void SRWUnlockExclusive(SRWLOCK_T *lok)
+{ u_int count;
+
+  count = 0;
+  do
+  { if (0 == (++count & 3))
+      sched_yield();
+  } while (!__sync_bool_compare_and_swap(lok, SRWLOCK_EXCLUSIVE, 0L));
+}
+
+int SRWTryLockExclusive(SRWLOCK_T *lok)
+{
+  return __sync_bool_compare_and_swap(lok, 0L, SRWLOCK_EXCLUSIVE);
+}
+
+void SRWDowngradeExclusive(SRWLOCK_T *lok)
+{ u_int count;
+
+  count = 0;
+  do
+  { if (0 == (++count & 3))
+      sched_yield();
+  } while (!__sync_bool_compare_and_swap(lok, SRWLOCK_EXCLUSIVE, 1L));
+}
+
+void SRWUnlockShared(SRWLOCK_T *lok)
+{ AO_t oldval, newval;
+  u_int count;
+
+  count = 0;
+  do
+  { if (0 == (++count & 3))
+      sched_yield();
+    MEM_BARRIER;
+    oldval = *lok;
+    newval = oldval - 1;
+  } while (!__sync_bool_compare_and_swap(lok, oldval, newval));
+}
+
+void SRWLockShared(SRWLOCK_T *lok)
+{ AO_t oldval, newval;
+  u_int count;
+
+  count = 0;
+  do
+  { do
+    { if (0 == (++count & 3))
+        sched_yield();
+      MEM_BARRIER;
+      oldval = *lok;
+    } while (SRWLOCK_EXCLUSIVE == oldval);
+    newval = oldval + 1;
+  } while (!__sync_bool_compare_and_swap(lok, oldval, newval));
+}
+
+int SRWTryLockShared(SRWLOCK_T *lok)
+{ AO_t oldval, newval;
+  u_int count;
+
+  count = 0;
+  do
+  { if (0 == (++count & 3))
+      sched_yield();
+    MEM_BARRIER;
+    oldval = *lok;
+  } while (SRWLOCK_EXCLUSIVE == oldval);
+  newval = oldval + 1;
+  return __sync_bool_compare_and_swap(lok, oldval, newval);
 }
 
