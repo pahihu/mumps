@@ -151,8 +151,12 @@
 
 #if defined(__linux__) && !defined(__LP64__)
 #define SHMAT_SEED      (void *)0x1000000
-#elif defined(__APPLE__) && defined(__LP64__)   // OS X 10.10 Yosemite
+#elif defined(__APPLE__) 			// OS X 10.11 El Capitan
+#if defined(__LP64__)   
 #define SHMAT_SEED      (void *)0x200000000
+#else
+#define SHMAT_SEED      (void *)0x1800000
+#endif
 #endif
 
 #ifndef SHMAT_SEED
@@ -402,7 +406,7 @@ struct GBD;                                     // defined in "db_util.h"
 struct RBD;                                     // see compile.h
 
 typedef struct __PACKED__ VOL_DEF
-{ label_block *vollab;                          // ptr to volset label block
+{ VOLATILE label_block *vollab;                 // ptr to volset label block
   void *map;                                    // start of map area
   VOLATILE void *first_free;                    // first word with free bits
   struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
