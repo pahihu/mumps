@@ -99,6 +99,7 @@ short DB_Mount( char *file,                     // database
   int vol;                                      // vol[] indx
   int jobs;                                     // no. of jobs
   size_t addoff;                                // where to add this volume
+  label_block *vollab;				// volset label block
 
   if ((volume < 2) || (volume > MAX_VOL))       // validate volume
     return -(ERRZ74+ERRMLAST);
@@ -206,17 +207,14 @@ short DB_Mount( char *file,                     // database
   bzero((void *)systab + addoff, volset_size);		// zot the lot
 
 						// volume set memory
-  systab->vol[vol]->vollab =
-    (label_block *) ((void *)systab + addoff);
+  // systab->vol[vol]->vollab =
+  vollab = (label_block *) ((void *)systab + addoff);
                                                 // and point to label blk
-
-  systab->vol[vol]->map =
-    (void*)((void *)systab->vol[vol]->vollab + SIZEOF_LABEL_BLOCK);
+  systab->vol[vol]->map = (void*)((void *)vollab + SIZEOF_LABEL_BLOCK);
 						// and point to map
   systab->vol[vol]->first_free = systab->vol[vol]->map;	// init first free
 
-  systab->vol[vol]->gbd_head =
-    (gbd *) ((void *)systab->vol[vol]->vollab + hbuf[2]); // gbds
+  systab->vol[vol]->gbd_head = (gbd *) ((void *)vollab + hbuf[2]); // gbds
   systab->vol[vol]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[vol]->global_buf =
@@ -244,7 +242,6 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->jkb        = jkb;           // jrn buffer cache in KB
   systab->vol[vol]->gbsync     = DEFAULT_GBSYNC;// global buffer sync in sec
 
-
   // bzero(semtab, sizeof(semtab));
 
   if ( (realpath( file, fullpathvol) ) )	// get full path
@@ -259,27 +256,25 @@ short DB_Mount( char *file,                     // database
         }						// end length testing
     }							// end realpath worked
   else						// otherwise there was an error
-    { // XXX - SEM i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
-      close(dbfd);
+    { close(dbfd);
       return -(errno+ERRMLAST+ERRZLAST);	// exit with error
     }
 
   i = lseek(dbfd, 0, SEEK_SET);			// re-point at start of file
-  i = read(dbfd, systab->vol[vol]->vollab, hbuf[2]); // read label & map block
+  i = read(dbfd, vollab, hbuf[2]); 		// read label & map block
   if (i < hbuf[2])                              // in case of error
   { fprintf( stderr, "Read of label/map block failed\n - %s\n", //complain
             strerror(errno));                   // what was returned
-    // XXX - SEM = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
     close(dbfd);
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }
 
-  if (systab->vol[vol]->vollab->clean == 0)	// if not a clean dismount
+  if (vollab->clean == 0)			// if not a clean dismount
   { fprintf(stderr, "WARNING: Volume was not dismounted properly!\n");
     systab->vol[vol]->upto = 1;			// mark for cleaning
   }
   else
-  { systab->vol[vol]->vollab->clean = 0;	// mark as mounted, was 1
+  { vollab->clean = 0;				// mark as mounted, was 1
     systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY; // and map needs writing
   }
   systab->vol[vol]->num_of_daemons = 0;	        // initalise this
@@ -289,56 +284,12 @@ short DB_Mount( char *file,                     // database
   systab->addsize -= volset_size;
 
   curr_lock = 0;                                // clear lock on globals
-  // XXX - SEM
-#if 0
-#ifdef MV1_SHSEM
-  for (i = 0; i < SEM_MAX; i++)                 // init shared IPC
-    LatchInit(&systab->shsem[i]);
-  RWLockInit(&systab->glorw, systab->maxjob);
-#ifdef MV1_BLKSEM
-  for (i = 0; i < BLKSEM_MAX; i++)              // init shared block semaphores
-    LatchInit(&systab->blksem[i]);
-#endif
-#endif
-
-#ifdef MV1_CKIT
-  ck_ring_init(&systab->vol[vol]->dirtyQ, NUM_DIRTY);
-  ck_ring_init(&systab->vol[vol]->garbQ,  NUM_GARB);
-#ifdef MV1_GBDRO
-  ck_ring_init(&systab->vol[vol]->rogbdQ, NUM_GBDRO);
-#endif
-#endif
-#endif
-
-  while (SemOp( SEM_WD, WRITE));		// lock WD
-  // XXX - SEM
-#if 0
-  for (indx=0; indx<jobs; indx++)		// for each required daemon
-  { i = DB_Daemon(indx, volnum);		// start each daemon (volume 1)
-    if (i != 0)                                 // in case of error
-    { fprintf( stderr, "**** Died on error - %s ***\n\n", // complain
-              strerror(errno));                 // what was returned
-      i = semctl(sem_id, 0, (IPC_RMID), NULL);	// and the semaphores
-      return(errno);                            // exit with error
-    }
-  }                                             // all daemons started
-#endif
-
-  if ((systab->vol[vol]->vollab->journal_requested) &&
-           (systab->vol[vol]->vollab->journal_file[0]))
-  { 
-    while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
-    OpenJournal( vol, 1);
-    SemOp( SEM_GLOBAL, -WRITE);			// unlock global
-  }						// end journal stuff
-  
-  SemOp( SEM_WD, -WRITE);			// release WD lock
 
   gptr = systab->vol[vol]->gbd_head; 		// get start of gbds
   ptr = (u_char *) systab->vol[vol]->global_buf;	// get start of Globuff
   for (i = 0; i < systab->vol[vol]->num_gbd; i++)	// for each GBD
   { gptr[i].mem = (struct DB_BLOCK *) ptr;	// point at block
-    ptr += systab->vol[vol]->vollab->block_size;	// point at next
+    ptr += vollab->block_size;			// point at next
     if (i < (systab->vol[vol]->num_gbd - 1))	// all but the last
     { gptr[i].next = &gptr[i+1];		// link to next
     }
@@ -358,11 +309,27 @@ short DB_Mount( char *file,                     // database
 #ifdef MV1_GBDRO
   for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail
   { gptr[i].mem = (struct DB_BLOCK *) ptr;
-    ptr += systab->vol[vol]->vollab->block_size;	// point at next
+    ptr += vollab->block_size;			// point at next
     Free_GBDRO(&gptr[i]);
   }
 #endif
 
   i = close(dbfd);                              // close the database
+
+  while (SemOp( SEM_WD, WRITE));		// lock WD
+
+  systab->vol[vol]->vollab = vollab;		// enter vollab in vol[] table
+  MEM_BARRIER;
+
+  if ((systab->vol[vol]->vollab->journal_requested) &&
+           (systab->vol[vol]->vollab->journal_file[0]))
+  { 
+    while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
+    OpenJournal( vol, 1);
+    SemOp( SEM_GLOBAL, -WRITE);			// unlock global
+  }						// end journal stuff
+  
+  SemOp( SEM_WD, -WRITE);			// release WD lock
+
   return (0);                                   // indicate success
 }
