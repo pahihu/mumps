@@ -537,8 +537,9 @@ void do_write()						// write GBDs
     { blkno = gbdptr->block;                            // get blkno
       vol   = gbdptr->vol;                              //   and volume
       do_mount(vol);                                    // mount db file
-      Check_BlockNo(vol, blkno, CBN_INRANGE | CBN_ALLOCATED,
-                           "Write_Chain", 0, 0, 1);     // check blkno validity
+      Check_BlockNo(vol, blkno,				// because of ^IC
+		    CBN_INRANGE,			// check only range
+                    "Write_Chain", 0, 0, 1);     	// validity
 #ifdef MV1_BLKSEM
       while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
       { ATOMIC_INCREMENT(systab->vol[vol]->stats.brdwait);// count a wait
