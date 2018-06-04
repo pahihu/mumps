@@ -114,6 +114,7 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
   int savecount;                                // number of bytes saved
   u_char *sav_comp_ptr, *sav_source_ptr;        // save source/comp ptr
   u_char argsep = ',', argsend = ')';           // DO arg and cmdsep
+  u_int sav_disp_errors;			// save disp_errors
 
   if (zzcmd)
   { argsep  = ':';
@@ -141,18 +142,23 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
     //     ('%' == *source_ptr)))
     { sav_source_ptr = source_ptr;              // save position
       sav_comp_ptr = comp_ptr;
+      sav_disp_errors = disp_errors;
+      if (partab.checkonly) disp_errors = 0;	// check? disable disp.errors
       atom();                                   // try to compile an atom
       if (*source_ptr == '.')                   // check dot
       { source_ptr++;
         if (isalpha(*source_ptr) || '%' == *source_ptr) // followed by id
-        { source_ptr = sav_source_ptr;          // restore source/comp ptrs
-          comp_ptr   = sav_comp_ptr;
+        { source_ptr  = sav_source_ptr;         // restore source/comp ptrs
+          comp_ptr    = sav_comp_ptr;
+          disp_errors = sav_disp_errors;
           evalx(2);                             // compile a DO chain
           goto Postcond;                        // continue with postcond
         }
       }
-      source_ptr = sav_source_ptr;              // failed, restore
-      comp_ptr = sav_comp_ptr;                  //   source/comp ptrs
+      // fprintf(stderr,"atom() failed\r\n");
+      source_ptr  = sav_source_ptr;             // failed, restore
+      comp_ptr    = sav_comp_ptr;               //   source/comp ptrs
+      disp_errors = sav_disp_errors;
     }
     i = 0;
     if (zzcmd)

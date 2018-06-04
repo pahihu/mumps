@@ -90,7 +90,7 @@ short localvar()                                // evaluate local variable
   short ret;					// the return
   int isbp;                                     // flag for $BP
 
-  // fprintf(stderr, "\r\nlocalvar(): [%s]", source_ptr);
+  // fprintf(stderr, "localvar(): [%s]\r\n", source_ptr);
   localvar_op = 0;
   ptr = comp_ptr;				// save comp_ptr
   c = *source_ptr++;                            // get a character
@@ -107,7 +107,8 @@ short localvar()                                // evaluate local variable
 	c = *source_ptr++; 			// get next
       }
       if (c != ']')
-      { return (-(ERRZ12+ERRMLAST));             // that's junk
+      { // fprintf(stderr,"pos1\r\n");
+        return (-(ERRZ12+ERRMLAST));             // that's junk
       }
       c = *source_ptr++; 			// get next
     }
@@ -120,15 +121,18 @@ short localvar()                                // evaluate local variable
   else if (c == '@')				// indirect ?
   { type = TYPVARIND;				// yes @...@ ... on astk[]
     if (*source_ptr == '(') goto subs;		// go do subscripts
+    // fprintf(stderr,"pos2\r\n");
     return (-(ERRZ12+ERRMLAST));		// else it's junk
   }
   isbp = (c == '$') && (0 == strncasecmp((char *)source_ptr,"BP",2));
   if ((isalpha((int)c) == 0) && (c != '%') && (c != '$'))// check for a variable
-  { return (-(ERRZ12+ERRMLAST));                // return the error
+  { // fprintf(stderr,"pos3\r\n");
+    return (-(ERRZ12+ERRMLAST));                // return the error
   }
   if ((c == '$') && (type == TYPVARNAM) && !isbp)  // check $...
   { if (isalpha(*source_ptr) == 0)		// next must be alpha
-    { return (-(ERRZ12+ERRMLAST));              // return the error
+    { // fprintf(stderr,"pos4\r\n");
+      return (-(ERRZ12+ERRMLAST));              // return the error
     }
     i = toupper(*source_ptr);			// get the next character
     if (strchr("DEHIJKPQRSTXY", i) == NULL)	// if letter is invalid
@@ -153,10 +157,12 @@ subs:
     while (TRUE)				// loop
     { eval();					// get a subscript
       count++;					// count it
+      // fprintf(stderr,"subs: [%s]\r\n",source_ptr);
       c = *source_ptr++;			// get next character
       if (c == ')') break;			// quit when done
       if (c != ',') 
-      { return (-(ERRZ12+ERRMLAST));             // return the error
+      { // fprintf(stderr,"pos5: '%d'\r\n",(int)c);
+        return (-(ERRZ12+ERRMLAST));             // return the error
       }
     }
   }

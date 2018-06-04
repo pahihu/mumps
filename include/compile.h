@@ -39,7 +39,7 @@
 // #define __PACKED__      __alignment__ ((__packed__))
 #define __PACKED__
 
-
+#define comperror(x)	CompError(x,__FILE__,__LINE__)
 #define UNVAR { comperror(-ERRM8); return; } 	// compile undef spec var
 #define EXPRE { comperror(-(ERRZ12+ERRMLAST)); return; } // compile expr err
 #define SYNTX { comperror(-(ERRZ13+ERRMLAST)); return; } // compile syntax err
@@ -91,6 +91,7 @@
 
 extern u_char *source_ptr;                      // pointer to source code
 extern u_char *comp_ptr;                        // pointer to compiled code
+extern int     disp_errors;			// flag to display errors
 
 extern u_char istk[];				// indirect stack
 extern long isp;				// indirect stack pointer
@@ -164,7 +165,7 @@ void parse();                                   // parse - main loop
 short localvar();                               // evaluate local variable
 void eval();                                    // eval a string
 void atom();                                    // evaluate source
-void comperror(short err);                      // compile error
+void CompError(short err,const char *file,int lno); // compile error
 
 // Debug prototypes
 

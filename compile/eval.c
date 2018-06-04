@@ -50,20 +50,23 @@
 
 u_char *source_ptr;                             // pointer to source code
 u_char *comp_ptr;                               // pointer to compiled code
+int     disp_errors;				// flag to display errors
 
-void comperror(short err)                       // compile error
+void CompError(short err,const char *file,int lno)// compile error
 { short s;					// for functions
   cstring *line;				// line of code
   u_char *src;					// current src ptr
   int i;					// a handy int
   u_char tmp[128];				// some space
 
+  // fprintf(stderr,"comperror() called from %s:%d:\r\n",file,lno);
   *comp_ptr++ = OPERROR;                        // say it's an error
   bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
   if (!partab.checkonly) goto scan;		// done
+  if (!disp_errors) return;			// done if disp.errors disabled
   if (partab.checkonly == *partab.ln) return; 	// done this one once
   partab.checkonly = *partab.ln;		// record done
   line = *partab.lp;				// get the line address
@@ -104,7 +107,9 @@ void atom()                                     // evaluate source
   int j;                                        // and another
   short s;                                      // for function returns
   u_char *p;                                    // a pointer
+  u_char *sav_source_ptr;			// save source_ptr
 
+  // fprintf(stderr,"atom: [%s]\r\n",source_ptr);
   c = *source_ptr++;                            // get a character
   if (c == '@')					// indirection?
   { atom();					// eval what follows
@@ -125,9 +130,11 @@ void atom()                                     // evaluate source
       ((c == '$') &&                            // check for $BP
        (0 == strncasecmp((char *)source_ptr,"BP",2))))
   { --source_ptr;				// backup to first character
+    sav_source_ptr = source_ptr;
     s = localvar();				// parse the variable
     if (s < 0)					// if we got an error
-    { comperror(s);				// compile it
+    { // fprintf(stderr,"localvar() failed: %s\r\n",sav_source_ptr);
+      comperror(s);				// compile it
       return;					// and exit
     }
     return;					// and exit
@@ -288,6 +295,7 @@ void evalx(int chain)                           // evaluate source
 
   // fprintf(stderr, "\r\neval(): [%s]", source_ptr);
   atom();                                       // get first operand
+  // fprintf(stderr,"next: '%c'\r\n",*source_ptr);
   if ((*source_ptr == ')') ||			// do it at a higher level
       (*source_ptr == ',') ||			// ditto
       (*source_ptr == ':') ||			// ditto
@@ -298,7 +306,8 @@ void evalx(int chain)                           // evaluate source
     return;                                     // exit
 
   while (TRUE)                                  // until the end
-  { op = operator();                            // get the operator
+  { // fprintf(stderr,"oper: %c\r\n",*source_ptr);
+    op = operator();                            // get the operator
     if (op == 0)                                // an error??
     { comperror(-(ERRZ12+ERRMLAST));            // compile the error
       return;                                   // and exit

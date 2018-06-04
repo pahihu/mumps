@@ -470,6 +470,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     s = Dget1(line->buf, src);			// get the data
     if (s < 1) continue;			// ignore empty/undefined lines
     line->len = s;				// save the length
+    disp_errors = 1;				// display errors
     source_ptr = line->buf;			// where the source is
     if (isalnum(*source_ptr) || (*source_ptr == '%')) // check for a tag
     { j = isdigit(*source_ptr);			// remember if digit
