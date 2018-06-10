@@ -22,7 +22,7 @@ Copyright 2018, Andras Pahi. All rights reserved.
 
 MV1 and its derivative MV1R2DEV is small and efficient like a Swiss 
 army knife. I do not repeat the MUMPS V1 manual of Ray Newman which 
-can be get at http://sf.net/projects/mumps. Beware it is not a pure 
+can be found at `doc/MUMPS.epub`. Beware it is not a pure 
 MUMPS-1995 implementation. If you want a MUMPS which does not contain 
 implementation specific commands and functions use MV1. In this text
 MUMPS refers to the MV1R2DEV implementation of the language which is
@@ -514,6 +514,7 @@ workings are entirely different. See README.OOP
 - `$ZINCREMENT` function see documentation of GT.M
 - `ZZ` commands and functions are similar to DTM, you can extend
 MUMPS with commands/functions written in MUMPS
+- `^%G` global lister, see the documentation in `doc/GlobalExtLister.pdf`
 
 ## Limits
 
