@@ -1690,13 +1690,104 @@ MENU ; Menu List
  ;;4) Delete UCI;D DELETE
  ;;
 
+%G
+%G    ;Global Extended Lister [ 06/09/2018 13:37 PM ]
+      N  ;General Stack
+      S $ET="D ERR^%G" F   D RGLB Q:%G=""  W ! D GO
+EXIT  W ! Q
+ERR   S ER=$P($EC,",",2) W !,"Error: ",ER," ",$&%ERRMSG(ER),! S $EC="" Q
+GO    S $ET="D ERR^%G",%HN=%N I %HN?1"^[".E S %HN="^"_$P(%HN,"]",$L(%HN,"]"))
+      S HGDIFF=$L(%N)-$L(%HN),LWLH=0,LWLEV=0,LWLENG=0
+      I '%M,%N_"("=%G,$D(@%N)'=10 W %HN W !,@%N,!
+      I $O(@%N@(""))="" Q
+      S SHOLEV=%L-(%E>1),GREF=%N_"(",HREF=%HN_"(" D CHILDREN(1) Q
+CHILDREN(LEV) N LENGTH,SUBSCR,Z  ;Stack Important !
+      S $ET="D ERR^%G"
+      S LENGTH=$L(GREF),SUBSCR=$S(LEV'>%L:%B(LEV),1:"")
+      I SUBSCR'="",$D(^(SUBSCR))
+      E  S SUBSCR=$O(^(SUBSCR))
+      F  Q:$$PASTEND  D ACHILD I SUBSCR'="" S SUBSCR=$O(^(SUBSCR))
+      Q
+ACHILD S $ET="D ERR^%G"
+      S Subs=$$QS(SUBSCR),GREF=GREF_Subs,HREF=HREF_Subs,%D=$D(^(SUBSCR))
+      I LEV>SHOLEV,(%D'=10)!(%E=2) D SHOWREF W:%D=10 "pointer" W:%D'=10 "="_^(SUBSCR) W !
+      I %D>9,(%E'=2)!(LEV<%L) D DESCEND
+      S GREF=$E(GREF,1,LENGTH),HREF=$E(HREF,1,LENGTH-HGDIFF)
+      S:LEV'>%M SUBSCR="" Q
+PASTEND() I SUBSCR="" Q 1
+      I LEV>%L Q 0
+      I %C(LEV)="" Q (%B(LEV)'="")&(%B(LEV)'=SUBSCR)
+      I SUBSCR=%C(LEV) Q 0
+      I SUBSCR'["E",SUBSCR=+SUBSCR G GSE
+      I %C(LEV)'["E",%C(LEV)=+%C(LEV) Q 1
+      Q SUBSCR]%C(LEV)
+GSE   I %C(LEV)'["E",%C(LEV)=+%C(LEV) Q SUBSCR>%C(LEV)
+      Q 0
+SHOWREF ; Show global reference (KEY)
+      I LWLEV=LEV W ?LWLH-$L(HREF)+LWLENG,$E(HREF,LWLENG+1,999)
+      E  W HREF S LWLH=$L(HREF),LWLEV=LEV
+      W ")" S LWLENG=LENGTH-HGDIFF Q
+DESCEND S GREF=GREF_",",HREF=HREF_",",DUMMY=$O(^(SUBSCR,""))
+      D CHILDREN(LEV+1) S DUMMY=$O(@($E(GREF,1,$L(GREF)-1)_")"))
+      S LWLEV=0,LWLENG=0 Q
+QS(STR) S oet=$ET,$ET="qserr^%G"
+      I STR'["E",STR=+STR Q STR
+notcn S $ET=oet,TEMP=STR,STR=""
+      F PIECE=1:1:$L(TEMP,"""") S STR=STR_""""""_$P(TEMP,"""",PIECE)
+      S STR=$E(STR,3,999)
+      Q """"_STR_""""
+qserr S $EC="" G notcn
+      ;READ Global KEY-Mask...
+      ;======================================================
+RGLB  F  D READ Q:%G=""  Q:%M'<0
+      Q
+READ  R !,"Global ^",%G Q:%G=""  I %G="?" D ^%GD S %M=-2 Q
+      D PROC I %M=-2  W *7,"  [Invalid global reference]" Q
+      D GDEF I %M=-2  W *7,"  [Invalid global reference]" Q
+GDEF  S $ET="DERR^%G" I '$D(@%N) W "  ???" S %M=-2
+      Q
+DERR  S ER=$P($EC,",",2) W:$&%ERRMSG(ER)'["<SYNTAX>" !,$EC S %M=-2,$EC="" Q
+PROC  I $E(%G)'="^" S %G="^"_%G
+      S %F=0 I %G?1"^(".E Q
+      S %F=2 I %G'["(" S %G=%G_"("
+      I %G?.E1"," S %E=1
+      E  I %G?.E1")" S %E=2,%G=$E(%G,1,$L(%G)-1)_","
+      E  S %E=3
+      I '%F S %M=-2 Q
+      K %B,%A S %X=$P(%G,"(",2,256) S %N=$P(%G,"("),%NFULL=%N
+      S %GLO=$P(%N,"^",2,$L(%N,"^")) D R Q
+R     S %M=1,%B=1,%L=0,%P=0 G RT:%X=""
+RRR   S %A="" I $E(%X,%M)="," S %X=$E(%X,1,%M-1)_""""""_$E(%X,%M,999)
+RR    I $E(%X,%M)="""" F %I=1:1 S %M=%M+1 Q:%M>$L(%X)  I $E(%X,%M)="""" S %M=%M+1 G RR
+      I $E(%X,%M)="(" S %P=%P+1,%M=%M+1 G RR
+      I $E(%X,%M)=")",%P S %P=%P-1,%M=%M+1 G RR
+      I ":,)"'[$E(%X,%M),$E(%X,%M)'?1C S %M=%M+1 G RR
+      I $E(%X,%M)?1P,%P S %M=%M+1 G RR
+      I $E(%X,%M)=":" G RE:%A]"" S %A=1_$E(%X,%B,%M-1),%M=%M+1,%B=%M G RR
+      I $E(%X,%M)'=",",$E(%X,%M)'=")",$E(%X,%M)]"" G RE
+      S %L=%L+1,%B(%L)=$E(%X,%B,%M-1),%M=%M+1,%B=%M
+      D S Q:%M=-2  G RRR:%M'>$L(%X)
+RT    F %I=1:1:%L Q:%B(%I)=""!(%C(%I)]"")
+      S %M=%I-1 Q
+RE    S %M=-2 Q
+S     S %C(%L)="" I %A]"" DO  G S1
+      .D S1 S %C(%L)=$S(%B(%L)]"":%B(%L),1:$C(255,255)),%B(%L)=$E(%A,2,999)
+S1    I %B(%L)'["E",%B(%L)=+%B(%L) Q
+      I %P=1,%E=2,%M'<$L(%X) DO
+      .S:%B(%L)?.E1"," %B(%L)=$E(%B(%L),1,$L(%B(%L))-1),%M=%M-1
+      .S %E=3,%B(%L)=%B(%L)_")"
+      Q:%B(%L)=""
+      S $ET="S1ERR^%G" I %B(%L)["%" N %A,%C,%D,%E,%F,%G,%I,%M,%N,%P,%X,%ZT
+      S @("%B(%L)="_%B(%L)) Q
+S1ERR S ER=$P($EC,",",2) W "  "_$P($&%ERRMSG(ER),">")_"> in ",%B(%L) S %M=-2,$EC="" Q
+
 
 
 
 /* Copyright (c) 1999 - 2014
  *      Raymond Douglas Newman.  All rights reserved.
  * Modifications Copyright (c) 2016 - 2018
- *      Andras Pahi.  All rights reserved.
+ *      Andras Pahi. Josef Nagy.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
