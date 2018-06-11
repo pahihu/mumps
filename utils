@@ -1691,9 +1691,9 @@ MENU ; Menu List
  ;;
 
 %G
-%G    ;Global Extended Lister [ 06/09/2018 13:37 PM ]
+%G    ;Global Extended Lister [ 06/10/2018 09:56 AM ]
       N  ;General Stack
-      S $ET="D ERR^%G" F   D RGLB Q:%G=""  W ! D GO
+      S $ET="D ERR^%G" F   S NodeCnt=0 D RGLB Q:%G=""  W ! D GO W !,"   "_$G(NodeCnt)_" node(s) listed.",!
 EXIT  W ! Q
 ERR   S ER=$P($EC,",",2) W !,"Error: ",ER," ",$&%ERRMSG(ER),! S $EC="" Q
 GO    S $ET="D ERR^%G",%HN=%N I %HN?1"^[".E S %HN="^"_$P(%HN,"]",$L(%HN,"]"))
@@ -1726,7 +1726,7 @@ GSE   I %C(LEV)'["E",%C(LEV)=+%C(LEV) Q SUBSCR>%C(LEV)
 SHOWREF ; Show global reference (KEY)
       I LWLEV=LEV W ?LWLH-$L(HREF)+LWLENG,$E(HREF,LWLENG+1,999)
       E  W HREF S LWLH=$L(HREF),LWLEV=LEV
-      W ")" S LWLENG=LENGTH-HGDIFF Q
+      W ")" S LWLENG=LENGTH-HGDIFF S NodeCnt=NodeCnt+1 Q
 DESCEND S GREF=GREF_",",HREF=HREF_",",DUMMY=$O(^(SUBSCR,""))
       D CHILDREN(LEV+1) S DUMMY=$O(@($E(GREF,1,$L(GREF)-1)_")"))
       S LWLEV=0,LWLENG=0 Q
@@ -1741,7 +1741,7 @@ qserr S $EC="" G notcn
       ;======================================================
 RGLB  F  D READ Q:%G=""  Q:%M'<0
       Q
-READ  R !,"Global ^",%G Q:%G=""  I %G="?" D ^%GD S %M=-2 Q
+READ  R !,"Global ^",%G Q:%G=""  I %G="?" W !! D ^%GD W ! S %M=-2 Q
       D PROC I %M=-2  W *7,"  [Invalid global reference]" Q
       D GDEF I %M=-2  W *7,"  [Invalid global reference]" Q
 GDEF  S $ET="DERR^%G" I '$D(@%N) W "  ???" S %M=-2
@@ -1780,6 +1780,7 @@ S1    I %B(%L)'["E",%B(%L)=+%B(%L) Q
       S $ET="S1ERR^%G" I %B(%L)["%" N %A,%C,%D,%E,%F,%G,%I,%M,%N,%P,%X,%ZT
       S @("%B(%L)="_%B(%L)) Q
 S1ERR S ER=$P($EC,",",2) W "  "_$P($&%ERRMSG(ER),">")_"> in ",%B(%L) S %M=-2,$EC="" Q
+
 
 
 
