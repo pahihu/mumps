@@ -531,5 +531,6 @@ MUMPS with commands/functions written in MUMPS
 | Maximum global value size	    | min(block size, 32KB)    |
 | Maximum number of volumes	    | 16		       |
 | Global translation table size	    | 255		       |
+| Maximum number of jobs            | 256                      |
 | Maximum number of daemons	    | 10		       |
 
