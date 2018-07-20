@@ -288,4 +288,4 @@ short SemUnlock(int sem_num, int numb)
   return s;
 }
 
-/* vim:ts=8 sw=8 et */
+// vim:ts=8:sw=8:et

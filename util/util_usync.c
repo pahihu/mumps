@@ -348,6 +348,8 @@ void MV1UnlockReader(MV1RWLOCK_T *lok)
 
 // --- Slim R/W lock -------------------------
 
+#define CAS(x,y,z)	__sync_bool_compare_and_swap(x,y,z)
+
 #define SRWLOCK_EXCLUSIVE	((AO_t) -1L)
 
 void SRWInit(SRWLOCK_T *lok)
@@ -359,35 +361,35 @@ void SRWLockExclusive(SRWLOCK_T *lok)
 { u_int count;
 
   count = 0;
-  do
+  while (!CAS(lok, 0L, SRWLOCK_EXCLUSIVE))
   { if (0 == (++count & 3))
       sched_yield();
-  } while (!__sync_bool_compare_and_swap(lok, 0L, SRWLOCK_EXCLUSIVE));
+  }
 }
 
 void SRWUnlockExclusive(SRWLOCK_T *lok)
 { u_int count;
 
   count = 0;
-  do
+  while (!CAS(lok, SRWLOCK_EXCLUSIVE, 0L))
   { if (0 == (++count & 3))
       sched_yield();
-  } while (!__sync_bool_compare_and_swap(lok, SRWLOCK_EXCLUSIVE, 0L));
+  }
 }
 
 int SRWTryLockExclusive(SRWLOCK_T *lok)
 {
-  return __sync_bool_compare_and_swap(lok, 0L, SRWLOCK_EXCLUSIVE);
+  return CAS(lok, 0L, SRWLOCK_EXCLUSIVE);
 }
 
 void SRWDowngradeExclusive(SRWLOCK_T *lok)
 { u_int count;
 
   count = 0;
-  do
+  while (!CAS(lok, SRWLOCK_EXCLUSIVE, 1L))
   { if (0 == (++count & 3))
       sched_yield();
-  } while (!__sync_bool_compare_and_swap(lok, SRWLOCK_EXCLUSIVE, 1L));
+  }
 }
 
 void SRWUnlockShared(SRWLOCK_T *lok)
@@ -401,7 +403,7 @@ void SRWUnlockShared(SRWLOCK_T *lok)
     MEM_BARRIER;
     oldval = *lok;
     newval = oldval - 1;
-  } while (!__sync_bool_compare_and_swap(lok, oldval, newval));
+  } while (!CAS(lok, oldval, newval))
 }
 
 void SRWLockShared(SRWLOCK_T *lok)
@@ -417,7 +419,7 @@ void SRWLockShared(SRWLOCK_T *lok)
       oldval = *lok;
     } while (SRWLOCK_EXCLUSIVE == oldval);
     newval = oldval + 1;
-  } while (!__sync_bool_compare_and_swap(lok, oldval, newval));
+  } while (!CAS(lok, oldval, newval));
 }
 
 int SRWTryLockShared(SRWLOCK_T *lok)
@@ -432,6 +434,7 @@ int SRWTryLockShared(SRWLOCK_T *lok)
     oldval = *lok;
   } while (SRWLOCK_EXCLUSIVE == oldval);
   newval = oldval + 1;
-  return __sync_bool_compare_and_swap(lok, oldval, newval);
+  return CAS(lok, oldval, newval);
 }
 
+#undef CAS
