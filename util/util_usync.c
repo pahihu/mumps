@@ -403,7 +403,7 @@ void SRWUnlockShared(SRWLOCK_T *lok)
     MEM_BARRIER;
     oldval = *lok;
     newval = oldval - 1;
-  } while (!CAS(lok, oldval, newval))
+  } while (!CAS(lok, oldval, newval));
 }
 
 void SRWLockShared(SRWLOCK_T *lok)
