@@ -1782,8 +1782,9 @@ S1    I %B(%L)'["E",%B(%L)=+%B(%L) Q
 S1ERR S ER=$P($EC,",",2) W "  "_$P($&%ERRMSG(ER),">")_"> in ",%B(%L) S %M=-2,$EC="" Q
 
 DECOMP
-DECOMP ;Decompile a MUMPS routine
- N  R !,"Rou: ",ROU,! Q:ROU=""
+DECOMP ;Decompile a MUMPS routine;AP-MV1R2 port. 11/20/18
+ N  S GLOSIZE=$$GLOSIZE^%MV1,BE=$$BIGEND^%MV1
+ R !,"Rou: ",ROU,! Q:ROU=""
  S C=$G(^$R(ROU,0)) I C="" W "?No such rou as ",ROU,! Q
  W "Decompile of ",ROU,! D INT(C) Q
 INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
@@ -1794,16 +1795,16 @@ INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
  W "Compver: ",V,"  usr: ",USR,"  when: ",$$D^%D(D)," ",$$T^%T(T),!
  F V=1:1:H(2) D
 ;Load all tags into the TAG array
- .S T=V-1*12+H(1)+1 ;Offset to this tag
- .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the tag name
- .S TAG($$S(T+8))=D ;Save the tag indexed by address
+ .S T=V-1*(GLOSIZE+2)+H(1)+1 ;Offset to this tag
+ .S D="" F %=0:1:GLOSIZE-1 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the tag name
+ .S TAG($$S(T+GLOSIZE))=D ;Save the tag indexed by address
 ;End of tag load code
  W !,"Tag",?10,"Offset",!
  S %="" F  S %=$O(TAG(%)) Q:%=""  W TAG(%),?10,$J(%,6),!
  F V=1:1:H(4) D
 ;Load all variables
- .S T=V-1*8+H(3)+1 ;Offset to this variable
- .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the variable name
+ .S T=V-1*GLOSIZE+H(3)+1 ;Offset to this variable
+ .S D="" F %=0:1:GLOSIZE-1 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the variable name
  .S VAR(V-1)=D ;Save var name indexed by idx
  W !,"Variables by Index",!
  S %="" F  S %=$O(VAR(%)) Q:%=""  W:$X>70 ! W VAR(%),?$X\10+1*10
@@ -1819,9 +1820,13 @@ LIN G EXIT:V>T S D=$A(C,V),V=V+1 W ! I D=170 D
  G LIN
 EXIT W ! Q
 ;---
-S(O) Q $A(C,O+1)*256+$A(C,O)
+S(O,%) ;
+ I $$BIGEND^%MV1 Q $A(C,O)*256+$A(C,O+1)
+ E  Q $A(C,O+1)*256+$A(C,O)
 ;Extract a u_short from C at offset O
-I(O,%,N) S N=0 F %=3:-1:0 S N=N*256+$A(C,O+%)
+I(O,%,N) S N=0
+ I 1=$$BIGEND^%MV1 F %=0:3 S N=N*256+$A(C,O+%) I 1
+ E  F %=3:-1:0 S N=N*256+$A(C,O+%)
 ;Extract an u_int from C at offset O
  Q N
 
