@@ -100,6 +100,7 @@ static struct timeval sem_start[SEM_MAX];
 
 #define NUMTRY  (1024*1024)
 
+#ifdef MV1_SHSEM
 static
 void SpinLockWriter(RWLOCK_T *lok)
 {
@@ -129,6 +130,7 @@ void SpinLockReader(RWLOCK_T *lok)
   }
   LockReader(lok);
 }
+#endif
 
 short TrySemLock(int sem_num, int numb)
 {
