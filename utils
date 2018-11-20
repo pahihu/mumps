@@ -1781,6 +1781,1998 @@ S1    I %B(%L)'["E",%B(%L)=+%B(%L) Q
       S @("%B(%L)="_%B(%L)) Q
 S1ERR S ER=$P($EC,",",2) W "  "_$P($&%ERRMSG(ER),">")_"> in ",%B(%L) S %M=-2,$EC="" Q
 
+DECOMP
+DECOMP ;Decompile a MUMPS routine
+ N  R !,"Rou: ",ROU,! Q:ROU=""
+ S C=$G(^$R(ROU,0)) I C="" W "?No such rou as ",ROU,! Q
+ W "Decompile of ",ROU,! D INT(C) Q
+INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
+ S V=$$S(1) ;The compiler version
+ S USR=$$S(3) ;The user
+ S D=$$I(5),T=$$I(9) ;The Date and Time
+ F %=1:1:6 S H(%)=$$S(%-1*2+13) ;Tag off, num; Var off, num; Code off, size
+ W "Compver: ",V,"  usr: ",USR,"  when: ",$$D^%D(D)," ",$$T^%T(T),!
+ F V=1:1:H(2) D
+;Load all tags into the TAG array
+ .S T=V-1*12+H(1)+1 ;Offset to this tag
+ .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the tag name
+ .S TAG($$S(T+8))=D ;Save the tag indexed by address
+;End of tag load code
+ W !,"Tag",?10,"Offset",!
+ S %="" F  S %=$O(TAG(%)) Q:%=""  W TAG(%),?10,$J(%,6),!
+ F V=1:1:H(4) D
+;Load all variables
+ .S T=V-1*8+H(3)+1 ;Offset to this variable
+ .S D="" F %=0:1:7 S I=$A(C,T+%) Q:'I  S D=D_$C(I) ;Extract the variable name
+ .S VAR(V-1)=D ;Save var name indexed by idx
+ W !,"Variables by Index",!
+ S %="" F  S %=$O(VAR(%)) Q:%=""  W:$X>70 ! W VAR(%),?$X\10+1*10
+ W:$X ! W !,"Code at offset ",H(5)," for ",H(6)," bytes.",!
+ S V=H(5)+1,T=V+H(6),A=""
+LIN G EXIT:V>T S D=$A(C,V),V=V+1 W ! I D=170 D
+ .S I=$$S(V),S=$$S(V+2),V=V+4 S:S S=S-1
+ .W "Line:",$J(I,5)," size ",S,!,?6 I $L(A) W A,!,?6 S A=""
+ .F %=1:1:S W:$X>75 !,?6 W $J($A(C,V),4) S V=V+1
+ I D=171 S A="Formal: (" S I=$A(C,V),V=V+1 D
+ .F %=1:1:I S A=A_VAR($A(C,V))_$S(I-%:",",1:")"),V=V+1
+ I D=2 S I=$$S(V) W ?6,"Error: ",I
+ G LIN
+EXIT W ! Q
+;---
+S(O) Q $A(C,O+1)*256+$A(C,O)
+;Extract a u_short from C at offset O
+I(O,%,N) S N=0 F %=3:-1:0 S N=N*256+$A(C,O+%)
+;Extract an u_int from C at offset O
+ Q N
+
+FORMAT
+FORMAT ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+FORMAT(V,S) ;
+ ;
+ ; The code below was approved in document X11/SC13/TG2/1999-1
+ ;
+ New lo,mask,out,p,pos,spec,up,v1,v2,val,x
+ ;
+ Set lo="abcdefghijklmnopqrstuvwxyz"
+ Set up="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ ;
+ ; Array spec() contains the formatting directives
+ ;
+ ; First set defaults
+ ;
+ Set spec("CS")="$" ; Currency symbol
+ Set spec("DC")="." ; Decimal separator
+ Set spec("EC")="*" ; Error character
+ Set spec("SL")="," ; Separator characters > 1
+ Set spec("FS")=" " ; Fill string
+ ;
+ ; Other specifiers may be
+ ;  FM = Format Mask
+ ;  FO = Fill On/Off
+ ;  SR = Separator characters < 1
+ ;
+ ; Then Inherit properties from System,
+ ; overwriting the defaults
+ ;
+ Set x="" For  Set x=$Order(^$System($System,"FORMAT",x)) Quit:x=""  Do
+ . Set spec(x)=^$System($System,"FORMAT",x)
+ . Quit
+ ;
+ ; Then Inherit properties from current process
+ ; overwriting the system and the defaults
+ ;
+ Set x="" For  Set x=$Order(^$Job($Job,"FORMAT",x)) Quit:x=""  Do
+ . Set spec(x)=^$Job($Job,"FORMAT",x)
+ . Quit
+ ;
+ ; Then look at actual parameters
+ ; overwriting anything else
+ ;
+ Set S=$Get(S) For  Quit:S=""  Do
+ . New e,i,str,v
+ . Set x=$Piece(S,"=",1)
+ . Set i=$Length(x)+2,str=0,v=""
+ . Set:x="" i=1
+ . For i=i:1:$Length(S)+1 Do  Quit:'i
+ . . Set e=$Extract(S_":",i)
+ . . If 'str,e=":" Set S=$Extract(S,i+1,$Length(S)),i=0 Quit
+ . . Set v=v_e Quit:e'=""""
+ . . Set str=1-str
+ . . Quit
+ . If i>$Length(S) Set S=""
+ . If x'="",v'="" Set @("spec($Translate(x,lo,up))="_v) Quit
+ . Set $ECode=",M28,"
+ . Quit
+ ;
+ ; Make certain that DC and EC are non-empty
+ ; and not longer than 1 character
+ ;
+ Set spec("DC")=$Extract(spec("DC")_".",1)
+ Set spec("EC")=$Extract(spec("EC")_"*",1)
+ ;
+ Set val=$Get(V),(mask,out)=$Get(spec("FM"))
+ If mask="" Quit val
+ ;
+ ; Currency string
+ ;
+ Set x=spec("CS")
+ Set pos=0 For  Set pos=$Find(mask,"c",pos) Quit:pos<1  Do
+ . Set $Extract(out,pos-1)=$Extract(x,1)
+ . Set x=$Extract(x,2,$Length(x))_$Extract(x,1)
+ . Quit
+ ;
+ ; Sign
+ ;
+ Set x=$Select(val>0:"+",val<0:"-",1:" ")
+ Set pos=0 For  Set pos=$Find(mask,"+",pos) Quit:pos<1  Do
+ . Set $Extract(out,pos-1)=x
+ . Quit
+ Set pos=0 For  Set pos=$Find(mask,"-",pos) Quit:pos<1  Do
+ . Set $Extract(out,pos-1)=$Select(x="-":x,1:" ")
+ . Quit
+ If x'="-" Set out=$Translate(out,"()","  ")
+ ;
+ ; Decimal separator
+ ;
+ Set pos=$Find(mask,"d")
+ Do:pos'<1
+ . Set $Extract(out,pos-1)=spec("DC")
+ . For  Set pos=$Find(mask,"d",pos) Quit:pos<1  Do
+ . . Set $Extract(out,pos-1)=spec("EC")
+ . . Quit
+ . Quit
+ ;
+ ; Right (default, format letter "n") or
+ ; left (format letter "l") adjustment?
+ ;
+ If mask["l",mask["n" Set $ECode=",M28,"
+ ;
+ ; Left and Right Separators
+ ;
+ Set v1=$Piece(val,".",1),v2=$Piece(val,".",2)
+ Set v1=$Translate(v1,"-")
+ If mask'["l" Do
+ . Set x="" For p=1:1:$Length(v1) Set x=$Extract(v1,p)_x
+ . Set v1=x
+ . Quit
+ ;
+ Set pos=$Find(mask,"d") Set:pos<1 pos=$Length(mask)+2
+ ;
+ ; Integer part and Left separators
+ ;
+ Set x=spec("SL")
+ Set p(1)=pos-2,p(2)=-1,p(3)=1
+ Set:mask["l" p(1)=1,p(2)=1,p(3)=pos-2
+ For p=p(1):p(2):p(3) Do
+ . If "fln"[$Extract(mask,p) Do
+ . . Set $Extract(out,p)=$Extract(v1,1)
+ . . Set v1=$Extract(v1,2,$Length(v1))_spec("FS")
+ . . If $Translate(v1,spec("FS"))="" Set x=spec("FS")
+ . . Quit
+ . If $Extract(mask,p)="s" Do
+ . . Set $Extract(out,p)=$Extract(x,1)
+ . . Set x=$Extract(x,2,$Length(x))_$Extract(x,1)
+ . Quit
+ ;
+ ; Fractional part and Right separators
+ ;
+ Set x=$Get(spec("SR"),spec("SL"))
+ Set:v2="" v2=0
+ For p=pos:1:$Length(mask) Do
+ . If "fn"[$Extract(mask,p) Do
+ . . Set $Extract(out,p)=$Extract(v2,1)
+ . . Set v2=$Extract(v2,2,$Length(v2))_"0"
+ . . Quit
+ . If $Extract(mask,p)="s" Do
+ . . Set $Extract(out,p)=$Extract(x,1)
+ . . Set x=$Extract(x,2,$Length(x))_$Extract(x,1)
+ . . Quit
+ . Quit
+ ;
+ ; Fill String
+ ;
+ Set x=$Get(spec("FS"))
+ For p=1:1:$l(mask) Do
+ . Quit:"nf"'[$Extract(mask,p)
+ . Quit:$Extract(out,p)'=" "
+ . Set $Extract(out,p)=$Extract(x,1)
+ . Set x=$Extract(x,2,$Length(x))_$Extract(x,1)
+ . Quit
+ ;
+ ; Justification
+ ;
+ For x="+ | +","- | -","( | ("," )|) " Do
+ . New find,repl
+ . Set find=$Piece(x,"|",1),repl=$Piece(x,"|",2)
+ . For  Quit:out'[find  Do
+ . . Set out=$Piece(out,find,1)_repl_$Piece(out,find,2,$l(out)+2)
+ . . Quit
+ . Quit
+ ;
+ Quit out
+ ;
+ ;===
+ ;
+ ;
+LOWER(A,CHARMOD) NEW lo,up,x,y
+ ;
+ ; The code below was approved in document X11/1998-21
+ ;
+ SET x=$GET(CHARMOD)
+ SET lo="abcdefghijklmnopqrstuvwxyz"
+ SET up="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ IF x?1"^"1E.E DO
+ . SET x=$EXTRACT(x,2,$LENGTH(x))
+ . IF x?1"|".E DO
+ . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
+ . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
+ . . SET x=$REVERSE($PIECE(x,"|",1))
+ . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . QUIT
+ . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
+ . QUIT
+ IF x="" SET x=^$JOB($JOB,"CHARACTER")
+ SET x=$GET(^$CHARACTER(x,"LOWER"))
+ IF x="" QUIT $TRANSLATE(A,up,lo)
+ SET @("x="_x_"(A)")
+ QUIT x
+ ; ===
+ ;
+ ;
+PATCODE(A,PAT,CHARMOD) NEW x,y
+ ;
+ ; The code below was approved in document X11/1998-21
+ ;
+ SET x=$GET(CHARMOD)
+ IF x?1"^"1E.E DO
+ . SET x=$EXTRACT(x,2,$LENGTH(x))
+ . IF x?1"|".E DO
+ . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
+ . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
+ . . SET x=$REVERSE($PIECE(x,"|",1))
+ . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . QUIT
+ . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
+ . QUIT
+ IF x="" SET x=^$JOB($JOB,"CHARACTER")
+ SET x=$GET(^$CHARACTER(x,"PATCODE",PAT))
+ IF x="" QUIT 0
+ SET @("x="_x_"(A)")
+ QUIT x
+ ; ===
+ ;
+ ;
+UPPER(A,CHARMOD) NEW lo,up,x,y
+ ;
+ ; The code below was approved in document X11/1998-21
+ ;
+ SET x=$GET(CHARMOD)
+ SET lo="abcdefghijklmnopqrstuvwxyz"
+ SET up="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ IF x?1"^"1E.E DO
+ . SET x=$EXTRACT(x,2,$LENGTH(x))
+ . IF x?1"|".E DO
+ . . SET x=$REVERSE($EXTRACT(x,2,$LENGTH(x)))
+ . . SET y=$REVERSE($PIECE(x,"|",2,$LENGTH(x)+2))
+ . . SET x=$REVERSE($PIECE(x,"|",1))
+ . . SET x=$GET(^|y|$GLOBAL(x,"CHARACTER"))
+ . . QUIT
+ . ELSE  SET x=$GET(^$GLOBAL(x,"CHARACTER"))
+ . QUIT
+ IF x="" SET x=^$JOB($JOB,"CHARACTER")
+ SET x=$GET(^$CHARACTER(x,"UPPER"))
+ IF x="" QUIT $TRANSLATE(A,lo,up)
+ SET @("x="_x_"(A)")
+ QUIT x
+ ; ===
+ ;
+ ;
+
+CMATH
+CMATH ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+CABS(Z) ;
+ New ZRE,ZIM
+ Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
+ Quit $%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM))
+;===
+;
+;
+CADD(X,Y) ;
+ New XRE,XIM,YRE,YIM
+ Set XRE=+X,XIM=+$Piece(X,"%",2)
+ Set YRE=+Y,YIM=+$Piece(Y,"%",2)
+ Quit XRE+YRE_"%"_(XIM+YIM)
+;===
+;
+;
+CCOS(Z,PREC) ;
+ New E1,E2,IA
+;
+;;; ;                                                                 Number ~~
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set IA=$%CMUL^CMATH(Z,"0%1")
+ Set E1=$%CEXP^CMATH(IA,PREC)
+ Set IA=-IA_"%"_(-$Piece(IA,"%",2))
+ Set E2=$%CEXP^CMATH(IA,PREC)
+ Set IA=$%CADD^CMATH(E1,E2)
+ Quit $%CMUL^CMATH(IA,"0.5%0")
+;===
+;
+;
+CDIV(X,Y) ;
+ New D,IM,RE,XIM,XRE,YIM,YRE
+ Set XRE=+X,XIM=+$Piece(X,"%",2)
+ Set YRE=+Y,YIM=+$Piece(Y,"%",2)
+ Set D=YRE*YRE+(YIM*YIM)
+ Set RE=XRE*YRE+(XIM*YIM)/D
+ Set IM=XIM*YRE-(XRE*YIM)/D
+ Quit RE_"%"_IM
+;===
+;
+;
+CEXP(Z,PREC) ;
+ New R,ZIM,ZRE
+;
+;;; ;                                                                 Number ~~
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
+ Set R=$%EXP^MATH(ZRE,PREC)
+ Quit R*$%COS^MATH(ZIM,PREC)_"%"_(R*$%SIN^MATH(ZIM,PREC))
+;===
+;
+;
+CLOG(Z,PREC) ;
+ New ABS,ARG,ZIM,ZRE
+;
+;;; ;                                                                 Number ~~
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set ABS=$%CABS^CMATH(Z)
+ Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
+;
+;;; Set ARG=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                             Number ~~
+; Alan Frank (October 1995)
+ Set ARG=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+;;;
+;
+ Quit $%LOG^MATH(ABS,PREC)_"%"_ARG
+;===
+;
+;
+CMUL(X,Y) ;
+ New XIM,XRE,YIM,YRE
+ Set XRE=+X,XIM=+$Piece(X,"%",2)
+ Set YRE=+Y,YIM=+$Piece(Y,"%",2)
+ Quit XRE*YRE-(XIM*YIM)_"%"_(XRE*YIM+(XIM*YRE))
+;===
+;
+;
+COMPLEX(X) Quit +X_"%0"
+;===
+;
+;
+CONJUG(Z) ;
+ New ZIM,ZRE
+ Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
+ Quit ZRE_"%"_(-ZIM)
+;===
+;
+;
+CPOWER(Z,N,PREC) ;
+ New AR,NIM,NRE,PHI,PI,R,RHO,TH,ZIM,ZRE
+;
+;;; ;                                                                 Number ~~
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
+ Set NRE=+N,NIM=+$Piece(N,"%",2)
+ If 'ZRE,'ZIM,'NRE,'NIM Set $Ecode=",M28,"
+;
+;;; If 'ZRE,'ZIM Quit "0%0% ;                                         Number ~~
+; Eli Reidler (28 June 1996)
+ If 'ZRE,'ZIM Quit "0%0"
+;;;
+;
+ Set PI=$%PI^MATH()
+;
+;;; Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ;                       Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM),PREC)
+;;;
+;
+;
+;;; If ZRE Set TH=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                       Number ~~
+; Alan Frank (October 1995)
+ If ZRE Set TH=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+;;;
+;
+;;; Else  Set TH=$SELECT(ZRE>0:PI/2,1:-PI/2) ;                        Number ~~
+; Winfried Gerum (8 June 1995)
+ Else  Set TH=$SELECT(ZIM>0:PI/2,1:-PI/2)
+;;;
+;
+ Set RHO=$%LOG^MATH(R,PREC)
+ Set AR=$%EXP^MATH(RHO*NRE-(TH*NIM),PREC)
+ Set PHI=RHO*NIM+(NRE*TH)
+ Quit AR*$%COS^MATH(PHI,PREC)_"%"_(AR*$%SIN^MATH(PHI,PREC))
+;===
+;
+;
+CSIN(Z,PREC) ;
+ New IA,E1,E2
+ ;
+ ;;; ;                                                                 Number ~~
+ ; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+ ;;;
+ ;
+ Set IA=$%CMUL^CMATH(Z,"0%1")
+ Set E1=$%CEXP^CMATH(IA,PREC)
+ Set IA=-IA_"%"_(-$Piece(IA,"%",2))
+ Set E2=$%CEXP^CMATH(IA,PREC)
+ Set IA=$%CSUB^CMATH(E1,E2)
+ Set IA=$%CMUL^CMATH(IA,"0.5%0")
+ Quit $%CMUL^CMATH("0%-1",IA)
+ ;===
+ ;
+ ;
+CSUB(X,Y) ;
+ New XIM,XRE,YIM,YRE
+ Set XRE=+X,XIM=+$Piece(X,"%",2)
+ Set YRE=+Y,YIM=+$Piece(Y,"%",2)
+ Quit XRE-YRE_"%"_(XIM-YIM)
+ ;===
+ ;
+ ;
+
+MTXMATH
+MTXMATH ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+MTXADD(A,B,R,ROWS,COLS) ;
+ ; Add A[ROWS,COLS] to B[ROWS,COLS],
+ ; result goes to R[ROWS,COLS]
+ IF $DATA(A)<10 QUIT 0
+ IF $DATA(B)<10 QUIT 0
+ IF $GET(ROWS)<1 QUIT 0
+ IF $GET(COLS)<1 QUIT 0
+ ;
+ NEW ROW,COL,ANY
+ FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
+ . KVALUE R(ROW,COL) SET ANY=0
+ . SET:$DATA(A(ROW,COL))#2 ANY=1
+ . SET:$DATA(B(ROW,COL))#2 ANY=1
+ . SET:ANY R(ROW,COL)=$GET(A(ROW,COL))+$GET(B(ROW,COL))
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXCOF(A,I,K,N) ;
+ ; Compute cofactor for element [i,k]
+ ; in matrix A[N,N]
+ NEW T,R,C,RR,CC
+ SET CC=0 FOR C=1:1:N DO:C'=K
+ . SET CC=CC+1,RR=0
+ . FOR R=1:1:N SET:R'=I RR=RR+1,T(RR,CC)=$GET(A(R,C))
+ . QUIT
+ QUIT $$MTXDET^MTXMATH(.T,N-1)
+ ;===
+ ;
+ ;
+MTXCOPY(A,R,ROWS,COLS) ;
+ ; Copy A[ROWS,COLS] to R[ROWS,COLS]
+ IF $DATA(A)<10 QUIT 0
+ IF $GET(ROWS)<1 QUIT 0
+ IF $GET(COLS)<1 QUIT 0
+ ;
+ NEW ROW,COL
+ FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
+ . KVALUE R(ROW,COL)
+ . SET:$DATA(A(ROW,COL))#2 R(ROW,COL)=A(ROW,COL)
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXDET(A,N) ;
+ ; Compute determinant of matrix A[N,N]
+ IF $DATA(A)<10 QUIT ""
+ IF $GET(N)<1 QUIT ""
+ ;
+ ; First the simple cases
+ ;
+ IF N=1 QUIT $GET(A(1,1))
+ IF N=2 QUIT $GET(A(1,1))*$GET(A(2,2))-($GET(A(1,2))*$GET(A(2,1)))
+ ;
+ NEW DET,I,SIGN
+ ;
+ ; Det A = sum (k=1:n) element (i,k) * cofactor [i,k]
+ ;
+ SET DET=0,SIGN=1
+ FOR I=1:1:N DO
+ . SET DET=$GET(A(1,I))*$$MTXCOF^MTXMATH(.A,1,I,N)*SIGN+DET
+ . SET SIGN=-SIGN
+ . QUIT
+ QUIT DET
+ ;===
+ ;
+ ;
+MTXEQU(A,B,R,N,M) ;
+ ; Solve matrix equation A [M,M] * R [M,N] = B [M,N]
+ IF $GET(M)<1 QUIT ""
+ IF $GET(N)<1 QUIT ""
+ ;;;IF '$%MTXDET^MATH(.A) QUIT 0
+ ; Ed de Moel, 29 August 1999
+ IF '$$MTXDET^MTXMATH(.A,M) QUIT 0
+ ;;;
+ ;
+ NEW I,I1,J,J1,J2,K,L,T,T1,T2,TEMP,X
+ ;
+ SET X=$$MTXCOPY^MTXMATH(.A,.T,N,N)
+ SET X=$$MTXCOPY^MTXMATH(.B,.R,N,M)
+ ;
+ ; Reduction of matrix A
+ ; Steps of reduction are counted by index K
+ ;
+ FOR K=1:1:N-1 DO
+ . ;
+ . ; Search for largest coefficient of T
+ . ; (denoted by TEMP)
+ . ; in first column of reduced system
+ . ;
+ . SET TEMP=0,J2=K
+ . FOR J1=K:1:N DO
+ . . QUIT:$TRANSLATE($GET(T(J1,K)),"-")>$TRANSLATE(TEMP,"-")
+ . . SET TEMP=T(J1,K),J2=J1
+ . . QUIT
+ . ;
+ . ; Exchange row number K with row number J2,
+ . ; if necessary
+ . ;
+ . DO:J2'=K
+ . . ;
+ . . FOR J=K:1:N DO
+ . . . SET T1=$GET(T(K,J)),T2=$GET(T(J2,J))
+ . . . KILL T(K,J),T(J2,J)
+ . . . IF T1'="" SET T(J2,J)=T1
+ . . . IF T2'="" SET T(K,J)=T2
+ . . . QUIT
+ . . FOR J=1:1:M DO
+ . . . SET T1=$GET(R(K,J)),T2=$GET(R(J2,J))
+ . . . KILL R(K,J),R(J2,J)
+ . . . IF T1'="" SET R(J2,J)=T1
+ . . . IF T2'="" SET R(K,J)=T2
+ . . . QUIT
+ . . QUIT
+ . ;
+ . ; Actual reduction
+ . ;
+ . FOR I=K+1:1:N DO
+ . . FOR J=K+1:1:N DO
+ . . . QUIT:'$GET(T(K,K))
+ . . . SET T(I,J)=-$GET(T(K,J))*$GET(T(I,K))/T(K,K)+$GET(T(I,J))
+ . . . QUIT
+ . . FOR J=1:1:M DO
+ . . . QUIT:'$GET(T(K,K))
+ . . . SET R(I,J)=-$GET(R(K,J))*$GET(T(I,K))/T(K,K)+$GET(R(I,J))
+ . . . QUIT
+ . . QUIT
+ . QUIT
+ ;
+ ; Backsubstitution
+ ;
+ FOR J=1:1:M DO
+ . IF $GET(T(N,N)) SET R(N,J)=$GET(R(N,J))/T(N,N)
+ . IF N-1>0 FOR I1=1:1:N-1 DO
+ . . SET I=N-I1
+ . . FOR L=I+1:1:N DO
+ . . . SET R(I,J)=-$GET(T(I,L))*$GET(R(L,J))+$GET(R(I,J))
+ . . . QUIT
+ . . IF $GET(T(I,I)) SET R(I,J)=$GET(R(I,J))/$GET(T(I,I))
+ . . QUIT
+ . QUIT
+ ;;;QUIT $%MTXDET^MATH(.R)
+ ; Ed de Moel, 29 Aug 1999
+ QUIT $SELECT(M=N:$$MTXDET^MTXMATH(.R,M),1:1)
+ ;;;
+ ;===
+ ;
+MTXINV(A,R,N) ;
+ ; Invert A[N,N], result goes to R[N,N]
+ IF $DATA(A)<10 QUIT 0
+ IF $GET(N)<1 QUIT 0
+ ;
+ NEW T,X
+ SET X=$$MTXUNIT^MTXMATH(.T,N)
+ QUIT $$MTXEQU^MTXMATH(.A,.T,.R,N,N)
+ ;===
+ ;
+ ;
+MTXMUL(A,B,R,M,L,N) ;
+ ; Multiply A[M,L] by B[L,N], result goes to R[M,N]
+ IF $DATA(A)<10 QUIT 0
+ IF $DATA(B)<10 QUIT 0
+ IF $GET(L)<1 QUIT 0
+ IF $GET(M)<1 QUIT 0
+ IF $GET(N)<1 QUIT 0
+ ;
+ NEW I,J,K,SUM,ANY
+ FOR I=1:1:M FOR J=1:1:N DO
+ . SET (SUM,ANY)=0
+ . KVALUE R(I,J)
+ . FOR K=1:1:L DO
+ . . SET:$DATA(A(I,K))#2 ANY=1
+ . . SET:$DATA(B(K,J))#2 ANY=1
+ . . SET SUM=$GET(A(I,K))*$GET(B(K,J))+SUM
+ . . QUIT
+ . SET:ANY R(I,J)=SUM
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXSCA(A,R,ROWS,COLS,S) ;
+ ; Multiply A[ROWS,COLS] with the scalar S,
+ ; result goes to R[ROWS,COLS]
+ IF $DATA(A)<10 QUIT 0
+ IF $GET(ROWS)<1 QUIT 0
+ IF $GET(COLS)<1 QUIT 0
+ IF '($DATA(S)#2) QUIT 0
+ ;
+ NEW ROW,COL
+ FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
+ . KVALUE R(ROW,COL)
+ . SET:$DATA(A(ROW,COL))#2 R(ROW,COL)=A(ROW,COL)*S
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXSUB(A,B,R,ROWS,COLS) ;
+ ; Subtract B[ROWS,COLS] from A[ROWS,COLS],
+ ; result goes to R[ROWS,COLS]
+ IF $DATA(A)<10 QUIT 0
+ IF $DATA(B)<10 QUIT 0
+ IF $GET(ROWS)<1 QUIT 0
+ IF $GET(COLS)<1 QUIT 0
+ ;
+ NEW ROW,COL,ANY
+ FOR ROW=1:1:ROWS FOR COL=1:1:COLS DO
+ . KVALUE R(ROW,COL) SET ANY=0
+ . SET:$DATA(A(ROW,COL))#2 ANY=1
+ . SET:$DATA(B(ROW,COL))#2 ANY=1
+ . ;
+ . ;;; SET:ANY R(ROW,COL)=$GET(A(ROW,COL)-$GET(B(ROW,COL)) ;           Number ~~
+ . ; Eli Reidler (28 June 1996)
+ . SET:ANY R(ROW,COL)=$GET(A(ROW,COL))-$GET(B(ROW,COL))
+ . ;;;
+ . ;
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXTRP(A,R,M,N) ;
+ ; Transpose A[M,N], result goes to R[N,M]
+ IF $DATA(A)<10 QUIT 0
+ IF $GET(M)<1 QUIT 0
+ IF $GET(N)<1 QUIT 0
+ ;
+ NEW I,J,K,D1,V1,D2,V2
+ FOR I=1:1:M+N-1 FOR J=1:1:I+1\2 DO
+ . SET K=I-J+1
+ . IF K=J DO  QUIT
+ . . SET V1=$GET(A(J,J)),D1=$DATA(A(J,J))#2
+ . . IF J'>N,J'>M KVALUE R(J,J) SET:D1 R(J,J)=V1
+ . . QUIT
+ . ;
+ . SET V1=$GET(A(K,J)),D1=$DATA(A(K,J))#2
+ . SET V2=$GET(A(J,K)),D2=$DATA(A(J,K))#2
+ . IF K'>M,J'>N KVALUE R(K,J) SET:D2 R(K,J)=V2
+ . IF J'>M,K'>N KVALUE R(J,K) SET:D1 R(J,K)=V1
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+MTXUNIT(R,N,SPARSE) ;
+ ; Create a unit matrix R[N,N]
+ IF $GET(N)<1 QUIT 0
+ ;
+ NEW ROW,COL
+ FOR ROW=1:1:N FOR COL=1:1:N DO
+ . KVALUE R(ROW,COL)
+ . IF $GET(SPARSE) QUIT:ROW'=COL
+ . SET R(ROW,COL)=$SELECT(ROW=COL:1,1:0)
+ . QUIT
+ QUIT 1
+ ;===
+ ;
+ ;
+
+MATH2
+MATH2 ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+REPLACE(IN,SPEC) ;
+ NEW L,MASK,K,I,LT,F,VALUE
+ SET L=$LENGTH(IN),MASK=$JUSTIFY("",L)
+ SET I="" FOR  SET I=$ORDER(SPEC(I)) QUIT:I=""  DO
+ . QUIT:'($DATA(SPEC(I,1))#2)
+ . QUIT:SPEC(I,1)=""
+ . QUIT:'($DATA(SPEC(I,2))#2)
+ . SET LT=$LENGTH(SPEC(I,1))
+ . SET F=0 FOR  SET F=$FIND(IN,SPEC(I,1),F) QUIT:F<1  DO
+ . . QUIT:$EXTRACT(MASK,F-LT,F-1)["X"
+ . . SET VALUE(F-LT)=SPEC(I,2)
+ . . SET $EXTRACT(MASK,F-LT,F-1)=$TRANSLATE($JUSTIFY("",LT)," ","X")
+ . . QUIT
+ . QUIT
+ SET VALUE="" FOR K=1:1:L DO
+ . IF $EXTRACT(MASK,K)=" " SET VALUE=VALUE_$EXTRACT(IN,K) QUIT
+ . SET:$DATA(VALUE(K)) VALUE=VALUE_VALUE(K)
+ . QUIT
+ QUIT VALUE
+ ;===
+ ;
+ ;
+SEC(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+ ;
+ ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ;    Comment: The official description does not mention than
+ ;             the function may also be called with the first
+ ;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+ ;;;
+ ;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=1,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
+ . Quit
+ If 'VALUE Quit "INFINITE"
+ Quit 1/VALUE
+ ;===
+ ;
+ ;
+SIN(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+ ;
+ ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ;    Comment: The official description does not mention than
+ ;             the function may also be called with the first
+ ;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+ ;;;
+ ;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=X,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
+ . Quit
+ Quit VALUE
+ ;===
+ ;
+ ;
+SIN(X) ;
+ ;;; ;                                                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ;  Comment: This version of the function is
+ ;           optimized for speed, not for precision.
+ ;           The 'precision' parameter is not supported,
+ ;           and the precision is at best 1 in 10**-9.
+ ;           Note that this function does not accept its
+ ;           parameter in degrees, minutes and seconds.
+ ;;;
+ ;
+ New A,N,PI,R,SIGN,XX
+ ;
+ ; This approximation only works for 0 <= x <= pi/2
+ ; so reduce angle to correct quadrant.
+ ;
+ Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
+ Set:X>PI X=2*PI-X,SIGN=-1
+ ;
+ ;;; Set:X*2<PI X=PI-X Set X=-PI/2+2 ;                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ Set:X*2<PI X=PI-X
+ ;;;
+ ;
+ ;
+ Set XX=X*X,A(1)=-0.4999999963,A(2)=0.0416666418
+ Set A(3)=-0.0013888397,A(4)=0.0000247609,A(5)=-0.0000002605
+ Set (X,R)=1 For N=1:1:5 Set X=X*XX,R=A(N)*X+R
+ Quit R*SIGN
+ ;===
+ ;
+ ;
+SINH(X,PREC) ;
+ ;
+ ;;; New F,I,P,R,T,XX ;                                                Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ; Eli Reidler (28 June 1996)
+ New E,F,I,P,R,T,XX
+ ;;;
+ ;
+ Set PREC=$Get(PREC,11)+1
+ Set @("E=1E-"_PREC)
+ Set XX=X*X,F=1,I=2,(P,R,T)=X
+ For  Set T=T*XX,F=I+1*I*F,R=T/F+R,P=P-R/R,I=I+2 If -E<P,P<E Quit
+ Quit R
+ ;===
+ ;
+ ;
+SQRT(X,PREC) ;
+ If X<0 Set $Ecode=",M28,"
+ If X=0 Quit 0
+ ;
+ ;;; ;                                                                 Number ~~
+ ; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+ ;;;
+ ;
+ ;
+ ;;; If X<1 Quit 1/$%SQRT^MATH(1/X) ;                                  Number ~~
+ ; Winfried Gerum (8 June 1995)
+ If X<1 Quit 1/$$SQRT^MATH(1/X,PREC)
+ ;;;
+ ;
+ New P,R,E
+ Set PREC=$Get(PREC,11)+1
+ ;
+ ;;; Set @(E="1E-"_PREC) ;                                             Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ; Eli Reidler (28 June 1996)
+ Set @("E=1E-"_PREC)
+ ;;;
+ ;
+ Set R=X
+ For  Set P=R,R=X/R+R/2,P=P-R/R If -E<P,P<E Quit
+ Quit R
+ ;===
+ ;
+ ;
+TAN(X,PREC) ;
+ New L,LIM,K,S,SIGN,VALUE
+ ;
+ ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ;    Comment: The official description does not mention than
+ ;             the function may also be called with the first
+ ;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+ ;;;
+ ;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=X,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
+ . Quit
+ Set S=VALUE
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=1,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
+ . Quit
+ If 'VALUE Quit "INFINITE"
+ Quit S/VALUE
+ ;===
+ ;
+ ;
+
+MATH1
+MATH1 ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+ARCCOS(X,PREC) ;
+;
+;;; New L,LIM,K,SIG,SIGS ;                                            Number ~~
+; Winfried Gerum (8 June 1995)
+ New L,LIM,K,SIG,SIGS,VALUE
+;;;
+;
+ If X<-1 Set $Ecode=",M28,"
+ If X>1 Set $Ecode=",M28,"
+ Set PREC=$Get(PREC,11)
+;
+;;; If $Translate(X,"-")=1 Set VALUE=0 Quit ;                         Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If $Translate(X,"-")=1 Quit 0
+;;;
+;
+ Set SIG=$Select(X<0:-1,1:1),VALUE=1-(X*X)
+;
+;;; Set X=$%SQRT^MATH(VALUE) ;                                        Number ~~
+; Winfried Gerum (8 June 1995)
+ Set X=$$SQRT^MATH(VALUE,PREC)
+;;;
+;
+;;; If $Translate(X,"-")=1 Do  Quit ;                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If $Translate(X,"-")=1 Do  Quit VALUE
+ . Set VALUE=$$PI^MATH()/2*X
+ . Quit
+;
+;;; If X>0.9 Do  Quit ;                                               Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If X>0.9 Do  Quit VALUE
+ . Set SIGS=$Select(X<0:-1,1:1)
+ . Set VALUE=1/(1/X/X-1)
+ . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ; Winfried Gerum (8 June 1995)
+ . Set X=$$SQRT^MATH(VALUE,PREC)
+ . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . ; Winfried Gerum (8 June 1995)
+ . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
+ Set (VALUE,L)=X
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
+ . Set L=L*X*X*(K-2)/(K-1)*(K-2)/K,VALUE=VALUE+L
+ . Quit
+ Quit $Select(SIG<0:$$PI^MATH()-VALUE,1:VALUE)
+ ;===
+ ;
+ ;
+ARCTAN(X,PREC) ;
+ New FOLD,HI,L,LIM,LO,K,SIGN,SIGS,SIGT,VALUE
+ Set PREC=$Get(PREC,11)
+ Set LO=0.0000000001,HI=9999999999
+ Set SIGT=$Select(X<0:-1,1:1),X=$Translate(X,"-")
+ Set X=$Select(X<LO:LO,X>HI:HI,1:X)
+;
+;;; Set FOLD=$Select(X'<1:0,1:1), ;                                   Number ~~
+; Eli Reidler (28 June 1996)
+ Set FOLD=$Select(X'<1:0,1:1)
+;;;
+;
+ Set X=$Select(FOLD:1/X,1:X)
+ Set L=X,VALUE=$$PI^MATH()/2-(1/X),SIGN=1
+;
+;;; If X<1.3 Do  Quit ;                                               Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If X<1.3 Do  Quit VALUE
+ . Set X=$Select(FOLD:1/X,1:X),VALUE=1/((1/X/X)+1)
+ . ;;; Set $%SQRT^MATH(VALUE) ;                                        Number ~~
+ . ; Winfried Gerum (8 June 1995)
+ . ; Eli Reidler (28 June 1996)
+ . Set X=$$SQRT^MATH(VALUE,PREC)
+ . If $Translate(X,"-")=1 Do  Quit
+ . . Set VALUE=$$PI^MATH()/2*X
+ . . Quit
+ . If X>0.9 Do  Quit
+ . . Set SIGS=$Select(X<0:-1,1:1)
+ . . Set VALUE=1/(1/X/X-1)
+ . . Set X=$$SQRT^MATH(VALUE)
+ . . Set VALUE=$$ARCTAN(X,10)
+ . . Set VALUE=VALUE*SIGS
+ . . Quit
+ . Set (VALUE,L)=X
+ . Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ . For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
+ . . Set L=L*X*X*(K-2)/(K-1)*(K-2)/K,VALUE=VALUE+L
+ . . Quit
+ . Set VALUE=$Select(SIGT<1:-VALUE,1:VALUE)
+ . Quit
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(1/L,"-")<LIM)
+ . ;;; Set L=L*X*X,VALUE=VALUE+(1/(K*L)*SIGN), ;                       Number ~~
+ . ; Eli Reidler (28 June 1996)
+ . Set L=L*X*X,VALUE=VALUE+(1/(K*L)*SIGN)
+ . Set SIGN=SIGN*-1
+ . Quit
+ Set VALUE=$Select(FOLD:$$PI^MATH()/2-VALUE,1:VALUE)
+ Set VALUE=$Select(SIGT<1:-VALUE,1:VALUE)
+ Quit VALUE
+;===
+;
+;
+COS(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+;
+;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;    Comment: The official description does not mention than
+;             the function may also be called with the first
+;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+;;;
+;
+ Set PREC=$Get(PREC,11)
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=1,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
+ . Quit
+ Quit VALUE
+;===
+;
+;
+COS(X) ;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;  Comment: This version of the function is
+;           optimized for speed, not for precision.
+;           The 'precision' parameter is not supported,
+;           and the precision is at best 1 in 10**-9.
+;           Note that this function does not accept its
+;           parameter in degrees, minutes and seconds.
+;;;
+;
+ New A,N,PI,R,SIGN,XX
+;
+; This approximation only works for 0 <= x <= pi/2
+; so reduce angle to correct quadrant.
+;
+ Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
+ Set:X>PI X=2*PI-X
+ Set:X*2>PI X=PI-X,SIGN=-1
+;
+ Set XX=X*X,A(1)=-0.4999999963,A(2)=0.0416666418
+ Set A(3)=-0.0013888397,A(4)=0.0000247609,A(5)=-0.0000002605
+ Set (X,R)=1 For N=1:1:5 Set X=X*XX,R=A(N)*X+R
+ Quit R*SIGN
+;===
+;
+;
+COT(X,PREC) ;
+ New C,L,LIM,K,SIGN,VALUE
+;
+;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;    Comment: The official description does not mention than
+;             the function may also be called with the first
+;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+;;;
+;
+ Set PREC=$Get(PREC,11)
+ Set (VALUE,L)=1,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
+ . Quit
+ Set C=VALUE
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=X,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
+ . Quit
+ If 'VALUE Quit "INFINITE"
+ Quit VALUE=C/VALUE
+;===
+;
+;
+LOG(X,PREC) ;
+ New L,LIM,M,N,K,VALUE
+ If X'>0 Set $Ecode=",M28,"
+ Set PREC=$Get(PREC,11)
+ Set M=1
+ ;
+ ;;; If X>0 For N=0:1 Quit:(X/M)<10  Set M=M*10 ;                      Number ~~
+ ; Winfried Gerum (8 June 1995)
+ For N=0:1 Quit:(X/M)<10  Set M=M*10
+ ;;;
+ ;
+ If X<1 For N=0:-1 Quit:(X/M)>0.1  Set M=M*0.1
+ Set X=X/M
+ Set X=(X-1)/(X+1),(VALUE,L)=X
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Set L=L*X*X,M=L/K,VALUE=M+VALUE Set:M<0 M=-M Quit:M<LIM
+ Set VALUE=VALUE*2+(N*2.30258509298749)
+ Quit VALUE
+ ;===
+ ;
+ ;
+LOG10(X,PREC) ;
+ New L,LIM,M,N,K,VALUE
+ If X'>0 Set $Ecode=",M28,"
+ Set PREC=$Get(PREC,11)
+ Set M=1
+ ;
+ ;;; If X>0 For N=0:1 Quit:(X/M)<10  Set M=M*10 ;                      Number ~~
+ ; Winfried Gerum (8 June 1995)
+ For N=0:1 Quit:(X/M)<10  Set M=M*10
+ ;;;
+ ;
+ If X<1 For N=0:-1 Quit:(X/M)>0.1  Set M=M*0.1
+ Set X=X/M
+ Set X=(X-1)/(X+1),(VALUE,L)=X
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Set L=L*X*X,M=L/K,VALUE=M+VALUE Set:M<0 M=-M Quit:M<LIM
+ Set VALUE=VALUE*2+(N*2.30258509298749)
+ Quit VALUE/2.30258509298749
+ ;===
+ ;
+ ;
+PRODUCE(IN,SPEC,MAX) ;
+ NEW VALUE,AGAIN,P1,P2,I,COUNT
+ SET VALUE=IN,COUNT=0
+ FOR  DO  QUIT:'AGAIN
+ . SET AGAIN=0
+ . SET I=""
+ . FOR  SET I=$ORDER(SPEC(I)) QUIT:I=""  DO  QUIT:COUNT<0
+ . . QUIT:$GET(SPEC(I,1))=""
+ . . QUIT:'($DATA(SPEC(I,2))#2)
+ . . FOR  QUIT:VALUE'[SPEC(I,1)  DO  QUIT:COUNT<0
+ . . . SET P1=$PIECE(VALUE,SPEC(I,1),1)
+ . . . SET P2=$PIECE(VALUE,SPEC(I,1),2,$LENGTH(VALUE))
+ . . . SET VALUE=P1_SPEC(I,2)_P2,AGAIN=1
+ . . . SET COUNT=COUNT+1
+ . . . IF $DATA(MAX),COUNT>MAX SET COUNT=-1,AGAIN=0
+ . . . QUIT
+ . . QUIT
+ . QUIT
+ QUIT VALUE
+ ;===
+ ;
+ ;
+
+MATH
+MATH ;
+; Unless otherwise noted, the code below
+; was approved in document X11/95-11
+;
+; If corrections have been applied,
+; first the original line appears,
+; with three semicolons at the beginning of the line.
+;
+; Then the source of the correction is acknowledged,
+; then the corrected line appears, followed by a
+; line containing three semicolons.
+;
+ABS(X) Quit $Translate(+X,"-")
+;===
+;
+;
+ARCCOS(X) ;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;  Comment: This version of the function is
+;           optimized for speed, not for precision.
+;           The 'precision' parameter is not supported,
+;           and the precision is at best 2 in 10**-8.
+;;;
+;
+ New A,N,R,SIGN,XX
+ If X<-1 Set $Ecode=",M28,"
+ If X>1 Set $Ecode=",M28,"
+ Set SIGN=1 Set:X<0 X=-X,SIGN=-1
+ Set A(0)=1.5707963050,A(1)=-0.2145988016,A(2)=0.0889789874
+ Set A(3)=-0.0501743046,A(4)=0.0308918810,A(5)=-0.0170881256
+ Set A(6)=0.0066700901,A(7)=-0.0012624911
+ Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
+;
+;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+; Winfried Gerum (8 June 1995)
+ Set R=$$SQRT^MATH(1-X,11)*R
+;;;
+;
+ Quit R*SIGN
+;===
+;
+;
+ARCCOS(X,PREC) ;
+ QUIT $$ARCCOS^MATH1(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+ARCCOSH(X,PREC) ;
+ QUIT $$ARCCOSH^MATH1(X,$Get(PREC,11))
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set SQ=$$SQRT^MATH(X*X-1,PREC)
+ Quit $$LOG^MATH(X+SQ,PREC)
+;===
+;
+;
+ARCCOT(X,PREC) ;
+ Set PREC=$Get(PREC,11)
+ Set X=1/X
+ Quit $$ARCTAN^MATH(X,PREC)
+;===
+;
+;
+ARCCOTH(X,PREC) ;
+ New L1,L2
+;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set L1=$$LOG^MATH(X+1,PREC)
+ Set L2=$$LOG^MATH(X-1,PREC)
+ Quit L1-L2/2
+;===
+;
+;
+ARCCSC(X,PREC) ;
+ Set PREC=$Get(PREC,11)
+ Set X=1/X
+ Quit $$ARCSIN^MATH(X,PREC)
+;===
+;
+;
+ARCSEC(X,PREC) ;
+ Set PREC=$Get(PREC,11)
+ Set X=1/X
+ Quit $$ARCCOS^MATH(X,PREC)
+;===
+;
+;
+ARCSIN(X) ;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;  Comment: This version of the function is
+;           optimized for speed, not for precision.
+;           The 'precision' parameter is not supported,
+;           and the precision is at best 2 in 10**-8.
+;;;
+;
+ New A,N,R,SIGN,XX
+ If X<-1 Set $Ecode=",M28,"
+ If X>1 Set $Ecode=",M28,"
+ Set SIGN=1 Set:X<0 X=-X,SIGN=-1
+ Set A(0)=1.5707963050,A(1)=-0.2145988016,A(2)=0.0889789874
+ Set A(3)=-0.0501743046,A(4)=0.0308918810,A(5)=-0.0170881256
+ Set A(6)=0.0066700901,A(7)=-0.0012624911
+ Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
+;
+;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+; Winfried Gerum (8 June 1995)
+ Set R=$$SQRT^MATH(1-X,11)*R
+;;;
+;
+ Set R=$$PI^MATH()/2-R
+ Quit R*SIGN
+;===
+;
+;
+ARCSIN(X,PREC) ;
+ New L,LIM,K,SIGS,VALUE
+ Set PREC=$Get(PREC,11)
+;
+;;; If $Translate(X,"-")=1 Do  Quit ;                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If $Translate(X,"-")=1 Do  Quit VALUE
+ . Set VALUE=$$PI^MATH()/2*X
+;;; If X>0.99999 Do  Quit ;                                           Number ~~
+; Winfried Gerum (8 June 1995)
+; Eli Reidler (28 June 1996)
+ If X>0.99999 Do  Quit VALUE
+ . Set SIGS=$Select(X<0:-1,1:1)
+ . Set VALUE=1/(1/X/X-1)
+ . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ; Winfried Gerum (8 June 1995)
+ . Set X=$$SQRT^MATH(VALUE,PREC)
+ . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . ; Winfried Gerum (8 June 1995)
+ . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
+ Set (VALUE,L)=X
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
+ . Set L=L*X*X*(K-2)/(K-1)*(K-2)/K,VALUE=VALUE+L
+ . Quit
+ Quit VALUE
+;===
+;
+;
+ARCSINH(X,PREC) ;
+ If X<1 Set $Ecode=",M28,"
+ New SQ
+;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set SQ=$$SQRT^MATH(X*X+1,PREC)
+ Quit $$LOG^MATH(X+SQ,PREC)
+;===
+;
+;
+ARCTAN(X,PREC) ;
+ QUIT $$ARCTAN^MATH1(X,$Get(PREC,11))
+;===
+;
+;
+ARCTANH(X,PREC) ;
+ If X<-1 Set $Ecode=",M28,"
+ If X>1 Set $Ecode=",M28,"
+;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Quit $$LOG^MATH(1+X/(1-X),PREC)/2
+;===
+;
+;
+COS(X,PREC) ;
+ QUIT $$COS^MATH(X,$Get(PREC,11))
+;===
+;
+;
+COS(X) ;
+ QUIT $$COS^MATH1(X)
+;===
+;
+;
+COSH(X,PREC) ;
+;
+;;; New F,I,P,R,T,XX ;                                                Number ~~
+; Winfried Gerum (8 June 1995)
+ New E,F,I,P,R,T,XX
+;;;
+;
+ Set PREC=$Get(PREC,11)+1
+ Set @("E=1E-"_PREC)
+ Set XX=X*X,F=1,(P,R,T)=1,I=1
+ For  Set T=T*XX,F=I+1*I*F,R=T/F+R,P=P-R/R,I=I+2 If -E<P,P<E Quit
+ Quit R
+;===
+;
+;
+COT(X,PREC) ;
+ QUIT $$COT^MATH1(X,$Get(PREC,11))
+;===
+;
+;
+COTH(X,PREC) ;
+ New SINH
+ If 'X Quit "INFINITE"
+;
+;;; ;                                                                 Number ~~
+; Winfried Gerum (8 June 1995)
+; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set SINH=$$SINH^MATH(X,PREC)
+ If 'SINH Quit "INFINITE"
+ Quit $$COSH^MATH(X,PREC)/SINH
+;===
+;
+;
+CSC(X,PREC) ;
+ New L,LIM,K,SIGN,VALUE
+;
+;;; Set:X[":" X=$%DMSDEC^MATH(X,12);                                 Number ~~
+; Winfried Gerum (8 June 1995)
+;    Comment: The official description does not mention than
+;             the function may also be called with the first
+;             parameter in degrees, minutes and seconds.
+ Set:X[":" X=$$DMSDEC^MATH(X)
+;;;
+;
+;;; Set PREC=$Select($Data(PREC)#2:PREC,1:10) ;                       Number ~~
+; Winfried Gerum (8 June 1995)
+ Set PREC=$Get(PREC,11)
+;;;
+;
+ Set X=X#(2*$$PI^MATH())
+ Set (VALUE,L)=X,SIGN=-1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
+ . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
+ . Quit
+ If 'VALUE Quit "INFINITE"
+ Quit 1/VALUE
+;===
+;
+;
+;
+CSCH(X,PREC) ;;;Quit 1/$%SINH^MATH(X,PREC) ;                           Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ; Alan Frank (October 1995)
+ Quit 1/$$SINH^MATH(X,$Get(PREC,11))
+ ;;;
+ ;
+ ;===
+ ;
+ ;
+DECDMS(X,PREC) ;
+ Set PREC=$Get(PREC,5)
+ Set X=X#360*3600
+ Set X=+$Justify(X,0,$Select((PREC-$Length(X\1))'<0:PREC-$Length(X\1),1:0))
+ Quit X\3600_":"_(X\60#60)_":"_(X#60)
+ ;===
+ ;
+ ;
+DEGRAD(X) Quit X*3.14159265358979/180
+ ;===
+ ;
+ ;
+DMSDEC(X) ;
+ Quit $Piece(X,":")+($Piece(X,":",2)/60)+($Piece(X,":",3)/3600)
+ ;===
+ ;
+ ;
+E() Quit 2.71828182845905
+ ;===
+ ;
+ ;
+EXP(X,PREC) ;
+ New L,LIM,K,VALUE
+ Set PREC=$Get(PREC,11)
+ Set L=X,VALUE=X+1
+ Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
+ For K=2:1 Set L=L*X/K,VALUE=VALUE+L Quit:($Translate(L,"-")<LIM)
+ Quit VALUE
+ ;===
+ ;
+ ;
+LOG(X,PREC) ;
+ QUIT $$LOG^MATH1(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+LOG10(X,PREC) ;
+ QUIT $$LOG10^MATH1(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+PI() Quit 3.14159265358979
+ ;===
+ ;
+ ;
+PRODUCE(IN,SPEC,MAX) ;
+ QUIT PRODUCE^MATH1(IN,SPEC,MAX)
+ ;===
+ ;
+ ;
+RADDEG(X) Quit X*180/3.14159265358979
+ ;===
+ ;
+ ;
+REPLACE(IN,SPEC) ;
+ QUIT $$REPLACE^MATH2(IN,SPEC)
+ ;===
+ ;
+ ;
+SEC(X,PREC) ;
+ QUIT $$SEC^MATH2(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+SECH(X,PREC) ;;;Quit 1/$%COSH^MATH(X,PREC) ;                           Number ~~
+ ; Winfried Gerum (8 June 1995)
+ ; Alan Frank (October 1995)
+ Quit 1/$$COSH^MATH(X,$Get(PREC,11))
+ ;;;
+ ;===
+ ;
+ ;
+SIGN(X) Quit $SELECT(X<0:-1,X>0:1,1:0)
+ ;===
+ ;
+ ;
+SIN(X,PREC) ;
+ QUIT $$SIN^MATH2(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+SIN(X) ;
+ QUIT $$SIN^MATH2(X)
+ ;===
+ ;
+ ;
+SINH(X,PREC) ;
+ QUIT $$SINH^MATH2(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+SQRT(X,PREC) ;
+ QUIT $$SQRT^MATH2(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+TAN(X,PREC) ;
+ QUIT $$TAN^MATH2(X,$Get(PREC,11))
+ ;===
+ ;
+ ;
+TANH(X,PREC) ;
+ ;
+ ;;; ;                                                                 Number ~~
+ ; Alan Frank (October 1995)
+ Set PREC=$Get(PREC,11)
+ ;;;
+ ;
+ Quit $$SINH^MATH(X,PREC)/$$COSH^MATH(X,PREC)
+ ;===
+ ;
+ ;
+
+BENCH
+BENCH ;From the DSM - BENCH ; V 2.9 28 Feb 99  01:27 PM
+ K  S N=10000000
+ W !!,"Use this utility to provide a benchmark test of CPU",!!
+ G A
+AAA Q
+A H 1 S A=$P($H,",",2)
+ F I=1:1:N
+ S A=$P($H,",",2)-A,^FOR=A W A," seconds for: F I=1:1:",N,!
+A1 S A=$P($H,",",2)
+ D SET F I=1:1:N I $D(X)
+ S A=$P($H,",",2)-A,^OVR=A W A-^FOR," seconds for: I $D(X) ;X undefined",!!
+EVA W !!,"***COMMANDS AND EVALUATER***",!! S ^OVR=^FOR
+ D SET F I=1:1:N S X=""
+ S A=$P($H,",",2)-A,^SET=A W A-^OVR," seconds for: S X=""""",!
+ D SET F I=1:1:N S X=1
+ D OUT W "S X=1",!
+EVB D SET F I=1:1:N S X="ABCDEFGHIJ"
+ D OUT W "S X=""ABCDEFGHIJ""",!
+ D SET F I=1:1:N S X="ABCDEFGHIJ01234567890123456789"
+ D OUT W "S X=""ABCDEFGHIJ01234567890123456789""",!
+ D SET F I=1:1:N S X="^^"_"ABCD"_"^"_"ABCD"_"^"_"^"_"ABCD"
+ D OUT W "S X=""^^""_""ABCD""_""^""_""ABCD""_""^""_""^""_""ABCD""",!
+ S B=55 D SET F I=1:1:N S X=B+33
+ D OUT W "S X=B+33 ;B=55",!
+ D SET F I=1:1:N S X=B-1
+ D OUT W "S X=B-1 ;B=55",!
+ S B=55 D SET F I=1:1:N I B>22
+ D OUT W "I B>22 ;B=55",!
+ S B="ABCDEFGHIJ" D SET F I=1:1:N I B="ABCDEFGHIJ"
+ D OUT W "I B=""ABCDEFGHIJ"" ;TRUE ",!
+ D SET F I=1:1:N I B["HIJ"
+ D OUT W "I B[""HIJ"" ;TRUE ",!
+FUN W !!,"***FUNCTIONS***",! S ^OVR=^SET
+ D SET F I=1:1:N S X=$E("ABCDEFGHIJ",9)
+ D OUT W "$E(""ABCDEFGHIJ"",9)",!
+ D SET F I=1:1:N S X=$E("ABCDEFGHIJ",9,10)
+ D OUT W "$E(""ABCDEFGHIJ"",9,10)",!
+ D SET F I=1:1:N S X=$F("ABCDEFGHIJ","G",6)
+ D OUT W "$F(""ABCDEFGHIJ"",""G"",6)",!
+ D SET F I=1:1:N S X=$L("ABCDEFGHIJ")
+ D OUT W "$L(""ABCDEFGHIJ"")",!
+ D SET F I=1:1:N S X=$P("A,B,C,D,E",",",3)
+ D OUT W "$P(""A,B,C,D,E"","","",3)",!
+ D SET F I=1:1:N S X=$P("A,B,C,D,E",",",3,5)
+ D OUT W "$P(""A,B,C,D,E"","","",3,5)",!
+MIS W !!,"***MISCELLANEOUS TESTS***",!! S ^OVR=^FOR
+ S B=55 D SET F I=1:1:N S X=B*33
+ D OUT W "S X=B*33 ;B=55",!
+ D SET F I=1:1:N S X=B\10
+ D OUT W "S X=B\10 ;B=55",!
+ D SET F I=1:1:N S X=.5+.005
+ D OUT W "S X=.5+.005",!
+ D SET F I=1:1:N D END
+ D OUT W "D END ; END at bottom of routine",!
+ D SET F I=1:1:N D AAA
+ D OUT W "D AAA ;AAA at beginning of routine",!
+END Q
+SET H 1 S A=$P($H,",",2) Q
+OUT W $P($H,",",2)-A-^OVR," seconds for: " Q
+
+FBENCH
+FBENCH   ;DBB;12-JUN-81 1:25 AM;BENCHMARK STANDARD MUMPS
+ K  S K=1,T=1,T(0)=0,N=10000000 ; SET N TO MULTIPLE OF 500
+ K ^TSX W !,"Test #    Name      usec/Pass     Without for",!!
+ F K=0:1:11 D DRV
+ K ^TSX K  W !,*7,"Finished",! Q
+DRV W $J(K,4),?7,$P("For Loop^Do-Quit^String^Pattern^Function^Conversion^Integer^Real^Symbol Tbl^Glb Set^Glb Retrv^Composite","^",K+1)
+ K (K,N,T) I $T(@("A"_K))'="" D @("A"_K)
+ H 1 S T=$P($H,",",2) D @K S T=$P($H,",",2)-T S:'K T(0)=T/N
+ S NN=$S(K<11:N,1:N\10) W ?20,$J(T/NN*1000000,8,2),?34,$J(T/NN-T(0)*1000000,8,2),! Q
+0 F J=1:1:N
+ Q
+1 F J=1:1:N D A2,A2
+ Q
+A2 S D="aaa/aaa,aaa,aaa" Q
+2 F J=1:1:N S I=$E("abcdefghijklm",3,6)_$P(D,",",2)["cdeg"
+ Q
+A3 S C="abcd123XX" Q
+3 F J=1:1:N I C?1"abc".A3N.E,C?4E1"123"2U
+ Q
+A4 S A=1,B=0,C=123.456 Q
+4 F J=1:1:N S I=$L($S($D(XXX):0,A:$J(C,7,2),1:0))
+ Q
+A5 S A=10,B=13 Q
+5 F J=1:1:N S I=A_B+A_B
+ Q
+A6 S I=200 Q
+6 F J=1:1:N S I=I*I\I+I-I*25\25+25-25
+ Q
+A7 S R=".222" Q
+7 F J=1:1:N S Y=R*R/R+R-R*.125/.125+.125-.125
+ Q
+A8 S D=""
+ F J=81:1:90 S D=D_"a" F I=71:1:90 S @($C(J,I)_"=D")
+ K I,J,D Q
+8 F J=1:1:N S A=J,A=TG,A=WQ,A=ZZ
+ Q
+9 F J=1:1:N\500 F Y=1:1:20 S A=$E(123456789,1,Y#10) F X=1:1:25 S ^TSX(Y,X)=A
+ Q
+10 F J=1:1:N\500 F Y=1:1:20 F X=1:1:25 S C=^TSX(Y,X)
+ Q
+11 F J=1:1:N\10 D B11
+ Q
+B11 S A1=1,B1=A1+1,C1=B1_B1,D1=$E(C1,3,99),E1="abcdefg"
+ F I=2:1:5,8 S F(I)=$E("123456789",1,I)
+ K:$L($D(F(3))) F(3) S L=I*22/3,E=$J(L,6,2)
+B11B S L=$O(F(L)) G:L'="" B11B
+ S A="aaa,",A=A_A_A_"xxxx" I A?3A1P.E S B=$P(A,",",2,3)
+ S:B["ppp" B=3 S C="d",@C=123
+ K A1,A,C1,C,F Q
+
+MUM3S0
+MUM3S0 ;
+elements ;
+ ; e - elements
+ ; e(elemId) - rotateVersions
+ ; e(elemId,rotateVersion) - bottom coordinate
+ ; e(elemId,rotateVersion,y,x) - point
+ ;
+ s e=7
+ ; ____
+ s e(1)=2,e(1,1)=2
+ s (e(1,1,2,1),e(1,1,2,2),e(1,1,2,3),e(1,1,2,4))=1
+ s (e(1,2,1,2),e(1,2,2,2),e(1,2,3,2),e(1,2,4,2))=1
+ ; |__
+ s e(2)=4,e(2,1)=2
+ s (e(2,1,1,1),e(2,1,2,1),e(2,1,2,2),e(2,1,2,3))=1
+ s (e(2,2,1,2),e(2,2,1,3),e(2,2,2,2),e(2,2,3,2))=1
+ s (e(2,3,2,1),e(2,3,2,2),e(2,3,2,3),e(2,3,3,3))=1
+ s (e(2,4,1,2),e(2,4,2,2),e(2,4,3,1),e(2,4,3,2))=1
+ ; __|
+ s e(3)=4,e(3,1)=2
+ s (e(3,1,1,3),e(3,1,2,1),e(3,1,2,2),e(3,1,2,3))=1
+ s (e(3,2,1,2),e(3,2,2,2),e(3,2,3,2),e(3,2,3,3))=1
+ s (e(3,3,2,1),e(3,3,2,2),e(3,3,2,3),e(3,3,3,1))=1
+ s (e(3,4,1,1),e(3,4,1,2),e(3,4,2,2),e(3,4,3,2))=1
+ ; ||
+ s e(4)=1,e(4,1)=2
+ s (e(4,1,1,1),e(4,1,1,2),e(4,1,2,1),e(4,1,2,2))=1
+ ; _-
+ s e(5)=2,e(5,1)=3
+ s (e(5,1,2,2),e(5,1,2,3),e(5,1,3,1),e(5,1,3,2))=1
+ s (e(5,2,1,2),e(5,2,2,2),e(5,2,2,3),e(5,2,3,3))=1
+ ; _|_
+ s e(6)=4,e(6,1)=2
+ s (e(6,1,1,2),e(6,1,2,1),e(6,1,2,2),e(6,1,2,3))=1
+ s (e(6,2,1,2),e(6,2,2,2),e(6,2,2,3),e(6,2,3,2))=1
+ s (e(6,3,2,1),e(6,3,2,2),e(6,3,2,3),e(6,3,3,2))=1
+ s (e(6,4,1,2),e(6,4,2,1),e(6,4,2,2),e(6,4,3,2))=1
+ ; -_
+ s e(7)=2,e(7,1)=3
+ s (e(7,1,2,1),e(7,1,2,2),e(7,1,3,2),e(7,1,3,3))=1
+ s (e(7,2,1,2),e(7,2,2,1),e(7,2,2,2),e(7,2,3,1))=1
+ q
+
+MUM3S1
+MUM3S1 ;
+change ;
+ s n=ne
+ s ne=$r(e)+1
+ s x=0,y=0,r=1
+ q
+clear ;
+ n c,i,j,q
+ s c=0
+ f j=h:-1:1 d
+ . s q=0
+ . f i=1:1:w i '$g(n(j,i)) s q=1 q
+ . q:q
+ . f i=j:-1:1 k n(i) m n(i)=n(i-1)
+ . s j=j+1,c=c+1
+ . d redraw^MUM3S2
+ i c d
+ . d score^MUM3S2($s(c=4:800,1:i*200-100*lv))
+ . s lc=lc+c
+ . i lv*10'>lc d score^MUM3S2(,1) s lc=0
+ q
+cls ;
+ d pos(0,0,1)
+ q
+collision(r,y,x) ;
+ n i,j,q
+ s q=0
+ f i=1:1:4 q:q  f j=1:1:4 q:q  s:$g(e(n,r,j,i))&($g(n(y+j,x+i))!(y+j>h!(x+i>w!(x+i<1)))) q=1
+ q q
+dev ;
+ n x,i
+ s x=$&%GETENV("size") s:x dh=$p(x," ",1),dw=$p(x," ",2) s:x="" dh=25,dw=80
+ s i="" f  s i=$o(x("D",i)) q:i=""  d:(x("D",i)[$p)
+ . s dw=$p($p(x("D",i),"WIDTH=",2)," ",1),dh=$p($p(x("D",i),"LENG=",2)," ",1)
+ q
+draw(n,r,y,x,o) ;
+ n i,j
+ s x=3*x+mx+1,y=y+my
+ f i=1:1:4 i y+i>my f j=1:1:4 d pos(y+i-1,3*(j-1)+x) w $s($g(e(n,r,i,j)):$$fill,$g(o):"   ",1:"")
+ q
+drop ;
+ n i
+ s i=0 f  q:$$fall  s i=i+2
+ d score^MUM3S2(i)
+ q
+exit ;
+ n s
+ s s=mt_"09  Piotr Koper <piotr.koper@gmail.com>09 8 h2tps:2/github.com/pkoper"
+ d cls d write^MUM3S2(.s,dh/2-3,dw/2-24) h 1 r *s:0 r *s:4
+ d cls u $p:"echo"
+ q
+fall(k) ;
+ n c
+ i $$collision(r,y+1,x) q:$q 1 q
+ s y=y+1
+ d:$g(k) score^MUM3S2(1)
+ q:$q 0 q
+fill() q $s(fl=1:"[#]",fl=2:"[+]",1:"[ ]")
+help ;
+ n i,x,l,j
+ s i=9 f x="MOVE: LEFT, RIGHT","TURN: UP","DROP: SPACE","","FILL: F","GRID: G","HELP: H","","QUIT: Q" d pos(dh/2-(h/2)+i,dw/2+(3*w/2+3)) d  s i=i+1
+ . i hl w x
+ . e  s l=$l(x) f j=1:1:l w " "
+ q
+intro ;
+ n s
+ s s=mt_"9 9 8 Mumtris for GT.M0"
+ d cls h 1 d write^MUM3S2(.s,dh/2-3,dw/2-24) h 1
+ d ticks^MUM3S2
+ d cls
+ r s:0
+ q
+key() ; 0 - timeout, 1 - exit, 2 - harddrop, 3 - other char
+ n q,c,d,ex,hd
+ s (q,d,ex,hd)=0
+ n i
+ n l s l=1
+ f  q:q  d
+ . r *c:0
+ . i c<0&'d d
+ .. f i=1:1:st*t10m r *c:0 q:c>-1  i $h
+ . i c<0 s q=1 q
+ . s d=2
+ . i c=27 s (q,ex)=1 q
+ . i c=0 d
+ .. s c=$a($e($k,3))
+ .. d:c=65 rotate^MUM3S2
+ .. d:c=66 fall(1)
+ .. d:c=67 right^MUM3S2
+ .. d:c=68 left
+ . i c=70!(c=102) s fl=fl+1#3 d preview
+ . s:c=71!(c=103) gr='gr
+ . i c=72!(c=104) s hl='hl d help
+ . d:c=73!(c=105) rotate^MUM3S2
+ . d:c=74!(c=106) left
+ . d:c=75!(c=107) fall(1)
+ . d:c=76!(c=108) right^MUM3S2
+ . s:c=81!(c=113) (q,ex)=1
+ . i c=32 d drop s hd=1
+ q $s(ex:1,hd:2,d:3,1:0)
+left q:$$collision(r,y,x-1)  s x=x-1 q
+lock ;
+ n i,j
+ f i=1:1:4 q:q  f j=1:1:4 q:q  s:$g(e(n,r,j,i)) n(y+j,x+i)=1
+ q
+matrix ;
+ n i,j
+ f i=0:1:h-1 d
+ . d pos(my+i,mx) w "|" f j=1:1:w w $s(gr:" . ",1:"   ")
+ . w "|"
+ d pos(my+h,mx) w "|" f j=1:1:w*3 w "~"
+ w "|",!
+ q
+new() ;
+ s r=1,x=w/2-2,y=1-e(n,r)
+ q:$q $$collision(r,y,x) q
+over ;
+ n s
+ s s="2 8_9 9 6 8_0 /2 5_/5_4 5_3 4_3 \5_2 \3_2 2_ 9_2_0/3 \2 3_\2_2 \2 /5 \_/ 2_ \3 /3 |3 \2 \/ 2/ 2_ \_2 2_ \0\4 \_\2 \/ 2_ \|2 Y Y2 \2 3_/2 /4 |4 \3 /\2 3_/|2 | \/0 \6_2 (4_2 /2_|_|2 /\3_2 > \7_2 /\_/2 \3_2 >2_|08 \/5 \/6 \/5 \/9  \/9  \/0"
+ d cls d write^MUM3S2(.s,dh/2-3,dw/2-32) h 1 r *s:0 r *s:2
+ q
+pos(y,x,c) ;
+ i ansi d
+ . ; workaround for ANSI driver: NL in some safe place (1,1)
+ . w $c(27)_"[1;1f",!,$c(27)_"["_(y\1+1)_";"_(x\1+1)_"f"
+ . w:$g(c) $c(27)_"[2J"
+ e  d
+ . u $p:(x=x:y=y)
+ . u:$g(c) $p:clearscreen
+ q
+preview ;
+ d draw(ne,1,3,-5,1)
+ q
+
+MUM3S2
+MUM3S2 ;
+right q:$$collision^MUM3S1(r,y,x+1)  s x=x+1 q
+redraw ;
+ d matrix^MUM3S1
+ d stack
+ d draw^MUM3S1(n,r,y,x)
+ q
+rotate ;
+ n k
+ s k=r#e(n)+1
+ q:$$collision^MUM3S1(k,y,x)
+ s r=k
+ q
+score(s,l) ;
+ s:$g(s) sc=sc+s
+ i $g(l) s lv=lv+l,st=$$step
+ d pos^MUM3S1(dh/2-(h/2)+2,dw/2+(3*w/2+3)) w "SCORE: ",sc
+ d pos^MUM3S1(dh/2-(h/2)+3,dw/2+(3*w/2+3)) w "LEVEL: ",lv
+ q
+stack ;
+ n i,j,x,y
+ s x=mx+1,y=my
+ f i=1:1:h f j=1:1:w i $g(n(i,j)) d pos^MUM3S1(y+i-1,3*(j-1)+x) w $$fill^MUM3S1
+ q
+step() q 0.85**lv*sb+(0.1*lv)
+ticks ;
+ n x,h,b,e,q
+ s h=$h,(b,e,q)=0 f i=1:1:1000000000 r *x:0 i h'=$h s h=$h d  q:q
+ . i 'b s b=i
+ . e  s e=i,q=1
+ s t10m=(e-b)\100
+ q
+write(s,y,x) ;
+ n i,j,l,c,d
+ d pos^MUM3S1(y,x)
+ s l=$l(s) f i=1:1:l d
+ . s c=$e(s,i)
+ . i c?1N d
+ .. i 'c s y=y+1 d pos^MUM3S1(y,x) q
+ .. s d=$e(s,i+1) f j=1:1:c w d
+ .. s i=i+1
+ . e  w c
+ d pos^MUM3S1(0,0)
+ q
+
+MUMTRIS
+MUMTRIS ; ; V 3.0 11 Jun 2012 06:11 PM
+;;
+;  This program is free software: you can redistribute it and/or modify
+;  it under the terms of the GNU Affero General Public License as
+;  published by the Free Software Foundation, either version 3 of the
+;  License, or (at your option) any later version.
+;
+;  This program is distributed in the hope that it will be useful,
+;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;  GNU Affero General Public License for more details.
+;
+;  You should have received a copy of the GNU Affero General Public License
+;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;
+; Mumtris
+; This is a tetris game in MUMPS, for GT.M, have fun.
+;
+; Resize your terminal (e.g. maximize your PuTTY window), restart GT.M so that
+; it can report true size of your terminal, and d ^mumtris.
+;
+; Try setting ansi=0 for GT.M compatible cursor positioning.
+;
+; NOTICE: Mumtris uses "active waiting" for making delays lower that 1s.
+;         That means that one of your CPU will be used at 99%. It's not a bug,
+;         the Mumtris and GT.M will be fully responsive. Take care when
+;         running on production system ;-)
+;
+mumtris ;
+ n ansi,e,n,w,h,gr,fl,hl,sc,lv,lc,sb,st,ml,dh,dw,mx,my,mt,r,y,x,t10m,c,ne,i,q
+ s ansi=1 ; use (faster) ANSI CSI instead of USE $P:X=x positioning
+ s w=10  ; matrix width
+ s h=22  ; matrix height (see below)
+ s gr=1  ; grid
+ s fl=1  ; fill
+ s hl=1  ; help
+ s sc=0  ; score
+ s lv=1  ; level
+ s lc=0  ; lines cleared at current level
+ s sb=70  ; step base
+ s st=$$step^MUM3S2 ; current step
+ s ml=3  ; move/rotate hold limit (without fall)
+ d dev^MUM3S1  ; defines dw, dh (device width, device height)
+ s h=dh-2 ; comment out to disable auto height
+ s mx=dw/2-(3*w/2) ; matrix left coordinate
+ s my=dh/2-(h/2)-1 ; matrix top coordinate
+ s mt="3 5_9 8 2_9 .2_02 /5 \2 2_ 2_2 6_/2 |8_|2_| 6_0 /2 \ /2 \|2 |2 \/5 \3 2_\_2 2_ \2 |/2 3_/0/4 Y4 \2 |2 /2 Y Y2 \2 |2 |2 | \/2 |\3_ \0\4_|2_2 /4_/|2_|_|2 /2_|2 |2_|2 |2_/4_2 >08 \/9 3 \/9 9 2 \/0" ; Mumtris
+ u $p:"noecho"
+ d cls^MUM3S1
+ d intro^MUM3S1
+ d elements^MUM3S0
+ s ne=$r(e)+1 ; new element
+ d change^MUM3S1 d new^MUM3S1() d preview^MUM3S1
+ d score^MUM3S2() d help^MUM3S1 d redraw^MUM3S2
+ s (i,q)=0
+ f  q:q  d
+ . d pos^MUM3S1(0,0)
+ . s c=$$key^MUM3S1
+ . i c=1 d exit^MUM3S1 s q=1 q
+ . s i=$s('c:0,1:i+1)
+ . s:i'<ml (i,c)=0
+ . i c'=3 i $$fall^MUM3S1 d lock^MUM3S1 d clear^MUM3S1 d change^MUM3S1 d preview^MUM3S1 i $$new^MUM3S1 d over^MUM3S1 d exit^MUM3S1 s q=1 q
+ . d redraw^MUM3S2
+ q
+
 
 
 
