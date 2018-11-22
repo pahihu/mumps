@@ -576,7 +576,7 @@ int X_put(const chr_x *a, u_char *b)
   int len;
 
   for(len = 0; (len < MAX_NAME_BYTES) && a->buf[len]; len++);
-  if (len == 0) fprintf(stderr,"zero\n");
+  /* if (len == 0) fprintf(stderr,"zero\n"); */
   *b++ = (u_char)len;
   bcopy(a->buf, b, len);
   return 1 + len;
