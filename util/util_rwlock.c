@@ -106,6 +106,13 @@ void SpinLockWriter(RWLOCK_T *lok)
 {
   int i, j;
 
+#if 0
+  for (i = 0; i < NUMTRY; i++) {
+    if (TryLockWriter(lok))
+      return;
+    SchedYield();
+  }
+#else
   for (i = 0; i < 16; i++)
   { for (j = 0; j < NUMTRY; j++)
       if (TryLockWriter(lok))
@@ -113,6 +120,7 @@ void SpinLockWriter(RWLOCK_T *lok)
     if (i & 3)
       SchedYield();
   }
+#endif
   LockWriter(lok);
 }
 
@@ -121,6 +129,13 @@ void SpinLockReader(RWLOCK_T *lok)
 {
   int i, j;
 
+#if 0
+  for (i = 0; i < NUMTRY; i++) {
+    if (TryLockReader(lok))
+      return;
+    SchedYield();
+  }
+#else
   for (i = 0; i < 16; i++)
   { for (j = 0; j < NUMTRY; j++)
       if (TryLockReader(lok))
@@ -128,6 +143,7 @@ void SpinLockReader(RWLOCK_T *lok)
     if (i & 3)
       SchedYield();
   }
+#endif
   LockReader(lok);
 }
 #endif

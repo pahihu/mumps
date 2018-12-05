@@ -176,10 +176,10 @@ short Vzhorolog(u_char *ret_buffer)             // $ZHOROLOG
 { static char buffer[32];
   static short hbuflen;
   static short buflen;
-  time_t bufsec = 0;
-  unsigned bufusec = 0;
+  static time_t bufsec = 0;
+  static unsigned bufusec = 0;
   struct timeval tv;                            // struct for gettimeofday()
-  time_t sec;                                   // seconds
+  time_t sec;                            	// seconds
   struct tm *buf;                               // struct for localtime()
   int day;                                      // number of days
 
