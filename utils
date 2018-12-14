@@ -324,6 +324,7 @@ S1 S TER=$O(@EG@(ER,"z"),-1),%DT=$G(@EG@(ER,TER,"$H"))
 %GD ;Do a global directory for current uci
  D INT(0,".E") Q
 INT(FL,PAT,UCI,ST,END,G,%,VOL,F,L,ZR) S ZR="INT^%GD"
+ S WEB=$P($D,",",2)=2
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"GLOBAL"))
  S VOL=^$J($J,"GLOBAL_VOL")
  S:PAT="" PAT=".E" I $E(PAT)'=".",$E(PAT)'?1N S PAT=$$PAT^%U(PAT)
@@ -333,6 +334,7 @@ INT(FL,PAT,UCI,ST,END,G,%,VOL,F,L,ZR) S ZR="INT^%GD"
  I FL-3 W "Global Directory of ["_UCI_","_VOL_"] matching '"_PAT_"'.",!!
  F  S L=$O(^[UCI,VOL]$G(L)) Q:L=""!($E(L)]END)  I L?@PAT D
  .I 'FL W:$X>70 ! W L,?$X\10+1*10 Q
+ .I FL=2 W "<A HREF=""?$$WWW^%25M&CMD=GE%20"_L_""">"_L_"</A>",!
  .I FL=3,$E(L)'="$" S @G@(L)=""
  Q
 
@@ -477,6 +479,18 @@ ERROR U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" G %M
  S ER=$P($EC,",",2) W:$X ! I $L(ER) W "Error: ",ER," ",$&%ERRMSG(ER),!
  W "$ST=",S,?10,$ST(S),?20,$ST(S,"PLACE"),!
  W "Code:",?10,$ST(S,"MCODE"),! Q
+WWW(A,F) ;
+ N CMD S CMD=$G(F("CMD"))
+ W "HTTP/1.0 200 OK",!!
+ W "<html><head><title>"_CMD_"</title>"
+ W:CMD="STA" "<meta http-equiv=""refresh"" content=""10"">"
+ W "</head><body><pre>",!
+ I CMD="RD"!(CMD="GD") D INT^%RD(2):CMD="RD",INT^%GD(2):CMD="GD" I 1
+ E  D INT
+ W "</pre></body></html>",!
+ K A S ^CMD=CMD
+ QUIT ""
+ ;
 
 %MH
 %MH ;Help on MCL
@@ -572,13 +586,25 @@ EX W ! U 0 C 1 W ! Q
 
 %SS
 %SS ;System Status
- W "Job",?5,"Pid",?15,"User",?25,"Pri",?30,"Routine",?40,"Commands",?50
- W "GlobRefs",?60,"Where",!
- S J=0 F  S J=$O(^$J(J)) Q:'J  D  W !
+ N WEB,PID,USR,PRI,ROU,CMD,GRF,WH S WEB=$P($D,",",2)=2
+ I WEB D  I 1
+ .W "<TABLE style=""width:100%""><TR>"
+ .W "<TH>Job</TH><TH>Pid</TH><TH>User</TH>"
+ .W "<TH>Pri</TH><TH>Routine</TH><TH>Commands</TH>"
+ .W "<TH>GlobRefs</TH><TH>Where</TH></TR>",!
+ E  D
+ .W "Job",?5,"Pid",?15,"User",?25,"Pri",?30,"Routine",?40,"Commands",?50
+ .W "GlobRefs",?60,"Where",!
+ S J=0 F  S J=$O(^$J(J)) Q:'J  D  W:'WEB !
  .N $ET S $ET="S $EC="""""
- .W J,?5,^$J(J,"PID"),?15,^$J(J,"OWNER"),?25,$J(^$J(J,"PRIORITY"),3)
- .W ?30,^$J(J,"ROUTINE_NAME"),?40,$J(^$J(J,"COMMANDS"),8),?50
- .W $J(^$J(J,"GREFS"),8),?60,$E(^$J(J,"$IO",0),1,20)
+ .S PID=^$J(J,"PID"),USR=^$J(J,"OWNER"),PRI=^$J(J,"PRIORITY")
+ .S ROU=^$J(J,"ROUTINE_NAME"),CMD=^$J(J,"COMMANDS"),GRF=^$J(J,"GREFS")
+ .S WH=$E(^$J(J,"$IO",0),1,20)
+ .I WEB D  I 1
+ ..W "<TR><TH><A HREF=""?$$WWW^%25M&CMD=SHO%20"_J_""">"_$J(J,5)_"</A></TH>"
+ ..W "<TH>"_PID_"</TH><TH>"_USR_"</TH><TH>"_PRI_"</TH><TH>"_ROU_"</TH>"
+ ..W "<TH>"_CMD_"</TH><TH>"_GRF_"</TH><TH>"_WHE_"</TH></TR>",!
+ .E  W J,?5,PID,?15,USR,?25,$J(PRI,3),?30,ROU,?40,$J(CMD,8),?50,$J(GRF,8),?60,WH
  W ! Q
 INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
  .W "Job Count Reference",! S J=""
@@ -613,18 +639,24 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
-INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET S ZR="INT^STA",$ET="D ERR^STA",EX=0
+INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET,WEB S ZR="INT^STA",$ET="D ERR^STA",EX=0
+ S WEB=$P($D,",",2)=2
  S VOL=^$J($J,"GLOBAL_VOL")
  S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait,dirty"
- W $&V(1,1),$C(27)_"[J" S:'INT INT=1
- D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
- W $&V(23,1),! Q
+ W:'WEB $&V(1,1),$C(27)_"[J" S:'INT INT=1
+ I WEB D  I 1
+ . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D MAX,PRT M O=N D SAVE I 1
+ . E  D LOAD,GET Q:EX  D MAX,PRT M O=N D SAVE Q
+ E  D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
+ W:'WEB $&V(23,1),! Q
+LOAD M O=^%STA("O") M M=^%STA("M") Q
+SAVE K ^%STA M ^%STA("O")=O M ^%STA("M")=M Q
 ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
 GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",VOL,$P(LS,",",I))
  S N=$H Q
 MAX F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>$G(M(%),-1) M(%)=D
  Q
-PRT W $&V(1,1),"System Statistics - ",$$T^%T($P($H,",",2))
+PRT W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
  W "Volume: ",^$S("VOL",VOL,"NAME")
  W " in file: ",^$S("VOL",VOL,"FILE"),!
@@ -716,9 +748,22 @@ CD(UCIVOL,%,UCI,VOL,ZR) S ZR="CD^%U"
  Q
 CDE W "?Invalid uci[,vol] specified",! Q
 
+WEB
+WEB ;New routine
+START ;
+  D CLEAN S ^WWW=1,^WWWLOG=1 J ^%WWW Q
+STOP ;
+  N % S %=$G(^WWW("JOB")) K:% ^$J(%) D CLEAN Q
+CLEAN ;
+  K ^WWW,^WWWLOG,^%STA Q
+ ;
+RESTART ;
+ D STOP,START Q
+ ;
+
 %WWW
 %WWW ;WWW Stuf
- S $ET="D ^%ET",MJN=$J O 10:(80:"S=5")
+ S $ET="D ^%ET",MJN=$J S ^WWW("JOB")=MJN O 10:($G(^WWW("PORT"),8080):"S=5")
 ;Open the server port - allow for 5 jobs
 READ D RECV^%WWW1(.AA)
 ;Get a message
@@ -726,20 +771,22 @@ READ D RECV^%WWW1(.AA)
 ;Look for a GET
  S FILE=$P($E(AA(%),6,99999)," HTTP/1.") S:FILE="" FILE="index.html"
 ;Extract file specification
- S %=$G(^WWWLOG) I % S %=%+1,^WWWLOG=%,^WWWLOG(%)=$H_","_$P(DEVICE,",",3)_","_FILE
+ D LOG(FILE)
 ;Log it if applicable
  I $E(FILE)="?" G EXT
 ;Look after extrinsics elsewhere
-FILE I FILE["%" S FILE=$$REMP(FILE)
+FILE I FILE["%" S FILE=$$REMP(FILE) D DBGLOG(FILE,"REMP")
 ;Check for % characters
  S F=$P(FILE,"/",$L(FILE,"/")),EXT="" S:F["." EXT=$&E($P(F,".",$L(F,".")))
+ D DBGLOG(F,"EXTRACT")
 ;Extract just the file name, also get the extension (in upper case)
- S REF=$$GETFILE(F) I REF="" D ERR^%WWW1() H:MJN-$J  G READ
+ S REF=$$GETFILE(F) I REF="" D ERR^%WWW1(FILE) H:MJN-$J  G READ
 ;Get the reference, if nosuch, give error and exit
  D SEND^%WWW1(REF,EXT) H:MJN-$J  G READ
 ;Send it
 ;---
 EXT S FUN=$P($E(FILE,2,999),"&"),FUN=$$REMP(FUN),FILE=$P(FILE,"&",2,9999)
+ D DBGLOG(FUN,"FUN"),DBGLOG(FILE,"FILE")
 ;Extrinsic functions - extract the function name
  K BB F  Q:FILE=""  S F=$P(FILE,"&"),FILE=$P(FILE,"&",2,9999) D
 ;Extract the fields
@@ -749,7 +796,7 @@ EXT S FUN=$P($E(FILE,2,999),"&"),FUN=$$REMP(FUN),FILE=$P(FILE,"&",2,9999)
 ;Setup the extrinsic and execute it
  .N $ET S $ET="D %ET^%WWW",@FUN
 ;.Saving the error trap
- I $G(AA)'="" S FILE=AA G FILE
+ I $G(AA)'="" S FILE=AA D DBGLOG(FILE,"AA") G FILE
 ;Display a file if required
  H:MJN-$J  G READ
 ;Done
@@ -782,6 +829,13 @@ CC(H,%,ZR) S ZR="CC^%WWW",H=$&E(H)
 ;Setup the 'HEX' array 0 -> F
  Q $C(%($E(H))*16+%($E(H,2)))
 ;Quit with decimal value
+DBGLOG(X,MSG) D:$G(^WWW("DBG")) LOG(X,$G(MSG)) Q
+;Log debug messages
+LOG(X,MSG) ;
+ N % S:$L($G(MSG)) X=MSG_": "_X
+ S %=$G(^WWWLOG) I % S %=%+1,^WWWLOG=%,^WWWLOG(%)=$H_","_$P(DEVICE,",",3)_","_X
+ Q
+;
 
 %WWW1
 %WWW1 ;WWW Stuf - subroutines
