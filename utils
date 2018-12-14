@@ -480,13 +480,15 @@ ERROR U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" G %M
  W "$ST=",S,?10,$ST(S),?20,$ST(S,"PLACE"),!
  W "Code:",?10,$ST(S,"MCODE"),! Q
 WWW(A,F) ;
- N CMD S CMD=$G(F("CMD"))
+ N CMD,DONE S CMD=$G(F("CMD")),DONE=0
  W "HTTP/1.0 200 OK",!!
  W "<html><head><title>"_CMD_"</title>"
  W:CMD="STA" "<meta http-equiv=""refresh"" content=""10"">"
  W "</head><body><pre>",!
- I CMD="RD"!(CMD="GD") D INT^%RD(2):CMD="RD",INT^%GD(2):CMD="GD" I 1
- E  D INT
+ I CMD="SYSINF" D ^SYSINF S DONE=1
+ I CMD="RD" D INT^%RD(2) S DONE=1
+ I CMD="GD" D INT^%GD(2) S DONE=1
+ D:'DONE INT
  W "</pre></body></html>",!
  K A S ^CMD=CMD
  QUIT ""
