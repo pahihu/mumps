@@ -3834,6 +3834,55 @@ mumtris ;
  . d redraw^MUM3S2
  q
 
+SYSINF
+SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
+ n i,r,NF,B,V,X,now,ver,COL,D,W,DOTZ
+ s now=$H,W=25,D=" ",COL=": ",ver=$P($SY,",",2),$P(DOTZ,".",21)=""
+ w !,"MUMPS V1 system 'detector'"
+ w !,"=========================="
+ d show("Running at",$$D^%D(now)_" ["_$$T^%T($P(now,",",2))_"]")
+ d show("Version",$P(ver,D,1,2)_" ("_$P(ver,D,6,99)_")")
+ d show("Operating System",$P(ver,D,4,5))
+ d show("M-compiler version",$$compver("SYSINF"))
+ d show("User/Process limit",$$cj_"/"_^$J)
+ s W=25,D=";",COL=": " w !
+ f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),^$S($P(r,D,3)))
+ w ! s B=^$S("VOL",1,"BLOCK")
+ f i=0:1 s r=$T(VOL+i),NF=$L(r,D) q:2=NF  d
+ . s V=^$S("VOL",1,$P(r,D,3))
+ . s:3<NF X=$P(r,D,4),V=V_" ==> "_$$bytes(@X)
+ . d show($P(r,D,2),V)
+ d show("Journal New Global",^$G("$GLOBAL","JOURNAL"))
+ w !
+ Q
+show(msg,val) ;show msg and val
+ w !,$E(msg_DOTZ,1,W),COL,val
+ Q
+compver(rn) ;return compiler version
+ Q $$CVT^JOURNLST($E($G(^$R(rn,0)),1,2))
+bytes(n) ;convert to bytes
+ n GB,MB,KB s KB=1024,MB=1024*KB,GB=1024*MB
+ Q $S(GB-1<n:$J(n/GB,0,2)_"GB",MB-1<n:$J(n/MB,0,2)_"MB",KB-1<n:$J(n/KB,0,0)_"KB",1:n_"B")
+cj() ;current job no
+ n x,cnt
+ s cnt=0,x="" f  s x=$O(^$J(x)) q:x=""  s cnt=cnt+1
+ Q cnt
+VOL ;System Volume Name;NAME
+ ;Volume Database File;FILE
+ ;Volume Block Size;BLOCK
+ ;Volume Size;SIZE;V*B
+ ;Volume Header Block Size;HEADER;(V-$$LBLKSIZE^%MV1)*8*B
+ ;Volume Free Size;FREE;V*B
+ ;Volume Writelock Flag;WRITELOCK
+ ;Volume Journaling;JOURNAL_AVAILABLE
+ ;Volume Journal File;JOURNAL_FILE
+ ;Volume Journal File Size;JOURNAL_SIZE;V
+ ;
+SYS ;$NEXT enabled;$NEXTOK
+ ;Exponent junk;EOK
+ ;DO/GO offset;OFFOK
+ ;Arithmetic precision;PRECISION
+ ;
 
 
 
