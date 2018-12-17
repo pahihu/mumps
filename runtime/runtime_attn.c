@@ -217,13 +217,15 @@ int ForkIt(int cft)				// Copy File Table True/False
   partab.jobtab = &systab->jobtab[mid];         // and save our jobtab address
 
   for (i = 0; i < 10000; i++)			// wait for the above to happen
-  { if (getpid() == partab.jobtab->pid)		// done yet ?
+  { MEM_BARRIER;
+    if (getpid() == partab.jobtab->pid)		// done yet ?
       break;					// yes - exit
     SchedYield();                    		// give up slice
   }
   if (i > 9999)					// if that didn't work
   { for (i = 0; ; i++)				// try the long way
-    { if (getpid() == partab.jobtab->pid)	// done yet ?
+    { MEM_BARRIER;
+      if (getpid() == partab.jobtab->pid)	// done yet ?
         break;					// yes - exit
       if (i > 120)				// two minutes is nuff
 	panic("ForkIt: Child job never got setup");
