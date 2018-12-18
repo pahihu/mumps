@@ -37,11 +37,11 @@ based on MUMPS V1.
 By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
 10 write daemons. The MUMPS engine and the daemons are connected by two
 queues: the dirty queue and the garbage queue respectively. Each daemon
-checks the queues to work to be done. By default each daemon polls the
+checks the queues for work to be done. By default each daemon polls the
 queues every 1000ms. When you make multiple pages dirty in the global cache
 and the queue gets full you need to wait for the next poll time. Here
-helps the adaptive rest time, which checks statistics counters in the MUMPS
-environment and when there are processes waiting for free queue slots
+helps the adaptive rest time, which checks the statistics counters in the 
+MUMPS environment and when there are processes waiting for free queue slots
 it reduces the poll time. When the load vanishes it increases the poll time
 again. To query the current rest time between write daemon polls, query
 the *RESTTIME* system parameter.
@@ -249,7 +249,7 @@ set to the value of *glvn*.
 
 `$O[RDER](glvn[,dir[,target]])`
 
-Works like `$[ORDER]`, but it sets *target* to the value of
+Works like `$O[RDER]`, but it sets *target* to the value of
 *glvn* if given.
 
 ---
@@ -263,12 +263,12 @@ Works like `$Q[UERY]`, but it sets *target* to the value of
 
 `$ZINCR[EMENT](glvn[,expr])`
 
-Increments atomically *glvn* with 1, or with the value of
+Atomically increments *glvn* by 1, or with the value of
 *expr*.
 
 ---
 
-`$ZSEND(obj,"tag"[arg1,arg2...])`
+`$ZSEND(obj,"tag"[,arg1,arg2...])`
 
 Calls dynamically `tag^class(obj,arg1,arg2...)`.
 *obj* should be in the form *value[@class]*. Note the class part
@@ -317,7 +317,7 @@ Returns 1 if the element is present in *lst* at position *pos*.
 
 `$LF(lst,val[,after])`
 
-Returns position of *val* in list *lst*. If *val* is not found
+Returns the position of *val* in list *lst*. If *val* is not found
 it returns 0. Search begins after the position *after*. *After*
 defaults to 0.
 
@@ -503,7 +503,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 
 The additional MUMPS commands and functions are inspired by several
 MUMPS implementations. If you want to know more please consult the
-repsective descriptions below:
+respective descriptions below:
 
 - `KVALUE`, `KSUBSCRIPT` see "The Annotated M[UMPS] Standards" by Ed de Moel
 - `$DATA()`,`$ORDER()`,`$QUERY()` see current Cache documentation
