@@ -273,7 +273,6 @@ int ForkIt(int cft)				// Copy File Table True/False
 #ifdef MV1_DEV
   sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
   IGNORE_VALUE(freopen(stderr_out, "w", stderr));	// redirect stderr
-  mv1log(1,"JOB %d (%d) started",-ret,getpid());
 #else
   IGNORE_VALUE(freopen("/dev/null", "w", stderr));	// redirect stderr
 #endif
