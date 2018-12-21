@@ -114,6 +114,7 @@ short run(long savasp, long savssp)		// run compiled code
   u_char unktmp[sizeof(short)+MAX_NAME_BYTES];  // buffer for unkrou cstring
   double d;                                     // a handy double
   static int initBits = 1;                      // init ZBIT functions
+  u_char jobstr[MAX_STR_LEN];                   // job command string (P.Ottis)
 
 
   unkrou = (cstring *) &unktmp;                 // setup "%Unknown" cstring
@@ -2560,39 +2561,52 @@ short run(long savasp, long savssp)		// run compiled code
 	  args &= 127;				// clear timeout flag
 	  partab.jobtab->test = 1;		// ALWAYS WORKS ???
 	}
+        // D tag+offset^routine("arg1",...,"argN")
+        i = 31 + 1 + 31 + 1 + 31;               // check arg length
+        if (args)
+        { i += 1 + 2 * args + (args - 1) + 1;   // parens + quotes + commas
+          for (j = args - 1; j > 0; --j)	// for each arg
+	  { cptr = (cstring *) astk[asp - j];	// get the arg
+	    i += cptr->len;                     // sum the length
+          }
+        }
+        i++;                                    // trailing zero
+        if (i > MAX_STR_LEN)                    // should fit in cstring
+          ERROR(-ERRM75);
 	i = ForkIt(0);				// fork with no file table
 	if (i > 0) break;			// check for ok (parent)
 	if (i == 0) ERROR(-(ERRMLAST+ERRZLAST+errno)) // die on error
-	i = 0;					// sstk ptr
-	sstk[i++] = 'D';			// pretend it's a DO
-	sstk[i++] = ' ';			// and a space
+	i = 0;					// jobstr ptr
+	jobstr[i++] = 'D';			// pretend it's a DO
+	jobstr[i++] = ' ';			// and a space
 	list = (var_u *) &tag;			// point at the tag
 	j = 0;					// clear pointer
 	while ((list->var_cu[j] != 0) && (j < MAX_NAME_BYTES))
-	  sstk[i++] = list->var_cu[j++];	// copy it
+	  jobstr[i++] = list->var_cu[j++];	// copy it
 	if (offset)				// if we have an offset
-	{ sstk[i++] = '+';			// add the plus
-	  i += itocstring(&sstk[i], offset);	// and the number
+	{ jobstr[i++] = '+';			// add the plus
+	  i += itocstring(&jobstr[i], offset);	// and the number
 	}
-	sstk[i++] = '^';			// the ^
+	jobstr[i++] = '^';			// the ^
 	list = (var_u *) &rou;			// point at the rou
 	j = 0;					// clear pointer
 	while ((list->var_cu[j] != 0) && (j < MAX_NAME_BYTES))
-	  sstk[i++] = list->var_cu[j++];	// copy it
+	  jobstr[i++] = list->var_cu[j++];	// copy it
 	if (args)
-	{ sstk[i++] = '(';			// an open bracket
+	{ jobstr[i++] = '(';			// an open bracket
 	  for (j = args - 1; j > 0; --j)	// for each arg
-	  { sstk[i++] = '"';			// quote it
+	  { jobstr[i++] = '"';			// quote it
 	    cptr = (cstring *) astk[asp - j];	// get the arg
-	    bcopy(cptr->buf, &sstk[i], cptr->len); // copy the arg
+	    bcopy(cptr->buf, &jobstr[i], cptr->len); // copy the arg
 	    i = i + cptr->len;			// count it
-	    sstk[i++] = '"';			// close the quote
-	    sstk[i++] = ',';			// add a comma
+	    jobstr[i++] = '"';			// close the quote
+	    jobstr[i++] = ',';			// add a comma
 	  }
 	  --i;					// backup over last comma
-	  sstk[i++] = ')';			// the close bracket
+	  jobstr[i++] = ')';			// the close bracket
 	}
-	sstk[i] = '\0';				// null terminate it
+	jobstr[i] = '\0';			// null terminate it
+        bcopy(&jobstr[0], &sstk[0], i + 1);     // move jobstr[] to string stack
 	return JOBIT;				// get it going
 
       case CMGOTAG:				// GOTO tag in this rou

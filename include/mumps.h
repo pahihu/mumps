@@ -150,7 +150,7 @@
 #define IN_TERMS_SIZE   32                      // Input Terminator Array size
 
 #if defined(__linux__) && !defined(__LP64__)
-#define SHMAT_SEED      (void *)0x1000000
+#define SHMAT_SEED      (void *)0x10000000
 #elif defined(__APPLE__) 			// OS X 10.11 El Capitan
 #if defined(__LP64__)   
 #define SHMAT_SEED      (void *)0x200000000

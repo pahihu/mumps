@@ -533,4 +533,5 @@ MUMPS with commands/functions written in MUMPS
 | Global translation table size	    | 255		       |
 | Maximum number of jobs            | 256                      |
 | Maximum number of daemons	    | 10		       |
+| Maximum JOB command length        | 32KB                     |
 
