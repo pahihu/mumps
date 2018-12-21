@@ -35,5 +35,6 @@ Fixes:
   * atomic access in dirty/garbage queue
   * reverse $QUERY() for locals
   * $FNUMBER() suppress sign for 0
+  * JOB argument passing
 
 **NOTE**: Use the code! Good luck!
