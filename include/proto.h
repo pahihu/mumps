@@ -295,6 +295,7 @@ void UTIL_assert(int cond,const char *expr,const char *path,int lno);
 
 int msleep_(u_long mseconds,const char *path,int lno);  // sleep milliseconds
 #define msleep(ms)      msleep_(ms,__FILE__,__LINE__)
+int mv1log(int depth,const char *fmt,...);
 
 // Xcalls
 //

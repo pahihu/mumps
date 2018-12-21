@@ -127,16 +127,20 @@ start:
   srandomdev();					// randomize
 #endif
 
+  mv1log(0,"clear partab.jobtab");
   partab.jobtab = (jobtab *) NULL;		// clear jobtab pointer
+  mv1log(0,"open database");
   dbfd = open(file, O_RDONLY);                  // open the database for read
   if (dbfd < 0) return (errno);                 // if that failed
+  mv1log(0,"done open database");
   // i = fcntl(dbfd, F_NOCACHE, 1);
   if (start_type == TYPE_RUN)			// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
   }
   if (env != NULL)				// passed in uci ?
-  { env_num = 0;				// clear uci number
+  { mv1log(0,"env setup");
+    env_num = 0;				// clear uci number
     uci_ptr = &systab->vol[0]->vollab->uci[0];	// get ptr to uci table
     //tmp.var_qu = 0;				// zero entire name
     X_Clear(tmp.var_xu);			// zero entire name
@@ -151,12 +155,14 @@ start:
        break;					// and exit loop
      }
     if (env_num == 0)
-    { ret = ENOENT;				// complain on fail
+    { mv1log(0,"ERROR: env_num == 0");
+      ret = ENOENT;				// complain on fail
       goto exit;				// and exit
     }
   }
 
   pid = (int) getpid();				// get process id
+  mv1log(0,"search jobtab");
   for (i = 0; i < systab->maxjob; i++)		// scan the slots
   { ret = systab->jobtab[i].pid;		// get pid
     if ((ret != pid) && (ret))			// if one there and not us
@@ -173,6 +179,7 @@ start:
     }
   }
 
+  mv1log(0,"lock SYS");
   ret = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
   if (ret < 0) goto exit;			// give up on error
   for (i = 0; i < systab->maxjob; i++)		// look for a free slot
@@ -187,8 +194,10 @@ start:
     }
   }
   ret = SemOp(SEM_SYS, systab->maxjob);		// unlock systab
+  mv1log(0,"unlock SYS");
   if (partab.jobtab == NULL)			// if that failed
-  { ret = ENOMEM;				// error message
+  { mv1log(0,"ERROR: partab.jobtab == NULL");
+    ret = ENOMEM;				// error message
     goto exit;					// and exit
   }
 
@@ -200,16 +209,19 @@ start:
   }
   else 
   { if (systab->maxjob == 1)			// if single job
-    { ret = ENOMEM;				// error message
+    { mv1log(0,"ERROR: maxjob == 1");
+      ret = ENOMEM;				// error message
       partab.jobtab = NULL;			// clear this
       goto exit;				// and exit
     }
 
     i = getgroups(MAX_GROUPS, gidset);		// get groups
     if (i < 0)					// if an error
-    { ret = errno;				// get the error
+    { mv1log(0,"ERROR: getgroups() failed");
+      ret = errno;				// get the error
       goto exit;				// and exit
     }
+    mv1log(0,"check PRVGRP");
     while (i > 0)				// for each group
     { if (gidset[i - 1] == PRVGRP)		// if it's "wheel" or "admin"
       { partab.jobtab->priv = 1;		// say yes
@@ -217,8 +229,10 @@ start:
       }
       i--;					// decrement i
     }
+    mv1log(0,"done check PRVGRP");
   }
 
+  mv1log(0,"partab setup");
   partab.jobtab->precision = systab->precision;	// decimal precision
 
   partab.jobtab->uci = env_num;			// uci number
@@ -246,6 +260,7 @@ start:
   partab.vol_fds[0] = dbfd;			// make sure fd is right
 
   ST_Init();					// initialize symbol table
+  mv1log(0,"done partab setup");
 
   if ((systab->vol[0]->vollab->journal_available) &&
       (systab->vol[0]->vollab->journal_requested)) // if journaling
@@ -263,10 +278,13 @@ start:
 
   if (cmd != NULL)				// command specified ?
   {
+    mv1log(0,"CMD specified: %s",cmd);
     source_ptr = (u_char *) cmd;		// where the code is
     cptr = (cstring *) &sstk[ssp];		// where the compiled goes
     comp_ptr = cptr->buf;			// the data bit
+    mv1log(0,"begin parse");
     parse();
+    mv1log(0,"end parse");
     *comp_ptr++ = CMQUIT;			// add the quit
     *comp_ptr++ = ENDLIN;			// JIC
     *comp_ptr++ = ENDLIN;			// JIC
@@ -274,6 +292,7 @@ start:
     cptr->len = i;				// save for ron
     ssp = ssp + i + sizeof(short) + 1;		// point past it
     mumpspc = &cptr->buf[0];			// setup the mumpspc
+    mv1log(0,"dostk setup");
     partab.jobtab->dostk[0].routine = (u_char *) cmd; 	// where we started
     partab.jobtab->dostk[0].pc = mumpspc;	// where we started
     partab.jobtab->dostk[0].symbol = NULL;	// nowhere
@@ -292,12 +311,15 @@ start:
     partab.jobtab->dostk[0].savssp = ssp;	// string stack
     partab.jobtab->dostk[0].asp = asp;		// address stack ptr
     partab.jobtab->dostk[0].ssp = ssp;		// string stack
+    mv1log(0,"done dostk setup");
 
     partab.jobtab->attention = 0;
     partab.jobtab->trap = 0;
     partab.jobtab->async_error = 0;
     isp = 0;					// clear indirect pointer
+    mv1log(0,"before run()");
     s = run(asp, ssp);
+    mv1log(0,"after run()");
     if (s == OPHALT) goto exit;			// look after halt
     if (s == JOBIT) goto jobit;			// look after JOB
     partab.jobtab->io = 0;			// force chan 0
@@ -436,13 +458,16 @@ exit:						// general exit code
   return ret;                                  	// and exit
 
 jobit:						// code for JOB
+  mv1log(0,"doing JOBIT");
   start_type = TYPE_JOB;			// what we are doing
   env_num = partab.jobtab->ruci;		// remember (current) rou uci
   cmd = (char *) &sstk[0];			// where the command is
   ssp = strlen((const char *) sstk);		// protect original command
+  mv1log(0,"command: %s",cmd);
   isp = 0;					// clear all these
   asp = 0;
   ret = 0;
   env = NULL;
+  mv1log(0,"back to START");
   goto start;					// go do it
 }

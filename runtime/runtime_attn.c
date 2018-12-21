@@ -51,6 +51,30 @@
 #include "compile.h"				// for XECUTE
 #include "seqio.h"				// for sig stuff
 
+#include <stdarg.h>
+
+int mv1log(int depth,const char *fmt,...)
+{ 
+#ifdef MV1_DEV
+  int i;
+  va_list ap;
+
+
+  fprintf(stderr,"\r\n");
+  for (i = 0; i < depth; i++)
+     fprintf(stderr,"  ");
+
+  va_start(ap, fmt);
+  i = vfprintf(stderr,fmt,ap);
+  va_end(ap);
+
+  fflush(stderr);
+  return i;
+#else
+  return 0;
+#endif
+}
+
 extern int failed_tty;				// tty reset flag
 
 short attention()				// process attention
@@ -249,6 +273,7 @@ int ForkIt(int cft)				// Copy File Table True/False
 #ifdef MV1_DEV
   sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
   IGNORE_VALUE(freopen(stderr_out, "w", stderr));	// redirect stderr
+  mv1log(1,"JOB %d (%d) started",-ret,getpid());
 #else
   IGNORE_VALUE(freopen("/dev/null", "w", stderr));	// redirect stderr
 #endif

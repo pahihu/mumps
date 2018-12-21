@@ -2180,26 +2180,32 @@ short run(int savasp, int savssp)		// run compiled code
 	  partab.jobtab->test = 1;		// ALWAYS WORKS ???
 	}
 	i = ForkIt(0);				// fork with no file table
+        mv1log(0,"after ForkIt");
 	if (i > 0) break;			// check for ok (parent)
 	if (i == 0) ERROR(-(ERRMLAST+ERRZLAST+errno)) // die on error
+        mv1log(0,"prepare arglist");
 	i = 0;					// sstk ptr
 	sstk[i++] = 'D';			// pretend it's a DO
 	sstk[i++] = ' ';			// and a space
+        mv1log(0,"copy tag");
 	list = (var_u *) &tag;			// point at the tag
 	j = 0;					// clear pointer
 	while ((list->var_cu[j] != 0) && (j < MAX_NAME_BYTES))
 	  sstk[i++] = list->var_cu[j++];	// copy it
 	if (offset)				// if we have an offset
-	{ sstk[i++] = '+';			// add the plus
+	{ mv1log(0,"copy offset");
+          sstk[i++] = '+';			// add the plus
 	  i += itocstring(&sstk[i], offset);	// and the number
 	}
 	sstk[i++] = '^';			// the ^
+        mv1log(0,"copy rou");
 	list = (var_u *) &rou;			// point at the rou
 	j = 0;					// clear pointer
 	while ((list->var_cu[j] != 0) && (j < MAX_NAME_BYTES))
 	  sstk[i++] = list->var_cu[j++];	// copy it
 	if (args)
-	{ sstk[i++] = '(';			// an open bracket
+	{ mv1log(0,"copy args");
+          sstk[i++] = '(';			// an open bracket
 	  for (j = args - 1; j > 0; --j)	// for each arg
 	  { sstk[i++] = '"';			// quote it
 	    cptr = (cstring *) astk[asp - j];	// get the arg
@@ -2211,7 +2217,9 @@ short run(int savasp, int savssp)		// run compiled code
 	  --i;					// backup over last comma
 	  sstk[i++] = ')';			// the close bracket
 	}
+        mv1log(0,"terminate arglist");
 	sstk[i] = '\0';				// null terminate it
+        mv1log(0,"arglist: %s",&sstk[0]);
 	return JOBIT;				// get it going
 
       case CMGOTAG:				// GOTO tag in this rou
