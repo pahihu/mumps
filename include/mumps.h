@@ -108,8 +108,12 @@
 
 #if defined(__linux__) && !defined(__LP64__)
 #define SHMAT_SEED      (void *)0x1000000
-#elif defined(__APPLE__) && defined(__LP64__)   // OS X 10.10 Yosemite
+#elif defined(__APPLE__)                        // macOS 10.10 & 10.11
+#if defined(__LP64__)   
 #define SHMAT_SEED      (void *)0x200000000
+#else
+#define SHMAT_SEED      (void *)0x1800000
+#endif
 #endif
 
 #ifndef SHMAT_SEED
