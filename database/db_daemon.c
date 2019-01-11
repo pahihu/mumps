@@ -55,8 +55,15 @@
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
 
+#ifdef MV1_DGP
+#include <nanomsg/nn.h>					// nanomsg lib
+#include <nanomsg/reqrep.h>				// REQREP
+#include "dgp.h"					// DGP protos
+#endif
+
 static int dbfds[MAX_VOL];				// global db file desc
 static int myslot;					// my slot in WD table
+static int myslot_net;					// my slot in network
 static int SLOT_JRN;                                    // JRN daemon
 static int SLOT_VOLSYNC;                                // VOLSYNC daemon
 
@@ -125,15 +132,177 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
+#ifdef MV1_DGP
+static void dgp_mkerror(DGPReply *rep, const char *msg)
+{ DGPData *data;
+
+  rep->header.code    = DGP_SER;
+  rep->header.version = DGP_VERSION;
+  rep->header.hdrlen  = sizeof(DGPHeader);
+  rep->header.msgflag = 0;
+
+  data = (DGPData*) &rep->buf[0];
+  data->len = strlen(msg);
+  bcopy(msg, &data->buf[0], data->len);
+
+  rep->header.msglen  = sizeof(DGPHeader) + sizeof(short) + data->len;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// Function: do_netdaemon
+// Descript: do network daemon type things
+// Input(s): none
+// Return:   none
+//
+
+void do_netdaemon(void)
+{ 
+#ifdef MV1_DGP
+  int rv;						// return value
+  int sock;						// NN socket
+  char msg[256];					// message buffer
+  char url[128];					// server URL
+  int bytes;						// bytes sent
+  DGPRequest req;					// DGP request
+  DGPReply rep;						// DGP reply
+
+  sock = nn_socket(AF_SP, NN_REP);
+  if (sock < 0)
+  { sprintf(msg, "nn_socket(): %s", nn_strerror(nn_errno()));
+    panic(msg);
+  }
+
+  sprintf(url, "%s:%d", systab->dgpURL, systab->dgpPORT + myslot_net);
+  rv = nn_bind(sock, url);
+  if (rv < 0)
+  { sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
+    panic(msg);
+  }
+
+  do_log("accepting connections on %s\n", url);
+  for (;;) {
+    bytes = nn_recv(sock, &req, sizeof(req), 0);
+    if (bytes < 0)
+    { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
+      continue;
+    }
+    rep.header.code = 0;
+    if (bytes != req.header.msglen)			// check request
+    { do_log("message size mismatch: received %d, msglen is %d\n",
+		bytes, req.header.msglen);
+      dgp_mkerror(&rep, "invalid message size");
+    }
+    switch (req.header.code)
+    { case DGP_LOKV: break;
+      case DGP_ULOK: break;
+      case DGP_ZALL: break;
+      case DGP_ZDAL: break;
+      case DGP_GETV: break;
+      case DGP_SETV: break;
+      case DGP_KILV: break;
+      case DGP_ORDV: break;
+      case DGP_QRYV: break;
+      case DGP_DATV: break;
+      default:
+        do_log("unknown message code: %d\n", req.header.code);
+	dgp_mkerror(&rep, "unknown message");
+    }
+
+    if (req.header.code == DGP_ERR)
+      dgp_mkerror(&rep, "not implemented yet");
+
+    bytes = nn_send(sock, &rep, rep.header.msglen, 0);
+    if (bytes < 0)
+      do_log("nn_send: %s\n", nn_strerror(nn_errno()));
+  }
+#else
+  for (;;)
+    sleep(1);
+#endif
+}
+
+extern int   curr_sem_init;
+extern pid_t mypid;
+
+//-----------------------------------------------------------------------------
+// Function: Net_Daemon
+// Descript: Start network daemon for passed in slot and vol#
+// Input(s): slot# and Vol#
+// Return:   0 -> Ok, any non-zero = error
+//
+
+int Net_Daemon(int slot, int vol)			// start a daemon
+{ int i;						// a handy int 
+  int k;						// and another
+  int fit;						// for fork ret
+  char logfile[100];					// daemon log file name
+  FILE *a;						// file pointer
+  time_t t;						// for ctime()
+  int rest;						// rest time
+  unsigned stalls, old_stalls;				// no. of stalls
+
+  volnum = vol;						// save vol# here
+
+  fit = ForkIt(-1);					// start a daemon
+  if (fit > 0)						// check for ok (parent)
+  { systab->vol[volnum-1]->wd_tab[slot].pid = fit;	// put in childs pid
+    systab->vol[volnum-1]->wd_tab[slot].type = 1;	// network daemon
+    return (0);						// return (am parent)
+  }							// end parent code
+  if (fit < 0)
+  { return (errno);					// die on error
+  }
+
+  curr_lock = 0;					// clear lock flag
+  bzero(semtab, sizeof(semtab));
+  curr_sem_init = 1;
+  for (i = 0; i < MAX_VOL; i++)
+  { last_map_write[i] = (time_t) 0;                     // clear last map write
+    dbfds[i] = 0;                                       // db file desc.
+  }
+  mypid = 0;
+
+  // -- Create log file name --
+  k = strlen(systab->vol[0]->file_name);		// get len of filename
+  for (i=(k-1); (systab->vol[0]->file_name[i] != '/') && (i > -1); i--);
+  							// find last '/'
+  strncpy( logfile, systab->vol[0]->file_name, (i+1) );	// copy to log filename
+  logfile[(i+1)] = (char) '\0';				// terminate JIC
+
+  sprintf(&logfile[strlen(logfile)],"netdaemon_%d.log",slot); // add slot to nm
+  myslot = slot;					// remember my slot
+  myslot_net = myslot - systab->vol[0]->num_of_daemons; // remember network slot
+
+  // --- Reopen stdin, stdout, and stderr ( logfile ) ---
+  a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
+  a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
+  a = freopen(logfile,"a",stderr);			// stderr to logfile
+  if (!a) return (errno);			        // check for error
+
+  dbfds[0] = open(systab->vol[0]->file_name, O_RDONLY);	// open database rdonly
+  if (dbfds[0] < 0)
+  { do_log("Cannot open database file %s\n",
+                  systab->vol[0]->file_name);
+    return(errno);					// check for error
+  }
+
+  t = time(0);						// for ctime()
+  do_log("Network Daemon %d started successfully\n", myslot);   // log success
+
+  i = MSLEEP(1000);					// wait a bit
+
+  do_netdaemon();					// do something
+
+  return 0;						// never gets here
+}
+
 //-----------------------------------------------------------------------------
 // Function: DB_Daemon
 // Descript: Start daemon for passed in slot and vol#
 // Input(s): slot# and Vol#
 // Return:   0 -> Ok, any non-zero = error
 //
-
-extern int   curr_sem_init;
-extern pid_t mypid;
 
 u_char *wrbuf = 0;
 
@@ -386,6 +555,7 @@ void do_dismount()					// dismount volnum
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
   int jfd;                                              // jrn file desc.
+  int num_daemons;					// num of all daemons
 
   i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); //remove share
   for (i = 0; i < systab->maxjob; i++)			// for each job
@@ -452,7 +622,9 @@ void do_dismount()					// dismount volnum
   while (i)						// while theres pids
   { i = 0;						// reset pid counter
     while (SemOp( SEM_WD, WRITE ));			// lock daemon table
-    for (j=1; j<systab->vol[0]->num_of_daemons; j++)    // search
+    num_daemons = systab->vol[0]->num_of_daemons +	// write daemons
+		  systab->vol[0]->num_of_net_daemons;	// network daemons
+    for (j=1; j<num_daemons; j++)    			// search
     { if (systab->vol[0]->wd_tab[j].pid)
       { if (kill(systab->vol[0]->wd_tab[j].pid, 0))
         { if (errno == ESRCH)				// if no such
@@ -820,18 +992,24 @@ void do_free(int vol, u_int gb)				// free from map et al
 void daemon_check()					// ensure all running
 { int i;						// a handy int
   int fit;
+  int dtyp;						// daemon type
+  static char *dtypes[] = { "Daemon", "Network Daemon" };
+  int num_daemons;					// no of all daemons
 
   if (last_daemon_check == MTIME(0))
     return;
 
   while (SemOp(SEM_WD, WRITE));			        // lock WD
-  for (i = 0; i < systab->vol[0]->num_of_daemons; i++)
+  num_daemons = systab->vol[0]->num_of_daemons +	// write daemons
+                systab->vol[0]->num_of_net_daemons;	// network daemons
+  for (i = 0; i < num_daemons; i++)
   { if (i != myslot)					// don't check self
     { fit = kill(systab->vol[0]->wd_tab[i].pid, 0);
       if ((fit < 0) && (errno == ESRCH))                // if gone
-      { fit = DB_Daemon(i, 1); 			        // restart the daemon
+      { dtyp = systab->vol[0]->wd_tab[i].type;		// daemon type
+        fit = dtyp ?  Net_Daemon(i, 1) : DB_Daemon(i, 1);
         if (fit != 0)
-        { do_log("daemon_check: failed to start Daemon %d\n", i);
+        { do_log("daemon_check: failed to start %s %d\n", dtypes[dtyp], i);
         }
       }
     }

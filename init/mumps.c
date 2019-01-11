@@ -61,8 +61,10 @@ void help(void)                                 // give some help
   printf( "  volnam is 1 to %d alpha characters\n\n",MAX_NAME_BYTES);
   printf( "To initialize an environment:\n");
   printf( "> mumps -j maxjobs  -r routinemb\n");
-  printf( "        -g globalmb -a addmb -l [-]jrnkb  database\n");
-  printf( "  routinemb, globalmb, addmb and jrnkb are optional\n\n");
+  printf( "        -g globalmb -a addmb -l [-]jrnkb\n");
+  printf( "        -n #netdaemons -u srvurl -p srvport database\n");
+  printf( "  routinemb, globalmb, addmb, jrnkb, \n");
+  printf( "  #netdaemons, srvurl, srvport are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
@@ -89,6 +91,12 @@ int main(int argc,char **argv)                  // main entry point
   char *cmd1 = "D ^%1MV1LGI\0";                 // cmd for one
   char *db1 = "/one/onedb\0";                   // db for one
   int jrnkb = 0;                                // jrn buf KB
+  char srvurl[128];				// DGP server URL
+  int srvport = 1966;				// base DGP server port
+  int netdaemons = 0;				// no network daemons
+
+  strcpy(srvurl, "tcp://127.0.0.1");
+
 //  printf ("argc = %d\nargv[0] = %s\n", argc, argv[0]);
   if (argc == 1)
   { if (strcmp( argv[0], "one\0" ) == 0 )       // allow for a name of 'one'
@@ -98,7 +106,7 @@ int main(int argc,char **argv)                  // main entry point
     }
   }
   if (argc < 2) help();                         // they need help
-  while ((c = getopt(argc, argv, "a:b:e:g:hj:l:m:r:s:v:x:")) != EOF)
+  while ((c = getopt(argc, argv, "a:b:e:g:hj:l:m:n:p:r:s:u:v:x:")) != EOF)
   { switch(c)
     { case 'a':                                 // switch -a
         addmb = atoi(optarg);                   // additional buffer
@@ -124,12 +132,22 @@ int main(int argc,char **argv)                  // main entry point
       case 'm':                                 // switch -m
         map = atoi(optarg);                     // size of map block    (creDB)
         break;
+      case 'n':					// switch -n            (init)
+        netdaemons = atoi(optarg);		// number of network daemons
+        break;
+      case 'p':					// switch -p		(init)
+	srvport = atoi(optarg);			// server base port
+	break;
       case 'r':                                 // switch -r
         rmb = atoi(optarg);                     // routine buffer MB    (init)
         break;
       case 's':                                 // switch -s
         blocks = atoi(optarg);                  // number of data blks  (creDB)
         break;
+      case 'u':					// switch -u		(init)
+        strncpy(srvurl, optarg, 127);		// server URL
+	srvurl[127] = '\0';
+	break;
       case 'v':                                 // switch -v
         volnam = optarg;                        // volume name          (creDB)
         break;
@@ -160,7 +178,10 @@ int main(int argc,char **argv)                  // main entry point
                       gmb,                      // mb of global buf
                       rmb,                      // mb of routine buf
                       addmb,                    // mb of additional buf
-                      jrnkb));                  // kb of jrn buf
+                      jrnkb,			// kb of jrn buf
+                      netdaemons,		// # of network daemons
+                      srvurl,			// server URL
+		      srvport));    		// server port
 
 runit:
   c = INIT_Run( *argv, env, cmd);               // run a job

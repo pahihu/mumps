@@ -89,6 +89,7 @@
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
+#define MAX_NET_DAEMONS	10			// maximum of these
 // #define STORAGE         1024                    // what $STORAGE returns
 #ifdef  __APPLE__
 #define PRVGRP          80                      // admin in OSX
@@ -330,6 +331,7 @@ typedef union __PACKED__ DATA_UNION             // diff types of msg data
 
 typedef struct __PACKED__ WD_TAB                // write daemon table
 { int pid;                                      // the wd's pid
+  int type;					// 0 - write, 1 - network
   VOLATILE int doing;                           // what we are doing
   VOLATILE msg_data currmsg;                    // the current gbd */block#
 } wdtab_struct;                                 // end write daemon structure
@@ -419,7 +421,8 @@ typedef struct __PACKED__ VOL_DEF
   void *rbd_head;                               // head of routine buffer desc
   void *rbd_end;                                // first addr past routine area
   int num_of_daemons;                           // number of daemons
-  wdtab_struct wd_tab[MAX_DAEMONS];             // write daemon info table
+  int num_of_net_daemons;			// number of network daemons
+  wdtab_struct wd_tab[MAX_DAEMONS + MAX_NET_DAEMONS];// wr/net daemon info table
   VOLATILE int dismount_flag;                   // flag to indicate dismounting
   VOLATILE u_int map_dirty_flag;                // set if map is dirty
   VOLATILE int writelock;                       // MUMPS write lock
@@ -455,6 +458,7 @@ typedef struct __PACKED__ VOL_DEF
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
+  char remote_name[MAX_NAME_BYTES];		// remote volume name
   db_stat stats;                                // database statistics
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
 } vol_def;                                      // end of volume def
@@ -608,6 +612,8 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
   VOLATILE int ZRestTime;			// Current daemon rest time
+  u_char dgpURL[64];				// DGP URL base
+  int dgpPORT;					// DGP port base
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
@@ -636,6 +642,7 @@ typedef struct __PACKED__ PARTAB                // define the partition table
 { jobtab_t *jobtab;                             // our jobtab entry
   int vol_fds[MAX_VOL];                         // the filedes for the volumes
   int jnl_fds[MAX_VOL];                         // the filedes for journals
+  int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack
   u_char *sstk_last;                            // last byte of sstk

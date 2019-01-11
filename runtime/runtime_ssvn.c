@@ -443,8 +443,17 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return uitocstring(buf, systab->vol[i]->stats.bwrwait);
 	if (strncasecmp( (char *) subs[2]->buf, "lckwait\0", 8) == 0)
 	  return uitocstring(buf, systab->vol[i]->stats.lckwait);
+	if (strncasecmp( (char *) subs[2]->buf, "remote_name\0", 12) == 0)
+	{ for (j = 0; j < MAX_NAME_BYTES; j++)
+	    if ((buf[j] = systab->vol[i]->remote_name[j]) == 0)
+	      break;
+	  buf[j] = '\0';
+	  return j;
+	}
+
 	if (systab->vol[i]->vollab == NULL)	// check volume
 	  return (-ERRM38);			//   mounted
+
 	if (strncasecmp( (char *) subs[2]->buf, "block\0", 6) == 0)
 	  return uitocstring(buf, systab->vol[i]->vollab->block_size);
 	if (strncasecmp( (char *) subs[2]->buf, "free\0", 5) == 0)
@@ -815,7 +824,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, "name\0", 5) == 0) &&
 	    (systab->maxjob == 1) &&
-	    (data->len > 0) && (data->len < 9))
+	    (data->len > 0) && (data->len < MAX_NAME_BYTES))
 	{ for (j = 0; j < data->len; j++)
 	  { if (isalpha(data->buf[j]) == 0)
 	    { return (-ERRM38);
@@ -826,6 +835,18 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  bcopy(data->buf, systab->vol[i]->vollab->volnam.var_cu, data->len);
 //	  (void) strcpy(systab->vol[i]->vollab->volnam.var_cu, data->buf);
 	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY; // tell to write it
+	  return 0;
+	}
+	if ((strncasecmp( (char *) subs[2]->buf, "remote_name\0", 12) == 0) &&
+	    (systab->maxjob != 1) &&
+	    (data->len > 0) && (data->len < MAX_NAME_BYTES))
+	{ for (j = 0; j < data->len; j++)
+	  { if (isalpha(data->buf[j]) == 0)
+	    { return (-ERRM38);
+	    }
+	  }
+          strncpy(systab->vol[i]->remote_name, (char *) data->buf, MAX_NAME_BYTES-1);
+          systab->vol[i]->remote_name[MAX_NAME_BYTES-1] = '\0';
 	  return 0;
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, "size\0", 5) == 0) &&
@@ -895,11 +916,14 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
           { return -(ERRM38);				//   mounted
           }
-	  SemOp( SEM_SYS, -systab->maxjob);
-          s = DB_Mount((char *) &data->buf[0],
+          s = 0;					// assume success
+          SemOp( SEM_SYS, -systab->maxjob);
+          if (0 == strstr((char *) &data->buf[0], "://")) // not an URL ?
+          { s = DB_Mount((char *) &data->buf[0],	// mount volume
                         i + 1,
                         systab->vol[i]->gmb,
                         systab->vol[i]->jkb);
+	  }
           SemOp( SEM_SYS, systab->maxjob);
           return s;
         }

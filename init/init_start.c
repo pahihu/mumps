@@ -72,6 +72,7 @@ union semun {
 extern int rwlock_init();
 
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
+int Net_Daemon( int slot, int vol); 		// proto Net_Daemon
 void Routine_Init();                            // proto for routine setup
 #ifdef MV1_GBDRO
 void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
@@ -85,7 +86,10 @@ int INIT_Start( char *file,                     // database
                 int gmb,                        // mb of global buf
                 int rmb,                        // mb of routine buf
                 int addmb,                      // mb of additional buf
-                int jkb)                        // kb of jrn buf
+                int jkb,                        // kb of jrn buf
+		int netdaemons,			// no of network daemons
+		char *srvurl,			// server URL
+		int srvport)			// server port
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i;                                        // usefull int
@@ -109,6 +113,12 @@ int INIT_Start( char *file,                     // database
   label_block *labelblock;			// label block pointer
   int syncjrn;                                  // sync jrn buf
   int minjkb;                                   // min JRN buf size
+
+  if ((netdaemons < 0) || (netdaemons > MAX_NET_DAEMONS))
+  { fprintf(stderr, "Invalid number of network daemons %d - must be 0 to %d\n", 
+		netdaemons, MAX_NET_DAEMONS);
+    return(EINVAL);                             // exit with error
+  }
 
   if ((jobs < 1)||(jobs > 256))                 // check number of jobs
   { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
@@ -191,6 +201,8 @@ int INIT_Start( char *file,                     // database
   if (jkb) printf("With %dkb of journal buffer (%s flush).\n",
                         jkb, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
+  if (netdaemons > 0) printf("With %d network daemons from %s:%d",
+			netdaemons, srvurl, srvport);
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
 #ifdef MV1_SHSEM
@@ -278,6 +290,8 @@ int INIT_Start( char *file,                     // database
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
   systab->ZRestTime = MAX_REST_TIME;		// Daemon rest time
+  strcpy((char*) systab->dgpURL, srvurl);	// server URL
+  systab->dgpPORT = srvport;			// server base port
 
   systab->lockstart =
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
@@ -384,6 +398,7 @@ int INIT_Start( char *file,                     // database
   if (jobs < MIN_DAEMONS) jobs = MIN_DAEMONS;   // minimum of MIN_DAEMONS
   if (jobs > MAX_DAEMONS) jobs = MAX_DAEMONS;	// and the max
   systab->vol[0]->num_of_daemons = jobs;	// initalise this
+  systab->vol[0]->num_of_net_daemons = netdaemons;
 
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
@@ -409,8 +424,10 @@ int INIT_Start( char *file,                     // database
 #endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
-  for (indx=0; indx<jobs; indx++)		// for each required daemon
-  { i = DB_Daemon(indx, volnum);		// start each daemon (volume 1)
+  for (indx=0; indx<jobs + netdaemons; indx++)	// for each required daemon
+  { i = indx >= jobs				// start each daemon (volume 1)
+	?  Net_Daemon(indx, volnum) 		// network daemon
+	:  DB_Daemon(indx, volnum);		// write daemon
     if (i != 0)                                 // in case of error
     { fprintf( stderr, "**** Died on error - %s ***\n\n", // complain
               strerror(errno));                 // what was returned

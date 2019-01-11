@@ -252,6 +252,9 @@ start:
 
   partab.vol_fds[0] = dbfd;			// make sure fd is right
 
+  for (i = 0; i < MAX_VOL; i++)			// clear DGP socks
+    partab.dgp_sock[i] = -1;
+
   ST_Init();					// initialize symbol table
 
   if ((systab->vol[0]->vollab->journal_available) &&

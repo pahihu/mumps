@@ -278,6 +278,7 @@ short DB_Mount( char *file,                     // database
     systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY; // and map needs writing
   }
   systab->vol[vol]->num_of_daemons = 0;	        // initalise this
+  systab->vol[vol]->num_of_net_daemons = 0;	// initialise this
   systab->vol[vol]->volset_size = volset_size;  // save volset_size
 
   systab->addoff  += volset_size;                // adjust additional memory

@@ -51,7 +51,10 @@ int INIT_Start( char *file,                     // database
                 int gmb,                        // mb of global buf
                 int rmb,                        // mb of routine buf
                 int addmb,                      // mb of additional buf
-                int jrnkb);                     // kb of jrn buf
+                int jrnkb,                      // kb of jrn buf
+		int netdaemons,			// no of network daemons
+		char *srvurl,			// server URL
+		int srvport);			// server port
 void ST_Init();					// empty symbol table
 
 #endif                                          // !_MUMPS_INIT_H_
