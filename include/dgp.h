@@ -20,6 +20,8 @@
 #define DGP_SRV		26
 #define DGP_SER		28
 
+#define DGP_VLAB	64
+
 #define DGP_RVAL	128
 #define DGP_PREV	 64
 
@@ -47,5 +49,14 @@ typedef struct ATTR_PACKED DGPREPLY
 { DGPHeader header;
   u_char    buf[1024+32768];
 } DGPReply;
+
+short dgp_connect(int vol);
+short dgp_mkrequest(DGPRequest *req,
+		    u_char code,
+		    u_char flag,
+		    mvar *var,
+		    short len,
+		    const u_char *buf);
+short dgp_disconnect(int vol);
 
 #endif

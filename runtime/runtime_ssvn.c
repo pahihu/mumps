@@ -845,7 +845,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    { return (-ERRM38);
 	    }
 	  }
-          strncpy(systab->vol[i]->remote_name, (char *) data->buf, MAX_NAME_BYTES-1);
+          strncpy((char *) &systab->vol[i]->remote_name[0], (char *) data->buf, MAX_NAME_BYTES-1);
           systab->vol[i]->remote_name[MAX_NAME_BYTES-1] = '\0';
 	  return 0;
 	}

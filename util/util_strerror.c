@@ -193,6 +193,8 @@ static struct
   {ERRZ78+ERRMLAST,     "Circular dependency in parents"},
   {ERRZ79+ERRMLAST,     "Too deep parents tree"},
   {ERRZ80+ERRMLAST,     "Too many parents"},
+  {ERRZ81+ERRMLAST,	"NET: Invalid message size"},
+  {ERRZ82+ERRMLAST,	"NET: Unknown message"},
   {0,         NULL}
 };                                                      // merrtab[]
 

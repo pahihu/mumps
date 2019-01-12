@@ -192,6 +192,8 @@
 #define ERRZ78          78      // Circular dependency in parents
 #define ERRZ79          79      // Too deep parents tree
 #define ERRZ80          80      // Too many parents
+#define ERRZ81		81	// NET: Invalid message size
+#define ERRZ82		82	// NET: Unknown message
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

@@ -458,7 +458,8 @@ typedef struct __PACKED__ VOL_DEF
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
-  char remote_name[MAX_NAME_BYTES];		// remote volume name
+  u_char remote_name[MAX_NAME_BYTES];		// remote volume name
+  u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label
   db_stat stats;                                // database statistics
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
 } vol_def;                                      // end of volume def

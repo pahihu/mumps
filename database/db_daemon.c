@@ -133,19 +133,166 @@ u_int MSLEEP(u_int mseconds)
 }
 
 #ifdef MV1_DGP
-static void dgp_mkerror(DGPReply *rep, const char *msg)
+/*
+   - kellenek az UCI-k a tavoli kotetbol (csatlakozaskor le kell kerni!)
+     kerjuk el a teljes kotet cimket, akkor kisimul a kezeles is, csak meg
+     kell jelolni, hogy ez egy tavoli kotet cimke
+
+   - zarolas
+     * helyben is kell zarolni, ha az sikerul, akkor lehet a tavoli zart
+       probalni
+     * minden tavoli rendszer folyamatai kulonbozo halozati demonra kell 
+       csatlakozzanak, de egy rendszer folyamatai ugyanarra a halozati demonra
+     * ne a halozati demon pid-jet rakjuk el a zarhoz, hanem a demon 
+       sorszamat (ha ujraindul, akkor nincsen gaz)
+
+*/
+
+short dgp_errno(void)
+{ int lasterr;
+
+  lasterr = nn_errno() - NN_HAUSNUMERO;
+  return lasterr + 4096;
+}
+
+short dgp_get(int sock, DGPRequest *req, u_char *buf)
+{ int bytes;						// bytes sent/received
+  DGPReply rep;
+  DGPData *data;
+
+  bytes = nn_send(sock, req, req->header.msglen, 0);
+  if (bytes < 0)
+  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
+  }
+  bytes = nn_recv(sock, &rep, sizeof(rep), 0);
+  if (bytes < 0)
+  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
+  }
+  if (bytes != rep.header.msglen)
+  { return -(ERRZ81+ERRMLAST);
+  }
+
+  data = (DGPData *) &rep.buf[0];
+  bcopy(&data->buf[0], buf, data->len);
+  return 0;
+}
+
+short dgp_connect(int vol)
+{ int sock;						// NN socket
+  int rv;						// return value
+  short s;						// status
+  u_char remote_vollab[SIZEOF_LABEL_BLOCK];		// remote VOL label
+  DGPRequest req;
+
+  if (strlen(systab->vol[vol]->file_name) < 6)		// tcp://
+  { return -(ERRM38);
+  }
+  sock = nn_socket(AF_SP, NN_REQ);
+  if (sock < 0)
+  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
+  }
+  rv = nn_connect(sock, systab->vol[vol]->file_name);
+  if (rv < 0)
+  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
+  }
+  if (systab->vol[vol]->vollab == NULL)			// no remote VOL label
+  { dgp_mkrequest(&req, DGP_VLAB, 0, NULL, -1, &systab->vol[vol]->remote_name[0]);
+    s = dgp_get(sock, &req, &remote_vollab[0]); 
+    if (s < 0)
+    { nn_shutdown(sock, 0);
+      return s;
+    }
+  }
+  SemOp( SEM_SYS, -systab->maxjob);
+  if (systab->vol[vol]->vollab == NULL)
+  { systab->vol[vol]->vollab =
+      (label_block *) ((void *) systab->vol[0]->remote_vollab);
+    bcopy(remote_vollab, systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
+  }
+  SemOp( SEM_SYS, systab->maxjob);
+  partab.dgp_sock[vol] = sock;
+  return 0;
+}
+
+short dgp_disconnect(int vol)
+{ int rv;
+
+  rv = nn_shutdown(partab.dgp_sock[vol], 0);
+  partab.dgp_sock[vol] = -1;
+  if (rv < 0)
+  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
+  }
+  return 0;
+}
+
+short dgp_mkrequest(DGPRequest *req,
+		   u_char code,
+		   u_char flag,
+		   mvar *var,
+		   short len,
+		   const u_char *buf)
+{ DGPData *data;
+  int s;							// status
+  
+  req->header.code = code;
+  req->header.version = DGP_VERSION;
+  req->header.hdrlen  = sizeof(DGPHeader);
+  req->header.msgflag = flag;
+  req->header.msglen  = sizeof(DGPHeader);
+
+  if (var)
+  { s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
+    if (s < 0) return s;
+    req->data.len = s;
+    req->header.msglen += sizeof(short) + req->data.len;
+  }
+
+  if (buf)
+  { if (var)							// use space
+      data = (DGPData *) &req->data.buf[req->data.len];		//   after var
+    else
+      data = (DGPData *) &req->data;				// use data
+    data->len = len;
+    bcopy(buf, &data->buf[0], data->len);
+    req->header.msglen += sizeof(short) + data->len;
+  }
+
+  return 0;
+}
+
+static void dgp_mkreply(DGPReply *rep,
+			u_char code,
+			short len,
+			const u_char *buf)
 { DGPData *data;
 
-  rep->header.code    = DGP_SER;
+  if (buf && (-1 == len ))
+    len = strlen((char *) buf);
+
+  rep->header.code    = code;
   rep->header.version = DGP_VERSION;
   rep->header.hdrlen  = sizeof(DGPHeader);
   rep->header.msgflag = 0;
+  rep->header.msglen  = sizeof(DGPHeader);
 
-  data = (DGPData*) &rep->buf[0];
-  data->len = strlen(msg);
-  bcopy(msg, &data->buf[0], data->len);
+  if (buf)
+  { data = (DGPData *) &rep->buf[0];
+    data->len = len;
+    bcopy(buf, &data->buf[0], data->len);
+    rep->header.msglen += sizeof(data->len) + data->len;
+  } else if (len)					// send only status
+  { data = (DGPData *) &rep->buf[0];
+    data->len = len;
+    rep->header.msglen += sizeof(short);
+  }
+}
 
-  rep->header.msglen  = sizeof(DGPHeader) + sizeof(short) + data->len;
+static void dgp_mkerror(DGPReply *rep, short len)
+{ dgp_mkreply(rep, DGP_SER, len, NULL);
+}
+
+static void dgp_mkvalue(DGPReply *rep, short len, const u_char *buf)
+{ dgp_mkreply(rep, DGP_SRV, len, buf);
 }
 #endif
 
@@ -155,6 +302,8 @@ static void dgp_mkerror(DGPReply *rep, const char *msg)
 // Input(s): none
 // Return:   none
 //
+
+short getvol(cstring *);
 
 void do_netdaemon(void)
 { 
@@ -166,6 +315,9 @@ void do_netdaemon(void)
   int bytes;						// bytes sent
   DGPRequest req;					// DGP request
   DGPReply rep;						// DGP reply
+  cstring cstr;						// a cstring
+  mvar var;						// an M variable
+  short s;						// status
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -187,30 +339,56 @@ void do_netdaemon(void)
     { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
       continue;
     }
-    rep.header.code = 0;
+    rep.header.code = DGP_ERR;
     if (bytes != req.header.msglen)			// check request
     { do_log("message size mismatch: received %d, msglen is %d\n",
 		bytes, req.header.msglen);
-      dgp_mkerror(&rep, "invalid message size");
+      dgp_mkerror(&rep, -(ERRZ81+ERRMLAST));
     }
+
+    s = 0;
+    if ((DGP_ULOK != req.header.code) && (DGP_VLAB != req.header.code))
+    { s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
+      if (s < 0) goto Error;
+    }
+
     switch (req.header.code)
-    { case DGP_LOKV: break;
+    { case DGP_VLAB:
+        req.data.buf[req.data.len] = '\0';
+        s = getvol((cstring *) &req.data);
+        if (s < 0) goto Error;
+        dgp_mkvalue(&rep, SIZEOF_LABEL_BLOCK, systab->vol[s - 1]->remote_vollab);
+        break;
+      case DGP_LOKV: break;
       case DGP_ULOK: break;
       case DGP_ZALL: break;
       case DGP_ZDAL: break;
-      case DGP_GETV: break;
-      case DGP_SETV: break;
-      case DGP_KILV: break;
+      case DGP_GETV:
+	s = DB_Get(&var, &cstr.buf[0]);
+	if (s < 0) goto Error;
+	dgp_mkvalue(&rep, s, &cstr.buf[0]);
+        break;
+      case DGP_SETV:
+	s = DB_Set(&var, (cstring *) (&req.data.buf[0] + req.data.len));
+	if (s < 0) goto Error;
+	dgp_mkvalue(&rep, 0, NULL);
+        break;
+      case DGP_KILV:
+	s = DB_Kill(&var);
+	if (s < 0) goto Error;
+	dgp_mkvalue(&rep, 0, NULL);
+	break;
       case DGP_ORDV: break;
       case DGP_QRYV: break;
       case DGP_DATV: break;
       default:
         do_log("unknown message code: %d\n", req.header.code);
-	dgp_mkerror(&rep, "unknown message");
+        s = -(ERRZ82+ERRMLAST);
+Error:  dgp_mkerror(&rep, s);
     }
 
-    if (req.header.code == DGP_ERR)
-      dgp_mkerror(&rep, "not implemented yet");
+    if (DGP_ERR == req.header.code)
+      dgp_mkerror(&rep, -(ERRZ82+ERRMLAST));
 
     bytes = nn_send(sock, &rep, rep.header.msglen, 0);
     if (bytes < 0)
@@ -239,8 +417,6 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
-  int rest;						// rest time
-  unsigned stalls, old_stalls;				// no. of stalls
 
   volnum = vol;						// save vol# here
 

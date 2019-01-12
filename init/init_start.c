@@ -225,7 +225,7 @@ int INIT_Start( char *file,                     // database
               + jkb * KBYTE                     // size of JRN buf
 	      + (sizeof(u_int) * (jobs))	// size of last_blk_used[]
               + (sizeof(u_int) * (jobs))        // size of last_blk_written[]
-              + (rmb * MBYTE);		 	// mb of routine buffers
+              + (rmb * MBYTE);                  // mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
   share_size = sjlt_size + volset_size;         // shared memory size
   addoff = share_size;                              // where add buff starts
