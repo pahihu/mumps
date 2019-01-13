@@ -56,12 +56,16 @@
 short getvol(cstring *vol)			// get vol number for vol
 { int i;					// a handy int
   short s;					// for cstring length
+  u_char *ptr;					// name pointer
   s = vol->len;					// get len
   if (s < MAX_NAME_BYTES) s++;			// include term null if poss
   for (i = 0; i < MAX_VOL; i++)			// scan the volumes
   { if (systab->vol[i]->vollab == NULL) break;  // continue if none in slot
-    if (bcmp(&systab->vol[i]->vollab->volnam.var_cu[0],
-	     vol->buf, s) != 0) continue;	// if not the same continue
+    if (systab->vol[i]->local_name[0])
+      ptr = &systab->vol[i]->local_name[0];
+    else
+      ptr = &systab->vol[i]->vollab->volnam.var_cu[0];
+    if (bcmp(ptr, vol->buf, s) != 0) continue;	// if not the same continue
     return (short) i + 1;			// return vol number
   }
   return (-ERRM26);				// complain - no such

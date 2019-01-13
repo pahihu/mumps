@@ -49,6 +49,7 @@
 #include "database.h"				        // database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include "dgp_database.h"				// DGP database
 
 
 int curr_locks[MAX_VOL];				// lock on globals
@@ -102,7 +103,7 @@ short ROU_Process(char *entry,
 //	     other database code.  Only DB_QueryD uses the original.
 //	     DB_Compress also updates the original so that it can be watched.
 // Input(s): Pointer to mvar to copy from
-// Return:   0 -> Ok, negative MUMPS error
+// Return:   0 -> Ok, negative MUMPS error, 0< ROU proc
 //
 // Note:     No locks are held at this stage.
 //
@@ -256,6 +257,9 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
     return ROU_Process("GET", s, var, buf, -1);
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
+  if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
+  { return DGP_Get(volnum - 1, var, buf);
+  }
 
   if (wrlock)
   { writing = 1;
@@ -312,6 +316,9 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     if (s > 0)
     { s--;                                              // point at trantab ent
       return ROU_Process("SET", s, var, &data->buf[0], data->len);
+    }
+    if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
+    { return DGP_Set(volnum - 1, var, data);
     }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
@@ -466,6 +473,10 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
   { s--;                                                // point at trantab ent
     sprintf((char *) &buf[0], "%d", what);
     return ROU_Process("KILL", s, var, &buf[0], strlen((char *) buf));
+  }
+  if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
+  { return DGP_Kill(volnum - 1, var, what);
+   
   }
   while (systab->vol[volnum - 1]->writelock ||	        // check for write lock
          systab->delaywt)                               //   or delay WRITEs

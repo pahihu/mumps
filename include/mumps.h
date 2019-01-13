@@ -329,6 +329,9 @@ typedef union __PACKED__ DATA_UNION             // diff types of msg data
   u_int intdata;                                // or an integer (block number)
 } msg_data;                                     // end data msg union
 
+#define WD_WRITE	0
+#define WD_NET		1
+
 typedef struct __PACKED__ WD_TAB                // write daemon table
 { int pid;                                      // the wd's pid
   int type;					// 0 - write, 1 - network
@@ -458,7 +461,7 @@ typedef struct __PACKED__ VOL_DEF
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
-  u_char remote_name[MAX_NAME_BYTES];		// remote volume name
+  u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label
   db_stat stats;                                // database statistics
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks

@@ -195,6 +195,8 @@ static struct
   {ERRZ80+ERRMLAST,     "Too many parents"},
   {ERRZ81+ERRMLAST,	"NET: Invalid message size"},
   {ERRZ82+ERRMLAST,	"NET: Unknown message"},
+  {ERRZ83+ERRMLAST,	"NET: Invalid connection URL"},
+  {ERRZ84+ERRMLAST,	"NET: Target volume is remote"},
   {0,         NULL}
 };                                                      // merrtab[]
 

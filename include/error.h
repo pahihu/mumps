@@ -194,6 +194,8 @@
 #define ERRZ80          80      // Too many parents
 #define ERRZ81		81	// NET: Invalid message size
 #define ERRZ82		82	// NET: Unknown message
+#define ERRZ83		83	// NET: Invalid connection URL
+#define ERRZ84		84	// NET: Target volume is remote
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

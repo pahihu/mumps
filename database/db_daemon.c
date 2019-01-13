@@ -132,169 +132,9 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
-#ifdef MV1_DGP
-/*
-   - kellenek az UCI-k a tavoli kotetbol (csatlakozaskor le kell kerni!)
-     kerjuk el a teljes kotet cimket, akkor kisimul a kezeles is, csak meg
-     kell jelolni, hogy ez egy tavoli kotet cimke
 
-   - zarolas
-     * helyben is kell zarolni, ha az sikerul, akkor lehet a tavoli zart
-       probalni
-     * minden tavoli rendszer folyamatai kulonbozo halozati demonra kell 
-       csatlakozzanak, de egy rendszer folyamatai ugyanarra a halozati demonra
-     * ne a halozati demon pid-jet rakjuk el a zarhoz, hanem a demon 
-       sorszamat (ha ujraindul, akkor nincsen gaz)
-
-*/
-
-short dgp_errno(void)
-{ int lasterr;
-
-  lasterr = nn_errno() - NN_HAUSNUMERO;
-  return lasterr + 4096;
-}
-
-short dgp_get(int sock, DGPRequest *req, u_char *buf)
-{ int bytes;						// bytes sent/received
-  DGPReply rep;
-  DGPData *data;
-
-  bytes = nn_send(sock, req, req->header.msglen, 0);
-  if (bytes < 0)
-  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
-  }
-  bytes = nn_recv(sock, &rep, sizeof(rep), 0);
-  if (bytes < 0)
-  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
-  }
-  if (bytes != rep.header.msglen)
-  { return -(ERRZ81+ERRMLAST);
-  }
-
-  data = (DGPData *) &rep.buf[0];
-  bcopy(&data->buf[0], buf, data->len);
-  return 0;
-}
-
-short dgp_connect(int vol)
-{ int sock;						// NN socket
-  int rv;						// return value
-  short s;						// status
-  u_char remote_vollab[SIZEOF_LABEL_BLOCK];		// remote VOL label
-  DGPRequest req;
-
-  if (strlen(systab->vol[vol]->file_name) < 6)		// tcp://
-  { return -(ERRM38);
-  }
-  sock = nn_socket(AF_SP, NN_REQ);
-  if (sock < 0)
-  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
-  }
-  rv = nn_connect(sock, systab->vol[vol]->file_name);
-  if (rv < 0)
-  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
-  }
-  if (systab->vol[vol]->vollab == NULL)			// no remote VOL label
-  { dgp_mkrequest(&req, DGP_VLAB, 0, NULL, -1, &systab->vol[vol]->remote_name[0]);
-    s = dgp_get(sock, &req, &remote_vollab[0]); 
-    if (s < 0)
-    { nn_shutdown(sock, 0);
-      return s;
-    }
-  }
-  SemOp( SEM_SYS, -systab->maxjob);
-  if (systab->vol[vol]->vollab == NULL)
-  { systab->vol[vol]->vollab =
-      (label_block *) ((void *) systab->vol[0]->remote_vollab);
-    bcopy(remote_vollab, systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
-  }
-  SemOp( SEM_SYS, systab->maxjob);
-  partab.dgp_sock[vol] = sock;
-  return 0;
-}
-
-short dgp_disconnect(int vol)
-{ int rv;
-
-  rv = nn_shutdown(partab.dgp_sock[vol], 0);
-  partab.dgp_sock[vol] = -1;
-  if (rv < 0)
-  { return -(dgp_errno()+ERRMLAST+ERRZLAST);
-  }
-  return 0;
-}
-
-short dgp_mkrequest(DGPRequest *req,
-		   u_char code,
-		   u_char flag,
-		   mvar *var,
-		   short len,
-		   const u_char *buf)
-{ DGPData *data;
-  int s;							// status
-  
-  req->header.code = code;
-  req->header.version = DGP_VERSION;
-  req->header.hdrlen  = sizeof(DGPHeader);
-  req->header.msgflag = flag;
-  req->header.msglen  = sizeof(DGPHeader);
-
-  if (var)
-  { s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
-    if (s < 0) return s;
-    req->data.len = s;
-    req->header.msglen += sizeof(short) + req->data.len;
-  }
-
-  if (buf)
-  { if (var)							// use space
-      data = (DGPData *) &req->data.buf[req->data.len];		//   after var
-    else
-      data = (DGPData *) &req->data;				// use data
-    data->len = len;
-    bcopy(buf, &data->buf[0], data->len);
-    req->header.msglen += sizeof(short) + data->len;
-  }
-
-  return 0;
-}
-
-static void dgp_mkreply(DGPReply *rep,
-			u_char code,
-			short len,
-			const u_char *buf)
-{ DGPData *data;
-
-  if (buf && (-1 == len ))
-    len = strlen((char *) buf);
-
-  rep->header.code    = code;
-  rep->header.version = DGP_VERSION;
-  rep->header.hdrlen  = sizeof(DGPHeader);
-  rep->header.msgflag = 0;
-  rep->header.msglen  = sizeof(DGPHeader);
-
-  if (buf)
-  { data = (DGPData *) &rep->buf[0];
-    data->len = len;
-    bcopy(buf, &data->buf[0], data->len);
-    rep->header.msglen += sizeof(data->len) + data->len;
-  } else if (len)					// send only status
-  { data = (DGPData *) &rep->buf[0];
-    data->len = len;
-    rep->header.msglen += sizeof(short);
-  }
-}
-
-static void dgp_mkerror(DGPReply *rep, short len)
-{ dgp_mkreply(rep, DGP_SER, len, NULL);
-}
-
-static void dgp_mkvalue(DGPReply *rep, short len, const u_char *buf)
-{ dgp_mkreply(rep, DGP_SRV, len, buf);
-}
-#endif
+extern int   curr_sem_init;
+extern pid_t mypid;
 
 //-----------------------------------------------------------------------------
 // Function: do_netdaemon
@@ -333,8 +173,8 @@ void do_netdaemon(void)
   }
 
   do_log("accepting connections on %s\n", url);
-  for (;;) {
-    bytes = nn_recv(sock, &req, sizeof(req), 0);
+  for (;;)
+  { bytes = nn_recv(sock, &req, sizeof(req), 0);
     if (bytes < 0)
     { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
       continue;
@@ -343,21 +183,26 @@ void do_netdaemon(void)
     if (bytes != req.header.msglen)			// check request
     { do_log("message size mismatch: received %d, msglen is %d\n",
 		bytes, req.header.msglen);
-      dgp_mkerror(&rep, -(ERRZ81+ERRMLAST));
+      DGP_MkError(&rep, -(ERRZ81+ERRMLAST));
     }
 
     s = 0;
-    if ((DGP_ULOK != req.header.code) && (DGP_VLAB != req.header.code))
+    if ((DGP_ULOK != req.header.code) && (DGP_MNTV != req.header.code))
     { s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
       if (s < 0) goto Error;
     }
 
     switch (req.header.code)
-    { case DGP_VLAB:
-        req.data.buf[req.data.len] = '\0';
-        s = getvol((cstring *) &req.data);
-        if (s < 0) goto Error;
-        dgp_mkvalue(&rep, SIZEOF_LABEL_BLOCK, systab->vol[s - 1]->remote_vollab);
+    { case DGP_MNTV:
+        req.data.buf[req.data.len] = '\0';		// terminate VOL name
+        s = getvol((cstring *) &req.data);		// get volume by name
+        if (s < 0) goto Error;				// not found ?
+	if (systab->vol[s-1]->local_name[0])		// remote volume ?
+	{ s = -(ERRZ84+ERRMLAST);			//   report error
+	  goto Error;
+	}
+        DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// send VOL label
+		    systab->vol[s-1]->remote_vollab);
         break;
       case DGP_LOKV: break;
       case DGP_ULOK: break;
@@ -366,17 +211,17 @@ void do_netdaemon(void)
       case DGP_GETV:
 	s = DB_Get(&var, &cstr.buf[0]);
 	if (s < 0) goto Error;
-	dgp_mkvalue(&rep, s, &cstr.buf[0]);
+	DGP_MkValue(&rep, s, &cstr.buf[0]);
         break;
       case DGP_SETV:
 	s = DB_Set(&var, (cstring *) (&req.data.buf[0] + req.data.len));
 	if (s < 0) goto Error;
-	dgp_mkvalue(&rep, 0, NULL);
+	DGP_MkStatus(&rep, s);
         break;
       case DGP_KILV:
-	s = DB_Kill(&var);
+	s = DB_KillEx(&var, req.header.msgflag);
 	if (s < 0) goto Error;
-	dgp_mkvalue(&rep, 0, NULL);
+	DGP_MkStatus(&rep, s);
 	break;
       case DGP_ORDV: break;
       case DGP_QRYV: break;
@@ -384,11 +229,11 @@ void do_netdaemon(void)
       default:
         do_log("unknown message code: %d\n", req.header.code);
         s = -(ERRZ82+ERRMLAST);
-Error:  dgp_mkerror(&rep, s);
+Error:  DGP_MkError(&rep, s);
     }
 
     if (DGP_ERR == req.header.code)
-      dgp_mkerror(&rep, -(ERRZ82+ERRMLAST));
+      DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
     bytes = nn_send(sock, &rep, rep.header.msglen, 0);
     if (bytes < 0)
@@ -396,12 +241,10 @@ Error:  dgp_mkerror(&rep, s);
   }
 #else
   for (;;)
-    sleep(1);
+    MSLEEP(1000);
 #endif
 }
 
-extern int   curr_sem_init;
-extern pid_t mypid;
 
 //-----------------------------------------------------------------------------
 // Function: Net_Daemon
@@ -423,7 +266,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   fit = ForkIt(-1);					// start a daemon
   if (fit > 0)						// check for ok (parent)
   { systab->vol[volnum-1]->wd_tab[slot].pid = fit;	// put in childs pid
-    systab->vol[volnum-1]->wd_tab[slot].type = 1;	// network daemon
+    systab->vol[volnum-1]->wd_tab[slot].type = WD_NET;	// network daemon
     return (0);						// return (am parent)
   }							// end parent code
   if (fit < 0)
@@ -497,6 +340,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   fit = ForkIt(-1);					// start a daemon
   if (fit > 0)						// check for ok (parent)
   { systab->vol[volnum-1]->wd_tab[slot].pid = fit;	// put in childs pid
+    systab->vol[volnum-1]->wd_tab[slot].type = WD_WRITE;// write daemon
     return (0);						// return (am parent)
   }							// end parent code
   if (fit < 0)
@@ -575,7 +419,9 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   { if (!myslot)					// daemon 0 calculates
     { stalls = 0; 					//   rest time
       for (i = 0; i < MAX_VOL; i++)
-      { if (NULL == systab->vol[i]->vollab)		// stop at first
+      { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+	  continue;					//   skip it
+        if (NULL == systab->vol[i]->vollab)		// stop at first
           break;					//   unallocated vol.
         stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
 		  systab->vol[i]->stats.gbswait;	//   and GBDs waits
@@ -621,7 +467,9 @@ start:
   daemon_check();					// ensure all running
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { for (vol = 0; vol < MAX_VOL; vol++)
-    { if (NULL == systab->vol[vol]->vollab)             // stop at first
+    { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+	continue;					//   skip it
+      if (NULL == systab->vol[vol]->vollab)             // stop at first
         break;                                          //   not mounted
       if ((!myslot) &&                                  // first daemon ?
           (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
@@ -744,7 +592,9 @@ void do_dismount()					// dismount volnum
   }
 
   for (vol = 0; vol < MAX_VOL; vol++)                   // flush journal
-  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+  { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+      continue;						//   skip it
+    if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
     jfd = open_jrn(vol);                                // open jrn file
     if (jfd)
@@ -758,7 +608,9 @@ void do_dismount()					// dismount volnum
   }                                                     // end journal stuff 
 
   for (vol = 0; vol < MAX_VOL; vol++)                   // check vol maps
-  { if (NULL == systab->vol[vol]->vollab)               // stop at first
+  { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+      continue;						//   skip it
+    if (NULL == systab->vol[vol]->vollab)               // stop at first
       break;                                            //   not mounted
     if (systab->vol[vol]->map_dirty_flag)               // vol map dirty ?
     { do_mount(vol);                                    // mount db file
@@ -778,7 +630,9 @@ void do_dismount()					// dismount volnum
   }
 
   for (vol = 0; vol < MAX_VOL; vol++)
-  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+  { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+      continue;						//   skip it
+    if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
     for (i=0; i<systab->vol[vol]->num_gbd; i++)	        // look for unwritten
     { if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
@@ -823,7 +677,9 @@ void do_dismount()					// dismount volnum
   SemStats();                                           // print sem stats
   do_log("Writing out clean flag as clean\n");          // operation
   for (vol = 0; vol < MAX_VOL; vol++)
-  { if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
+  { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+      continue;						//   skip it
+    if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
     systab->vol[vol]->vollab->clean = 1;		// set database as clean
     do_mount(vol);                                      // mount db file
@@ -1003,6 +859,7 @@ int do_zot(int vol,u_int gb)				// zot block
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
@@ -1127,6 +984,7 @@ void do_free(int vol, u_int gb)				// free from map et al
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   volnum = vol + 1;                                     // set volnum
@@ -1209,6 +1067,7 @@ void do_mount(int vol)                                  // mount volume
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (dbfds[vol])
@@ -1248,6 +1107,7 @@ int open_jrn(int vol)
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (jnl_fds[vol] && 					// already open ?
@@ -1352,6 +1212,7 @@ void do_jrnflush(int vol)
 
   ASSERT(0 <= vol);                             // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);	// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
   old_volnum = volnum;                          // save current vol
@@ -1380,6 +1241,7 @@ void do_volsync(int vol)
 
   ASSERT(0 <= vol);                             // valid vol[] index
   ASSERT(vol < MAX_VOL);
+  ASSERT(0 == systab->vol[vol]->local_name[0]);	// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
   old_volnum = volnum;
