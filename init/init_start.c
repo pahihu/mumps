@@ -113,6 +113,7 @@ int INIT_Start( char *file,                     // database
   label_block *labelblock;			// label block pointer
   int syncjrn;                                  // sync jrn buf
   int minjkb;                                   // min JRN buf size
+  int netjobs;					// #jobs inc. network daemons
 
   if ((netdaemons < 0) || (netdaemons > MAX_NET_DAEMONS))
   { fprintf(stderr, "Invalid number of network daemons %d - must be 0 to %d\n", 
@@ -121,8 +122,9 @@ int INIT_Start( char *file,                     // database
   }
 
   if (1 == jobs) netdaemons = 0;		// single user: do NOT start net
-  jobs += netdaemons;				// count network daemons
-  if (jobs > 256) jobs = 256;			// clip it
+  if (jobs + netdaemons > 256)
+    jobs = 256 - netdaemons;
+  netjobs = jobs + netdaemons;			// #jobs incl. network daemons
 
   if ((jobs < 1)||(jobs > 256))                 // check number of jobs
   { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
@@ -131,9 +133,9 @@ int INIT_Start( char *file,                     // database
   pagesize = getpagesize();                     // get sys pagesize (bytes)
   if (rmb == 0) rmb = jobs/8;                   // pick a default
   if (rmb < 1) rmb = 1;                         // but at least 1mb
-  if (gmb == 0) gmb = jobs/2;                   // default global buffers
+  if (gmb == 0) gmb = netjobs/2;    		// default global buffers
   if (gmb < 1) gmb = 1;                         // but at least 1mb
-  locksize = jobs * LOCKTAB_SIZE;		// what we need for locktab
+  locksize = netjobs * LOCKTAB_SIZE;		// what we need for locktab
   locksize = (((locksize - 1) / pagesize) + 1) * pagesize; // round up
 
   dbfd = open(file, O_RDWR);                    // open the database read/write
@@ -223,7 +225,7 @@ int INIT_Start( char *file,                     // database
   semvals.array = sem_val;
 
   sjlt_size = sizeof(systab_struct)		// size of Systab
-            + (sizeof(jobtab_t) * jobs)		// size of JOBTAB
+            + (sizeof(jobtab_t) * netjobs)	// size of JOBTAB
             + locksize;				// size of LOCKTAB
 
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
@@ -233,8 +235,8 @@ int INIT_Start( char *file,                     // database
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
-	      + (sizeof(u_int) * (jobs))	// size of last_blk_used[]
-              + (sizeof(u_int) * (jobs))        // size of last_blk_written[]
+	      + (sizeof(u_int) * (netjobs))	// size of last_blk_used[]
+              + (sizeof(u_int) * (netjobs))     // size of last_blk_written[]
               + (rmb * MBYTE);                  // mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
   share_size = sjlt_size + volset_size;         // shared memory size
@@ -304,7 +306,7 @@ int INIT_Start( char *file,                     // database
   systab->dgpPORT = srvport;			// server base port
 
   systab->lockstart =				// locktab
-    (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs));
+    (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*netjobs));
   systab->locksize = locksize;			// the size
   systab->lockhead = NULL;			// no locks currently
   systab->lockfree = (locktab *) systab->lockstart; // free space
@@ -348,10 +350,10 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->last_blk_used =               // setup last_blk_used[]
     (void *) ((void*)systab->vol[0]->jrnbuf + jkb * KBYTE);
   systab->vol[0]->last_blk_written =            // setup last_blk_written[]
-    (void *) ((void*)systab->vol[0]->last_blk_used + sizeof(u_int) * jobs);
+    (void *) ((void*)systab->vol[0]->last_blk_used + sizeof(u_int)*netjobs);
 
   systab->vol[0]->rbd_head =                    //rbds
-    (void *) ((void*)systab->vol[0]->last_blk_written + sizeof(u_int) * jobs);
+    (void *) ((void*)systab->vol[0]->last_blk_written + sizeof(u_int)*netjobs);
   systab->vol[0]->rbd_end = ((void *)systab 
 	+ share_size - systab->addsize); 	// end of share
 

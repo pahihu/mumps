@@ -334,7 +334,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   myslot = slot;					// remember my slot
   myslot_net = myslot - systab->vol[0]->num_of_daemons; // remember network slot
 
-  partab.jobtab = &systab->jobtab[systab->maxjob-myslot_net-1];// dummy jobtab
+  partab.jobtab = &systab->jobtab[systab->maxjob + myslot_net];// dummy jobtab
   partab.jobtab->pid = getpid();
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
@@ -626,7 +626,9 @@ void do_dismount()					// dismount volnum
   int num_daemons;					// num of all daemons
 
   i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); //remove share
-  for (i = 0; i < systab->maxjob; i++)			// for each job
+  // NB. network daemons have jobtab entries, they are stopped here
+							// for each job
+  for (i = 0; i < systab->maxjob + systab->vol[0]->num_of_net_daemons; i++)
   { pid = systab->jobtab[i].pid;			// get pid
     if (pid)						// if pid != 0
     if (kill( pid, SIGTERM))				// kill this one
