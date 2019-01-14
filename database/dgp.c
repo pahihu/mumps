@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include "error.h"
@@ -100,17 +101,18 @@ short DGP_Connect(int vol)
   if (s < 0) return s;
   s = DGP_GetRemoteName(systab->vol[vol]->file_name, remote_name);
   if (s < 0) return s;
+  // fprintf(stderr,"VOL%d ConnectionURL=[%s] RemoteName=[%s]\r\n", vol, conn_url, remote_name);
   sock = nn_socket(AF_SP, NN_REQ);
   if (sock < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
-  rv = nn_connect(sock, systab->vol[vol]->file_name);
+  rv = nn_connect(sock, conn_url);
   if (rv < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
   if (systab->vol[vol]->vollab == NULL)			// no remote VOL label
   { DGP_MkRequest(&req, DGP_MNTV, 0, NULL, -1, (u_char *) &remote_name[0]);
-    s = DGP_Dialog(-sock, &req, &rep);
+    s = DGP_Dialog(-(sock + 1), &req, &rep);
     if (s < 0)
     { nn_shutdown(sock, 0);
       return s;
@@ -124,7 +126,8 @@ short DGP_Connect(int vol)
   }
   SemOp( SEM_SYS, -systab->maxjob);
   if (systab->vol[vol]->vollab == NULL)
-  { systab->vol[vol]->vollab =
+  { // fprintf(stderr,"VOL%d copying vollab\r\n",vol);
+    systab->vol[vol]->vollab =
       (label_block *) ((void *) systab->vol[vol]->remote_vollab);
     bcopy(remote_vollab, systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
   }
@@ -154,6 +157,9 @@ short DGP_MkRequest(DGPRequest *req,
 		   const u_char *buf)
 { DGPData *data;
   int s;							// status
+
+  if (buf && (-1 == len))
+    len = strlen((char *) buf);
   
   req->header.code = code;
   req->header.version = DGP_VERSION;
@@ -162,9 +168,19 @@ short DGP_MkRequest(DGPRequest *req,
   req->header.msglen  = sizeof(DGPHeader);
 
   if (var)
-  { s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
+  { 
+#if 1
+    s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
     if (s < 0) return s;
     req->data.len = s;
+#else
+    // fprintf(stderr,"old var->volset=%d\n",var->volset);
+    var->volset = systab->vol[var->volset-1]->vollab->clean;
+    // fprintf(stderr,"new var->volset=%d\n",var->volset);
+    req->data.len = MVAR_SIZE + var->slen;
+    // fprintf(stderr,"req->data.len=%d\r\n", req->data.len); fflush(stderr);
+    bcopy(var, &req->data.buf[0], req->data.len);
+#endif
     req->header.msglen += sizeof(short) + req->data.len;
   }
 
@@ -228,9 +244,12 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   short s;						// status
 
   if (vol < 0)						// called with socket ?
-    sock = -vol;
+  { // fprintf(stderr,"DGP_Dialog(%d): socket call\r\n",vol);
+    sock = -vol - 1;
+  }
   else
-  { sock = partab.dgp_sock[vol];			// called with vol
+  { // fprintf(stderr,"DGP_Dialog(%d): volume call\r\n",vol);
+    sock = partab.dgp_sock[vol];			// called with vol
     if (-1 == sock)					// not connected yet ?
     { s = DGP_Connect(vol);				// connect DGP
       if (s < 0) return s;				// failed ? return
@@ -241,10 +260,12 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
+  // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
   bytes = nn_recv(sock, rep, sizeof(DGPReply), 0);	// receive reply
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
+  // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
   return 0;						// done
 }
 

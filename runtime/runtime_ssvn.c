@@ -934,6 +934,14 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 		    (char *) data->buf, VOL_FILENAME_MAX-1);
             systab->vol[i]->file_name[VOL_FILENAME_MAX-1] = '\0';
             SemOp( SEM_SYS, systab->maxjob);
+#ifdef MV1_DGP
+	    // NB. connect() - disconnect() pair will download remote VOL
+	    //     label from server
+	    s = DGP_Connect(i);				// init connection
+	    if (s < 0) return s;			// failed ? return
+	    s = DGP_Disconnect(i);			// disconnect
+	    if (s < 0) return s;			// failed ? return
+#endif
 	  } else
           { if (i && (systab->vol[i-1]->vollab == NULL))// check prev. slot
             { return -(ERRM38);				//   mounted

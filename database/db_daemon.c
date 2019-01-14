@@ -155,9 +155,11 @@ void do_netdaemon(void)
   int bytes;						// bytes sent
   DGPRequest req;					// DGP request
   DGPReply rep;						// DGP reply
-  cstring cstr;						// a cstring
-  mvar var;						// an M variable
+  cstring cstr, *ptr1;					// a cstring
+  mvar var, *varptr;					// M variable and ptr
   short s;						// status
+  time_t t;						// current time
+  u_char old;						// handy u_char
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -165,7 +167,11 @@ void do_netdaemon(void)
     panic(msg);
   }
 
-  sprintf(url, "%s:%d", systab->dgpURL, systab->dgpPORT + myslot_net);
+  sprintf(url, "%s%c%d",				// construct URL
+               systab->dgpURL, 
+               (strncmp((char *) systab->dgpURL,"ipc://",6) ? ':' : '.'),
+	       systab->dgpPORT + myslot_net);
+
   rv = nn_bind(sock, url);
   if (rv < 0)
   { sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
@@ -174,22 +180,52 @@ void do_netdaemon(void)
 
   do_log("accepting connections on %s\n", url);
   for (;;)
-  { bytes = nn_recv(sock, &req, sizeof(req), 0);
+  { bytes = nn_recv(sock, &req, sizeof(req), 0);	// receive request
+    if (systab->vol[0]->dismount_flag)		        // dismounting?
+    { t = time(0);					// for ctime()
+      do_log("Network Daemon %d shutting down\n", myslot);// log success
+      SemStats();                                     	// print sem stats
+      systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
+      exit (0);						// and exit
+    }
     if (bytes < 0)
     { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
       continue;
     }
-    rep.header.code = DGP_ERR;
     if (bytes != req.header.msglen)			// check request
     { do_log("message size mismatch: received %d, msglen is %d\n",
 		bytes, req.header.msglen);
       DGP_MkError(&rep, -(ERRZ81+ERRMLAST));
     }
 
+    rep.header.code = DGP_ERR;
     s = 0;
+    varptr = 0;
     if ((DGP_ULOK != req.header.code) && (DGP_MNTV != req.header.code))
-    { s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
+    { // fprintf(stderr,"got GLB=[%s] (len=%d)\n", (char *) &req.data.buf[0], req.data.len);
+#if 1
+      old = req.data.buf[req.data.len];			// patch GLB name
+      req.data.buf[req.data.len] = '\0';
+      s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
+      // fprintf(stderr,"GLB=[%s]\n", &db_var.name.var_cu[0]); fflush(stderr);
       if (s < 0) goto Error;
+      req.data.buf[req.data.len] = old;
+      varptr = &var;
+#else
+      // bcopy(&req.data.buf[0], &var, req.data.len);
+      varptr = (mvar *) &req.data.buf[0];
+      // fprintf(stderr, "req.data.len=%d\n", req.data.len); fflush(stderr);
+#endif
+    }
+
+    // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
+    if (0 && (req.header.msglen < 64))
+    { int i;
+      u_char *buf = (u_char *) &req;
+      fprintf(stderr,"dump message: [");
+      for (i = 0; i < req.header.msglen; i++)
+        fprintf(stderr,"%02X ", buf[i]);
+      fprintf(stderr,"]\n");fflush(stderr);
     }
 
     switch (req.header.code)
@@ -201,25 +237,29 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
+        old = systab->vol[s-1]->vollab->clean;
+        systab->vol[s-1]->vollab->clean = s;
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// send VOL label
-		    systab->vol[s-1]->remote_vollab);
+		    (u_char *) systab->vol[s-1]->vollab);
+        systab->vol[s-1]->vollab->clean = old;
         break;
       case DGP_LOKV: break;
       case DGP_ULOK: break;
       case DGP_ZALL: break;
       case DGP_ZDAL: break;
       case DGP_GETV:
-	s = DB_Get(&var, &cstr.buf[0]);
+	s = DB_Get(varptr, &cstr.buf[0]);
 	if (s < 0) goto Error;
 	DGP_MkValue(&rep, s, &cstr.buf[0]);
         break;
       case DGP_SETV:
-	s = DB_Set(&var, (cstring *) (&req.data.buf[0] + req.data.len));
+        ptr1 = (cstring *) (&req.data.buf[0] + req.data.len);
+	s = DB_Set(varptr, ptr1);
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
         break;
       case DGP_KILV:
-	s = DB_KillEx(&var, req.header.msgflag);
+	s = DB_KillEx(varptr, req.header.msgflag);
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
 	break;
@@ -232,12 +272,13 @@ void do_netdaemon(void)
 Error:  DGP_MkError(&rep, s);
     }
 
-    if (DGP_ERR == req.header.code)
+    if (DGP_ERR == rep.header.code)
       DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
     bytes = nn_send(sock, &rep, rep.header.msglen, 0);
     if (bytes < 0)
       do_log("nn_send: %s\n", nn_strerror(nn_errno()));
+    // do_log("sent reply %d(len=%d)\n", rep.header.code, rep.header.msglen);
   }
 #else
   for (;;)
@@ -292,6 +333,9 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   sprintf(&logfile[strlen(logfile)],"netdaemon_%d.log",slot); // add slot to nm
   myslot = slot;					// remember my slot
   myslot_net = myslot - systab->vol[0]->num_of_daemons; // remember network slot
+
+  partab.jobtab = &systab->jobtab[systab->maxjob-myslot_net-1];// dummy jobtab
+  partab.jobtab->pid = getpid();
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
@@ -1033,17 +1077,24 @@ void daemon_check()					// ensure all running
   if (last_daemon_check == MTIME(0))
     return;
 
+  if (systab->vol[0]->dismount_flag)			// do NOT restart if
+    return;						//   dismounting
+
   while (SemOp(SEM_WD, WRITE));			        // lock WD
   num_daemons = systab->vol[0]->num_of_daemons +	// write daemons
                 systab->vol[0]->num_of_net_daemons;	// network daemons
   for (i = 0; i < num_daemons; i++)
   { if (i != myslot)					// don't check self
     { fit = kill(systab->vol[0]->wd_tab[i].pid, 0);
+      if (systab->vol[0]->dismount_flag)		// leave if
+        break;						//   dismounting
       if ((fit < 0) && (errno == ESRCH))                // if gone
       { dtyp = systab->vol[0]->wd_tab[i].type;		// daemon type
         fit = dtyp ?  Net_Daemon(i, 1) : DB_Daemon(i, 1);
         if (fit != 0)
         { do_log("daemon_check: failed to start %s %d\n", dtypes[dtyp], i);
+        } else
+        { do_log("daemon_check: restarted %s %d\n", dtypes[dtyp], i);
         }
       }
     }

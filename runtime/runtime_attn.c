@@ -167,7 +167,7 @@ int ForkIt(int cft)				// Copy File Table True/False
     ret = RFPROC | RFNOWAIT | RFFDG;		// copy the file table
 #endif
 
-  if (cft > -1)					// not a daemon
+  if (cft > -1)					// not a write daemon
   { i = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
     if (i < 0) return 0;			// quit on error
     for (i = 0; i < systab->maxjob; i++)        // look for a free slot

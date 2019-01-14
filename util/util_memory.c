@@ -44,6 +44,7 @@
 #include "error.h"				// standard errors
 #include "compile.h"                            // for rdb def
 #include "symbol.h"                             // for NEW stuff
+#include "dgp.h"				// for DGP stuff
 
 // ** This function is used in place of bcopy() to trap sstk overflows
 //
@@ -319,6 +320,12 @@ short CleanJob(int job)				// tidy up a job
   systab->jobtab[j].cur_do = 0;			// in case we get back here
   if (!job)					// if current job
   { for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++));	// close all io
+#ifdef MV1_DGP
+    for (i = 0; i < MAX_VOL; i++)
+    { if (-1 != partab.dgp_sock[i])		// DGP connected ?
+        DGP_Disconnect(i);			//   disconnect it
+    }
+#endif
     partab.jobtab = NULL;			// clear jobtab
   }
   bzero(&systab->jobtab[j], sizeof(jobtab_t));	// zot all

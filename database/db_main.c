@@ -258,7 +258,7 @@ short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
   if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
-  { return DGP_Get(volnum - 1, var, buf);
+  { return DGP_Get(volnum - 1, &db_var, buf);
   }
 
   if (wrlock)
@@ -318,7 +318,7 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
       return ROU_Process("SET", s, var, &data->buf[0], data->len);
     }
     if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
-    { return DGP_Set(volnum - 1, var, data);
+    { return DGP_Set(volnum - 1, &db_var, data);
     }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
@@ -475,7 +475,7 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
     return ROU_Process("KILL", s, var, &buf[0], strlen((char *) buf));
   }
   if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
-  { return DGP_Kill(volnum - 1, var, what);
+  { return DGP_Kill(volnum - 1, &db_var, what);
    
   }
   while (systab->vol[volnum - 1]->writelock ||	        // check for write lock

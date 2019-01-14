@@ -3,6 +3,7 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
+OSTYPE	= darwin
 CC	= gcc
 LIBS	= -lm -lcrypt
 
@@ -50,6 +51,8 @@ COMOBJS	= 	compile/dollar.o \
 		database/db_uci.o \
 		database/db_util.o \
 		database/db_view.o \
+		database/dgp.o \
+		database/dgp_main.o \
 		init/init_create.o \
 		init/init_run.o \
 		init/init_start.o \

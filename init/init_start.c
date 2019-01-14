@@ -120,6 +120,10 @@ int INIT_Start( char *file,                     // database
     return(EINVAL);                             // exit with error
   }
 
+  if (1 == jobs) netdaemons = 0;		// single user: do NOT start net
+  jobs += netdaemons;				// count network daemons
+  if (jobs > 256) jobs = 256;			// clip it
+
   if ((jobs < 1)||(jobs > 256))                 // check number of jobs
   { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
     return(EINVAL);                             // exit with error
@@ -201,8 +205,14 @@ int INIT_Start( char *file,                     // database
   if (jkb) printf("With %dkb of journal buffer (%s flush).\n",
                         jkb, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
-  if (netdaemons > 0) printf("With %d network daemons from %s:%d",
-			netdaemons, srvurl, srvport);
+  if (netdaemons > 0)
+  { printf("With %d network daemon(s) listening on %s%c%d",
+			netdaemons, srvurl,
+			(strncmp(srvurl,"ipc://",6) ? ':' : '.'),
+			srvport);
+    if (netdaemons > 1) printf("-%d", srvport + netdaemons - 1);
+    printf("\n");
+  }
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
 #ifdef MV1_SHSEM
@@ -293,8 +303,8 @@ int INIT_Start( char *file,                     // database
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
 
-  systab->lockstart =
-    (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs)); //locktab
+  systab->lockstart =				// locktab
+    (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*jobs));
   systab->locksize = locksize;			// the size
   systab->lockhead = NULL;			// no locks currently
   systab->lockfree = (locktab *) systab->lockstart; // free space
