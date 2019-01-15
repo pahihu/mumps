@@ -2031,7 +2031,7 @@ short Dzincrement1(cstring *ret, mvar *var)
   return Dzincrement2(ret, var, cptr); 	        // do it below
 }
 
-short Copy2local(mvar *var, char *rtn);
+short Copy2local(mvar *var, char *rtn);		// in db_main.c
 
 short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
 { short s;					// for return values 
