@@ -318,7 +318,8 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
       return ROU_Process("SET", s, var, &data->buf[0], data->len);
     }
     if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
-    { return DGP_Set(volnum - 1, &db_var, data);
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbset); // update stats
+      return DGP_Set(volnum - 1, &db_var, data);
     }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
@@ -389,6 +390,9 @@ short DB_DataEx(mvar *var, u_char *buf, cstring *dat)   // get $DATA()
     return ROU_Process("DATA", s, var, buf, -1);
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbdat); // update stats
+  if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
+  { return DGP_Data(volnum-1, &db_var, buf, dat);
+  }
   // fprintf(stderr,"--- S:Get_data\r\n"); fflush(stderr);
   s = Get_data(0);					// attempt to get it
   // fprintf(stderr,"--- E:Get_data\r\n"); fflush(stderr);
@@ -475,9 +479,10 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
     return ROU_Process("KILL", s, var, &buf[0], strlen((char *) buf));
   }
   if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
-  { return DGP_Kill(volnum - 1, &db_var, what);
-   
+  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbkil); // update stats
+    return DGP_Kill(volnum - 1, &db_var, what);
   }
+   
   while (systab->vol[volnum - 1]->writelock ||	        // check for write lock
          systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
@@ -573,6 +578,9 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     return ROU_Process("ORDER", s, var, buf, strlen((char *) buf));
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbord); // update stats
+  if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
+  { return DGP_Order(volnum-1, &db_var, buf, dir, dat);
+  }
   last_key = UTIL_Key_Last(&db_var);			// get start of last
   buf[0] = '\0';					// null terminate ret
   if (dir < 0)						// if it's backward
@@ -692,6 +700,11 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     return ROU_Process("QUERY", s, var, buf, strlen((char *) buf));
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
+  if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
+  { if (!docvt)						// dont' convert ?
+      return -(ERRM7);					//   not supported
+    return DGP_Query(volnum-1, var, buf, dir, dat);
+  }
   if (dir < 0)						// if it's backward
   { if (!db_var.slen)                                   // if not subscripted
     { buf[0] = '\0';                                    // null terminate ret
@@ -843,6 +856,9 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
     s = ROU_Process("QUERY", s, var, buf, strlen((char *) buf));
     // XXX kezeljuk le a fentieket, update MVAR stb.
     return s;
+  }
+  if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
+  { return -(ERRM7);					//   return error
   }
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors

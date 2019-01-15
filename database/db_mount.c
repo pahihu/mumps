@@ -100,6 +100,7 @@ short DB_Mount( char *file,                     // database
   int jobs;                                     // no. of jobs
   size_t addoff;                                // where to add this volume
   label_block *vollab;				// volset label block
+  int netjobs;					// #jobs + #network daemons
 
   if ((volume < 2) || (volume > MAX_VOL))       // validate volume
     return -(ERRZ74+ERRMLAST);
@@ -108,6 +109,7 @@ short DB_Mount( char *file,                     // database
 
   vol  = volume - 1;                            // vol[] index
   jobs = systab->maxjob;                        
+  netjobs = jobs + systab->vol[0]->num_of_net_daemons;
 
   if (systab->maxjob == 1)                      // if single user mode
   { return -(ERRZ74+ERRMLAST);                  //   complain
@@ -175,8 +177,8 @@ short DB_Mount( char *file,                     // database
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
-              + (sizeof(u_int) * (systab->maxjob)) // size of last_blk_used[]
-              + (sizeof(u_int) * (systab->maxjob));// size of last_blk_written[]
+              + (sizeof(u_int) * netjobs) 	// size of last_blk_used[]
+              + (sizeof(u_int) * netjobs);	// size of last_blk_written[]
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
 
   if (volset_size > systab->addsize)            // check avail additional mem.
@@ -233,7 +235,7 @@ short DB_Mount( char *file,                     // database
     (void *) ((void*)systab->vol[vol]->jrnbuf + jkb * KBYTE);
   systab->vol[vol]->last_blk_written =            // setup last_blk_written[]
     (void *) ((void*)systab->vol[vol]->last_blk_used + 
-                                        sizeof(u_int) * (systab->maxjob));
+                                        sizeof(u_int) * netjobs);
 
   systab->vol[vol]->shm_id = systab->vol[0]->shm_id;	// set up share id
   systab->vol[vol]->map_dirty_flag = 0;		// clear dirty map flag

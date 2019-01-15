@@ -214,12 +214,37 @@ void DGP_MkReply(DGPReply *rep,
 
   if (buf)
   { rep->data.len = len;
-    bcopy(buf, &rep->data.buf[0], rep->data.len);
+    if (buf != &rep->data.buf[0])
+      bcopy(buf, &rep->data.buf[0], rep->data.len);
     rep->header.msglen += sizeof(rep->data.len) + rep->data.len;
   } else
   { rep->data.len = len;
     rep->header.msglen += sizeof(rep->data.len);
   }
+}
+
+
+void DGP_AppendValue(DGPReply *rep, short len, const u_char *buf)
+{ DGPData *val;
+
+  val = (DGPData *) &(rep->data.buf[rep->data.len]);
+  val->len = len;
+  rep->header.msglen += sizeof(val->len);
+  if (VAR_UNDEFINED != val->len)
+  { bcopy(buf, &val->buf[0], val->len);
+    rep->header.msglen += val->len;
+  }
+}
+
+
+short DGP_GetValue(DGPReply *rep, u_char *buf)
+{ DGPData *val;
+
+  val = (DGPData *) &(rep->data.buf[rep->data.len]);
+  if (VAR_UNDEFINED != val->len)
+  { bcopy(&val->buf[0], buf, val->len);
+  }
+  return val->len;
 }
 
 
@@ -266,6 +291,9 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
+  if (DGP_SER == rep->header.code)			// error reply ?
+  { return rep->data.len;				//   return error code
+  }
   return 0;						// done
 }
 

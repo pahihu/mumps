@@ -22,8 +22,8 @@
 
 #define DGP_MNTV	64	/* mount remote VOL */
 
-#define DGP_RVAL	128	/* request value for ORDV/QRYV/DATV */
-#define DGP_PREV	 64	/* reverse direction for ORDV/QRYV  */
+#define DGP_F_RDAT	128	/* request data for ORDV/QRYV/DATV */
+#define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
 
 /* NB. vvv--- same encoding as in mumps.h ---vvv */ 
 #define DGP_KSUBS	  2	/* KSUBSCRIPTS ^GLB */
@@ -33,7 +33,7 @@
 #define ATTR_PACKED	__attribute__ ((__packed__))
 
 typedef struct ATTR_PACKED DGPDATA
-{ u_short len;
+{ short len;
   u_char  buf[32768];
 } DGPData;
 
@@ -71,6 +71,9 @@ short DGP_MkRequest(DGPRequest *req,
 void DGP_MkError(DGPReply *rep, short s);
 void DGP_MkValue(DGPReply *rep, short len, const u_char *buf);
 void DGP_MkStatus(DGPReply *rep, short s);
+
+void DGP_AppendValue(DGPReply *rep, short len, const u_char *buf);
+short DGP_GetValue(DGPReply *rep, u_char *buf);
 
 short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep);
 

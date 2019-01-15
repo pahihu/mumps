@@ -109,7 +109,7 @@ int INIT_Run( char *file,                       // database file
 { int i;                                        // an int
   int dbfd = 0;                                 // database file descriptor
   int ret = 0;					// return value
-  int env_num = 1;				// startup environemnt number
+  int env_num = 1;				// startup environment number
   var_u tmp;					// temp descriptor
   uci_tab *uci_ptr;				// for uci search
   int pid;					// job number
@@ -250,10 +250,13 @@ start:
   partab.sstk_last =  &sstk[MAX_SSTK];		// and the last char
   partab.varlst = NULL;				// used by compiler
 
-  partab.vol_fds[0] = dbfd;			// make sure fd is right
-
   for (i = 0; i < MAX_VOL; i++)			// clear DGP socks
-    partab.dgp_sock[i] = -1;
+  { partab.dgp_sock[i] = -1;
+    partab.vol_fds[i] = 0;
+    partab.jnl_fds[i] = 0;
+  }
+
+  partab.vol_fds[0] = dbfd;			// make sure fd is right
 
   ST_Init();					// initialize symbol table
 

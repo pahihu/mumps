@@ -237,6 +237,7 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
+	// NB. vollab clean flag will contain remote VOL number
         old = systab->vol[s-1]->vollab->clean;
         systab->vol[s-1]->vollab->clean = s;
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// send VOL label
@@ -248,9 +249,9 @@ void do_netdaemon(void)
       case DGP_ZALL: break;
       case DGP_ZDAL: break;
       case DGP_GETV:
-	s = DB_Get(varptr, &cstr.buf[0]);
+	s = DB_Get(varptr, &rep.data.buf[0]);
 	if (s < 0) goto Error;
-	DGP_MkValue(&rep, s, &cstr.buf[0]);
+	DGP_MkValue(&rep, s, &rep.data.buf[0]);
         break;
       case DGP_SETV:
         ptr1 = (cstring *) (&req.data.buf[0] + req.data.len);
@@ -263,9 +264,39 @@ void do_netdaemon(void)
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
 	break;
-      case DGP_ORDV: break;
-      case DGP_QRYV: break;
-      case DGP_DATV: break;
+      case DGP_ORDV: 
+        s = DB_OrderEx(varptr, 
+                       &rep.data.buf[0],
+                       DGP_F_PREV & req.header.msgflag ? -1 : 1,
+		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
+        if (s < 0) goto Error;
+        DGP_MkValue(&rep, s, &rep.data.buf[0]);
+        if (DGP_F_RDAT & req.header.msgflag)
+        { DGP_AppendValue(&rep, cstr.len, &cstr.buf[0]);
+        }
+        break;
+      case DGP_QRYV:
+        s = DB_QueryEx(varptr, 
+                       &rep.data.buf[0],
+                       DGP_F_PREV & req.header.msgflag ? -1 : 1,
+		       1, /* docvt */
+		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
+        if (s < 0) goto Error;
+        DGP_MkValue(&rep, s, &rep.data.buf[0]);
+        if (DGP_F_RDAT & req.header.msgflag)
+        { DGP_AppendValue(&rep, cstr.len, &cstr.buf[0]);
+        }
+        break;
+      case DGP_DATV: 
+        s = DB_DataEx(varptr, 
+                      &rep.data.buf[0],
+		      DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
+        if (s < 0) goto Error;
+        DGP_MkValue(&rep, s, &rep.data.buf[0]);
+        if (DGP_F_RDAT & req.header.msgflag)
+        { DGP_AppendValue(&rep, cstr.len, &cstr.buf[0]);
+        }
+	break;
       default:
         do_log("unknown message code: %d\n", req.header.code);
         s = -(ERRZ82+ERRMLAST);
@@ -320,6 +351,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
+    jnl_fds[i] = 0;					// jrn file desc.
   }
   mypid = 0;
 
@@ -337,6 +369,23 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   partab.jobtab = &systab->jobtab[systab->maxjob + myslot_net];// dummy jobtab
   partab.jobtab->pid = getpid();
 
+  // setup jobtab entries
+  partab.jobtab->precision = systab->precision;		// decimal precision
+  partab.jobtab->start_len = 				// store start date/time
+    Vhorolog(partab.jobtab->start_dh);
+  partab.jobtab->dostk[0].type = TYPE_JOB;		// ensure slot 0 has val
+  systab->vol[0]->last_blk_used[MV1_PID] = 0;		// clear last glb block
+  systab->vol[0]->last_blk_written[MV1_PID] = 0;	// clear last written
+
+  partab.debug = 0;					// clear debug flag
+  partab.sstk_start = &sstk[0];				// address of sstk
+  partab.sstk_last = &sstk[MAX_SSTK];			// and the last char
+  partab.varlst = NULL;
+
+  partab.jobtab->attention = 0;
+  partab.jobtab->trap = 0;
+  partab.jobtab->async_error = 0;
+
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
   a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
@@ -349,6 +398,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
                   systab->vol[0]->file_name);
     return(errno);					// check for error
   }
+  partab.vol_fds[0] = dbfds[0];				// make sure fd is right
 
   t = time(0);						// for ctime()
   do_log("Network Daemon %d started successfully\n", myslot);   // log success

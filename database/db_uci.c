@@ -132,6 +132,7 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
 short DB_UCIKill(int volume, int uci)			// kill uci entry
 { short s;						// for functions
   u_int gb;						// block number
+  int netjobs;						// #jobs + #netdaemons
 
   if ((volume > MAX_VOL) || (volume < 1))		// within limits?
   { return (-ERRM26);					// no - error
@@ -181,10 +182,11 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   systab->vol[volnum-1]->map_dirty_flag |= VOLLAB_DIRTY;// mark map dirty
   blk[level]->mem->last_idx = LOW_INDEX - 1;		// say no index
   Garbit(gb);						// garbage it
+  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
   bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
-                        systab->maxjob * sizeof(u_int)); 
+                        netjobs * sizeof(u_int)); 
   bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
-                        systab->maxjob * sizeof(u_int));
+                        netjobs * sizeof(u_int));
   SemOp( SEM_GLOBAL, -curr_lock);
   return 0;						// exit
 }

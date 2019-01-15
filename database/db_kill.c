@@ -80,6 +80,7 @@ short Kill_data_ex(int what)				// remove tree
   u_int *ui;						// and another
   int qpos, wpos, rpos, qlen, qfree;
   int save_level;                                       // save level 
+  int netjobs;						// #jobs + #net daemons
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -180,10 +181,11 @@ FullGlobalKill:
       }
       level = save_level;
     }
+    netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
     bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
-                systab->maxjob * sizeof(u_int)); 
+                netjobs * sizeof(u_int)); 
     bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
-                systab->maxjob * sizeof(u_int));
+                netjobs * sizeof(u_int));
     level--;						// backup a level
 
     return 0;						// and exit
@@ -485,10 +487,11 @@ FullGlobalKill:
   { Queit();						// yes - do so
   }							// end right edge stuff
 
+  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
   bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
-                systab->maxjob * sizeof(u_int)); 
+                netjobs * sizeof(u_int)); 
   bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
-                systab->maxjob * sizeof(u_int)); 
+                netjobs * sizeof(u_int)); 
 
   return Re_key();					// re-key and return
 }
