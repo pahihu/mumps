@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include <sys/types.h>
+#include "error.h"
 #include "mumps.h"
 #include "dgp_database.h"
 #include "dgp.h"
@@ -118,4 +119,25 @@ short DGP_Data(int vol, mvar *var, u_char *buf, cstring *dat)
   }
   return rep.data.len;
 }
+
+
+short DGP_Lock(int count, cstring *list, int job)
+{ return 0;
+}
+
+
+short DGP_LockAdd(int count, cstring *list, int job)
+{ return 0;
+}
+
+
+short DGP_LockSub(int count, cstring *list, int job)
+{ return 0;
+}
+
+
+short DGP_UnLock(int job)
+{ return 0;
+}
+
 

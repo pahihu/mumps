@@ -256,7 +256,7 @@ void panic(char *msg)					// print msg and exit
 
     if (partab.jobtab != NULL)				// if not a daemon
     { fprintf( stderr, "Job No %d\n", 
-	((int) (partab.jobtab - systab->jobtab) + 1));
+	((int) MV1_PID + 1));
       j = partab.jobtab->cur_do;			// get current do
       for (i=0; i<MAX_NAME_BYTES; i++)
         tmp[i] = partab.jobtab->dostk[j].rounam.var_cu[i]; // copy it

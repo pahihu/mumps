@@ -88,6 +88,7 @@ int INIT_Start( char *file,                     // database
                 int addmb,                      // mb of additional buf
                 int jkb,                        // kb of jrn buf
 		int netdaemons,			// no of network daemons
+		int srvid,			// server ID
 		char *srvurl,			// server URL
 		int srvport)			// server port
 { int dbfd;                                     // database file descriptor
@@ -115,6 +116,18 @@ int INIT_Start( char *file,                     // database
   int minjkb;                                   // min JRN buf size
   int netjobs;					// #jobs inc. network daemons
 
+  if (-1 == srvid)				// system ID not specified ?
+    srvid = random() & 255;			//   select random value
+
+  if ((srvid < 0) || (srvid > 255))
+  { fprintf(stderr, "Invalid server ID %d - must be 0 to 255\n", srvid);
+    return(EINVAL);                             // exit with error
+  }
+
+  if ((srvport < 0) || (srvport > 65535))
+  { fprintf(stderr, "Invalid server port %d - must be 0 to 65535\n", srvport);
+    return(EINVAL);                             // exit with error
+  }
   if ((netdaemons < 0) || (netdaemons > MAX_NET_DAEMONS))
   { fprintf(stderr, "Invalid number of network daemons %d - must be 0 to %d\n", 
 		netdaemons, MAX_NET_DAEMONS);
@@ -200,6 +213,7 @@ int INIT_Start( char *file,                     // database
   jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
   jkb /= 1024;
 
+  if (srvid) printf("Starting system ID=%d\n", srvid);
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
@@ -302,6 +316,7 @@ int INIT_Start( char *file,                     // database
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
   systab->ZRestTime = MAX_REST_TIME;		// Daemon rest time
+  systab->dgpID = srvid;			// server ID
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
 

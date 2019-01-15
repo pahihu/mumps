@@ -2917,11 +2917,11 @@ short run(long savasp, long savssp)		// run compiled code
 	  if ((long) p & 1) p++;		// ensure even
 	}
 	if (opc == CMLCK)
-	  s = LCK_Old(args, cptr, j);		// old style lock
+	  s = LCK_Old(args, cptr, j, 0);	// old style lock
 	else if (opc == CMLCKP)
-	  s = LCK_Add(args, cptr, j);		// lock plus
+	  s = LCK_Add(args, cptr, j, 0);	// lock plus
 	else
-	  s = LCK_Sub(args, cptr);		// lock minus
+	  s = LCK_Sub(args, cptr, 0);		// lock minus
 	if (s < 0) ERROR(s)			// check for error
 	break;					// keep trucking
 

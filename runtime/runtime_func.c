@@ -1226,8 +1226,7 @@ short Dreverse(u_char *ret_buffer, cstring *expr)
 //
 
 short Dstack1(u_char *ret_buffer, int level)
-{ return Dstack1x(ret_buffer, level,
-		  (partab.jobtab - systab->jobtab));
+{ return Dstack1x(ret_buffer, level, MV1_PID);
 }
 
 short Dstack1x(u_char *ret_buffer, int level, int job)
@@ -1256,8 +1255,7 @@ short Dstack1x(u_char *ret_buffer, int level, int job)
 }
 
 short Dstack2(u_char *ret_buffer, int level, cstring *code)
-{ return Dstack2x(ret_buffer, level, code,
-		  (partab.jobtab - systab->jobtab));
+{ return Dstack2x(ret_buffer, level, code, MV1_PID);
 }
 
 short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
@@ -1285,7 +1283,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   else return (-(ERRZ50+ERRMLAST));		// junk
   if (arg2 == 1)				// "ECODE"
   { ret_buffer[0] = '\0';			// assume nothing
-    if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
+    if (job != MV1_PID) return (0); // can't find
     var = (mvar *) ret_buffer;			// use same space for mvar
     X_set("$ECODE\0\0", &var->name.var_cu[0], 8);// copy in $ECODE
     var->nsubs = 255;
@@ -1310,7 +1308,7 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
   { if (arg2 == 2)				// "MCODE"
     { ret_buffer[0] = '\0';			// JIC
       if (systab->jobtab[job].cur_do < level) return 0; // no can do
-      if (job != (partab.jobtab - systab->jobtab)) return (0); // can't find
+      if (job != MV1_PID) return (0); // can't find
       p = (u_char *)systab->jobtab[job].dostk[level].routine;
       if (p == NULL) return 0;			// nothing there
       for (i = 0; ((ret_buffer[i] = p[i])); i++); // copy it

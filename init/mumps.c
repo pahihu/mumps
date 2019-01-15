@@ -62,9 +62,9 @@ void help(void)                                 // give some help
   printf( "To initialize an environment:\n");
   printf( "> mumps -j maxjobs  -r routinemb\n");
   printf( "        -g globalmb -a addmb -l [-]jrnkb\n");
-  printf( "        -n #netdaemons -u srvurl -p srvport database\n");
+  printf( "        -n #netdaemons -i srvid -u srvurl -p srvport database\n");
   printf( "  routinemb, globalmb, addmb, jrnkb, \n");
-  printf( "  #netdaemons, srvurl, srvport are optional\n\n");
+  printf( "  #netdaemons, srvid, srvurl, srvport are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
@@ -93,6 +93,7 @@ int main(int argc,char **argv)                  // main entry point
   int jrnkb = 0;                                // jrn buf KB
   char srvurl[128];				// DGP server URL
   int srvport = 1966;				// base DGP server port
+  int srvid = -1;				// DGP system ID (random)
   int netdaemons = 0;				// no network daemons
 
   strcpy(srvurl, "tcp://127.0.0.1");
@@ -106,7 +107,7 @@ int main(int argc,char **argv)                  // main entry point
     }
   }
   if (argc < 2) help();                         // they need help
-  while ((c = getopt(argc, argv, "a:b:e:g:hj:l:m:n:p:r:s:u:v:x:")) != EOF)
+  while ((c = getopt(argc, argv, "a:b:e:g:hi:j:l:m:n:p:r:s:u:v:x:")) != EOF)
   { switch(c)
     { case 'a':                                 // switch -a
         addmb = atoi(optarg);                   // additional buffer
@@ -123,6 +124,9 @@ int main(int argc,char **argv)                  // main entry point
       case 'h':                                 // switch -h
         help();                                 // exit via help()
         break;
+      case 'i':					// switch -i
+	srvid = atoi(optarg);			// system ID		(init)
+	break;
       case 'j':                                 // switch -j
         jobs = atoi(optarg);                    // max number of jobs   (init)
         break;
@@ -180,6 +184,7 @@ int main(int argc,char **argv)                  // main entry point
                       addmb,                    // mb of additional buf
                       jrnkb,			// kb of jrn buf
                       netdaemons,		// # of network daemons
+		      srvid,			// server ID
                       srvurl,			// server URL
 		      srvport));    		// server port
 

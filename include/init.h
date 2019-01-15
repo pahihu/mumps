@@ -53,6 +53,7 @@ int INIT_Start( char *file,                     // database
                 int addmb,                      // mb of additional buf
                 int jrnkb,                      // kb of jrn buf
 		int netdaemons,			// no of network daemons
+		int srvid,			// server ID
 		char *srvurl,			// server URL
 		int srvport);			// server port
 void ST_Init();					// empty symbol table

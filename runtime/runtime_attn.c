@@ -111,7 +111,7 @@ void DoInfo()
 
   bcopy("\033\067\033[99;1H",ct,9);		// start off
   i = 9;					// next char
-  i += sprintf(&ct[i],"%d", (int)(partab.jobtab - systab->jobtab) + 1);
+  i += sprintf(&ct[i],"%d", (int)(MV1_PID) + 1);
   i += sprintf(&ct[i]," (%d) ", partab.jobtab->pid);
   p = (char *) &partab.jobtab->dostk[partab.jobtab->cur_do].rounam;
           					// point at routine name
@@ -216,7 +216,7 @@ int ForkIt(int cft)				// Copy File Table True/False
     i = SemOp(SEM_SYS, systab->maxjob);		// unlock
     return (mid + 1);				// return child job number
   }
-  ret = -((partab.jobtab - systab->jobtab) + 1); // save minus parent job#
+  ret = -((MV1_PID) + 1); // save minus parent job#
   partab.jobtab = &systab->jobtab[mid];         // and save our jobtab address
 
   curr_sem_init = 1;

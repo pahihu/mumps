@@ -282,7 +282,7 @@ short CleanJob(int job)				// tidy up a job
       return -1;                                //   flag failed
     }
   }
-  else j = partab.jobtab - systab->jobtab;      // or get current int job#
+  else j = MV1_PID;      			// or get current int job#
   LCK_Remove(j + 1);				// remove locks
   i = systab->jobtab[j].cur_do;			// get current do
 

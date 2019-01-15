@@ -50,10 +50,69 @@
 #include <sys/sem.h>                            // semaphore stuff
 
 #include "database.h"
+#include "dgp_database.h"			// remote VOL stuff
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
 
 #define LCK_SLEEP            1
+
+short LCK_HasRemote(int count, cstring *list)
+{ int done, pos, size;
+  int lvol, luci;
+  cstring *current;
+  
+  return 0;
+
+  done = 0;
+  while (done < count)                          // while more to do
+  { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    luci = current->buf[1];
+    if (luci != UCI_IS_LOCALVAR)
+    { lvol = current->buf[0] - 1;
+      if (systab->vol[lvol-1]->local_name[0])	// remote VOL ?
+      { return 1;
+      }
+    }
+    size = sizeof(short) + current->len + sizeof(char); // calc length of entry
+    if (size & 1) size += 1;                    // pad to even boundary
+    pos = pos + size;                           // find next start pos
+    done++;                                     // number done + 1
+  }                                             // successful
+  return 0;
+}
+
+short LCK_CopyRemote(int count, cstring *list, u_char *buf)
+{ int done, pos, size;
+  int lvol, luci;
+  cstring *current;
+  short s;
+  int docpy;
+
+  pos = 0;
+  s = 0;
+  done = 0;
+  while (done < count)                          // while more to do
+  { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    luci = current->buf[1];			// lock UCI
+    docpy = 0;					// assume don't copy
+    if (luci != UCI_IS_LOCALVAR)
+    { lvol = current->buf[0];			// lock VOL
+      if (systab->vol[lvol-1]->local_name[0])	// remote VOL ?
+      { docpy = 1;				//   copy to buf
+      }
+    }
+    size = sizeof(short) + current->len + sizeof(char); // calc length of entry
+    if (size & 1) size += 1;                    // pad to even boundary
+    if (docpy)					// if copy entry
+    { bcopy(&((u_char *) list)[pos], buf, size);//   copy to buf
+      s   += size;				//   incr. buf size
+      buf += size;				//   step buffer
+    }
+    pos = pos + size;                           // find next start pos
+    done++;                                     // number done + 1
+  }                                             // successful
+  return s;
+}
 
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
@@ -385,7 +444,9 @@ void LCK_Remove(int job)                        // remove all locks for a job
   locktab *plptr;                               // previous locktab entry
   short x;                                      // for SEM's
 
-  if (!job) job = partab.jobtab - systab->jobtab + 1; // current job
+  if (!job) job = MV1_PID + 1; 			// current job
+
+  DGP_UnLock(job);
 
   x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return;                            // return on error
@@ -419,15 +480,15 @@ void LCK_Remove(int job)                        // remove all locks for a job
 
 //****************************************************************
 
-short LCK_Old(int count, cstring *list, int to)	// old style lock
+short LCK_Old(int count, cstring *list, int to, int job)// old style lock
 {
-  LCK_Remove(0);                                // remove all locks for job
+  LCK_Remove(job);                             	// remove all locks for job
 
   if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP)) // quit
     return -(ERRMLAST+ERRZ51);
 
   if (count < 1) return 0;                      // just return if none
-  return LCK_Add(count, list, to);              // add all locks in list
+  return LCK_Add(count, list, to, job);         // add all locks in list
 }                                               // end function LCK_Old()
 
 //****************************************************************
@@ -493,7 +554,8 @@ int failed(lck_add_ctx *pctx)                 // common code
   return 0;
 }
 
-short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
+static
+short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
 {
   cstring *current = list;                      // temp cstring
   cstring *tempc;                               // temp cstring
@@ -513,6 +575,8 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
   int reqd;                                     // space reqd for lock
   //short x;                                    // for SEM's
   lck_add_ctx ctx,*pctx;
+
+  if (!job) job = MV1_PID + 1;			// current job
 
   ctx._pass = 0;
   ctx._count = p_count;
@@ -535,8 +599,8 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
        
   while ((done < count) && (tryagain == 0))     // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
-    reqd = sizeof(short)*3 + sizeof(int) + sizeof(locktab *) + current->len +
-                sizeof(short)*2;
+    reqd = sizeof(short)*3 + sizeof(int)*2 + sizeof(locktab *) + current->len +
+                sizeof(short);
     if (reqd & 7) reqd = (reqd & ~7) + 8;       // round up to 8 byte boundary
     lptr = systab->lockhead;                    // start at first locktab
     plptr = NULL;                               // init previous pointer
@@ -562,7 +626,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
       }
       else
       {
-        nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job number
+        nlptr->job = job; 			// init job number
         nlptr->lock_count = 1;                  // init lock count
         nlptr->byte_count = current->len;       // init data length
         bcopy(current->buf, &nlptr->vol, current->len); // copy in data
@@ -583,7 +647,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
       }                                         // end while more/found/past
       if ((lptr != NULL) && (memcmp(current->buf, &lptr->vol, i) == 0))
       {                                         // exists as sub/exact/superset
-        if (lptr->job == (partab.jobtab - systab->jobtab) + 1) // we MUST own
+        if (lptr->job == job) 			// we MUST own
         { while ((lptr != NULL) &&              // more to look at
                  (memcmp(current->buf, &lptr->vol, i) == 0) && // still matches
                  (lptr->byte_count < current->len) // length is less
@@ -620,8 +684,8 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
                 }
                 else
                 {
-                  nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // job#
-                  nlptr->lock_count = 1;		// init lock count
+                  nlptr->job = job; 		// job#
+                  nlptr->lock_count = 1;	// init lock count
                   nlptr->byte_count = current->len; // length of data
                   bcopy(current->buf, &nlptr->vol, current->len); // copy data
                   if (plptr != NULL)            // not inserting at list head
@@ -653,7 +717,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
               }
               else
               {
-                nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job
+                nlptr->job = job; 		// init job
                 nlptr->lock_count = 1;          // init lock count
                 nlptr->byte_count = current->len; // length of data
                 bcopy(current->buf, &nlptr->vol, current->len); // copy data
@@ -684,7 +748,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
             }
             else
             {
-              nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // job no.
+              nlptr->job = job; 		// job no.
               nlptr->lock_count = 1;            // init lock count
               nlptr->byte_count = current->len; // length of data
               bcopy(current->buf, &nlptr->vol, current->len); // copy data
@@ -733,7 +797,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
           }
           else
           {
-            nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job no.
+            nlptr->job = job; 			// init job no.
             nlptr->lock_count = 1;              // init lock count
             nlptr->byte_count = current->len;	// length of data
             bcopy(current->buf, &nlptr->vol, current->len); // copy the data
@@ -768,7 +832,7 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
             }
             else
             {
-              nlptr->job = ((partab.jobtab - systab->jobtab) + 1); // init job
+              nlptr->job = job; 		// init job
               nlptr->lock_count = 1;            // init lock count
               nlptr->byte_count = current->len;	// length of data
               bcopy(current->buf, &nlptr->vol, current->len); // copy data
@@ -809,9 +873,28 @@ short LCK_Add(int p_count, cstring *list, int p_to) // lock plus
 #undef x
 #undef lptr
              
+static short LCK_SubP(int count, cstring *list, int job);
+
+short LCK_Add(int count, cstring *list, int to, int job) // lock plus
+{ short s;
+
+  s = LCK_AddP(count, list, to, job);
+  if (s < 0)
+    return s;
+  if (LCK_HasRemote(count, list))
+  { s = DGP_LockAdd(count, list, job);
+    if (s < 0)
+    { LCK_SubP(count, list, job);
+      return s;
+    }
+  }
+  return s;
+}
+
 //****************************************************************
 
-short LCK_Sub(int count, cstring *list)         // lock minus
+static
+short LCK_SubP(int count, cstring *list, int job)// lock minus
 {
   int r = -1;                                   // return value
   int i;                                        // a handy int
@@ -822,6 +905,8 @@ short LCK_Sub(int count, cstring *list)         // lock minus
   locktab *lptr;                                // locktab pointer
   locktab *plptr;                               // previous locktab pointer
   short x;                                      // for SEM's
+
+  if (!job) job = MV1_PID + 1;			// current job
 
   x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return x;                          // return the error
@@ -844,7 +929,7 @@ short LCK_Sub(int count, cstring *list)         // lock minus
       }                                         // end while not found/past
       if ((lptr != NULL) && (memcmp(current->buf, &lptr->vol, i) == 0))
       {                                         // in sub/exact/superset form
-        if (lptr->job == ((partab.jobtab - systab->jobtab) + 1)) // we MUST own
+        if (lptr->job == job) 			// we MUST own
         { while ((lptr != NULL) &&              // more to see
                  (memcmp(current->buf, &lptr->vol, i) == 0) && // 1st bit match
                  (lptr->byte_count < current->len) // length is smaller
@@ -883,6 +968,16 @@ short LCK_Sub(int count, cstring *list)         // lock minus
   x = SemOp(SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
   return 0;                                     // finished OK
 }                                               // end function LCK_Sub()
+
+short LCK_Sub(int count, cstring *list, int job)// lock minus
+{ short s;
+
+  s = LCK_SubP(count, list, job);
+  if (LCK_HasRemote(count, list))
+  { DGP_LockSub(count, list, job);
+  }
+  return s;
+}
 
 //****************************************************************
 void Dump_lt()

@@ -367,7 +367,7 @@ int mv1_global_lock(MV1DB *hnd, MV1VAR *var, int incr, int timeout)
     return s;
 
   cstr->len = s;
-  return incr ? LCK_Add(1, cstr, timeout) : LCK_Old(1, cstr, timeout);
+  return incr ? LCK_Add(1, cstr, timeout, 0) : LCK_Old(1, cstr, timeout, 0);
 }
 
 
@@ -387,7 +387,7 @@ int mv1_global_unlock(MV1DB *hnd, MV1VAR *var)
     return s;
 
   cstr->len = s;
-  return LCK_Sub(1, cstr);
+  return LCK_Sub(1, cstr, 0);
 }
 
 

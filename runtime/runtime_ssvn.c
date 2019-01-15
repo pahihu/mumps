@@ -359,6 +359,19 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  (strncasecmp( (char *) subs[0]->buf, "resttime\0", 9) == 0))
       { return itocstring(buf, systab->ZRestTime);   // return the value
       }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "server_url\0", 11) == 0))
+      { strcpy(buf, systab->dgpURL);
+        return strlen(buf);			// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "server_port\0", 12) == 0))
+      { return itocstring(buf, systab->dgpPORT);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "server_id\0", 9) == 0))
+      { return itocstring(buf, systab->dgpID);	// return the value
+      }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
 	if ((!(i < MAX_TRANTAB)) || (i < 0))	// validate it
@@ -560,7 +573,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 
       j = cstringtoi(data);			// convert to int
       if ((j < 1) || (j > 64)) j = 65;		// limit size
-      if (((partab.jobtab - systab->jobtab) == i) && // same job?
+      if ((MV1_PID == i) && 			// same job?
 	  (priv()))				// and has privs
       { if (strncasecmp( (char *) subs[1]->buf, "global\0", 7) == 0)
 	{ systab->jobtab[i].uci = j;		// set it
@@ -752,8 +765,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
-	    ? -((partab.jobtab - systab->jobtab) + 1)	// set it
-	    : 0;					// clear it
+	    ? -(MV1_PID + 1)			// set it
+	    : 0;				// clear it
         if (systab->vol[i]->writelock)          // block Queit()
         { inter_add(&systab->delaywt, 1);
           MEM_BARRIER;

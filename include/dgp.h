@@ -41,6 +41,7 @@ typedef struct ATTR_PACKED DGPDATA
 typedef struct ATTR_PACKED DGPHEADER
 { u_char  code;
   u_char  version;
+  u_short sysjob;
   u_char  hdrlen;
   u_char  msgflag;
   u_short msglen;

@@ -8,5 +8,9 @@ short DGP_Order(int vol, mvar *var, u_char *buf, int dir, cstring *dat);
 short DGP_Query(int vol, mvar *var, u_char *buf, int dir, cstring *dat);
 short DGP_Data(int vol, mvar *var, u_char *buf, cstring *dat);
 short DGP_ZIncrement(int vol, cstring *ret, mvar *var, cstring *expr);
+short DGP_Lock(int count, cstring *list, int job);
+short DGP_LockAdd(int count, cstring *list, int job);
+short DGP_LockSub(int count, cstring *list, int job);
+short DGP_UnLock(int job);
 
 #endif

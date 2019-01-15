@@ -567,11 +567,10 @@ typedef struct __PACKED__ JOBTAB
 typedef struct __PACKED__ LOCKTAB               // internal lock tables
 { struct LOCKTAB *fwd_link;                     // point at next one
   int size;                                     // how many bytes
-  short job;                                    // int job (-1 = free)
+  int job;                                      // int job (-1 = free)
   short lock_count;                             // how many times locked by job
   short byte_count;                             // size of following reference
   short dummy1;
-  short dummy2;
   u_char vol;                                   // vol number
   u_char uci;                                   // uci number (255 = local)
   var_u name;                                   // var name
@@ -618,6 +617,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE int ZRestTime;			// Current daemon rest time
   u_char dgpURL[64];				// DGP URL base
   int dgpPORT;					// DGP port base
+  u_short dgpID;				// DGP system ID
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
