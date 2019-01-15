@@ -254,10 +254,16 @@ void do_netdaemon(void)
 	DGP_MkValue(&rep, s, &rep.data.buf[0]);
         break;
       case DGP_SETV:
-        ptr1 = (cstring *) (&req.data.buf[0] + req.data.len);
+        ptr1 = (cstring *) (&req.data.buf[req.data.len]);
 	s = DB_Set(varptr, ptr1);
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
+        break;
+      case DGP_ZINC:
+        ptr1 = (cstring *) (&req.data.buf[req.data.len]);
+        s = Dzincrement2((cstring *) &rep.data, varptr, ptr1);
+        if (s < 0) goto Error;
+        DGP_MkValue(&rep, s, &rep.data.buf[0]);
         break;
       case DGP_KILV:
 	s = DB_KillEx(varptr, req.header.msgflag);

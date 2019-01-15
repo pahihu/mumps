@@ -97,7 +97,7 @@ int   X_take(u_char *a, chr_x *b);
 
 // Database prototypes
 short DB_Get(mvar *var, u_char *buf);            // get global data
-short DB_GetEx(mvar *var, u_char *buf, int wrlock);// get global data
+short DB_GetEx(mvar *var, u_char *buf, int wrlock, int old_stat);// get glb data
 short DB_Set(mvar *var, cstring *data);          // set global data
 short DB_SetEx(mvar *var, cstring *data, int has_wrlock);// set global data
 short DB_Data(mvar *var, u_char *buf);           // get $DATA()

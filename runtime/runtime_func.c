@@ -47,6 +47,7 @@
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // standard errors
 #include "database.h"				// for gbd def
+#include "dgp_database.h"			// for remote VOL
 
 #ifdef linux
 #include <values.h>				// for linux
@@ -2030,6 +2031,8 @@ short Dzincrement1(cstring *ret, mvar *var)
   return Dzincrement2(ret, var, cptr); 	        // do it below
 }
 
+short Copy2local(mvar *var, char *rtn);
+
 short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
 { short s;					// for return values 
   u_char num[128],temp[128];
@@ -2045,7 +2048,16 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
     return (-ERRM38);				// no such
   else						// for a global var
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-    s = DB_GetEx(var, ret->buf, 1);	        // attempt to get the data
+    s = Copy2local(var, "GET");			// setup DB global here
+    if (s < 0)
+    { return s;
+    }
+    if (systab->vol[volnum-1]->local_name[0])  	// remote VOL ?
+    { if (s > 0)
+        return -(ERRM38);
+      return DGP_ZIncrement(volnum-1, ret, &db_var, expr);
+    }
+    s = DB_GetEx(var, ret->buf, 1, s);	        // attempt to get the data
     // fprintf(stderr, "Dincrement: curr_lock=%d s=%d\r\n", curr_lock, s);
     if (s >= 0) goto gotit;			// if we got data, return it
     if (s == -(ERRM7)) s = 0;			// flag undefined global var

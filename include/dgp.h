@@ -16,6 +16,7 @@
 #define DGP_ORDV	16	/* $O(^GLB[,DIR[,VAR]]) */
 #define DGP_QRYV	18	/* $Q(^GLB[,DIR[,VAR]]) */
 #define DGP_DATV	20	/* $D(^GLB[,VAR])	*/
+#define DGP_ZINC	22	/* $ZINCREMENT(^GLB,DAT) */
 
 #define DGP_SRV		26	/* normal response */
 #define DGP_SER		28	/* error response, only status is sent */

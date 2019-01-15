@@ -44,6 +44,20 @@ short DGP_Set(int vol, mvar *var, cstring *data)
 }
 
 
+short DGP_ZIncrement(int vol, cstring *ret, mvar *var, cstring *expr)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkRequest(&req, DGP_ZINC, 0, var, expr->len, &expr->buf[0]);
+  s = DGP_Dialog(vol, &req, &rep);
+  if (s < 0) return s;
+  ret->len = rep.data.len;
+  bcopy(&rep.data.buf[0], &ret->buf[0], ret->len);
+  return ret->len;
+}
+
+
 short DGP_Order(int vol, mvar *var, u_char *buf, int dir, cstring *dat)
 { DGPRequest req;
   DGPReply rep;

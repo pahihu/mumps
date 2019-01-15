@@ -7,5 +7,6 @@ short DGP_Set(int vol, mvar *var, cstring *data);
 short DGP_Order(int vol, mvar *var, u_char *buf, int dir, cstring *dat);
 short DGP_Query(int vol, mvar *var, u_char *buf, int dir, cstring *dat);
 short DGP_Data(int vol, mvar *var, u_char *buf, cstring *dat);
+short DGP_ZIncrement(int vol, cstring *ret, mvar *var, cstring *expr);
 
 #endif

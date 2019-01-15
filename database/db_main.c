@@ -234,14 +234,17 @@ EndTTLookup:
 //
 
 short DB_Get(mvar *var, u_char *buf)	                // get global data
-{ return DB_GetEx(var, buf, 0);
+{ return DB_GetEx(var, buf, 0, 0);
 }
 
-short DB_GetEx(mvar *var, u_char *buf, int wrlock)	// get global data
+short DB_GetEx(mvar *var, 				// get global data
+	       u_char *buf, int wrlock, 
+	       int old_stat)
 { short s;						// for returns
   int i;                                                // handy int
 
-  s = Copy2local(var,"GET");				// get local copy
+  // NB. $ZINCR requests wrlock, Copy2local() is done in Dzincrement2()
+  s = wrlock ? old_stat : Copy2local(var,"GET");
   if (s < 0)
   { return s;						// exit on error
   }
