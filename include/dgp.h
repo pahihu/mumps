@@ -39,12 +39,14 @@ typedef struct ATTR_PACKED DGPDATA
 } DGPData;
 
 typedef struct ATTR_PACKED DGPHEADER
-{ u_char  code;
-  u_char  version;
-  u_short sysjob;
-  u_char  hdrlen;
-  u_char  msgflag;
-  u_short msglen;
+{ u_char  code;			/* message code */
+  u_char  version;		/* DGP version */
+  u_short remjob;		/* client remote JOB number, 
+				     OR JOB parameter for LOCK commands,
+				     OR server PID */
+  u_char  hdrlen;		/* length of the header */
+  u_char  msgflag;		/* message flags */
+  u_short msglen;		/* length of message including header */
 } DGPHeader;
 
 typedef struct ATTR_PACKED DGPREQUEST
@@ -70,6 +72,12 @@ short DGP_MkRequest(DGPRequest *req,
 		    short len,
 		    const u_char *buf);
 
+short DGP_MkLockRequest(DGPRequest *req,
+		    u_char code,
+		    int count,
+		    const cstring *list,
+		    int job);
+
 void DGP_MkError(DGPReply *rep, short s);
 void DGP_MkValue(DGPReply *rep, short len, const u_char *buf);
 void DGP_MkStatus(DGPReply *rep, short s);
@@ -78,6 +86,8 @@ void DGP_AppendValue(DGPReply *rep, short len, const u_char *buf);
 short DGP_GetValue(DGPReply *rep, u_char *buf);
 
 short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep);
+
+void  DGP_MsgDump(int dosend, DGPHeader *header, short status);
 
 
 #endif

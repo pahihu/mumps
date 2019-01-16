@@ -143,7 +143,8 @@ extern pid_t mypid;
 // Return:   none
 //
 
-short getvol(cstring *);
+extern short getvol(cstring *);
+extern int dump_msg;
 
 void do_netdaemon(void)
 { 
@@ -160,6 +161,10 @@ void do_netdaemon(void)
   short s;						// status
   time_t t;						// current time
   u_char old;						// handy u_char
+  int remjob;						// remote JOB no.
+  int lck_count;					// no. of LOCKs
+  cstring *lck_list;					// LOCK list
+  DGPData *data;
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -201,7 +206,15 @@ void do_netdaemon(void)
     rep.header.code = DGP_ERR;
     s = 0;
     varptr = 0;
-    if ((DGP_ULOK != req.header.code) && (DGP_MNTV != req.header.code))
+
+    remjob = req.header.remjob + 1;			// remote JOB no.
+    // NB. when ULOK' system ID is 255, the LO(remjob) contains
+    //     the DGP SYSID of the remote system
+    if (req.header.code != DGP_ULOK)
+    { ASSERT((256 < remjob) && (remjob < 65281));	// validate
+    }
+
+    if ((req.header.code > DGP_ZDAL) && (DGP_MNTV != req.header.code))
     { // fprintf(stderr,"got GLB=[%s] (len=%d)\n", (char *) &req.data.buf[0], req.data.len);
 #if 1
       old = req.data.buf[req.data.len];			// patch GLB name
@@ -217,15 +230,15 @@ void do_netdaemon(void)
       // fprintf(stderr, "req.data.len=%d\n", req.data.len); fflush(stderr);
 #endif
     }
+    if (req.header.code <= DGP_ZDAL)
+    { lck_list = (cstring *) &req.data.buf[0];
+      data = (DGPData *) &(req.data.buf[req.data.len]);
+      lck_count = data->len;
+    }
 
     // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
-    if (0 && (req.header.msglen < 64))
-    { int i;
-      u_char *buf = (u_char *) &req;
-      fprintf(stderr,"dump message: [");
-      for (i = 0; i < req.header.msglen; i++)
-        fprintf(stderr,"%02X ", buf[i]);
-      fprintf(stderr,"]\n");fflush(stderr);
+    if (dump_msg)
+    { DGP_MsgDump(0, &req.header, req.data.len);
     }
 
     switch (req.header.code)
@@ -244,10 +257,25 @@ void do_netdaemon(void)
 		    (u_char *) systab->vol[s-1]->vollab);
         systab->vol[s-1]->vollab->clean = old;
         break;
-      case DGP_LOKV: break;
-      case DGP_ULOK: break;
-      case DGP_ZALL: break;
-      case DGP_ZDAL: break;
+      case DGP_LOKV: 
+        s = LCK_Old(lck_count, lck_list, systab->dgpLOCKTO, remjob);
+        if (s < 0) goto Error;
+        DGP_MkStatus(&rep, partab.jobtab->test);
+        break;
+      case DGP_ULOK: 
+        LCK_Remove(remjob);
+        DGP_MkStatus(&rep, 0);
+        break;
+      case DGP_ZALL: 
+        s = LCK_Add(lck_count, lck_list, systab->dgpLOCKTO, remjob);
+        if (s < 0) goto Error;
+        DGP_MkStatus(&rep, partab.jobtab->test);
+        break;
+      case DGP_ZDAL: 
+        s = LCK_Sub(lck_count, lck_list, remjob);
+        if (s < 0) goto Error;
+        DGP_MkStatus(&rep, s);
+        break;
       case DGP_GETV:
 	s = DB_Get(varptr, &rep.data.buf[0]);
 	if (s < 0) goto Error;
@@ -312,6 +340,9 @@ Error:  DGP_MkError(&rep, s);
     if (DGP_ERR == rep.header.code)
       DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
+    if (dump_msg)
+    { DGP_MsgDump(1, &rep.header, rep.data.len);
+    }
     bytes = nn_send(sock, &rep, rep.header.msglen, 0);
     if (bytes < 0)
       do_log("nn_send: %s\n", nn_strerror(nn_errno()));

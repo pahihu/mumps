@@ -179,6 +179,58 @@ parameter:
     SET ^$SYSTEM("VOL",2,"FILE")="/home/user/MUMPS/db/app.dat"
 
 
+### Remote volume sets
+
+DGP (Distributed Global Protocol) is not compatible with any MUMPS networking
+standards. It uses the [nanomsg library](http://nanomsg.org) and you should
+compile the sources with the following additions in the Makefile:
+
+    EXTRA += -DMV1_DGP=1
+    LIBS  += -lnanomsg
+
+The server MUMPS system starts network daemons. The maximum number of network
+daemons is 10. The connection interface is specified as a transport protocol
+base URL in the nanomsg library format and a base port number. Each network
+daemon constructs its connection point from the URL and the base port number.
+
+Example:
+
+    mumps -i 1 -n 5 -u tcp://192.168.1.23 -p 2000 datadb
+
+The command above will start the MUMPS environment which ID is 1, with 5 
+network daemons, with the following connection point URLs:
+
+    tcp://192.168.1.23:2000
+    tcp://192.168.1.23:2001
+    tcp://192.168.1.23:2002
+    tcp://192.168.1.23:2003
+    tcp://192.168.1.23:2004
+
+The client MUMPS systems can mount a volume from a server MUMPS system,
+with the following commands:
+
+    SET ^$SYSTEM("VOL",2,"LOCAL_NAME")="AAA"
+    SET ^$SYSTEM("VOL",2,"FILE")="tcp://192.168.1.23:2002/BBB"
+
+This commands specify that the local volume "AAA" stands for the remote
+volume "BBB" on the remote server. The client will connect using TCP/IP
+protocol to the IP address 192.168.1.23 on port 2002.
+
+Using the volume "AAA" on the client system will transfer each database
+command to the remote system and the results are coming from there.
+
+Each MUMPS environment participating in a remote environment (either as a 
+server or client) should have a unique system ID, which should be specified
+on the command line, when you start the environment. The unique system ID
+is necessary to support remote locking, because each JOB will get a unique
+job number which is constructed from the system ID and the local JOB number.
+
+Timeouts specified on remote LOCKs are not used. Instead the system
+parameter `DGP_LOCK_TIMEOUT` is used on the server system to specify a
+timeout for the LOCK commands. First the locks are established on the local
+system. If they succeed locks are placed on the remote system.
+
+
 ### MV1API
 
 You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
@@ -474,6 +526,10 @@ Additional `^$SYSTEM` variables or changed behavior.
 
 | Subscript          | Contains                  | Setable |
 | ------------------ | ------------------------- | ------- |
+| DGP_ID             | Network ID of the MUMPS environment  | no |
+| DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
+| DGP_PORT           | Base port number for network daemons | no |
+| DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |
 | RESTTIME           | Daemon rest time          | no |
 | TSIZE              | sizeof(time_t)            | no |
@@ -534,4 +590,5 @@ MUMPS with commands/functions written in MUMPS
 | Maximum number of jobs            | 256                      |
 | Maximum number of daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |
+| Maximum number of network daemons | 10                       |
 

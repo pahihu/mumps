@@ -618,6 +618,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   u_char dgpURL[64];				// DGP URL base
   int dgpPORT;					// DGP port base
   u_short dgpID;				// DGP system ID
+  int dgpLOCKTO;				// DGP LOCK timeout
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];

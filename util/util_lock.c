@@ -56,21 +56,31 @@
 
 #define LCK_SLEEP            1
 
-short LCK_HasRemote(int count, cstring *list)
+static
+short LCK_HasRemote(int count, cstring *list, u_char *remote_vols)
 { int done, pos, size;
   int lvol, luci;
   cstring *current;
+  short vol_count;
   
-  return 0;
+  // fprintf(stderr, "LCK_HasRemote: begin, count=%d\r\n", count); fflush(stderr);
+  vol_count = 0;
+  for (pos = 0; pos < MAX_VOL; pos++)
+    remote_vols[pos] = 0;
 
+  pos = 0;
   done = 0;
   while (done < count)                          // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    // fprintf(stderr, "current->len=%d\r\n", current->len); fflush(stderr);
     luci = current->buf[1];
     if (luci != UCI_IS_LOCALVAR)
-    { lvol = current->buf[0] - 1;
+    { lvol = current->buf[0];
+      // fprintf(stderr, "lvol=%d\r\n", lvol); fflush(stderr);
       if (systab->vol[lvol-1]->local_name[0])	// remote VOL ?
-      { return 1;
+      { if (0 == remote_vols[lvol-1])		// not marked yet ?
+          vol_count++;				//   count it
+        remote_vols[lvol-1] = 1;		// mark volume
       }
     }
     size = sizeof(short) + current->len + sizeof(char); // calc length of entry
@@ -78,19 +88,27 @@ short LCK_HasRemote(int count, cstring *list)
     pos = pos + size;                           // find next start pos
     done++;                                     // number done + 1
   }                                             // successful
-  return 0;
+  // fprintf(stderr, "LCK_HasRemote: done\r\n"); fflush(stderr);
+  return vol_count;
 }
 
-short LCK_CopyRemote(int count, cstring *list, u_char *buf)
-{ int done, pos, size;
-  int lvol, luci;
-  cstring *current;
-  short s;
-  int docpy;
 
-  pos = 0;
-  s = 0;
-  done = 0;
+short LCK_CopyRemote(int count,			// no. of LOCKs
+                     cstring *list, 		// LOCKs
+		     int local_vol, 		// local VOL filter
+		     cstring *remote_list)	// return list
+{ int done;					// processing done ?
+  int pos;					// list read position
+  int size;					// size of current entry
+  int lvol, luci;				// LOCK UCI & VOL
+  cstring *current;				// current lock entry
+  short remote_count;				// no. of remote LOCK entries
+  int docpy;					// do copy
+
+  remote_list->len = 0;				// remote list empty
+  remote_count = 0;				// no. of remote entries zero
+  pos = 0;					// start read pos
+  done = 0;					// processing not done
   while (done < count)                          // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
     luci = current->buf[1];			// lock UCI
@@ -98,20 +116,24 @@ short LCK_CopyRemote(int count, cstring *list, u_char *buf)
     if (luci != UCI_IS_LOCALVAR)
     { lvol = current->buf[0];			// lock VOL
       if (systab->vol[lvol-1]->local_name[0])	// remote VOL ?
-      { docpy = 1;				//   copy to buf
+      { docpy = local_vol == lvol;		//   filter by input param
       }
     }
     size = sizeof(short) + current->len + sizeof(char); // calc length of entry
     if (size & 1) size += 1;                    // pad to even boundary
     if (docpy)					// if copy entry
-    { bcopy(&((u_char *) list)[pos], buf, size);//   copy to buf
-      s   += size;				//   incr. buf size
-      buf += size;				//   step buffer
+    { bcopy(&((u_char *) list)[pos], 
+	    &remote_list->buf[remote_list->len], size);
+      // NB. patch VOL number in remote list
+      remote_list->buf[remote_list->len + sizeof(short)] =
+      			systab->vol[lvol-1]->vollab->clean;
+      remote_list->len += size;			//   incr. remote list size
+      remote_count++;				//   incr. no. of remote LOCKs
     }
     pos = pos + size;                           // find next start pos
     done++;                                     // number done + 1
   }                                             // successful
-  return s;
+  return remote_count;
 }
 
 //****************************************************************
@@ -438,15 +460,26 @@ short LCK_Kill(cstring *ent)                    // remove an entry
 
 //****************************************************************
 
+#define SYSID(x)	((x-1)/256)
+
 void LCK_Remove(int job)                        // remove all locks for a job
-{
-  locktab *lptr;                                // locktab entry we are doing
+{ locktab *lptr;                                // locktab entry we are doing
   locktab *plptr;                               // previous locktab entry
   short x;                                      // for SEM's
+  int i;					// handy int
 
   if (!job) job = MV1_PID + 1; 			// current job
 
-  DGP_UnLock(job);
+  if ((job <= 256) ||				// local job ?
+      (255 == SYSID(job)))			//   OR system shutdown
+  { for (i = 0; i < MAX_VOL; i++)		// for each VOL
+    { if (systab->vol[i]->vollab == NULL)	// break if not mounted
+        break;
+      if (systab->vol[i]->local_name[0])	// remote VOL ?
+      { DGP_UnLock(i, job);			//   remove remote LOCKs
+      }
+    }
+  }
 
   x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return;                            // return on error
@@ -454,7 +487,9 @@ void LCK_Remove(int job)                        // remove all locks for a job
   lptr = systab->lockhead;                      // init current locktab pointer
   plptr = NULL;                                 // init prev locktab pointer
   while (lptr != NULL)                          // while more lock tabs
-  { if (lptr->job == job)                       // if we own it
+  { if ((lptr->job == job) ||                   // if we own it
+        ((255 == SYSID(job)) && 		//   OR system shutdown
+         (SYSID(lptr->job) == (job&255))))	//   AND same system ID
     { if (plptr == NULL)                        // remove top node
       { systab->lockhead = lptr->fwd_link;      // link in new head lock node
         lptr->job = -1;                         // flag it as free
@@ -481,7 +516,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
 //****************************************************************
 
 short LCK_Old(int count, cstring *list, int to, int job)// old style lock
-{
+{ 
   LCK_Remove(job);                             	// remove all locks for job
 
   if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP)) // quit
@@ -503,6 +538,7 @@ typedef struct _lck_add {
   time_t _strttime;
   short _x;
   locktab *_lptr;
+  cstring *_current;
 } lck_add_ctx;
 
 #define pass      pctx->_pass
@@ -514,6 +550,7 @@ typedef struct _lck_add {
 #define strttime  pctx->_strttime
 #define x         pctx->_x
 #define lptr      pctx->_lptr
+#define current	  pctx->_current
 
 static
 int failed(lck_add_ctx *pctx)                 // common code
@@ -530,7 +567,7 @@ int failed(lck_add_ctx *pctx)                 // common code
 
   if (tryagain == 1)
   { if (0 == (pass & 3))
-      systab->vol[volnum-1]->stats.lckwait++; // update stats
+      systab->vol[current->buf[0]-1]->stats.lckwait++; // update stats
     x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
     if (pass & 3)
       SchedYield();
@@ -557,7 +594,7 @@ int failed(lck_add_ctx *pctx)                 // common code
 static
 short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
 {
-  cstring *current = list;                      // temp cstring
+  // cstring *current = list;                   // temp cstring
   cstring *tempc;                               // temp cstring
   int pos = 0;                                  // position indicator
   int size = 0;                                 // size of entry count
@@ -582,6 +619,7 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
   ctx._count = p_count;
   ctx._to = p_to;
   pctx = &ctx;
+  current = list;
   done = 0;
   tryagain = 1;
 
@@ -872,22 +910,49 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
 #undef strttime
 #undef x
 #undef lptr
+#undef current
              
 static short LCK_SubP(int count, cstring *list, int job);
 
 short LCK_Add(int count, cstring *list, int to, int job) // lock plus
 { short s;
+  cstring remote_list;				// remote LOCKs
+  int remote_count;				// num. of remote LOCKs
+  u_char remote_vols[MAX_VOL];
+  int i, j;					// handy ints
 
-  s = LCK_AddP(count, list, to, job);
-  if (s < 0)
-    return s;
-  if (LCK_HasRemote(count, list))
-  { s = DGP_LockAdd(count, list, job);
-    if (s < 0)
-    { LCK_SubP(count, list, job);
-      return s;
+  if (!job) job = MV1_PID + 1;			// current job
+
+  s = LCK_AddP(count, list, to, job);		// add LOCKs
+  if (s < 0)					// failed ?
+    return s;					// return error
+
+  if ((job <= 256) && 
+      LCK_HasRemote(count, list, remote_vols)) // has remote VOLs ?
+  { for (i = 0; i < MAX_VOL; i++)
+    { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip
+      remote_count = LCK_CopyRemote(count, list,//   copy remote LOCKs
+				    i + 1,
+				    &remote_list);
+      // NB. DGP_LockAdd returns the remote network daemon's $TEST
+      s = DGP_LockAdd(i, remote_count, 		// add remote LOCKs
+		      &remote_list, job); 	// for remote VOL
+      if (!s)					// failed ?
+      { LCK_SubP(count, list, job);		//   remove local LOCKs
+        goto Error;
+      }
     }
   }
+  return s;
+Error:
+  for (j = 0; j < i; j++)
+  { if (0 == remote_vols[j]) continue;
+    remote_count = LCK_CopyRemote(count, list,	// copy remote LOCKs
+				  j + 1,
+				  &remote_list);
+    DGP_LockSub(j, remote_count, &remote_list, job);
+  }
+  partab.jobtab->test = 0;
   return s;
 }
 
@@ -969,12 +1034,26 @@ short LCK_SubP(int count, cstring *list, int job)// lock minus
   return 0;                                     // finished OK
 }                                               // end function LCK_Sub()
 
+
 short LCK_Sub(int count, cstring *list, int job)// lock minus
 { short s;
+  cstring remote_list;				// remote locks
+  int remote_count;				// no. of remote locks
+  u_char remote_vols[MAX_VOL];
+  int i;					// handy ints
 
-  s = LCK_SubP(count, list, job);
-  if (LCK_HasRemote(count, list))
-  { DGP_LockSub(count, list, job);
+  if (!job) job = MV1_PID + 1;			// current job
+
+  s = LCK_SubP(count, list, job);		// remove LOCKs
+  if ((job <= 256) && 
+      LCK_HasRemote(count, list, remote_vols))	// has remote VOLs ?
+  { for (i = 0; i < MAX_VOL; i++)		// for each remote VOL
+    { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip
+      remote_count = LCK_CopyRemote(count, list,// copy remote LOCKs
+                                    i + 1,
+				    &remote_list);
+      DGP_LockSub(i, remote_count, &remote_list, job);// remove remote LOCKs
+    }
   }
   return s;
 }

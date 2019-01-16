@@ -61,10 +61,10 @@ void help(void)                                 // give some help
   printf( "  volnam is 1 to %d alpha characters\n\n",MAX_NAME_BYTES);
   printf( "To initialize an environment:\n");
   printf( "> mumps -j maxjobs  -r routinemb\n");
-  printf( "        -g globalmb -a addmb -l [-]jrnkb\n");
-  printf( "        -n #netdaemons -i srvid -u srvurl -p srvport database\n");
-  printf( "  routinemb, globalmb, addmb, jrnkb, \n");
-  printf( "  #netdaemons, srvid, srvurl, srvport are optional\n\n");
+  printf( "        -g globalmb -a addmb -l [-]jrnkb -i sysid\n");
+  printf( "        -n #netdaemons -u srvurl -p srvport database\n");
+  printf( "  routinemb, globalmb, addmb, jrnkb, sysid,\n");
+  printf( "  #netdaemons, srvurl, srvport are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
@@ -92,11 +92,11 @@ int main(int argc,char **argv)                  // main entry point
   char *db1 = "/one/onedb\0";                   // db for one
   int jrnkb = 0;                                // jrn buf KB
   char srvurl[128];				// DGP server URL
-  int srvport = 1966;				// base DGP server port
-  int srvid = -1;				// DGP system ID (random)
+  int srvport = -1;				// base DGP server port
+  int sysid = 0;				// DGP system ID (random)
   int netdaemons = 0;				// no network daemons
 
-  strcpy(srvurl, "tcp://127.0.0.1");
+  strcpy(srvurl, "");
 
 //  printf ("argc = %d\nargv[0] = %s\n", argc, argv[0]);
   if (argc == 1)
@@ -125,7 +125,7 @@ int main(int argc,char **argv)                  // main entry point
         help();                                 // exit via help()
         break;
       case 'i':					// switch -i
-	srvid = atoi(optarg);			// system ID		(init)
+	sysid = atoi(optarg);			// system ID		(init)
 	break;
       case 'j':                                 // switch -j
         jobs = atoi(optarg);                    // max number of jobs   (init)
@@ -184,7 +184,7 @@ int main(int argc,char **argv)                  // main entry point
                       addmb,                    // mb of additional buf
                       jrnkb,			// kb of jrn buf
                       netdaemons,		// # of network daemons
-		      srvid,			// server ID
+		      sysid,			// system ID
                       srvurl,			// server URL
 		      srvport));    		// server port
 

@@ -121,23 +121,55 @@ short DGP_Data(int vol, mvar *var, u_char *buf, cstring *dat)
 }
 
 
-short DGP_Lock(int count, cstring *list, int job)
-{ return 0;
+short DGP_Lock(int vol, int count, cstring *list, int job)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkLockRequest(&req, DGP_LOKV, count, list, job);
+  s = DGP_Dialog(vol, &req, &rep);
+  if (s < 0) return s;
+
+  return rep.data.len;
 }
 
 
-short DGP_LockAdd(int count, cstring *list, int job)
-{ return 0;
+short DGP_LockAdd(int vol, int count, cstring *list, int job)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkLockRequest(&req, DGP_ZALL, count, list, job);
+  s = DGP_Dialog(vol, &req, &rep);
+  if (s < 0) return s;
+
+  return rep.data.len;
 }
 
 
-short DGP_LockSub(int count, cstring *list, int job)
-{ return 0;
+short DGP_LockSub(int vol, int count, cstring *list, int job)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkLockRequest(&req, DGP_ZDAL, count, list, job);
+  s = DGP_Dialog(vol, &req, &rep);
+  if (s < 0) return s;
+
+  return rep.data.len;
 }
 
 
-short DGP_UnLock(int job)
-{ return 0;
+short DGP_UnLock(int vol, int job)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkLockRequest(&req, DGP_ULOK, 0, NULL, job);
+  s = DGP_Dialog(vol, &req, &rep);
+  if (s < 0) return s;
+
+  return rep.data.len;
 }
 
 

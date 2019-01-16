@@ -360,17 +360,21 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->ZRestTime);   // return the value
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "server_url\0", 11) == 0))
-      { strcpy(buf, systab->dgpURL);
-        return strlen(buf);			// return the value
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_url\0", 8) == 0))
+      { strcpy((char *) buf, (char *) systab->dgpURL);
+        return strlen((char *) buf);		// return the value
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "server_port\0", 12) == 0))
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_port\0", 9) == 0))
       { return itocstring(buf, systab->dgpPORT);// return the value
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "server_id\0", 9) == 0))
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_id\0", 7) == 0))
       { return itocstring(buf, systab->dgpID);	// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_lock_timeout\0", 17) == 0))
+      { return itocstring(buf, systab->dgpLOCKTO);// return the value
       }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
@@ -670,6 +674,14 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > 31)) return -ERRM28;
         systab->precision = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_lock_timeout\0", 17) == 0))
+      { j = cstringtoi(data);
+	if ((j < 0) || (j > 60)) return -ERRM28;
+        systab->dgpLOCKTO = j;
 	return 0;				// and exit
       }
 
@@ -1085,6 +1097,7 @@ short SS_Kill(mvar *var)                        // remove sub-tree
       if (!priv()) return -(ERRM29);		// SET or KILL on ssvn not on
       systab->start_user = -1;			// Say 'shutting down'
       i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); // remove the share
+      LCK_Remove(65280 /*0xFF00*/ + systab->dgpID);// remove remote LOCKs
       for (i = 0; i < systab->maxjob; i++)	// for each job
       { cnt = systab->jobtab[i].pid;		// get pid
 	if ((cnt != partab.jobtab->pid) && (cnt))

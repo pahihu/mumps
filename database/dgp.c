@@ -25,17 +25,14 @@ int nn_send(int s, const void *buf, size_t len, int flags) { return EINVAL; }
 int nn_recv(int s, void *buf, size_t len, int flags) { return EINVAL; }
 #endif
 
-/*
-   - kellenek az UCI-k a tavoli kotetbol (csatlakozaskor le kell kerni!)
-     kerjuk el a teljes kotet cimket, akkor kisimul a kezeles is
+int dump_msg = 0;
 
+/*
    - zarolas
      * helyben is kell zarolni, ha az sikerul, akkor lehet a tavoli zart
        probalni
-     * minden tavoli rendszer folyamatai kulonbozo halozati demonra kell 
-       csatlakozzanak, de egy rendszer folyamatai ugyanarra a halozati demonra
-     * ne a halozati demon pid-jet rakjuk el a zarhoz, hanem a demon 
-       sorszamat (ha ujraindul, akkor nincsen gaz)
+     * tavoli rendszereknek kell sysid, ezzel a tavoli processzek egyediek
+       lesznek
 
 */
 
@@ -156,13 +153,18 @@ short DGP_MkRequest(DGPRequest *req,
 		   short len,
 		   const u_char *buf)
 { DGPData *data;
-  int s;							// status
+  int s;						// status
+  int remjob;
+
+  remjob = systab->dgpID * 256 + MV1_PID;		// system JOB number
+  ASSERT((255 < remjob) && (remjob < 65280));		// validate
 
   if (buf && (-1 == len))
     len = strlen((char *) buf);
-  
+
   req->header.code = code;
   req->header.version = DGP_VERSION;
+  req->header.remjob  = remjob;
   req->header.hdrlen  = sizeof(DGPHeader);
   req->header.msgflag = flag;
   req->header.msglen  = sizeof(DGPHeader);
@@ -198,6 +200,43 @@ short DGP_MkRequest(DGPRequest *req,
 }
 
 
+short DGP_MkLockRequest(DGPRequest *req,
+		   u_char code,
+		   int count,
+		   const cstring *list,
+		   int job)
+{ DGPData *data;
+
+  ASSERT((0 < systab->dgpID) && (systab->dgpID < 255));// valid DGP system ID
+
+  job--;
+  if (255 != job / 256)					// not a system message
+  { ASSERT((0 <= job) && (job < 256));			// valid job no.
+    job += systab->dgpID * 256;				// system JOB number
+  }
+
+  req->header.code = code;
+  req->header.version = DGP_VERSION;
+  req->header.remjob  = job;
+  req->header.hdrlen  = sizeof(DGPHeader);
+  req->header.msgflag = 0;
+  req->header.msglen  = sizeof(DGPHeader);
+
+  if (list)
+  { bcopy(list, &req->data, list->len + sizeof(short));
+    req->header.msglen += sizeof(req->data.len) + req->data.len;
+  } else
+  { req->data.len = 0;					// ULOK has no list
+    req->header.msglen += sizeof(req->data.len);
+  }
+  data = (DGPData *) &(req->data.buf[req->data.len]);
+  data->len = count;
+  req->header.msglen += sizeof(data->len);
+
+  return 0;
+}
+
+
 static
 void DGP_MkReply(DGPReply *rep,
 		 u_char code,
@@ -208,6 +247,7 @@ void DGP_MkReply(DGPReply *rep,
 
   rep->header.code    = code;
   rep->header.version = DGP_VERSION;
+  rep->header.remjob  = 65280 /* 0xFF00 */ + systab->dgpID - 1;
   rep->header.hdrlen  = sizeof(DGPHeader);
   rep->header.msgflag = 0;
   rep->header.msglen  = sizeof(DGPHeader);
@@ -273,13 +313,17 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
     sock = -vol - 1;
   }
   else
-  { // fprintf(stderr,"DGP_Dialog(%d): volume call\r\n",vol);
+  { // fprintf(stderr,"DGP_Dialog(%d): volume call\r\n",vol); fflush(stderr);
+    ASSERT(systab->vol[vol]->local_name[0]);		// ensure remote data
     sock = partab.dgp_sock[vol];			// called with vol
     if (-1 == sock)					// not connected yet ?
     { s = DGP_Connect(vol);				// connect DGP
       if (s < 0) return s;				// failed ? return
       sock = partab.dgp_sock[vol];			// get NN socket
     }
+  }
+  if (dump_msg)
+  { DGP_MsgDump(1, &req->header, req->data.len);
   }
   bytes = nn_send(sock, req, req->header.msglen, 0);	// send request
   if (bytes < 0)					// failed ?
@@ -291,9 +335,28 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
+  if (dump_msg)
+  { DGP_MsgDump(0, &rep->header, rep->data.len);
+  }
   if (DGP_SER == rep->header.code)			// error reply ?
   { return rep->data.len;				//   return error code
   }
   return 0;						// done
 }
+
+void DGP_MsgDump(int dosend, DGPHeader *header, short status)
+{
+  fprintf(stderr, dosend
+		  ? ">>>>>>>>>>>>>\r\n"
+		  : "<<<<<<<<<<<<<\r\n");
+  fprintf(stderr, "    code = %d\r\n", header->code);
+  fprintf(stderr, " version = %d\r\n", header->version);
+  fprintf(stderr, "  remjob = %d\r\n", header->remjob);
+  fprintf(stderr, "  hdrlen = %d\r\n", header->hdrlen);
+  fprintf(stderr, " msgflag = %d\r\n", header->msgflag);
+  fprintf(stderr, "  msglen = %d\r\n", header->msglen);
+  fprintf(stderr, "data.len = %d\r\n", status);
+  fflush(stderr);
+}
+
 
