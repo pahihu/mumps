@@ -11,6 +11,7 @@ Changes:
   * 31 character label/routine/local/global names
   * numbers in keys stored as packed decimals
   * multiple volume sets
+  * remote volume sets
   * HANG supports fractional seconds
   * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
   * KVALUE and KSUBSCRIPTS commands
