@@ -580,12 +580,13 @@ MUMPS with commands/functions written in MUMPS
 | Maximum identifier length	    | 31 chars		       |
 | Maximum routine object size	    | min(block size, 32KB)    |
 | Maximum local variable length	    | 32KB		       |
+| Maximum number of volumes	    | 16		       |
 | Volume block size		    | 4KB - 256KB	       |
 | Volume size            	    | 32M blocks (128GB - 8TB) |
 | Namespaces per volume (UCI)	    | 63		       |
 | Maximum global key size	    | 255		       |
 | Maximum global value size	    | min(block size, 32KB)    |
-| Maximum number of volumes	    | 16		       |
+| Number of global subscripts	    | 63                       |
 | Global translation table size	    | 255		       |
 | Maximum number of jobs            | 256                      |
 | Maximum number of daemons	    | 10		       |
