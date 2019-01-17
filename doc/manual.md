@@ -1,6 +1,6 @@
 # A Terse Guide to MV1R2DEV
 
-Copyright 2018, Andras Pahi. All rights reserved.
+Copyright 2018, 2019 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
@@ -214,7 +214,8 @@ with the following commands:
 
 This commands specify that the local volume "AAA" stands for the remote
 volume "BBB" on the remote server. The client will connect using TCP/IP
-protocol to the IP address 192.168.1.23 on port 2002.
+protocol to the IP address 192.168.1.23 on port 2002. The remote volume 
+"BBB" should be local on the server (ie. cannot be a remote volume set).
 
 Using the volume "AAA" on the client system will transfer each database
 command to the remote system and the results are coming from there.
@@ -224,6 +225,8 @@ server or client) should have a unique system ID, which should be specified
 on the command line, when you start the environment. The unique system ID
 is necessary to support remote locking, because each JOB will get a unique
 job number which is constructed from the system ID and the local JOB number.
+
+The maximum number of connected client and server MUMPS environments is 254.
 
 Timeouts specified on remote LOCKs are not used. Instead the system
 parameter `DGP_LOCK_TIMEOUT` is used on the server system to specify a
@@ -592,4 +595,5 @@ MUMPS with commands/functions written in MUMPS
 | Maximum number of daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |
 | Maximum number of network daemons | 10                       |
+| Maximum number of connected environments | 254               |
 
