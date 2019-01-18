@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
+#include <sys/types.h>					// for u_char
+#include <arpa/inet.h>					// for ntoh() stuff
 #include "error.h"
 #include "mumps.h"
 #include "proto.h"
@@ -86,10 +87,12 @@ short DGP_Connect(int vol)
   int rv;						// return value
   short s;						// status
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];		// remote VOL label
+  label_block *remote_label;
   DGPRequest req;
   DGPReply rep;
   char conn_url[VOL_FILENAME_MAX];			// NN URL
   char remote_name[MAX_NAME_BYTES];
+  int i;						// handy int
 
   if (strlen(systab->vol[vol]->file_name) < 6)		// tcp://
   { return -(ERRM38);
@@ -120,6 +123,16 @@ short DGP_Connect(int vol)
       return s;
     }
     bcopy(&rep.data.buf[0], &remote_vollab[0], SIZEOF_LABEL_BLOCK);
+    // cvt to host fmt
+    remote_label = (label_block *) &remote_vollab[0];
+    remote_label->magic        = ntohl(remote_label->magic);
+    remote_label->max_block    = ntohl(remote_label->max_block);
+    remote_label->header_bytes = ntohl(remote_label->header_bytes);
+    remote_label->block_size   = ntohl(remote_label->block_size);
+    remote_label->db_ver       = ntohs(remote_label->db_ver);
+    for (i = 0; i < UCIS; i++)
+      remote_label->uci[i].global = ntohl(remote_label->uci[i].global);
+    remote_label->txid         = ntohll(remote_label->txid);
   }
   SemOp( SEM_SYS, -systab->maxjob);
   if (systab->vol[vol]->vollab == NULL)
@@ -170,30 +183,22 @@ short DGP_MkRequest(DGPRequest *req,
   req->header.msglen  = sizeof(DGPHeader);
 
   if (var)
-  { 
-#if 1
-    s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
+  { s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
     if (s < 0) return s;
     req->data.len = s;
-#else
-    // fprintf(stderr,"old var->volset=%d\n",var->volset);
-    var->volset = systab->vol[var->volset-1]->vollab->clean;
-    // fprintf(stderr,"new var->volset=%d\n",var->volset);
-    req->data.len = MVAR_SIZE + var->slen;
-    // fprintf(stderr,"req->data.len=%d\r\n", req->data.len); fflush(stderr);
-    bcopy(var, &req->data.buf[0], req->data.len);
-#endif
     req->header.msglen += sizeof(short) + req->data.len;
   }
 
   if (buf)
-  { if (var)							// use space
-      data = (DGPData *) &req->data.buf[req->data.len];		//   after var
+  { if (var)						// use space
+      data = (DGPData *) &req->data.buf[req->data.len];	//   after var
     else
-      data = (DGPData *) &req->data;				// use data
+      data = (DGPData *) &req->data;			// use data
     data->len = len;
     bcopy(buf, &data->buf[0], data->len);
     req->header.msglen += sizeof(short) + data->len;
+    if (data != &req->data)				// NB. send() will cvt	
+      data->len = htons(data->len);			// cvt to network fmt
   }
 
   return 0;
@@ -206,6 +211,7 @@ short DGP_MkLockRequest(DGPRequest *req,
 		   const cstring *list,
 		   int job)
 { DGPData *data;
+  cstring cstr;
 
   ASSERT((0 < systab->dgpID) && (systab->dgpID < 255));// valid DGP system ID
 
@@ -215,7 +221,7 @@ short DGP_MkLockRequest(DGPRequest *req,
     job += systab->dgpID * 256;				// system JOB number
   }
 
-  req->header.code = code;
+  req->header.code    = code;
   req->header.version = DGP_VERSION;
   req->header.remjob  = job;
   req->header.hdrlen  = sizeof(DGPHeader);
@@ -223,7 +229,9 @@ short DGP_MkLockRequest(DGPRequest *req,
   req->header.msglen  = sizeof(DGPHeader);
 
   if (list)
-  { bcopy(list, &req->data, list->len + sizeof(short));
+  { // NB. we send #count null terminated cstrings
+    cstr.len = LCK_LockToString(count, (cstring *) &list->buf[0], &cstr.buf[0]);
+    bcopy(&cstr, &req->data, cstr.len + sizeof(cstr.len));
     req->header.msglen += sizeof(req->data.len) + req->data.len;
   } else
   { req->data.len = 0;					// ULOK has no list
@@ -232,6 +240,8 @@ short DGP_MkLockRequest(DGPRequest *req,
   data = (DGPData *) &(req->data.buf[req->data.len]);
   data->len = count;
   req->header.msglen += sizeof(data->len);
+
+  data->len = htons(data->len);		                // cvt to network fmt
 
   return 0;
 }
@@ -274,17 +284,20 @@ void DGP_AppendValue(DGPReply *rep, short len, const u_char *buf)
   { bcopy(buf, &val->buf[0], val->len);
     rep->header.msglen += val->len;
   }
+  val->len = htons(val->len);				// cvt to network fmt
 }
 
 
 short DGP_GetValue(DGPReply *rep, u_char *buf)
 { DGPData *val;
+  short val_len;
 
   val = (DGPData *) &(rep->data.buf[rep->data.len]);
-  if (VAR_UNDEFINED != val->len)
-  { bcopy(&val->buf[0], buf, val->len);
+  val_len = ntohs(val->len);				// cvt to host fmt
+  if (VAR_UNDEFINED != val_len)
+  { bcopy(&val->buf[0], buf, val_len);
   }
-  return val->len;
+  return val_len;
 }
 
 
@@ -307,6 +320,7 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
 { int bytes;						// bytes sent/received
   int sock;						// NN socket
   short s;						// status
+  u_short msg_len;
 
   if (vol < 0)						// called with socket ?
   { // fprintf(stderr,"DGP_Dialog(%d): socket call\r\n",vol);
@@ -325,7 +339,13 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   if (dump_msg)
   { DGP_MsgDump(1, &req->header, req->data.len);
   }
-  bytes = nn_send(sock, req, req->header.msglen, 0);	// send request
+  
+  msg_len = req->header.msglen;				// cvt to network fmt
+  req->header.remjob = htons(req->header.remjob);
+  req->header.msglen = htons(req->header.msglen);
+  req->data.len      = htons(req->data.len);
+
+  bytes = nn_send(sock, req, msg_len, 0);		// send request
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
@@ -334,6 +354,11 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
+
+  rep->header.remjob = ntohs(rep->header.remjob);	// cvt to host fmt
+  rep->header.msglen = ntohs(rep->header.msglen);
+  rep->data.len      = ntohs(rep->data.len);
+
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
   if (dump_msg)
   { DGP_MsgDump(0, &rep->header, rep->data.len);
@@ -357,6 +382,27 @@ void DGP_MsgDump(int dosend, DGPHeader *header, short status)
   fprintf(stderr, "  msglen = %d\r\n", header->msglen);
   fprintf(stderr, "data.len = %d\r\n", status);
   fflush(stderr);
+}
+
+#include "bswap.h"
+
+u_int64 HToNLL(u_int64 hostlonglong)
+{
+#if __BYTE_ORDER == __BIG_ENDIAN
+  return hostlonglong;
+#else
+  return bswap64(hostlonglong);
+#endif
+}
+
+
+u_int64 NToHLL(u_int64 netlonglong)
+{
+#if __BYTE_ORDER == __BIG_ENDIAN
+  return netlonglong;
+#else
+  return bswap64(netlonglong);
+#endif
 }
 
 

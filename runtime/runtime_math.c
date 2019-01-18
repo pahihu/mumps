@@ -122,6 +122,7 @@ short ltoa(char *buf, long n)
     else if (n <   10000000L) ptr = &buf[len = 8 + sign];
     else if (n <  100000000L) ptr = &buf[len = 9 + sign];
     else if (n < 1000000000L) ptr = &buf[len =10 + sign];
+#if defined(__LP64__)
     else if (8 == sizeof(long))
     {
            if (n <         10000000000L) ptr = &buf[len =11 + sign];
@@ -138,6 +139,7 @@ short ltoa(char *buf, long n)
         docpy = 1;
       }
     }
+#endif
     else
     { ptr = &tmp[32];
       docpy = 1;
@@ -174,6 +176,7 @@ short ultoa(char *buf, unsigned long n)
     else if (n <   10000000L) ptr = &buf[len =  8];
     else if (n <  100000000L) ptr = &buf[len =  9];
     else if (n < 1000000000L) ptr = &buf[len = 10];
+#if defined(__LP64__)
     else if (8 == sizeof(long))
     {
            if (n <         10000000000L) ptr = &buf[len = 11];
@@ -190,6 +193,7 @@ short ultoa(char *buf, unsigned long n)
         docpy = 1;
       }
     }
+#endif
     else
     { ptr = &tmp[32];
       docpy = 1;

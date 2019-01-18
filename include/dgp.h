@@ -2,6 +2,16 @@
 #define _MUMPS_DGP_H_
 
 #include <unistd.h>
+#include <stdint.h>
+#include <arpa/inet.h>					// for ntoh() stuff
+
+#if !defined(htonll) || !defined(ntohll)
+uint64_t HToNLL(uint64_t hostlonglong);
+uint64_t NToHLL(uint64_t netlonglong);
+#define htonll	HToNLL
+#define ntohll	NToHLL
+#endif
+
 
 #define DGP_VERSION	 1
 
@@ -52,6 +62,7 @@ typedef struct ATTR_PACKED DGPHEADER
 typedef struct ATTR_PACKED DGPREQUEST
 { DGPHeader header;
   DGPData   data;
+  u_char    buf[1024];
 } DGPRequest;
 
 typedef struct ATTR_PACKED DGPREPLY

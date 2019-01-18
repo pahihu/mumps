@@ -42,7 +42,7 @@
 #include <unistd.h>				// for sleep
 #include <errno.h>                              // error stuf
 #include <math.h>				// maths functions
-#include <sys/time.h>                           // for time()
+#include <time.h>                           	// for time()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors

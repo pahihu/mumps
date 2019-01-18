@@ -234,7 +234,7 @@ int INIT_Start( char *file,                     // database
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
-  printf( "and %lukb for locktab.\n", locksize/1024);
+  printf( "and %lukb for locktab.\n", (u_long) (locksize/1024));
   if (jkb) printf("With %dkb of journal buffer (%s flush).\n",
                         jkb, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);

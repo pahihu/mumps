@@ -50,6 +50,7 @@
 #include <sys/ipc.h>					// for semaphores
 #include <sys/sem.h>					// for semaphores
 #include <sys/stat.h>                                   // for stat()
+#include <arpa/inet.h>					// for ntoh() stuff
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
@@ -165,6 +166,9 @@ void do_netdaemon(void)
   int lck_count;					// no. of LOCKs
   cstring *lck_list;					// LOCK list
   DGPData *data;
+  label_block *remote_label;				// remote VOL label
+  int i;						// handy int
+  u_short msg_len;					// message length
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -197,6 +201,11 @@ void do_netdaemon(void)
     { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
       continue;
     }
+
+    req.header.remjob = ntohs(req.header.remjob);	// cvt to host fmt
+    req.header.msglen = ntohs(req.header.msglen);
+    req.data.len      = ntohs(req.data.len);
+
     if (bytes != req.header.msglen)			// check request
     { do_log("message size mismatch: received %d, msglen is %d\n",
 		bytes, req.header.msglen);
@@ -206,8 +215,13 @@ void do_netdaemon(void)
     rep.header.code = DGP_ERR;
     s = 0;
     varptr = 0;
-
     remjob = req.header.remjob + 1;			// remote JOB no.
+
+    // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
+    if (dump_msg)
+    { DGP_MsgDump(0, &req.header, req.data.len);
+    }
+
     // NB. when ULOK' system ID is 255, the LO(remjob) contains
     //     the DGP SYSID of the remote system
     if (req.header.code != DGP_ULOK)
@@ -216,7 +230,6 @@ void do_netdaemon(void)
 
     if ((req.header.code > DGP_ZDAL) && (DGP_MNTV != req.header.code))
     { // fprintf(stderr,"got GLB=[%s] (len=%d)\n", (char *) &req.data.buf[0], req.data.len);
-#if 1
       old = req.data.buf[req.data.len];			// patch GLB name
       req.data.buf[req.data.len] = '\0';
       s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
@@ -224,21 +237,14 @@ void do_netdaemon(void)
       if (s < 0) goto Error;
       req.data.buf[req.data.len] = old;
       varptr = &var;
-#else
-      // bcopy(&req.data.buf[0], &var, req.data.len);
-      varptr = (mvar *) &req.data.buf[0];
-      // fprintf(stderr, "req.data.len=%d\n", req.data.len); fflush(stderr);
-#endif
     }
     if (req.header.code <= DGP_ZDAL)
-    { lck_list = (cstring *) &req.data.buf[0];
-      data = (DGPData *) &(req.data.buf[req.data.len]);
-      lck_count = data->len;
-    }
-
-    // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
-    if (dump_msg)
-    { DGP_MsgDump(0, &req.header, req.data.len);
+    { data = (DGPData *) &(req.data.buf[req.data.len]);
+      lck_count = ntohs(data->len);			// #LOCK entries
+      ptr1 = (cstring *) &req.data.buf[0];		// convert LOCK entries
+      s = LCK_StringToLock(lck_count, ptr1, &cstr);
+      if (s < 0) goto Error;
+      lck_list = &cstr;
     }
 
     switch (req.header.code)
@@ -250,12 +256,20 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
-	// NB. vollab clean flag will contain remote VOL number
-        old = systab->vol[s-1]->vollab->clean;
-        systab->vol[s-1]->vollab->clean = s;
-        DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// send VOL label
+	SemOp( SEM_SYS, -systab->maxjob);
+        DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// copy VOL label
 		    (u_char *) systab->vol[s-1]->vollab);
-        systab->vol[s-1]->vollab->clean = old;
+	SemOp( SEM_SYS, systab->maxjob);
+        remote_label = (label_block *) &rep.data.buf[0];
+							// cvt to network fmt
+	remote_label->magic        = htonl(remote_label->magic);
+	remote_label->max_block    = htonl(remote_label->max_block);
+	remote_label->header_bytes = htonl(remote_label->header_bytes);
+	remote_label->block_size   = htonl(remote_label->block_size);
+        remote_label->db_ver	   = htons(remote_label->db_ver);
+        for (i = 0; i < UCIS; i++)
+          remote_label->uci[i].global = htonl(remote_label->uci[i].global);
+	remote_label->txid         = htonll(remote_label->txid);
         break;
       case DGP_LOKV: 
         s = LCK_Old(lck_count, lck_list, systab->dgpLOCKTO, remjob);
@@ -283,12 +297,15 @@ void do_netdaemon(void)
         break;
       case DGP_SETV:
         ptr1 = (cstring *) (&req.data.buf[req.data.len]);
+	ptr1->len = ntohs(ptr1->len);			// cvt to host fmt
 	s = DB_Set(varptr, ptr1);
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
         break;
       case DGP_ZINC:
         ptr1 = (cstring *) (&req.data.buf[req.data.len]);
+	ptr1->len = ntohs(ptr1->len);			// cvt to host fmt
+	// fprintf(stderr,"ptr1->len=%d ptr1->buf=%s\n",ptr1->len,&ptr1->buf[0]); fflush(stderr);
         s = Dzincrement2((cstring *) &rep.data, varptr, ptr1);
         if (s < 0) goto Error;
         DGP_MkValue(&rep, s, &rep.data.buf[0]);
@@ -343,7 +360,11 @@ Error:  DGP_MkError(&rep, s);
     if (dump_msg)
     { DGP_MsgDump(1, &rep.header, rep.data.len);
     }
-    bytes = nn_send(sock, &rep, rep.header.msglen, 0);
+    msg_len = rep.header.msglen;
+    rep.header.remjob = htons(rep.header.remjob);	// cvt to network fmt
+    rep.header.msglen = htons(rep.header.msglen);
+    rep.data.len      = htons(rep.data.len);
+    bytes = nn_send(sock, &rep, msg_len, 0);
     if (bytes < 0)
       do_log("nn_send: %s\n", nn_strerror(nn_errno()));
     // do_log("sent reply %d(len=%d)\n", rep.header.code, rep.header.msglen);

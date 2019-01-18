@@ -48,6 +48,7 @@
 #include <time.h>                               // for time functions
 #include <sys/ipc.h>                            // semaphore stuff
 #include <sys/sem.h>                            // semaphore stuff
+#include <arpa/inet.h>				// for ntoh() stuff
 
 #include "database.h"
 #include "dgp_database.h"			// remote VOL stuff
@@ -124,9 +125,6 @@ short LCK_CopyRemote(int count,			// no. of LOCKs
     if (docpy)					// if copy entry
     { bcopy(&((u_char *) list)[pos], 
 	    &remote_list->buf[remote_list->len], size);
-      // NB. patch VOL number in remote list
-      remote_list->buf[remote_list->len + sizeof(short)] =
-      			systab->vol[lvol-1]->vollab->clean;
       remote_list->len += size;			//   incr. remote list size
       remote_count++;				//   incr. no. of remote LOCKs
     }
@@ -134,6 +132,108 @@ short LCK_CopyRemote(int count,			// no. of LOCKs
     done++;                                     // number done + 1
   }                                             // successful
   return remote_count;
+}
+
+
+short LCK_StringToLock(int count, const cstring *list, cstring *out)
+{ int done, pos, size;				// input positions
+  int outpos, outsize;				// output positions
+  const cstring *current;			// current cstring entry
+  short current_len;				// length of current cstring
+  short s;					// status
+  mvar var;
+
+  outpos = 0;
+  pos = 0;
+  done = 0;
+  while (done < count)
+  { current = (const cstring *) &((u_char *)list)[pos];
+    current_len = ntohs(current->len);		// cvt to host fmt
+    out = (cstring *) &((u_char *)out)[outpos];
+    // fprintf(stderr, "LCK_StringToLock: %s\n", &current->buf[0]); fflush(stderr);
+    s = UTIL_MvarFromCStr(current, &var);
+    if (s < 0) return s;
+    s = UTIL_mvartolock(&var, &out->buf[0]);
+    if (s < 0) return s;
+    out->len = s;
+    outsize = sizeof(short) + s;
+    if (outsize & 1) outsize++;
+    outpos += outsize;
+
+    size = sizeof(short) + current_len + sizeof(char);
+    if (size & 1) size++;
+    pos += size;
+    done++;
+  }
+  return outsize;
+}
+
+
+short LCK_LockToString(int count, const cstring *list, u_char *out)
+{ int done, pos, size;
+  int lvol, luci;
+  cstring *current, *ptr;			// input and output cstrings
+  short outpos;					// output position
+  label_block *label;				// remote VOL label
+  int slen;					// key length
+  short s;					// status
+  u_char *str;					// output string
+  short p;					// position in str[]
+  
+  outpos = 0;
+  pos = 0;
+  done = 0;
+  while (done < count)                          // while more to do
+  { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    ptr     = (cstring *) &out[outpos];
+    luci = current->buf[1];
+    lvol = current->buf[0];
+
+    ASSERT(luci != UCI_IS_LOCALVAR);		// check global var
+    ASSERT(systab->vol[lvol-1]->local_name[0]);	// check remote VOL
+
+    label = systab->vol[lvol-1]->vollab;
+
+    str = &ptr->buf[0];				// begin building string
+    p = 0;
+    str[p++] = '^';
+    str[p++] = '[';
+    str[p++] = '"';
+    p += UTIL_Cat_VarU(str + p, &label->uci[luci-1].name); // UCI name
+    str[p++] = '"';
+    str[p++] = ',';
+    str[p++] = '"';
+    p += UTIL_Cat_VarU(str + p, &label->volnam);// VOL name
+    str[p++] = '"';
+    str[p++] = ']';
+    p += UTIL_Cat_VarU(str + p, (var_u *)&current->buf[2]); // var name
+
+    // keys
+    slen = current->len - sizeof(short) - sizeof(chr_x);
+    // fprintf(stderr, "LCK_LockToString: slen=%d\r\n", slen);
+    if (slen)					// has keys ?
+    { // NB. lock entry has no slen, but UTIL_String_Key() requires it
+      u_char old = current->buf[sizeof(chr_x) + 1];
+      current->buf[sizeof(chr_x) + 1] = slen;
+      s = UTIL_String_Key(&current->buf[sizeof(chr_x) + 1], 
+			  str + p, MAX_SUBSCRIPTS);
+      current->buf[sizeof(chr_x) + 1] = old;
+      // NB. null terminates the string, but s does not includes it!
+      if (s < 0) return s;
+      p += s;
+    }
+    ptr->len = htons(p);			// length is w/o null
+    p = sizeof(short) + p + sizeof(char);	// count null
+    if (p & 1) p++;				// align out to even
+    // fprintf(stderr,"LOCK entry: (%s)\r\n", str); fflush(stderr);
+    outpos += p;				// next output pos
+   
+    size = sizeof(short) + current->len + sizeof(char); // calc length of entry
+    if (size & 1) size += 1;                    // pad to even boundary
+    pos += size;                           	// find next start pos
+    done++;                                     // number done + 1
+  }                                             // successful
+  return outpos;
 }
 
 //****************************************************************
@@ -253,6 +353,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
   }                                             // end trantab lookup
   //bcopy(&var->key[0], &buf[sizeof(chr_q) + 2], var->slen); // copy key
   //i = var->slen + sizeof(chr_q) + 2;            // how big it is
+  // fprintf(stderr, "LCK_mvartolock: slen=%d\r\n", var->slen);
   bcopy(&var->key[0], &buf[sizeof(chr_x) + 2], var->slen); // copy key
   i = var->slen + sizeof(chr_x) + 2;            // how big it is
   buf[i] = '\0';                                // ensure null terminated

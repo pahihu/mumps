@@ -197,7 +197,7 @@ short Vzhorolog(u_char *ret_buffer)             // $ZHOROLOG
     bufusec = 0;
   }
   if (bufusec != tv.tv_usec)
-  { buflen = hbuflen + sprintf(buffer + hbuflen, "%d", tv.tv_usec);
+  { buflen = hbuflen + sprintf(buffer + hbuflen, "%ld", (long) tv.tv_usec);
   }
   bcopy(buffer, ret_buffer, buflen + 1);
   return buflen;

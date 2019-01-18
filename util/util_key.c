@@ -439,7 +439,7 @@ short UTIL_String_Mvar( mvar *var,            	// address of mvar
 { int i;					// for loops
   int p = 0;					// string pointer
   int vol;					// for volset
-  uci_tab up;					// ptr to uci tab
+  uci_tab *up;					// ptr to uci tab
   //chr_q *vt;					// var table pointer
   chr_x *vt;					// var table pointer
   rbd *r;					// a handy pointer
@@ -452,20 +452,27 @@ short UTIL_String_Mvar( mvar *var,            	// address of mvar
       str[p++] = '"';				// a leading quote
       vol = var->volset;			// get vol
       if (vol == 0) vol = partab.jobtab->vol;	// if none, get default
-      up = systab->vol[vol-1]->vollab->uci[var->uci-1]; // uci tab pointer
+      up = &systab->vol[vol-1]->vollab->uci[var->uci-1]; // uci tab pointer
+/*
       for (i=0; i<MAX_NAME_BYTES; i++)		// for each possible character
       { if (up.name.var_cu[i] == '\0') break;	// done if we hit a null
         str[p++] = up.name.var_cu[i];		// copy the character
       }
+*/
+      p += UTIL_Cat_VarU(str + p, &up->name);	// copy UCI name
       str[p++] = '"';				// a trailing quote
       if (var->volset != 0)			// volset specified?
       { str[p++] = ',';				// copy in a comma
         str[p++] = '"';				// a leading quote
+/*
 	ptr = systab->vol[var->volset-1]->vollab->volnam.var_cu;
         for (i=0; i<MAX_NAME_BYTES; i++)	// for each possible character
         { if (ptr[i] == '\0') break;		// done if we hit a null
           str[p++] = ptr[i];			// copy the character
         }
+*/
+	p += UTIL_Cat_VarU(str + p, 		// copy VOL name
+                           &systab->vol[var->volset-1]->vollab->volnam);
         str[p++] = '"';				// a trailing quote
       }
       str[p++] = ']';				// closing bracket
@@ -481,10 +488,13 @@ short UTIL_String_Mvar( mvar *var,            	// address of mvar
     var->volset = 0;				// clear the volset
   }
 
+/*
   for (i = 0; i < MAX_NAME_BYTES; i++)		// now the name
   { if (var->name.var_cu[i] == '\0') break;	// quit when done
     str[p++] = var->name.var_cu[i];		// copy a byte
   }
+*/
+  p += UTIL_Cat_VarU(str + p, &var->name);	// copy var name
 
   if ((var->slen != 0) && (max_subs > 0))	// if there are subscripts
   { i = UTIL_String_Key( &var->slen, &str[p], max_subs); //do the subscripts
@@ -498,13 +508,13 @@ short UTIL_String_Mvar( mvar *var,            	// address of mvar
 //****************************************************************
 // returns number of subscripts or negative error message
 //
-short UTIL_MvarFromCStr( cstring *src,		// the string
+short UTIL_MvarFromCStr( const cstring *src,	// the string
                          mvar *var)		// destination mvar
 { int i;					// a handy int
   int q;					// for quotes
   short s;					// for functions
   int subs = 0;					// number of subscripts
-  u_char *ptr;					// a handy pointer
+  const u_char *ptr;				// a handy pointer
   cstring *kb;					// for key builds
   var_u nam;					// for name comparisons
   var_u vol;					// ditto
@@ -810,3 +820,19 @@ int X_take(u_char *a, chr_x *b)
   X_set(a, b->buf, len);
   return 1 + len;
 }
+
+
+short UTIL_Cat_VarU(u_char *str, var_u *name)
+{ int i;
+  short p;
+
+  p = 0;
+  for (i = 0; i < MAX_NAME_BYTES; i++)		// for each possible character
+  { if (name->var_cu[i] == '\0') break;	        // done if we hit a null
+      str[p++] = name->var_cu[i];		// copy the character
+  }
+  str[p] = '\0';                                // null terminate
+  return p;
+}
+ 
+

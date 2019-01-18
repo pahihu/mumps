@@ -357,7 +357,7 @@ short UTIL_String_Key( u_char *key,
 short UTIL_String_Mvar( mvar *var,
 	u_char *str, int max_subs); 		// mvar -> string
 int UTIL_Key_Last( mvar *var);			// point at last subs in mvar
-short UTIL_MvarFromCStr( cstring *src, mvar *var); // cvt cstring to mvar
+short UTIL_MvarFromCStr( const cstring *src, mvar *var); // cvt cstring to mvar
 int UTIL_Key_KeyCmp(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_KeyEqu(u_char *key1, u_char *key2, int kleng1, int kleng2);
 int UTIL_Key_Chars_In_Subs( char *Key, int keylen,
@@ -366,6 +366,7 @@ int UTIL_Key_Subs( char *Key, int keylen, u_char *nsubs, u_char *subsPos);
 int UTIL_Key_Chars_In_SubsEx( char *Key, int keylen,
         u_char *pnsubs, u_char *subsPos,
 	int maxsubs, int *subs, char *KeyBuffer );
+short UTIL_Cat_VarU(u_char *str, var_u *name);	// concat var_u
 
 // General utility prototypes
 short UTIL_strerror(int err, u_char *buf);      // return string error msg
@@ -415,6 +416,8 @@ void  LCK_Remove(int job);
 short LCK_Old(int count, cstring *list, int to, int job);
 short LCK_Add(int count, cstring *list, int to, int job);
 short LCK_Sub(int count, cstring *list, int job);
+short LCK_LockToString(int count, const cstring *list, u_char *out);
+short LCK_StringToLock(int count, const cstring *str, cstring *list);
 
 // Xcalls
 //

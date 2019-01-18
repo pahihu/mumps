@@ -760,6 +760,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((j < 0) || (j >= UCIS)) return (-ERRM60); // out of range
 	if ((data->len < 1) || (data->len > MAX_NAME_BYTES))
 	  return -(ERRMLAST+ERRZ12);		// syntx
+        if (systab->vol[i]->local_name[0])	// remote VOL ?
+          return -(ERRM38);
 	//n.var_qu = 0;				// clear name
 	X_Clear(n.var_xu);			// clear name
 	for (s = 0; s < data->len; s++)
@@ -790,6 +792,71 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0)) // ^$S(vol,j,journ...)
       { i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+
+	if ((strncasecmp( (char *) subs[2]->buf, "local_name\0", 11) == 0) &&
+	    (data->len > 0) && (data->len < MAX_NAME_BYTES))
+	{ if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
+          { return -(ERRM38);				//   mounted
+          }
+          if (systab->vol[i]->vollab != NULL)		// already mounted ?
+          { return -(ERRM38);				//   cannot change name
+          }
+          for (j = 0; j < data->len; j++)
+	  { if (isalpha(data->buf[j]) == 0)
+	    { return (-ERRM38);
+	    }
+	  }
+          strncpy((char *) &systab->vol[i]->local_name[0], (char *) data->buf, MAX_NAME_BYTES-1);
+          systab->vol[i]->local_name[MAX_NAME_BYTES-1] = '\0';
+	  return 0;
+	}
+	if ((strncasecmp( (char *) subs[2]->buf, 
+                "file\0", 5) == 0))
+        { if (i && (systab->vol[i-1]->vollab == NULL))// check prev. slot
+          { return -(ERRM38);				//   mounted
+          }
+	  s = 0;					// assume success
+          if (strstr((char *) &data->buf[0], "://")) 	// an URL ?
+          { if (0 == systab->vol[i]->local_name[0])	// local name not set?
+	      return -(ERRM38);
+            if (data->len + 1 > VOL_FILENAME_MAX)	// long value ?
+              return -(ERRM38);
+#ifdef MV1_DGP
+            s = DGP_GetConnectionURL((char *) &data->buf[0], NULL);
+            if (s < 0) return s;			// has conn. part?
+	    if (s < 6) return -(ERRM38);
+            s = DGP_GetRemoteName((char *) &data->buf[0], NULL);
+            if (s < 0) return s;			// has remote VOL name?
+	    if (!s) return -(ERRM38);
+#endif
+	    SemOp( SEM_SYS, -systab->maxjob);		// set file_name
+            strncpy((char *) &systab->vol[i]->file_name[0],
+		    (char *) data->buf, VOL_FILENAME_MAX-1);
+            systab->vol[i]->file_name[VOL_FILENAME_MAX-1] = '\0';
+            SemOp( SEM_SYS, systab->maxjob);
+#ifdef MV1_DGP
+	    // NB. connect() - disconnect() pair will download remote VOL
+	    //     label from server
+	    s = DGP_Connect(i);				// init connection
+	    if (s < 0) return s;			// failed ? return
+	    s = DGP_Disconnect(i);			// disconnect
+	    if (s < 0) return s;			// failed ? return
+#endif
+	  } else
+          { 
+            SemOp( SEM_SYS, -systab->maxjob);
+            s = DB_Mount((char *) &data->buf[0],	// mount volume
+                        i + 1,
+                        systab->vol[i]->gmb,
+                        systab->vol[i]->jkb);
+            SemOp( SEM_SYS, systab->maxjob);
+	  }
+          return s;
+        }
+
+        if (systab->vol[i]->local_name[0])		// remote VOL ?
+        { return -(ERRM38);				// don't do anything
+        }						// below
 
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0) &&
 	    (cstringtoi(data) == 0))		// clear journal
@@ -860,21 +927,6 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY; // tell to write it
 	  return 0;
 	}
-	if ((strncasecmp( (char *) subs[2]->buf, "local_name\0", 11) == 0) &&
-	    (systab->maxjob != 1) &&
-	    (data->len > 0) && (data->len < MAX_NAME_BYTES))
-	{ if (systab->vol[i]->vollab != NULL)		// already mounted ?
-          { return -(ERRM38);				//   cannot change name
-          }
-          for (j = 0; j < data->len; j++)
-	  { if (isalpha(data->buf[j]) == 0)
-	    { return (-ERRM38);
-	    }
-	  }
-          strncpy((char *) &systab->vol[i]->local_name[0], (char *) data->buf, MAX_NAME_BYTES-1);
-          systab->vol[i]->local_name[MAX_NAME_BYTES-1] = '\0';
-	  return 0;
-	}
 	if ((strncasecmp( (char *) subs[2]->buf, "size\0", 5) == 0) &&
 	    (systab->maxjob == 1))
 	{ u_int vsiz;				// for the size
@@ -935,50 +987,6 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           }
 	  systab->vol[i]->jkb = cstringtoi(data);
           return 0;
-        }
-	if ((strncasecmp( (char *) subs[2]->buf, 
-                "file\0", 5) == 0) &&
-            (systab->maxjob != 1))
-        { 
-          s = 0;					// assume success
-          if (strstr((char *) &data->buf[0], "://")) 	// an URL ?
-          { if (0 == systab->vol[i]->local_name[0])	// local name not set?
-	      return -(ERRM38);
-            if (data->len + 1 > VOL_FILENAME_MAX)	// long value ?
-              return -(ERRM38);
-#ifdef MV1_DGP
-            s = DGP_GetConnectionURL((char *) &data->buf[0], NULL);
-            if (s < 0) return s;			// has conn. part?
-	    if (s < 6) return -(ERRM38);
-            s = DGP_GetRemoteName((char *) &data->buf[0], NULL);
-            if (s < 0) return s;			// has remote VOL name?
-	    if (!s) return -(ERRM38);
-#endif
-	    SemOp( SEM_SYS, -systab->maxjob);		// set file_name
-            strncpy((char *) &systab->vol[i]->file_name[0],
-		    (char *) data->buf, VOL_FILENAME_MAX-1);
-            systab->vol[i]->file_name[VOL_FILENAME_MAX-1] = '\0';
-            SemOp( SEM_SYS, systab->maxjob);
-#ifdef MV1_DGP
-	    // NB. connect() - disconnect() pair will download remote VOL
-	    //     label from server
-	    s = DGP_Connect(i);				// init connection
-	    if (s < 0) return s;			// failed ? return
-	    s = DGP_Disconnect(i);			// disconnect
-	    if (s < 0) return s;			// failed ? return
-#endif
-	  } else
-          { if (i && (systab->vol[i-1]->vollab == NULL))// check prev. slot
-            { return -(ERRM38);				//   mounted
-            }
-            SemOp( SEM_SYS, -systab->maxjob);
-            s = DB_Mount((char *) &data->buf[0],	// mount volume
-                        i + 1,
-                        systab->vol[i]->gmb,
-                        systab->vol[i]->jkb);
-            SemOp( SEM_SYS, systab->maxjob);
-	  }
-          return s;
         }
       }
       return (-ERRM38);				// do vol mount next vers
