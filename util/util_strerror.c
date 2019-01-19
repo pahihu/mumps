@@ -197,6 +197,7 @@ static struct
   {ERRZ82+ERRMLAST,	"NET: Unknown message"},
   {ERRZ83+ERRMLAST,	"NET: Invalid connection URL"},
   {ERRZ84+ERRMLAST,	"NET: Target volume is remote"},
+  {ERRZ85+ERRMLAST,	"NET: Server restart"},
   {0,         NULL}
 };                                                      // merrtab[]
 

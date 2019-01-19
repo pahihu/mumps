@@ -169,6 +169,8 @@ void do_netdaemon(void)
   label_block *remote_label;				// remote VOL label
   int i;						// handy int
   u_short msg_len;					// message length
+  int client;						// client system ID
+  int send_START;					// send START msg
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -226,6 +228,27 @@ void do_netdaemon(void)
     //     the DGP SYSID of the remote system
     if (req.header.code != DGP_ULOK)
     { ASSERT((256 < remjob) && (remjob < 65281));	// validate
+    }
+
+    send_START = 0;
+    client = DGP_SYSID(remjob);
+    MEM_BARRIER;
+    if ((255 != client) &&				// not a system msg
+        (0 == systab->dgpSTART[client]))		//   AND START not sent?
+    { SemOp( SEM_WD, WRITE);
+      if (0 == systab->dgpSTART[client])		// START still not sent?
+      { systab->dgpSTART[client] = 1;			// mark as sent
+	// if client crashed during server restart, or just mounts the volume
+	// do NOT send START message back
+        send_START = req.header.code != DGP_MNTV;
+      }
+      SemOp( SEM_WD, -WRITE);
+
+      if (send_START)					// send START ?
+      { // fprintf(stderr,"sending restart to %d (code=%d)\n",client,req.header.code); fflush(stderr);
+        DGP_MkError(&rep, -(ERRZ85+ERRMLAST));		//   make reply
+        goto Send;					//   and send
+      }
     }
 
     if ((req.header.code > DGP_ZDAL) && (DGP_MNTV != req.header.code))
@@ -354,6 +377,7 @@ void do_netdaemon(void)
 Error:  DGP_MkError(&rep, s);
     }
 
+Send:
     if (DGP_ERR == rep.header.code)
       DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
@@ -366,8 +390,13 @@ Error:  DGP_MkError(&rep, s);
     rep.data.len      = htons(rep.data.len);
     bytes = nn_send(sock, &rep, msg_len, 0);
     if (bytes < 0)
-      do_log("nn_send: %s\n", nn_strerror(nn_errno()));
-    // do_log("sent reply %d(len=%d)\n", rep.header.code, rep.header.msglen);
+    { do_log("nn_send: %s\n", nn_strerror(nn_errno()));
+      if (send_START)					// failed to send START
+      { SemOp( SEM_WD, WRITE);
+	systab->dgpSTART[client] = 0;			// clear START sent
+	SemOp( SEM_WD, -WRITE);
+      }
+    }
   }
 #else
   for (;;)

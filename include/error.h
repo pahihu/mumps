@@ -196,6 +196,7 @@
 #define ERRZ82		82	// NET: Unknown message
 #define ERRZ83		83	// NET: Invalid connection URL
 #define ERRZ84		84	// NET: Target volume is remote
+#define ERRZ85		85	// NET: Server restart
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

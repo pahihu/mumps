@@ -233,6 +233,17 @@ parameter `DGP_LOCK_TIMEOUT` is used on the server system to specify a
 timeout for the LOCK commands. First the locks are established on the local
 system. If they succeed locks are placed on the remote system.
 
+On normal job termination or client MUMPS environment shutdown the remote 
+LOCKs are removed for the corresponding job or the client system as a whole.
+
+When a client MUMPS environment is restarted, it removes all remaining
+remote LOCKs from the server environments.
+
+When a server MUMPS environment is restarted, the client environments get
+notified and the client environments remove all local LOCKs related to
+the server MUMPS environment and the corresponding local MUMPS jobs get 
+server restart errors.
+
 
 ### MV1API
 

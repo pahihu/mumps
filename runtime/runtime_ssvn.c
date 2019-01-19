@@ -839,6 +839,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    //     label from server
 	    s = DGP_Connect(i);				// init connection
 	    if (s < 0) return s;			// failed ? return
+	    // DGP client restart: remove any pending remote LOCKs
+	    LCK_Remove(DGP_SYSJOB);
 	    s = DGP_Disconnect(i);			// disconnect
 	    if (s < 0) return s;			// failed ? return
 #endif
@@ -1105,7 +1107,7 @@ short SS_Kill(mvar *var)                        // remove sub-tree
       if (!priv()) return -(ERRM29);		// SET or KILL on ssvn not on
       systab->start_user = -1;			// Say 'shutting down'
       i = shmctl(systab->vol[0]->shm_id, (IPC_RMID), &sbuf); // remove the share
-      LCK_Remove(65280 /*0xFF00*/ + systab->dgpID);// remove remote LOCKs
+      LCK_Remove(DGP_SYSJOB);			// remove remote LOCKs
       for (i = 0; i < systab->maxjob; i++)	// for each job
       { cnt = systab->jobtab[i].pid;		// get pid
 	if ((cnt != partab.jobtab->pid) && (cnt))

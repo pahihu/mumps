@@ -32,14 +32,18 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_SER		28	/* error response, only status is sent */
 
 #define DGP_MNTV	64	/* mount remote VOL */
+#define DGP_STRT	66	/* server START */
 
 #define DGP_F_RDAT	128	/* request data for ORDV/QRYV/DATV */
 #define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
 
 /* NB. vvv--- same encoding as in mumps.h ---vvv */ 
-#define DGP_KSUBS	  2	/* KSUBSCRIPTS ^GLB */
-#define DGP_KVAL	  1	/* KVALUE ^GLB */
-#define DGP_KALL	(DGP_KSUBS+DGP_KVAL)	/* K ^GLB */
+#define DGP_F_KSUBS	  2	/* KSUBSCRIPTS ^GLB */
+#define DGP_F_KVAL	  1	/* KVALUE ^GLB */
+#define DGP_F_KALL	(DGP_F_KSUBS+DGP_F_KVAL)	/* K ^GLB */
+
+#define DGP_SYSJOB	(65280 /* 0xFF00 */ + systab->dgpID)
+#define DGP_SYSID(x)	(((x)-1)/256)
 
 #define ATTR_PACKED	__attribute__ ((__packed__))
 

@@ -413,6 +413,7 @@ short LCK_Order(cstring *ent, u_char *buf, int dir);
 short LCK_Get(cstring *ent, u_char *buf);
 short LCK_Kill(cstring *ent);
 void  LCK_Remove(int job);
+void  LCK_RemoveVOL(int volume);
 short LCK_Old(int count, cstring *list, int to, int job);
 short LCK_Add(int count, cstring *list, int to, int job);
 short LCK_Sub(int count, cstring *list, int job);

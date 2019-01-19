@@ -337,6 +337,8 @@ int INIT_Start( char *file,                     // database
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
   systab->dgpLOCKTO = 0;			// default LOCK timeout
+  for (i = 0; i < 256; i++)			// DGP client got START message?
+    systab->dgpSTART[i] = 0;
 
   systab->lockstart =				// locktab
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*netjobs));

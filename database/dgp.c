@@ -7,6 +7,7 @@
 #include "mumps.h"
 #include "proto.h"
 #include "dgp.h"
+#include "database.h"
 
 #ifdef MV1_DGP
 #include <nanomsg/nn.h>
@@ -257,7 +258,7 @@ void DGP_MkReply(DGPReply *rep,
 
   rep->header.code    = code;
   rep->header.version = DGP_VERSION;
-  rep->header.remjob  = 65280 /* 0xFF00 */ + systab->dgpID - 1;
+  rep->header.remjob  = DGP_SYSJOB - 1;		// send server ID
   rep->header.hdrlen  = sizeof(DGPHeader);
   rep->header.msgflag = 0;
   rep->header.msglen  = sizeof(DGPHeader);
@@ -345,6 +346,17 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   req->header.msglen = htons(req->header.msglen);
   req->data.len      = htons(req->data.len);
 
+ReSend:
+  MEM_BARRIER;
+  if (systab->dgpSTART[MV1_PID])			// got local START msg?
+  { // NB. this is due to removed local LOCK
+    //     which corresponds to dropped remote LOCK
+    //	   due to server restart
+    // fprintf(stderr,"send restart to JOB %d\r\n",MV1_PID+1); fflush(stderr);
+    systab->dgpSTART[MV1_PID] = 0;			//  send only once
+    return -(ERRZ85+ERRMLAST);				//  error to JOB
+  }
+
   bytes = nn_send(sock, req, msg_len, 0);		// send request
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
@@ -364,7 +376,30 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   { DGP_MsgDump(0, &rep->header, rep->data.len);
   }
   if (DGP_SER == rep->header.code)			// error reply ?
-  { return rep->data.len;				//   return error code
+  { if (-(ERRZ85+ERRMLAST) == rep->data.len)		// server (re)START ?
+    { int do_ulok = 0;					// assume no ULOK
+      // fprintf(stderr, "got server restart\r\n"); fflush(stderr);
+      MEM_BARRIER;
+      if (0 == systab->dgpULOK)				// ULOK not started?
+      { SemOp( SEM_SYS, WRITE);
+        if (0 == systab->dgpULOK)			//   still not started ?
+        { systab->dgpULOK = 1;				//   start local ULOK
+          do_ulok = 1;
+        }
+        SemOp( SEM_SYS, -WRITE);
+        if (do_ulok)
+        { // fprintf(stderr,"before LCK_RemoveVOL(%d)\r\n",vol+1); fflush(stderr);
+          LCK_RemoveVOL(vol + 1);			// remove LOCKs for VOL
+	  // NB. all local jobs who have a remote LOCK 
+	  // on VOL got marked in dgpSTART[]
+          // fprintf(stderr,"after LCK_RemoveVOL\r\n"); fflush(stderr);
+	  systab->dgpULOK = 0;				// clear ULOK state
+          goto ReSend;
+        }
+      }
+    }
+    else
+      return rep->data.len;
   }
   return 0;						// done
 }

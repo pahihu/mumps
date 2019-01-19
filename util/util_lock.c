@@ -51,6 +51,7 @@
 #include <arpa/inet.h>				// for ntoh() stuff
 
 #include "database.h"
+#include "dgp.h"				// DGP protocol
 #include "dgp_database.h"			// remote VOL stuff
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
@@ -561,8 +562,6 @@ short LCK_Kill(cstring *ent)                    // remove an entry
 
 //****************************************************************
 
-#define SYSID(x)	((x-1)/256)
-
 void LCK_Remove(int job)                        // remove all locks for a job
 { locktab *lptr;                                // locktab entry we are doing
   locktab *plptr;                               // previous locktab entry
@@ -572,7 +571,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
   if (!job) job = MV1_PID + 1; 			// current job
 
   if ((job <= 256) ||				// local job ?
-      (255 == SYSID(job)))			//   OR system shutdown
+      (255 == DGP_SYSID(job)))			//   OR system shutdown
   { for (i = 0; i < MAX_VOL; i++)		// for each VOL
     { if (systab->vol[i]->vollab == NULL)	// break if not mounted
         break;
@@ -589,9 +588,52 @@ void LCK_Remove(int job)                        // remove all locks for a job
   plptr = NULL;                                 // init prev locktab pointer
   while (lptr != NULL)                          // while more lock tabs
   { if ((lptr->job == job) ||                   // if we own it
-        ((255 == SYSID(job)) && 		//   OR system shutdown
-         (SYSID(lptr->job) == (job&255))))	//   AND same system ID
+        ((255 == DGP_SYSID(job)) && 		//   OR system shutdown
+         (DGP_SYSID(lptr->job) == (job&255))))	//   AND same system ID
     { if (plptr == NULL)                        // remove top node
+      { systab->lockhead = lptr->fwd_link;      // link in new head lock node
+        lptr->job = -1;                         // flag it as free
+        LCK_Free(lptr);                         // add to the free list
+        lptr = systab->lockhead;                // point at next
+        plptr = NULL;                           // prev ptr still NULL
+      }                                         // end if removing top node
+      if ((plptr != NULL) && (lptr != NULL))	// if both ptrs defined
+      { plptr->fwd_link = lptr->fwd_link;       // bypass it
+        lptr->job = -1;                         // flag it as free
+        LCK_Free(lptr);                         // add to the free list
+        lptr = plptr->fwd_link;                 // point at next
+      }                                         // end if both pointers defined
+    }                                           // end if job numbers match
+    else                                        // byte counts don't match
+    { plptr = lptr;                             // make current, previous
+      lptr = lptr->fwd_link;                    // check next locktab
+    }                                           // end else job numbers !=
+  }                                             // end while more lock tabs
+  x = SemOp(SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
+  return;                                       // return
+}                                               // end function LCK_Remove()
+
+//****************************************************************
+
+void LCK_RemoveVOL(int volume)                  // remove all locks for a volume
+{ locktab *lptr;                                // locktab entry we are doing
+  locktab *plptr;                               // previous locktab entry
+  short x;                                      // for SEM's
+  int i;					// handy int
+
+  ASSERT((0 < volume) && (volume <= MAX_VOL));
+  if (NULL == systab->vol[volume-1]->vollab)	// not mounted ?
+    return;					// just return
+
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
+  if (x < 0) return;                            // return on error
+
+  lptr = systab->lockhead;                      // init current locktab pointer
+  plptr = NULL;                                 // init prev locktab pointer
+  while (lptr != NULL)                          // while more lock tabs
+  { if (lptr->vol == volume)                    // if we own it
+    { systab->dgpSTART[lptr->job - 1] = 1;	// send RESTART to job
+      if (plptr == NULL)                        // remove top node
       { systab->lockhead = lptr->fwd_link;      // link in new head lock node
         lptr->job = -1;                         // flag it as free
         LCK_Free(lptr);                         // add to the free list
