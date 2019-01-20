@@ -274,6 +274,7 @@ start:
 #ifdef MV1_F_NOCACHE
       i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
 #endif
+      partab.jnl_seq[0] = systab->vol[0]->jnl_seq;
     }
   }
 

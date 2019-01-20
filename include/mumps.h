@@ -454,6 +454,7 @@ typedef struct __PACKED__ VOL_DEF
   u_char *jrnbuf;                               // jrn buffer
   VOLATILE off_t jrn_next;                      // next free offset in jrn file
   VOLATILE time_t lastdojrn;                    // last DoJournal() time
+  VOLATILE u_char jnl_seq;			// jrn sequence
   u_int *last_blk_used;                         // actually setup for real jobs
   u_int *last_blk_written;                      // actually setup for real jobs
   size_t volset_size;                           // shared memory size of vol_def
@@ -650,6 +651,7 @@ typedef struct __PACKED__ PARTAB                // define the partition table
 { jobtab_t *jobtab;                             // our jobtab entry
   int vol_fds[MAX_VOL];                         // the filedes for the volumes
   int jnl_fds[MAX_VOL];                         // the filedes for journals
+  u_char jnl_seq[MAX_VOL];			// the seq. numbers of journals
   int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack

@@ -79,9 +79,8 @@ void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write[MAX_VOL];                  // last map write
-int open_jrn(int vol);                                  // open journal file
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
-static char jnl_files[MAX_VOL][JNL_FILENAME_MAX + 1];	// jrn file names
+static u_char jnl_seq[MAX_VOL];				// jrn file sequence
 void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
@@ -523,7 +522,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
     jnl_fds[i] = 0;                                     // clear jrn file desc.
-    jnl_files[i][0] = 0;				// clear jrn file name
+    jnl_seq[i] = 0;					// clear jrn file seq.
     last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
   mypid = 0;
@@ -774,8 +773,8 @@ void do_dismount()					// dismount volnum
       continue;						//   skip it
     if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
-    jfd = open_jrn(vol);                                // open jrn file
-    if (jfd)
+    jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);    // attach jrn file
+    if (jfd > 0)
     { j = FlushJournal(vol, jfd, 1);
       if (j < 0)
       { do_log("Failed to flush journal file %s: Last failed - %d\n",
@@ -1280,14 +1279,16 @@ void do_mount(int vol)                                  // mount volume
 }
 
 
+#if 0
 //-----------------------------------------------------------------------------
-// Function: open_jrn
-// Descript: Open the jrn file of the given volume.
+// Function: attach_jrn
+// Descript: Attach to the jrn file of the given volume.
+//	     The file must be initialized.
 // Input(s): vol - the volume
 // Return:   jrn file desc.
 //
 
-int open_jrn(int vol)
+int attach_jrn(int vol)
 { int j;                                                // handy int
 
   ASSERT(0 <= vol);                                     // valid vol[] index
@@ -1296,14 +1297,13 @@ int open_jrn(int vol)
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (jnl_fds[vol] && 					// already open ?
-      (0 == strcmp(jnl_files[vol], 			//   AND same name ?
-		   systab->vol[vol]->vollab->journal_file)))
+      (jnl_seq[vol] == systab->vol[vol]->jnl_seq))      //   AND same seq ?
     return jnl_fds[vol];                                //   return file desc.
 
   if (jnl_fds[vol])					// jrn file changed
   { close(jnl_fds[vol]);				//   close old fd
     jnl_fds[vol] = 0;					// clear jrn fds
-    jnl_files[vol][0] = 0;				//   AND jrn file name
+    jnl_seq[vol] = 0;					//   AND jrn file seq
   }
 
   if ((systab->vol[vol]->vollab->journal_available) &&
@@ -1339,11 +1339,11 @@ int open_jrn(int vol)
       return 0;
     }
     jnl_fds[vol] = jfd;					// save jrn fd
-    strcpy(jnl_files[vol], 				//   AND jrn file name
-	   systab->vol[vol]->vollab->journal_file);
+    jnl_seq[vol] = systab->vol[vol]->jnl_seq;		//   AND jrn seq
   }
   return jnl_fds[vol];
 }
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -1401,7 +1401,7 @@ void do_jrnflush(int vol)
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
   old_volnum = volnum;                          // save current vol
-  jfd = open_jrn(vol);                          // open jrn file
+  jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open jrn file
   if (jfd) 
   { volnum = vol + 1;                           // set volnum
     while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
@@ -1435,7 +1435,7 @@ void do_volsync(int vol)
   MEM_BARRIER;
   do_quiescence();                              // reach quiet point
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
-  { jfd = open_jrn(vol);                        // open journal
+  { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd)
     { volnum = vol + 1;
       while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
@@ -1446,7 +1446,7 @@ void do_volsync(int vol)
   }
   fsync(dbfds[vol]);                            // sync volume to disk
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
-  { jfd = open_jrn(vol);                        // open journal
+  { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd)
     { jrnrec jj;                                // write SYNC record
       jj.action = JRN_SYNC;

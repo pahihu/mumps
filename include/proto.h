@@ -122,6 +122,7 @@ int DB_Dismount(int volume);			 // dismount a volume
 void OpenJournal(int vol, int printlog);         // open journal
 void ClearJournal(int jfd, int vol);             // clear journal
 short FlushJournal(int vol, int jfd, int dosync);// flush JNL buffer w/ sync
+int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq); // attach to jrn file
 void DB_StopJournal(int volume, u_char action);	 // Stop journal
 int DB_GetFlags(mvar *var);                    	 // Get flags
 int DB_SetFlags(mvar *var, int flags);         	 // Set flags

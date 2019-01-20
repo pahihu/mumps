@@ -329,6 +329,8 @@ short DB_Mount( char *file,                     // database
   { 
     while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
     OpenJournal( vol, 1);
+    if (systab->vol[vol]->vollab->journal_available)// available ?
+      systab->vol[vol]->jnl_seq = 1;		//   start jnl sequence
     SemOp( SEM_GLOBAL, -WRITE);			// unlock global
   }						// end journal stuff
   

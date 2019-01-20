@@ -229,7 +229,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         if (strncasecmp( (char *) subs[1]->buf, "$stack\0", 7) == 0)
 	  return itocstring(buf, systab->jobtab[i].cur_do);
         if (strncasecmp( (char *) subs[1]->buf, "character\0", 10) == 0)
-	  return mcopy((u_char *)"M", buf, 1);				// just an M
+	  return mcopy((u_char *)"M", buf, 1);	// just an M
         if (strncasecmp( (char *) subs[1]->buf, "commands\0", 9) == 0)
 	  return uitocstring(buf, systab->jobtab[i].commands);
         if (strncasecmp( (char *) subs[1]->buf, "global\0", 7) == 0)
@@ -246,8 +246,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	{ pp = getpwuid((uid_t) systab->jobtab[i].user);	// get pw
 	  if (pp == NULL) 					// on fail
 	    return itocstring(buf, systab->jobtab[i].user);	// return numb
-	  strcpy((char *)buf, pp->pw_name);				// copy it
-	  return strlen((char *)buf);					// return len
+	  strcpy((char *)buf, pp->pw_name);			// copy it
+	  return strlen((char *)buf);				// return len
 	}
         if (strncasecmp( (char *) subs[1]->buf, "owner_id\0", 9) == 0)
 	  return itocstring(buf, systab->jobtab[i].user);
@@ -320,7 +320,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       if (nsubs > 2) return (-ERRM38);		// junk
       if (nsubs == 2)
         if (strncasecmp( (char *) subs[1]->buf, "character\0", 10) == 0)
-	  return mcopy((u_char *)"M", buf, 1);		// just an M
+	  return mcopy((u_char *)"M", buf, 1);	// just an M
       return DB_Get(var, buf);			// let the database module doit
 
     case 'S':					// $SYSTEM
@@ -334,7 +334,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dqlen\0", 6) == 0))
-      { return itocstring(buf, DirtyQ_Len()); // return the value
+      { return itocstring(buf, DirtyQ_Len()); 	// return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "eok\0", 4) == 0))
@@ -397,7 +397,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if (nsubs < 3) return (-ERRM38);	// must be 3 subs
 	if (strncasecmp( (char *) subs[2]->buf, "file\0", 5) == 0)
 	{ strcpy((char *)buf, systab->vol[i]->file_name); // copy it
-	  return strlen((char *)buf);			// return the length
+	  return strlen((char *)buf);		// return the length
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "journal_buffer_size\0", 20) == 0)
         { j = systab->vol[i]->jkb;
@@ -806,7 +806,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    { return (-ERRM38);
 	    }
 	  }
-          strncpy((char *) &systab->vol[i]->local_name[0], (char *) data->buf, MAX_NAME_BYTES-1);
+          strncpy((char *) &systab->vol[i]->local_name[0], 
+		  (char *) data->buf, MAX_NAME_BYTES-1);
           systab->vol[i]->local_name[MAX_NAME_BYTES-1] = '\0';
 	  return 0;
 	}
@@ -900,13 +901,20 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (void) strcpy(systab->vol[i]->vollab->journal_file, 
                           (char *)data->buf);   // write new name
 	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;// tell to write it
+	  systab->vol[i]->jnl_seq++;		// increment jrn sequence
+          if (0 == systab->vol[i]->jnl_seq)
+            systab->vol[i]->jnl_seq = 1;
           s = 0;
           OpenJournal(i, 0);                    // open new jrn file
           if (systab->vol[i]->vollab->journal_available)
           { partab.jnl_fds[i] =                 // open if available
                     open(systab->vol[i]->vollab->journal_file, O_RDWR);
-            if (partab.jnl_fds[i] <= 0)         // failed ?
+            if (partab.jnl_fds[i] < 0)          // failed ?
+            { partab.jnl_fds[i] = 0;		//   clear fd
               s = -(errno+ERRMLAST+ERRZLAST);   //   complain
+            }
+            else
+              partab.jnl_seq[i] = systab->vol[i]->jnl_seq;
           }
           else                                  // open jrn file failed
               s = -(ERRZ72+ERRMLAST);           //   complain
@@ -933,7 +941,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    (systab->maxjob == 1))
 	{ u_int vsiz;				// for the size
 
-	  vsiz = (u_int) atol((char *)data->buf);	// get the new
+	  vsiz = (u_int) atol((char *)data->buf);// get the new
 	  if (vsiz <= systab->vol[i]->vollab->max_block)
 	  { return (-ERRM38);
 	  }

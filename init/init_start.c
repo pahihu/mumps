@@ -493,6 +493,8 @@ int INIT_Start( char *file,                     // database
            (systab->vol[0]->vollab->journal_file[0]))
   { while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
     OpenJournal(0, 1);
+    if (systab->vol[0]->vollab->journal_available)// available ?
+      systab->vol[0]->jnl_seq = 1;		//   start jnl sequence
     SemOp( SEM_GLOBAL, -WRITE);			// unlock global
   }						// end journal stuff
   
