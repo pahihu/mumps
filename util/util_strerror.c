@@ -198,6 +198,8 @@ static struct
   {ERRZ83+ERRMLAST,	"NET: Invalid connection URL"},
   {ERRZ84+ERRMLAST,	"NET: Target volume is remote"},
   {ERRZ85+ERRMLAST,	"NET: Server restart"},
+  {ERRZ86+ERRMLAST,	"NET: Lost remote LOCKs"},
+  {ERRZ86+ERRMLAST,	"NET: Local RESTART failed"},
   {0,         NULL}
 };                                                      // merrtab[]
 

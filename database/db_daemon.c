@@ -170,7 +170,7 @@ void do_netdaemon(void)
   int i;						// handy int
   u_short msg_len;					// message length
   int client;						// client system ID
-  int send_START;					// send START msg
+  int restart_phase = 1;
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -190,6 +190,7 @@ void do_netdaemon(void)
   }
 
   do_log("accepting connections on %s\n", url);
+  do_log("(RE)START phase...\n");
   for (;;)
   { bytes = nn_recv(sock, &req, sizeof(req), 0);	// receive request
     if (systab->vol[0]->dismount_flag)		        // dismounting?
@@ -230,25 +231,16 @@ void do_netdaemon(void)
     { ASSERT((256 < remjob) && (remjob < 65281));	// validate
     }
 
-    send_START = 0;
     client = DGP_SYSID(remjob);
     MEM_BARRIER;
-    if ((255 != client) &&				// not a system msg
-        (0 == systab->dgpSTART[client]))		//   AND START not sent?
-    { SemOp( SEM_WD, WRITE);
-      if (0 == systab->dgpSTART[client])		// START still not sent?
-      { systab->dgpSTART[client] = 1;			// mark as sent
-	// if client crashed during server restart, or just mounts the volume
-	// do NOT send START message back
-        send_START = req.header.code != DGP_MNTV;
-      }
-      SemOp( SEM_WD, -WRITE);
-
-      if (send_START)					// send START ?
-      { // fprintf(stderr,"sending restart to %d (code=%d)\n",client,req.header.code); fflush(stderr);
-        DGP_MkError(&rep, -(ERRZ85+ERRMLAST));		//   make reply
-        goto Send;					//   and send
-      }
+    if (/*(255 != client) &&*/				// not a system msg
+        (systab->dgpRESTART))				//   AND restart phase?
+    { // fprintf(stderr,"sending restart to %d (code=%d)\n",client,req.header.code); fflush(stderr);
+      DGP_MkError(&rep, -(ERRZ85+ERRMLAST));		//   make reply
+      goto Send;					//   and send
+    } else if (restart_phase)
+    { do_log("Normal message processing...\n");
+      restart_phase = 0;
     }
 
     if ((req.header.code > DGP_ZDAL) && (DGP_MNTV != req.header.code))
@@ -391,11 +383,6 @@ Send:
     bytes = nn_send(sock, &rep, msg_len, 0);
     if (bytes < 0)
     { do_log("nn_send: %s\n", nn_strerror(nn_errno()));
-      if (send_START)					// failed to send START
-      { SemOp( SEM_WD, WRITE);
-	systab->dgpSTART[client] = 0;			// clear START sent
-	SemOp( SEM_WD, -WRITE);
-      }
     }
   }
 #else
@@ -619,6 +606,14 @@ int DB_Daemon(int slot, int vol)			// start a daemon
       systab->ZRestTime = rest;
       old_stalls = stalls;
     }
+
+    MEM_BARRIER;
+    if ((systab->dgpRESTART) &&				// DGP RESTART phase ?
+        (MTIME(0) > systab->dgpRESTART))		//   and time passed
+    { systab->dgpRESTART = 0;				//   leave RESTART phase
+      MEM_BARRIER;
+    }
+     
     i = MSLEEP(systab->ZRestTime);                      // rest
     do_daemon();					// do something
   }

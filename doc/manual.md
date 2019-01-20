@@ -242,7 +242,7 @@ remote LOCKs from the server environments.
 When a server MUMPS environment is restarted, the client environments get
 notified and the client environments remove all local LOCKs related to
 the server MUMPS environment and the corresponding local MUMPS jobs get 
-server restart errors.
+lost remote LOCKs errors.
 
 
 ### MV1API

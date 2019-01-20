@@ -680,7 +680,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_lock_timeout\0", 17) == 0))
       { j = cstringtoi(data);
-	if ((j < 0) || (j > 60)) return -ERRM28;
+	if ((j < 0) || (j > DGP_MAX_LOCKTO)) return -ERRM28;
         systab->dgpLOCKTO = j;
 	return 0;				// and exit
       }

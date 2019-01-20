@@ -52,6 +52,7 @@
 #include "mumps.h"                      // standard includes
 #include "proto.h"                      // standard includes
 #include "database.h"                   // database includes
+#include "dgp.h"			// DGP stuff
 
 #if defined(linux) || defined(__CYGWIN__)
 union semun {
@@ -337,7 +338,8 @@ int INIT_Start( char *file,                     // database
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
   systab->dgpLOCKTO = 0;			// default LOCK timeout
-  for (i = 0; i < 256; i++)			// DGP client got START message?
+  systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
+  for (i = 0; i < 256; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
 
   systab->lockstart =				// locktab

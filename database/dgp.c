@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>					// for u_char
 #include <arpa/inet.h>					// for ntoh() stuff
+#include <time.h>					// for time()
 #include "error.h"
 #include "mumps.h"
 #include "proto.h"
@@ -83,6 +84,10 @@ short DGP_GetRemoteName(const char* uri, char *buf)
 }
 
 
+static
+short DGP_Dialog2(int vol, DGPRequest *req, DGPReply *rep, int do_restart);
+
+
 short DGP_Connect(int vol)
 { int sock;						// NN socket
   int rv;						// return value
@@ -113,7 +118,7 @@ short DGP_Connect(int vol)
   }
   if (systab->vol[vol]->vollab == NULL)			// no remote VOL label
   { DGP_MkRequest(&req, DGP_MNTV, 0, NULL, -1, (u_char *) &remote_name[0]);
-    s = DGP_Dialog(-(sock + 1), &req, &rep);
+    s = DGP_Dialog2(-(sock + 1), &req, &rep, 0);
     if (s < 0)
     { nn_shutdown(sock, 0);
       return s;
@@ -317,11 +322,13 @@ void DGP_MkStatus(DGPReply *rep, short s)
 }
 
 
-short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
+static
+short DGP_Dialog2(int vol, DGPRequest *req, DGPReply *rep, int do_restart)
 { int bytes;						// bytes sent/received
   int sock;						// NN socket
   short s;						// status
   u_short msg_len;
+  time_t wait_start;					// start of wait status
 
   if (vol < 0)						// called with socket ?
   { // fprintf(stderr,"DGP_Dialog(%d): socket call\r\n",vol);
@@ -347,14 +354,28 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
   req->data.len      = htons(req->data.len);
 
 ReSend:
-  MEM_BARRIER;
-  if (systab->dgpSTART[MV1_PID])			// got local START msg?
-  { // NB. this is due to removed local LOCK
-    //     which corresponds to dropped remote LOCK
-    //	   due to server restart
-    // fprintf(stderr,"send restart to JOB %d\r\n",MV1_PID+1); fflush(stderr);
-    systab->dgpSTART[MV1_PID] = 0;			//  send only once
-    return -(ERRZ85+ERRMLAST);				//  error to JOB
+  if (do_restart)
+  { MEM_BARRIER;
+    if (systab->dgpRESTART)				// RESTART phase ?
+    { wait_start = MTIME(0);				// remember time
+      while (systab->dgpRESTART)			// wait
+      { if ((MTIME(0) - wait_start) > 2*(DGP_RESTARTTO))//   wait over ?
+        { systab->dgpSTART[MV1_PID] = 0;		//   clear LOCK lost
+          return -(ERRZ87+ERRMLAST);			//   send restart failed
+        }
+        Sleep(1);
+        MEM_BARRIER;
+      }
+    }
+    MEM_BARRIER;
+    if (systab->dgpSTART[MV1_PID])			// got local START msg?
+    { // NB. this is due to removed local LOCK
+      //     which corresponds to dropped remote LOCK
+      //	   due to server restart
+      // fprintf(stderr,"send restart to JOB %d\r\n",MV1_PID+1); fflush(stderr);
+      systab->dgpSTART[MV1_PID] = 0;			//  send only once
+      return -(ERRZ86+ERRMLAST);			//  lost remove LOCKs
+    }
   }
 
   bytes = nn_send(sock, req, msg_len, 0);		// send request
@@ -377,32 +398,40 @@ ReSend:
   }
   if (DGP_SER == rep->header.code)			// error reply ?
   { if (-(ERRZ85+ERRMLAST) == rep->data.len)		// server (re)START ?
-    { int do_ulok = 0;					// assume no ULOK
+    { int do_drop = 0;					// assume no drop
+      if (0 == do_restart)				// skip RESTART ?
+      { Sleep(1);					//   just wait a bit
+      }
       // fprintf(stderr, "got server restart\r\n"); fflush(stderr);
       MEM_BARRIER;
-      if (0 == systab->dgpULOK)				// ULOK not started?
+      if (0 == systab->dgpRESTART)			// not in RESTART phase?
       { SemOp( SEM_SYS, WRITE);
-        if (0 == systab->dgpULOK)			//   still not started ?
-        { systab->dgpULOK = 1;				//   start local ULOK
-          do_ulok = 1;
+        if (0 == systab->dgpRESTART)			//   still not?
+        { systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// do local RESTART
+	  do_drop = 1;					//    drop remote LOCKs
         }
         SemOp( SEM_SYS, -WRITE);
-        if (do_ulok)
+        if (do_drop)
         { // fprintf(stderr,"before LCK_RemoveVOL(%d)\r\n",vol+1); fflush(stderr);
-          LCK_RemoveVOL(vol + 1);			// remove LOCKs for VOL
 	  // NB. all local jobs who have a remote LOCK 
 	  // on VOL got marked in dgpSTART[]
+          LCK_RemoveVOL(vol + 1);			// remove LOCKs for VOL
           // fprintf(stderr,"after LCK_RemoveVOL\r\n"); fflush(stderr);
-	  systab->dgpULOK = 0;				// clear ULOK state
-          goto ReSend;
         }
       }
+      goto ReSend;
     }
     else
       return rep->data.len;
   }
   return 0;						// done
 }
+
+
+short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
+{ return DGP_Dialog2(vol, req, rep, 1);
+}
+
 
 void DGP_MsgDump(int dosend, DGPHeader *header, short status)
 {

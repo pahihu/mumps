@@ -620,8 +620,8 @@ typedef struct __PACKED__ SYSTAB                // system tables
   u_short dgpID;				// DGP system ID
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
-  u_char dgpSTART[256];				// server: DGP IDs  (1-254)
-						// client: MV1_PIDs (0-255)
+  VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
+  u_char dgpSTART[256];				// client: MV1_PIDs (0-255)
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];

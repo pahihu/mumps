@@ -32,7 +32,6 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_SER		28	/* error response, only status is sent */
 
 #define DGP_MNTV	64	/* mount remote VOL */
-#define DGP_STRT	66	/* server START */
 
 #define DGP_F_RDAT	128	/* request data for ORDV/QRYV/DATV */
 #define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
@@ -44,6 +43,8 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_SYSJOB	(65280 /* 0xFF00 */ + systab->dgpID)
 #define DGP_SYSID(x)	(((x)-1)/256)
+#define DGP_MAX_LOCKTO	60
+#define DGP_RESTARTTO	 5
 
 #define ATTR_PACKED	__attribute__ ((__packed__))
 
