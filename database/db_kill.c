@@ -40,11 +40,12 @@
 #include <unistd.h>					// for file reading
 #include <time.h>					// for gbd stuff
 #include <ctype.h>					// for gbd stuff
-#include <sys/types.h>               // lepard seems to want this
+#include <sys/types.h>               			// lepard seems to want this
 #include "mumps.h"					// standard includes
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include "dgp_database.h"				// for replication
 
 //-----------------------------------------------------------------------------
 // Function: Kill_data
@@ -81,6 +82,7 @@ short Kill_data_ex(int what)				// remove tree
   int qpos, wpos, rpos, qlen, qfree;
   int save_level;                                       // save level 
   int netjobs;						// #jobs + #net daemons
+  short rc;						// replication status
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
@@ -127,6 +129,8 @@ cont:
     jj.name.var_xu = db_var.name.var_xu;		// global name
     jj.slen = db_var.slen;				// subs length
     bcopy(db_var.key, jj.key, jj.slen);			// copy key
+    rc = DGP_ReplKill(&db_var, what);			// replicate KILL
+    if (rc < 0) return rc;				// return if failed
     DoJournal(&jj, NULL);				// and do it
   }
 

@@ -199,6 +199,8 @@
 #define ERRZ85		85	// NET: Server restart [sent by server]
 #define ERRZ86		86	// NET: Lost remote LOCKs, [local LOCKs dropped]
 #define ERRZ87		87	// NET: Local RESTART failed, [failed to drop local LOCKs]
+#define ERRZ88		88	// NET: Synchronization failed
+#define ERRZ89		89	// NET: Not connected
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

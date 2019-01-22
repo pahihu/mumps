@@ -1026,7 +1026,7 @@ void OpenJournal(int vol, int printlog)
 // Note:     Must be called with a write lock
 //           the date/time and size are filled in here
 //
-void DoJournal(jrnrec *jj, cstring *data)               // Write journal
+void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
 { int i;                                                // handy int
   int jj_alignment;                                     // align. to 4byte bound
   u_int currsize;                                       // curr. JNL buffer size

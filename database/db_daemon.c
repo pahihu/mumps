@@ -177,10 +177,8 @@ void do_netdaemon(void)
     panic(msg);
   }
 
-  sprintf(url, "%s%c%d",				// construct URL
-               systab->dgpURL, 
-               (strncmp((char *) systab->dgpURL,"ipc://",6) ? ':' : '.'),
-	       systab->dgpPORT + myslot_net);
+  strcpy(url, DGP_GetServerURL(systab->dgpURL, 		// construct server URL
+			systab->dgpPORT + myslot_net));
 
   rv = nn_bind(sock, url);
   if (rv < 0)

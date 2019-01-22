@@ -245,6 +245,22 @@ the server MUMPS environment and the corresponding local MUMPS jobs get
 lost remote LOCKs errors.
 
 
+### MUMPS environment replicas
+
+This requires the nanomsg library as for the remote volume sets.
+You could set upto 16 environment replicas. The journaling phase sends remote messages
+on SET and KILL commands to the specified replicas. If the replica is mandatory then
+any error got from the replica will stop the operation. If the replica is optional
+the replication errors are ignored.
+
+To set replicas issue the following commands:
+
+	SET ^$S("REPLICA",1,"TYPE")="MANDATORY"
+	SET ^$S("REPLICA",1,"CONNECTION")="tcp://192.168.1.23:2000"
+	SET ^$S("REPLICA",2,"TYPE")="OPTIONAL"
+	SET ^$S("REPLICA",2,"CONNECTION")="tcp://192.168.1.23:3000"
+
+
 ### MV1API
 
 You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
@@ -555,6 +571,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | VOL,n,JOURNAL_BUFFER_SIZE | Journal buffer (in KB)   | set with priv |
 | VOL,n,JOURNAL_FILE        | Journal file (incl path) | set with priv |
 | VOL,n,param               | Usage parameters for vol set | no |
+| REPLICA,n,CONNECTION      | Replica connection URL   | set with priv |
+| REPLICA,n,TYPE            | Replica type MANDATORY or OPTIONAL | set with priv |
 
 | Parameters | Contains |
 | ---------- | ------------------- |
@@ -607,4 +625,5 @@ MUMPS with commands/functions written in MUMPS
 | Maximum JOB command length        | 32KB                     |
 | Maximum number of network daemons | 10                       |
 | Maximum number of connected environments | 254               |
+| Maximum number of environment replicas | 16                  |
 

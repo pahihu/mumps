@@ -235,6 +235,7 @@
 #define VOL_FILENAME_MAX	256             // max chars in stored filename
 //#define JNL_FILENAME_MAX	226             // max chars in journal filenam
 #define JNL_FILENAME_MAX   (234-MAX_NAME_BYTES) // max chars in journal filenam
+#define MAX_REPLICAS		16		// max number of replica envs
 
 // systab->historic bit flag meanings
 #define	HISTORIC_EOK		1               // E syntax flag
@@ -594,6 +595,11 @@ typedef struct __PACKED__ TRANHASH              // trantab hash entry
   u_char from_uci;                              //      uci#
 } tranhash;                                     // define tranhash
 
+typedef struct __PACKED__ REPLTAB
+{ char connection[VOL_FILENAME_MAX];		// connection URL in nanomsg fmt
+  int  typ;					// DGP_SYNC_REQ, DGP_SYNC_OPT
+} repltab;
+
 typedef struct __PACKED__ SYSTAB                // system tables
 { void *address;
   jobtab_t *jobtab;                             // address of jobtab
@@ -632,6 +638,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   VOLATILE u_int delaywt;                       // delay WRITEs
+  repltab replicas[MAX_REPLICAS];		// database replicas
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256
@@ -653,6 +660,7 @@ typedef struct __PACKED__ PARTAB                // define the partition table
   int jnl_fds[MAX_VOL];                         // the filedes for journals
   u_char jnl_seq[MAX_VOL];			// the seq. numbers of journals
   int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
+  int dgp_repl[MAX_REPLICAS];			// DGP sockets for replicas
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack
   u_char *sstk_last;                            // last byte of sstk

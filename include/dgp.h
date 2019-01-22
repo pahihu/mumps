@@ -46,6 +46,9 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_MAX_LOCKTO	60
 #define DGP_RESTARTTO	 5
 
+#define DGP_REPL_REQ	 1
+#define DGP_REPL_OPT	 0
+
 #define ATTR_PACKED	__attribute__ ((__packed__))
 
 typedef struct ATTR_PACKED DGPDATA
@@ -77,7 +80,8 @@ typedef struct ATTR_PACKED DGPREPLY
 } DGPReply;
 
 short DGP_GetConnectionURL(const char* uri, char *buf);
-short DGP_GetRemoteName(const char *uri, char *buf);
+short DGP_GetRemoteVOL(const char *uri, char *buf);
+const char* DGP_GetServerURL(const char* base_url, int port);
 short DGP_Connect(int vol);
 short DGP_Disconnect(int vol);
 
@@ -105,5 +109,9 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep);
 
 void  DGP_MsgDump(int dosend, DGPHeader *header, short status);
 
+
+short DGP_ReplConnect(int i);
+short DGP_ReplDisconnect(int i);
+short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep);
 
 #endif

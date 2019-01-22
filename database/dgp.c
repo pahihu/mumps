@@ -66,7 +66,7 @@ short DGP_GetConnectionURL(const char *uri, char *buf)
 }
 
 
-short DGP_GetRemoteName(const char* uri, char *buf)
+short DGP_GetRemoteVOL(const char* uri, char *buf)
 { char *ptr;
   int len;
 
@@ -81,6 +81,17 @@ short DGP_GetRemoteName(const char* uri, char *buf)
   { strcpy(buf, ptr);
   }
   return len;
+}
+
+
+const char* DGP_GetServerURL(const char* base_url, int port)
+{ static char buf[256];
+
+  sprintf(buf, "%s%c%d",
+		base_url,
+		(strncmp(base_url,"ipc://",6) ? ':' : '.'),
+		port);
+  return buf;
 }
 
 
@@ -105,9 +116,9 @@ short DGP_Connect(int vol)
   }
   s = DGP_GetConnectionURL(systab->vol[vol]->file_name, conn_url);
   if (s < 0) return s;
-  s = DGP_GetRemoteName(systab->vol[vol]->file_name, remote_name);
+  s = DGP_GetRemoteVOL(systab->vol[vol]->file_name, remote_name);
   if (s < 0) return s;
-  // fprintf(stderr,"VOL%d ConnectionURL=[%s] RemoteName=[%s]\r\n", vol, conn_url, remote_name);
+  // fprintf(stderr,"VOL%d ConnectionURL=[%s] RemoteVOL=[%s]\r\n", vol, conn_url, remote_name);
   sock = nn_socket(AF_SP, NN_REQ);
   if (sock < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
@@ -156,8 +167,50 @@ short DGP_Connect(int vol)
 short DGP_Disconnect(int vol)
 { int rv;
 
+  ASSERT((0 <= vol) && (vol < MAX_VOL));
+
+  if (-1 == partab.dgp_sock[vol])
+    return -(ERRZ89+ERRMLAST);
   rv = nn_shutdown(partab.dgp_sock[vol], 0);
   partab.dgp_sock[vol] = -1;
+  if (rv < 0)
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
+  }
+  return 0;
+}
+
+
+short DGP_ReplConnect(int i)
+{ int sock;						// NN socket
+  int rv;						// return value
+
+  ASSERT((0 <= i) && (i < MAX_REPLICAS));
+
+  if (strlen(systab->replicas[i].connection) < 6)	// tcp://
+  { return -(ERRM38);
+  }
+  sock = nn_socket(AF_SP, NN_REQ);
+  if (sock < 0)
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
+  }
+  rv = nn_connect(sock, systab->replicas[i].connection);
+  if (rv < 0)
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
+  }
+  partab.dgp_repl[i] = sock;
+  return 0;
+}
+
+
+short DGP_ReplDisconnect(int i)
+{ int rv;
+
+  ASSERT((0 <= i) && (i < MAX_REPLICAS));
+
+  if (-1 == partab.dgp_repl[i])
+    return -(ERRZ89+ERRMLAST);
+  rv = nn_shutdown(partab.dgp_repl[i], 0);
+  partab.dgp_repl[i] = -1;
   if (rv < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
@@ -430,6 +483,61 @@ ReSend:
 
 short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep)
 { return DGP_Dialog2(vol, req, rep, 1);
+}
+
+
+short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
+{ int bytes;						// bytes sent/received
+  int sock;						// NN socket
+  short s;						// status
+  u_short msg_len;
+  time_t wait_start;					// start of wait status
+
+  ASSERT((0 <= i) && (i < MAX_REPLICAS));
+  ASSERT(systab->replicas[i].connection[0]);		// ensure replica name
+
+  sock = partab.dgp_repl[i];			
+  if (-1 == sock)					// not connected yet ?
+  { s = DGP_ReplConnect(i);				// connect DGP
+    if (s < 0) return s;				// failed ? return
+    sock = partab.dgp_repl[i];				// get NN socket
+  }
+  if (dump_msg)
+  { DGP_MsgDump(1, &req->header, req->data.len);
+  }
+  
+  msg_len = req->header.msglen;				// cvt to network fmt
+  req->header.remjob = htons(req->header.remjob);
+  req->header.msglen = htons(req->header.msglen);
+  req->data.len      = htons(req->data.len);
+
+  bytes = nn_send(sock, req, msg_len, 0);		// send request
+  if (bytes < 0)					// failed ?
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
+  }
+
+  req->header.remjob = ntohs(req->header.remjob);	// cvt to host fmt
+  req->header.msglen = ntohs(req->header.msglen);
+  req->data.len      = ntohs(req->data.len);
+
+  // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
+  bytes = nn_recv(sock, rep, sizeof(DGPReply), 0);	// receive reply
+  if (bytes < 0)					// failed ?
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
+  }
+
+  rep->header.remjob = ntohs(rep->header.remjob);	// cvt to host fmt
+  rep->header.msglen = ntohs(rep->header.msglen);
+  rep->data.len      = ntohs(rep->data.len);
+
+  // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
+  if (dump_msg)
+  { DGP_MsgDump(0, &rep->header, rep->data.len);
+  }
+  if (DGP_SER == rep->header.code)			// error reply ?
+  { return rep->data.len;				//   return error code
+  }
+  return 0;						// done
 }
 
 

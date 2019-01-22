@@ -34,7 +34,8 @@ short DGP_Get(int vol, mvar *var, u_char *buf)
 
 
 short DGP_Set(int vol, mvar *var, cstring *data)
-{ DGPRequest req;
+{ 
+  DGPRequest req;
   DGPReply rep;
   short s;
 
@@ -170,6 +171,62 @@ short DGP_UnLock(int vol, int job)
   if (s < 0) return s;
 
   return rep.data.len;
+}
+
+
+short DGP_ReplSet(mvar *var, cstring *data)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+  int i;
+
+  DGP_MkRequest(&req, DGP_SETV, 0, var, data->len, &data->buf[0]);
+  // required members
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { if (0 == systab->replicas[i].connection[0])
+      break;
+    if (DGP_REPL_REQ == systab->replicas[i].typ)
+    { s = DGP_ReplDialog(i, &req, &rep);
+      if (s < 0) return -(ERRZ88+ERRZLAST);
+    }
+  }
+  // optional members
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { if (0 == systab->replicas[i].connection[0])
+      break;
+    if (DGP_REPL_OPT == systab->replicas[i].typ)
+    { s = DGP_ReplDialog(i, &req, &rep);
+    }
+  }
+  return 0;
+}
+
+
+short DGP_ReplKill(mvar *var, int what)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+  int i;
+
+  DGP_MkRequest(&req, DGP_KILV, what, var, 0, NULL);
+  // required members
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { if (0 == systab->replicas[i].connection[0])
+      break;
+    if (DGP_REPL_REQ == systab->replicas[i].typ)
+    { s = DGP_ReplDialog(i, &req, &rep);
+      if (s < 0) return -(ERRZ88+ERRZLAST);
+    }
+  }
+  // optional members
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { if (0 == systab->replicas[i].connection[0])
+      break;
+    if (DGP_REPL_OPT == systab->replicas[i].typ)
+    { s = DGP_ReplDialog(i, &req, &rep);
+    }
+  }
+  return 0;
 }
 
 

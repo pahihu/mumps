@@ -47,6 +47,7 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include "dgp_database.h"				// DGP stuff
 
 //                 DATABASE INSERT DIAGRAM
 // 
@@ -170,6 +171,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   DB_Block *btmp;					// ditto
   gbd *gptr;
   int trysimple;                                        // flag a simple set
+  short rc;						// replication status
 
   if (!curr_lock)
     while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
@@ -227,6 +229,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
              jj.name.var_xu = db_var.name.var_xu;	// global name
              jj.slen = db_var.slen;			// subs length
              bcopy(db_var.key, jj.key, jj.slen);	// copy key
+	     rc = DGP_ReplSet(&db_var, data);		// replicate SET
+	     if (rc < 0) return rc;			// return if failed
              DoJournal(&jj, data);			// and do it
           }
           if (blk[level]->dirty == NULL)                // reserve it
@@ -274,6 +278,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       jj.name.var_xu = db_var.name.var_xu;		// global name
       jj.slen = db_var.slen;				// subs length
       bcopy(db_var.key, jj.key, jj.slen);		// copy key
+      rc = DGP_ReplSet(&db_var, data);			// replicate SET
+      if (rc < 0) return rc;				// return if failed
       DoJournal(&jj, data);				// and do it
     }
   }

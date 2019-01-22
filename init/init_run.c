@@ -252,6 +252,7 @@ start:
 
   for (i = 0; i < MAX_VOL; i++)			// clear DGP socks
   { partab.dgp_sock[i] = -1;
+    partab.dgp_repl[i] = -1;
     partab.vol_fds[i] = 0;
     partab.jnl_fds[i] = 0;
   }

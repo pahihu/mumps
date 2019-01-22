@@ -390,6 +390,25 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	s += UTIL_String_Mvar((mvar *) &systab->tt[i].from_global, &buf[s], 0);
 	return s;
       }						// end trantab stuf
+      if (strncasecmp( (char *) subs[0]->buf, "replica\0", 7) == 0)
+      { if (nsubs < 3) return (-ERRM38); 	// must be 2 subs
+        i = cstringtoi(subs[1]) - 1;		// make an int of entry#
+	if ((!(i < MAX_REPLICAS)) || (i < 0))	// validate it
+	  return (-ERRM38);			// junk
+	if (!systab->replicas[i].connection[0])  // if nothing there
+	{ buf[0] = '\0';			// null terminate
+	  return 0;				// and return nothing
+	}
+        if (strncasecmp( (char *) subs[2]->buf, "connection\0", 11) == 0)
+        { strcpy((char *)buf, &systab->replicas[i].connection[0]);
+          return strlen((char *) buf);
+        }
+        if (strncasecmp( (char *) subs[2]->buf, "type\0", 5) == 0)
+        { strcpy((char *)buf, systab->replicas[i].typ ? "mandatory":"optional");
+          return strlen((char *) buf);
+        }
+	return -(ERRM38);
+      }						// end replica stuff
       if (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of vol#
 	if ((!(i < MAX_VOL)) || (i < 0))	// validate it
@@ -703,10 +722,10 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
-      { cnt = cstringtoi(subs[1]) - 1;		// make an int of entry#
+      { if (nsubs != 2) return (-ERRM38);	// must be 2 subs
+	cnt = cstringtoi(subs[1]) - 1;		// make an int of entry#
 	if ((!(cnt < MAX_TRANTAB)) || (cnt < 0)) // validate it
 	  return (-ERRM38);			// junk
-	if (nsubs != 2) return (-ERRM38);	// must be 2 subs
 	if (data->len == 0)			// if null
 	{ bzero(&systab->tt[cnt], sizeof(trantab)); // clear it
 	  systab->max_tt = 0;			// clear this for now
@@ -750,6 +769,54 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
                           sizeof(systab->tthash));
 	return 0;
       }						// end trantab stuf
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "connection\0", 11) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
+        if (data->len + 1 > VOL_FILENAME_MAX)	// long value ?
+          return -(ERRM38);
+        if (0 == strstr((char *) &data->buf[0], "://")) // not URL ?
+          return -(ERRM38);
+        if (i && !systab->replicas[i-1].connection[0])	// out of order?
+          return -(ERRM38);
+	SemOp( SEM_SYS, -systab->maxjob);	// set file_name
+        strncpy((char *) &systab->replicas[i].connection[0],
+	        (char *) data->buf, VOL_FILENAME_MAX-1);
+        systab->replicas[i].connection[VOL_FILENAME_MAX-1] = '\0';
+        SemOp( SEM_SYS, systab->maxjob);
+#ifdef MV1_DGP
+        if (partab.dgp_repl[i] != -1)		// if connected, disconnect
+        { s = DGP_ReplDisconnect(i);
+        }
+	s = DGP_ReplConnect(i);			// init connection
+	if (s < 0) return s;			// failed ? return
+	s = DGP_ReplDisconnect(i);		// disconnect
+	if (s < 0) return s;			// failed ? return
+	fprintf(stderr, "DGP: Replica connected at %s\r\n",
+			&systab->replicas[i].connection[0]);
+#endif
+	return 0;				// return OK
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "type\0", 11) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
+        if (i && !systab->replicas[i-1].connection[0])	// out of order?
+          return -(ERRM38);
+        if (systab->replicas[i].connection[0])	// cannot change after
+          return -(ERRM38);			// connection set
+        if (strncasecmp( (char *) &data->buf[0], "mandatory\0", 10) == 0)
+        { systab->replicas[i].typ = DGP_REPL_REQ;
+        }
+        if (strncasecmp( (char *) &data->buf[0], "optional\0", 9) == 0)
+        { systab->replicas[i].typ = DGP_REPL_OPT;
+        }
+	return 0;				// return OK
+      }
 
       if ((nsubs == 4) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
@@ -826,7 +893,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             s = DGP_GetConnectionURL((char *) &data->buf[0], NULL);
             if (s < 0) return s;			// has conn. part?
 	    if (s < 6) return -(ERRM38);
-            s = DGP_GetRemoteName((char *) &data->buf[0], NULL);
+            s = DGP_GetRemoteVOL((char *) &data->buf[0], NULL);
             if (s < 0) return s;			// has remote VOL name?
 	    if (!s) return -(ERRM38);
 #endif
@@ -844,6 +911,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    LCK_Remove(DGP_SYSJOB);
 	    s = DGP_Disconnect(i);			// disconnect
 	    if (s < 0) return s;			// failed ? return
+	    fprintf(stderr, "DGP: Mounted %s as %s\r\n",// say OK
+			&systab->vol[i]->file_name[0], 
+			&systab->vol[i]->local_name[0]);
 #endif
 	  } else
           { 

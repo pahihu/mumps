@@ -13,4 +13,7 @@ short DGP_LockAdd(int vol, int count, cstring *list, int job);
 short DGP_LockSub(int vol, int count, cstring *list, int job);
 short DGP_UnLock(int vol, int job);
 
+short DGP_ReplSet(mvar *var, cstring *data);
+short DGP_ReplKill(mvar *var, int what);
+
 #endif

@@ -240,10 +240,8 @@ int INIT_Start( char *file,                     // database
                         jkb, syncjrn ? "sync" : "async");
   if (addmb > 0) printf("With %d MB of additional buffer.\n", addmb);
   if (netdaemons > 0)
-  { printf("With %d network daemon(s) listening on %s%c%d",
-			netdaemons, srvurl,
-			(strncmp(srvurl,"ipc://",6) ? ':' : '.'),
-			srvport);
+  { printf("With %d network daemon(s) listening on %s",
+			netdaemons, DGP_GetServerURL(srvurl, srvport));
     if (netdaemons > 1) printf("-%d", srvport + netdaemons - 1);
     printf("\n");
   }
