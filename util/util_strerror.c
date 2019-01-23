@@ -202,6 +202,8 @@ static struct
   {ERRZ87+ERRMLAST,	"NET: Local RESTART failed"},
   {ERRZ88+ERRMLAST,	"NET: Synchronization failed"},
   {ERRZ89+ERRMLAST,	"NET: Not connected"},
+  {ERRZ90+ERRMLAST,	"Volume not mounted"},
+  {ERRZ91+ERRMLAST,	"Volume is remote"},
   {0,         NULL}
 };                                                      // merrtab[]
 

@@ -490,7 +490,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	}
 
 	if (systab->vol[i]->vollab == NULL)	// check volume
-	  return (-ERRM38);			//   mounted
+	  return -(ERRZ90 + ERRMLAST);		//   mounted
 
 	if (strncasecmp( (char *) subs[2]->buf, "block\0", 6) == 0)
 	  return uitocstring(buf, systab->vol[i]->vollab->block_size);
@@ -508,8 +508,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	{ (void) strcpy((char *)buf, systab->vol[i]->vollab->journal_file);
 	  return strlen((char *)buf);
 	}
-	if (strncasecmp((char *)subs[2]->buf,"block_revision_number\0",22) == 0)
-	  return itocstring(buf, systab->vol[i]->vollab->blkrevno);
+	if (strncasecmp((char *)subs[2]->buf,"backup_revision_number\0",23)==0)
+	  return itocstring(buf, systab->vol[i]->vollab->bkprevno);
 	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_size\0", 19) == 0)
 	  return itocstring(buf, systab->vol[i]->gmb);
 	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_sync\0", 19) == 0)
@@ -832,9 +832,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((data->len < 1) || (data->len > MAX_NAME_BYTES))
 	  return -(ERRMLAST+ERRZ12);		// syntx
         if (systab->vol[i]->local_name[0])	// remote VOL ?
-          return -(ERRM38);
+          return -(ERRZ91 + ERRMLAST);
         if (NULL == systab->vol[i]->vollab)	// not mounted ?
-	  return -(ERRM38);
+	  return -(ERRZ90 + ERRMLAST);
 	//n.var_qu = 0;				// clear name
 	X_Clear(n.var_xu);			// clear name
 	for (s = 0; s < data->len; s++)
@@ -851,7 +851,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if (NULL == systab->vol[i]->vollab)	// not mounted ?
-	  return -(ERRM38);
+	  return -(ERRZ90 + ERRMLAST);
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
@@ -866,12 +866,14 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "track_changes\0", 14) == 0))
-      { i = cstringtoi(subs[1]) - 1;		// get vol#
+      { int old_volnum = volnum;
+        i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
         if (NULL == systab->vol[i]->vollab)	// not mounted ?
-	  return -(ERRM38);
+	  return -(ERRZ90 + ERRMLAST);
 
 	j = cstringtob(data);
+	volnum = i + 1;
         SemOp( SEM_GLOBAL, -systab->maxjob);
 	if (j)
 	{ bzero(systab->vol[i]->chgmap, 
@@ -880,6 +882,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	}
 	systab->vol[i]->track_changes = j;
         SemOp( SEM_GLOBAL, systab->maxjob);
+	volnum = old_volnum;
 	return 0;				// return OK
       }
 
@@ -891,7 +894,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, "local_name\0", 11) == 0) &&
 	    (data->len > 0) && (data->len < MAX_NAME_BYTES))
 	{ if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
-          { return -(ERRM38);				//   mounted
+          { return -(ERRZ90 + ERRMLAST);		//   mounted
           }
           if (systab->vol[i]->vollab != NULL)		// already mounted ?
           { return -(ERRM38);				//   cannot change name
@@ -909,7 +912,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, 
                 "file\0", 5) == 0))
         { if (i && (systab->vol[i-1]->vollab == NULL))// check prev. slot
-          { return -(ERRM38);				//   mounted
+          { return -(ERRZ90 + ERRMLAST);		//   mounted
           }
 	  s = 0;					// assume success
           if (strstr((char *) &data->buf[0], "://")) 	// an URL ?
@@ -956,7 +959,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         }
 
         if (systab->vol[i]->local_name[0])		// remote VOL ?
-        { return -(ERRM38);				// don't do anything
+        { return -(ERRZ91 + ERRMLAST);			// don't do anything
         }						// below
 
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0) &&
@@ -1054,13 +1057,18 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return DB_Expand(i, vsiz);		// do it
 	}
 	if (strncasecmp( (char *) subs[2]->buf, 
-                "block_revision_number\0", 22) == 0)
-        { j = cstringtoi(data);
+                "backup_revision_number\0", 23) == 0)
+        { int old_volnum = volnum;
+	  j = cstringtoi(data);
           if ((j < 0) || (j > 255))
           { return -(ERRM38);
           }
-          systab->vol[i]->vollab->blkrevno = j;
+	  volnum = i + 1;
+	  SemOp( SEM_GLOBAL, -systab->maxjob);
+          systab->vol[i]->vollab->bkprevno = j;
           systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;
+	  SemOp( SEM_GLOBAL, systab->maxjob);
+	  volnum = old_volnum;
           return 0;
         }
 	if ((strncasecmp( (char *) subs[2]->buf, 
@@ -1069,7 +1077,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         { j = cstringtoi(data);
           if ((j < 0) || 				// check prev. slot
 	      (i && (systab->vol[i-1]->vollab == NULL)))//   mounted
-          { return -(ERRM38);
+          { return -(ERRZ90 + ERRMLAST);
           }
           systab->vol[i]->gbsync = j;
           return 0;
@@ -1078,7 +1086,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
                 "global_buffer_size\0", 19) == 0) &&
             (systab->maxjob != 1))
         { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
-          { return -(ERRM38);				//   mounted
+          { return -(ERRZ90 + ERRMLAST);		//   mounted
           }
 	  systab->vol[i]->gmb = cstringtoi(data);
           if (systab->vol[i]->gmb < 0)
@@ -1091,7 +1099,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
                 "journal_buffer_size\0", 20) == 0) &&
             (systab->maxjob != 1))
         { if (i && (systab->vol[i-1]->vollab == NULL))	// check prev. slot
-          { return -(ERRM38);				//   mounted
+          { return -(ERRZ90 + ERRMLAST);		//   mounted
           }
 	  systab->vol[i]->jkb = cstringtoi(data);
           return 0;
@@ -1394,7 +1402,8 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 	j = cstringtoi(subs[3]) - 1;		// and uci#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if ((j < -1) || (j >= UCIS)) return (-ERRM60); // out of range
-	if (systab->vol[i]->vollab == NULL) return (-ERRM60); // not mounted
+	if (systab->vol[i]->vollab == NULL)
+          return -(ERRZ90 + ERRMLAST); 		// not mounted
 	buf[0] = '\0';				// JIC
 	if (dir > 0)				// forward?
 	{ for (j = j + 1; j < UCIS; j++)

@@ -201,6 +201,8 @@
 #define ERRZ87		87	// NET: Local RESTART failed, [failed to drop local LOCKs]
 #define ERRZ88		88	// NET: Synchronization failed
 #define ERRZ89		89	// NET: Not connected
+#define ERRZ90		90	// Volume not mounted
+#define ERRZ91		91	// Volume is remote
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

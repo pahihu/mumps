@@ -79,18 +79,16 @@
 // #define ATOMIC_INCREMENT(x)      __sync_add_and_fetch(&(x), 1)
 #define ATOMIC_INCREMENT(x)         inter_add(&(x),1)
 
-#define BLK_MASK        0x003FFFFF                      // 22bit block number
-#define VOL_MASK        0x03C00000                      //  4bit vol[] index
-#define BLKNO(x)        ((x) & BLK_MASK)
-#define VOLNO(x)        (((x) & VOL_MASK) >> 22)
-#define VOLBLK(vol,blk) ((((vol) & 15) << 22) | (blk))
+#define BLKNO(x)        ((x) & ((1 << 25) - 1))		// 25bit block number
+#define VOLNO(x)        (15 & ((x) >> 25))		//  4bit volume number
+#define VOLBLK(vol,blk) ((((vol) & 15) << 25) | (blk))
 
 // **** Structures ***********************************************************
 
 typedef struct __PACKED__ DB_BLOCK	                // database block layout
 { u_char type;						// block type
   u_char flags;						// flags
-  u_char blkrevno;                                      // block revision
+  u_char bkprevno;                                      // backup revision
   u_char spare;					        // future
   u_int right_ptr;					// right pointer
   u_short last_idx;					// last used index off
