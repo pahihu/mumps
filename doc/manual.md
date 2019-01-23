@@ -571,6 +571,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | VOL,n,JOURNAL_BUFFER_SIZE | Journal buffer (in KB)   | set with priv |
 | VOL,n,JOURNAL_FILE        | Journal file (incl path) | set with priv |
 | VOL,n,param               | Usage parameters for vol set | no |
+| VOL,n,BLOCKS_CHANGED	    | Number of blocks changed | set with priv |
+| VOL,n,TRACK_CHANGES	    | Track block changes in VOL | set with priv |
 | REPLICA,n,CONNECTION      | Replica connection URL   | set with priv |
 | REPLICA,n,TYPE            | Replica type MANDATORY or OPTIONAL | set with priv |
 

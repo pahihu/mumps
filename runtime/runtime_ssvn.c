@@ -424,6 +424,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
             j = -j;
 	  return itocstring(buf, j);
         }
+        if (strncasecmp( (char *) subs[2]->buf, "blocks_changed\0", 15) == 0)
+          return itocstring(buf, systab->vol[i]->blkchanged);
+        if (strncasecmp( (char *) subs[2]->buf, "track_changes\0", 14) == 0)
+          return itocstring(buf, systab->vol[i]->track_changes);
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
@@ -829,6 +833,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRMLAST+ERRZ12);		// syntx
         if (systab->vol[i]->local_name[0])	// remote VOL ?
           return -(ERRM38);
+        if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRM38);
 	//n.var_qu = 0;				// clear name
 	X_Clear(n.var_xu);			// clear name
 	for (s = 0; s < data->len; s++)
@@ -844,6 +850,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0))
       { i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRM38);
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
@@ -852,6 +860,26 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         { inter_add(&systab->delaywt, 1);
           MEM_BARRIER;
         }
+	return 0;				// return OK
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "track_changes\0", 14) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+        if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRM38);
+
+	j = cstringtob(data);
+        SemOp( SEM_GLOBAL, -systab->maxjob);
+	if (j)
+	{ bzero(systab->vol[i]->chgmap, 
+		systab->vol[i]->vollab->header_bytes - SIZEOF_LABEL_BLOCK);
+          systab->vol[i]->blkchanged = 0;
+	}
+	systab->vol[i]->track_changes = j;
+        SemOp( SEM_GLOBAL, systab->maxjob);
 	return 0;				// return OK
       }
 

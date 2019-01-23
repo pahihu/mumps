@@ -415,6 +415,9 @@ typedef struct __PACKED__ VOL_DEF
 { VOLATILE label_block *vollab;                 // ptr to volset label block
   void *map;                                    // start of map area
   VOLATILE void *first_free;                    // first word with free bits
+  u_char *chgmap;				// start of change map
+  VOLATILE u_int blkchanged;			// no. of changed blocks
+  VOLATILE int track_changes;			// track chg (chgmap/nchanged)
   struct GBD *gbd_hash[GBD_HASH+1];             // gbd hash table
   struct GBD *gbd_head;                         // head of global buffer desc
   int num_gbd;                                  // number of global buffers
@@ -430,6 +433,7 @@ typedef struct __PACKED__ VOL_DEF
   VOLATILE int dismount_flag;                   // flag to indicate dismounting
   VOLATILE u_int map_dirty_flag;                // set if map is dirty
   VOLATILE int writelock;                       // MUMPS write lock
+  VOLATILE int backup;				// backup in progress
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
 #ifdef MV1_CKIT

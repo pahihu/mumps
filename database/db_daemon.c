@@ -177,7 +177,7 @@ void do_netdaemon(void)
     panic(msg);
   }
 
-  strcpy(url, DGP_GetServerURL(systab->dgpURL, 		// construct server URL
+  strcpy(url, DGP_GetServerURL((char *) systab->dgpURL,// construct server URL
 			systab->dgpPORT + myslot_net));
 
   rv = nn_bind(sock, url);
@@ -1554,3 +1554,189 @@ void do_map_write(int vol)
   ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt); // count a write
   last_map_write[vol] = MTIME(0);
 }
+
+static
+short bkp_write(int fd, const void *buf, size_t n)
+{ ssize_t bytes;
+
+  bytes = write(fd, buf, n);
+  if (bytes < 0)
+  { return -(errno + ERRMLAST + ERRZLAST);
+  }
+  else if (bytes != n)
+  { return -(EIO + ERRMLAST + ERRZLAST);
+  }
+  return 0;
+}
+
+static
+short bkp_lseek(int fd, off_t offset, int whence)
+{ off_t new_offset;
+
+  new_offset = lseek(fd, offset, whence);
+  if (new_offset < 0)
+  { return -(errno + ERRMLAST + ERRZLAST);
+  }
+  return 0;
+}
+
+typedef struct ATTR_PACKED __BKPBLK__
+{ u_int block;
+  u_char mem[4];
+} bkpblk_t;
+
+//-----------------------------------------------------------------------------
+// Function: do_backup
+// Descript: Backup volumes
+// Input(s): path - output file
+// 	     volmask - volumes to backup
+//	     typ - type of backup
+// Return:   None
+//
+
+short do_backup(const char *path, u_int volmask, int typ)
+{ int fd;					// backup file
+  short s;					// status
+  int pass;					// current WRITE pass
+  int done;					// done flag
+  int dolock;					// lock VOL?
+  int i;					// a handy int
+  label_block *vollab;				// current VOL label
+  label_block *labbuf;				// label blk buffer
+  u_char *chgbuf;				// change map buffer
+  bkpblk_t *blkbuf;				// backup block
+  u_char *map, *c, *end;			// map block and ptrs
+  u_int blknum;					// current blk number
+
+  SemOp( SEM_GLOBAL, WRITE);
+  systab->vol[volmask]->backup = 1;		// set BACKUP state
+  SemOp( SEM_GLOBAL, -WRITE);
+
+  fd = 0;					// clear state
+  labbuf = NULL;
+  chgbuf = NULL;
+  blkbuf = NULL;
+
+  vollab = systab->vol[volmask]->vollab;	// current VOL label
+
+  labbuf = (label_block *) malloc(vollab->header_bytes); // allocate vollab
+  if (NULL == vollab)				// failed?
+  { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
+    goto ErrOut;
+  }
+						// allocate vollab
+  chgbuf = (u_char *) malloc(vollab->header_bytes - SIZEOF_LABEL_BLOCK);
+  if (NULL == chgbuf)				// failed?
+  { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
+    goto ErrOut;
+  }
+						// allocate blkbuf
+  blkbuf = (bkpblk_t *) malloc(sizeof(u_int) + vollab->block_size);
+  if (NULL == blkbuf)				// failed?
+  { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
+    goto ErrOut;
+  }
+
+  fd = open(path, O_WRONLY | O_CREAT);		// open backup file
+  if (fd < 0)					// failed?
+  { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
+    goto ErrOut;
+  }
+
+  for (pass = 1; pass <= 5; pass++)
+  { done = 0;					// not done
+    dolock = 0;					// do NOT lock VOL
+    SemOp( SEM_GLOBAL, READ);
+    bcopy(vollab, labbuf, vollab->header_bytes);// copy VOL label
+    if (1 == pass)
+    { map = (u_char *) ((void*) labbuf + SIZEOF_LABEL_BLOCK);
+    }
+    else
+    { done = 0 == systab->vol[volmask]->blkchanged;// done if nothing changed
+      dolock = (5 == pass) || 			// last pass
+	       (systab->vol[volmask]->blkchanged < 300);// OR not much changed
+      bcopy(systab->vol[volmask]->chgmap, chgbuf,// copy chg map
+            vollab->header_bytes - SIZEOF_LABEL_BLOCK);
+      map = chgbuf;
+    }
+
+    ASSERT(NULL != map);
+
+    if (dolock)					// lock VOL ?
+    { systab->vol[volmask]->writelock = 1;	//   inhibit write
+    }
+    if (!done)					// not done ?
+    { if (!dolock)				// VOL not locked ?
+      { bzero(systab->vol[volmask]->chgmap, 	// track changes
+	      vollab->header_bytes - SIZEOF_LABEL_BLOCK);
+        systab->vol[volmask]->blkchanged = 0;
+        systab->vol[volmask]->track_changes = 1;
+      }
+      SemOp( SEM_GLOBAL, -READ);
+    }
+
+    s = bkp_lseek(fd, 0, SEEK_SET);		// write label blk
+    if (s < 0) goto ErrOut;
+    s = bkp_write(fd, vollab, vollab->header_bytes);
+    if (s < 0) goto ErrOut;
+
+    if (done)
+    { SemOp( SEM_GLOBAL, -READ);
+      break;
+    }
+
+    s = bkp_lseek(fd, 0, SEEK_END);		// go to EOF
+    if (s < 0) goto ErrOut;
+
+    blknum = 0;					// clear blknum
+    c = map; 					// range setup
+    end = map + vollab->header_bytes - SIZEOF_LABEL_BLOCK;
+    while (c <= end)				// scan current map
+    { if (0 == *c)				// empty ?
+      { blknum += 8;				//   skip 8 blocks
+        continue;
+      }
+      for (i = 0; i < 8; i++)			// check blocks
+      { if (*c & (1 << i))			// changed? (allocated?)
+        { SemOp( SEM_GLOBAL, READ);		//   read block
+          level = 0;
+          Get_block(blknum + i);
+          bcopy(blk[level]->mem, &blkbuf->mem[0], vollab->block_size);
+          SemOp( SEM_GLOBAL, -READ);
+	  blkbuf->block = blknum;		// set blknum
+          s = bkp_write(fd, blkbuf, sizeof(u_int) + vollab->block_size); // write
+ 	  if (s < 0) goto ErrOut;
+        }
+      }
+      blknum += 8;				// step blknum
+    } // end of SCAN map
+  } // end of WRITE pass
+
+  s = close(fd);				// close backup file
+  if (s < 0)					// failed ?
+  { s = -(errno + ERRMLAST + ERRZLAST);
+    goto ErrOut;
+  }
+  return 0;					// done
+
+ErrOut:						// error return
+  if (curr_lock)				// locked ?
+    SemOp( SEM_GLOBAL, -curr_lock);		//   unlock it
+  if (labbuf) free(labbuf);			// release mem
+  if (chgbuf) free(chgbuf);
+  if (blkbuf) free(blkbuf);
+  if (fd) 					// fd open ?
+  { close(fd);					//   close it
+    unlink(path);				//   delete file
+  }
+
+  SemOp( SEM_GLOBAL, WRITE);
+  systab->vol[volmask]->track_changes = 0;	// do NOT track changes
+  systab->vol[volmask]->backup = 0;		// clear backup state
+  systab->vol[volmask]->writelock = 0;		// enable write
+  SemOp( SEM_GLOBAL, -WRITE);
+
+  return s;
+}
+
+

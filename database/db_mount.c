@@ -173,6 +173,7 @@ short DB_Mount( char *file,                     // database
   jkb /= 1024;
 
   volset_size = hbuf[2]				// size of head and map block
+	      + (hbuf[2] - SIZEOF_LABEL_BLOCK)	// change map
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
@@ -215,8 +216,12 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->map = (void*)((void *)vollab + SIZEOF_LABEL_BLOCK);
 						// and point to map
   systab->vol[vol]->first_free = systab->vol[vol]->map;	// init first free
+  systab->vol[vol]->chgmap = (u_char *)((void*)vollab + hbuf[2]); // change map
 
-  systab->vol[vol]->gbd_head = (gbd *) ((void *)vollab + hbuf[2]); // gbds
+  systab->vol[vol]->gbd_head = 			// gbds
+	(gbd *) ((void *)vollab +
+			hbuf[2] +		// label blk + map
+			hbuf[2] - SIZEOF_LABEL_BLOCK); // change map
   systab->vol[vol]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[vol]->global_buf =

@@ -210,6 +210,39 @@ short Insert(u_char *key, cstring *data)                // insert a node
 }
 
 //-----------------------------------------------------------------------------
+// Function: Mark_changes
+// Descript: Mark the specified block as changed
+// Input(s): vol - volume index, block number
+// Return:   none
+// Note:     Must hold a write lock before calling this function
+//
+
+void Mark_changes(int vol, int blknum)                	// mark changes
+{ u_int off;                                            // chunk offset
+  u_int msk;						// bit mask
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+  ASSERT(blknum < systab->vol[vol]->vollab->max_block);
+
+  off = blknum / (8*sizeof(u_char));			// offset
+  msk = 1 << (blknum & (8*sizeof(u_char) - 1));		// bit mask
+
+  ASSERT(0 <= off);
+  ASSERT(off < 
+	(systab->vol[vol]->vollab->header_bytes - SIZEOF_LABEL_BLOCK) / 
+ 	 sizeof(u_char));
+
+  if (0 == (systab->vol[vol]->chgmap[off] & msk))	// was off ?
+  { systab->vol[vol]->blkchanged++;			//   count as changed
+  }
+  systab->vol[vol]->chgmap[off] |=msk;
+
+  return;                                               // and exit
+}
+
+//-----------------------------------------------------------------------------
 // Function: Queit
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
@@ -232,10 +265,16 @@ void Queit()                                            // que a gbd for write
   ptr = blk[level];                                     // point at the block
   // fprintf(stderr,"Queit: %d",ptr->block);
   systab->vol[volnum-1]->stats.logwt++;                 // incr logical
+  if (systab->vol[volnum-1]->track_changes)		// track changes ?
+  { Mark_changes(volnum-1, ptr->block);			//   mark blk as changed
+  }
   while (ptr->dirty != ptr)                             // check it
   { ptr = ptr->dirty;                                   // point at next
     // fprintf(stderr," %d",ptr->block);
     systab->vol[volnum-1]->stats.logwt++;               // incr logical
+    if (systab->vol[volnum-1]->track_changes)		// track changes ?
+    { Mark_changes(volnum-1, ptr->block);		//   mark blk as changed
+    }
   }
   // fprintf(stderr,"\r\n");
 

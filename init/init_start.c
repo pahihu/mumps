@@ -261,6 +261,7 @@ int INIT_Start( char *file,                     // database
   sjlt_size = (((sjlt_size - 1) / pagesize) + 1) * pagesize; // round up
   volset_size = MAX_VOL * sizeof(vol_def)	// size of VOL_DEF
 	      + hbuf[2]				// size of head and map block
+              + (hbuf[2] - SIZEOF_LABEL_BLOCK)	// size of change map
 	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
@@ -366,8 +367,13 @@ int INIT_Start( char *file,                     // database
 						// and point to map
   systab->vol[0]->first_free = systab->vol[0]->map;	// init first free
 
-  systab->vol[0]->gbd_head =
-    (gbd *) ((void *)systab->vol[0]->vollab + hbuf[2]); // gbds
+  systab->vol[0]->chgmap =			// change map
+    (u_char *)((void *)systab->vol[0]->vollab + hbuf[2]);
+
+  systab->vol[0]->gbd_head =			// gbds
+    (gbd *) ((void *)systab->vol[0]->vollab + 
+		hbuf[2] + 			// label blk + map
+		hbuf[2] - SIZEOF_LABEL_BLOCK);	// change map
   systab->vol[0]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[0]->global_buf =

@@ -491,7 +491,6 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   int sock;						// NN socket
   short s;						// status
   u_short msg_len;
-  time_t wait_start;					// start of wait status
 
   ASSERT((0 <= i) && (i < MAX_REPLICAS));
   ASSERT(systab->replicas[i].connection[0]);		// ensure replica name
@@ -558,7 +557,7 @@ void DGP_MsgDump(int dosend, DGPHeader *header, short status)
 
 #include "bswap.h"
 
-u_int64 HToNLL(u_int64 hostlonglong)
+uint64_t HToNLL(uint64_t hostlonglong)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN
   return hostlonglong;
@@ -568,7 +567,7 @@ u_int64 HToNLL(u_int64 hostlonglong)
 }
 
 
-u_int64 NToHLL(u_int64 netlonglong)
+uint64_t NToHLL(uint64_t netlonglong)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN
   return netlonglong;
