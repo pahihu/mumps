@@ -772,7 +772,7 @@ void do_dismount()					// dismount volnum
     if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
     jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);    // attach jrn file
-    if (jfd > -1)
+    if (jfd > 0)
     { j = FlushJournal(vol, jfd, 1);
       if (j < 0)
       { do_log("Failed to flush journal file %s: Last failed - %d\n",
@@ -1400,7 +1400,7 @@ void do_jrnflush(int vol)
 
   old_volnum = volnum;                          // save current vol
   jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open jrn file
-  if (jfd > -1) 
+  if (jfd > 0) 
   { volnum = vol + 1;                           // set volnum
     while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
@@ -1434,7 +1434,7 @@ void do_volsync(int vol)
   do_quiescence();                              // reach quiet point
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
-    if (jfd > -1)
+    if (jfd > 0)
     { volnum = vol + 1;
       while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
       FlushJournal(vol, jfd, 0);                // flush journal
@@ -1445,7 +1445,7 @@ void do_volsync(int vol)
   fsync(dbfds[vol]);                            // sync volume to disk
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
-    if (jfd > -1)
+    if (jfd > 0)
     { jrnrec jj;                                // write SYNC record
       jj.action = JRN_SYNC;
       jj.time = MTIME(0);
