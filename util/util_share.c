@@ -122,7 +122,7 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   return(0);                                    // return 0 for OK
 }
 
-static int curr_sem[SEM_MAX];
+static int curr_sem[SEM_MAX][MAX_VOL];
        int curr_sem_init = 1;
 
 const  char *sem_file;
@@ -151,7 +151,9 @@ short SemOpEx(int sem_num, int numb,
   //                 file, line); fflush(stderr);
 
   if (curr_sem_init)
-  { bzero(curr_sem, sizeof(curr_sem));
+  { for (i = 0; i < SEM_MAX; i++)
+    { bzero(curr_sem[i], sizeof(curr_sem[i]));
+    }
     curr_sem_init = 0;
   }
   if (numb == 0)				// check for junk
@@ -164,10 +166,11 @@ short SemOpEx(int sem_num, int numb,
                  sem_num, numb, curr_lock, file, line);
     panic(msg);
   }
-  curr_sem[sem_num] += numb;
-  if (abs(curr_sem[sem_num]) > systab->maxjob)
-  { sprintf(msg, "SemOp(): overload sem_num=%d numb=%d curr_sem=%d @ %s:%d",
-                  sem_num, numb, curr_sem[sem_num], file, line);
+  curr_sem[sem_num][volnum-1] += numb;
+  if (abs(curr_sem[sem_num][volnum-1]) > systab->maxjob)
+  { sprintf(msg, "SemOp(): overload sem_num=%d numb=%d curr_sem[%d]=%d @ %s:%d",
+                  sem_num, numb, volnum-1, curr_sem[sem_num][volnum-1], 
+                  file, line);
     panic(msg);
   }
   for (i = 0; i < 5; i++)                       // try this many times
@@ -185,7 +188,7 @@ short SemOpEx(int sem_num, int numb,
         return -(ERRZ51+ERRMLAST);              // return an error
     }
   }
-  curr_sem[sem_num] -= numb;
+  curr_sem[sem_num][volnum-1] -= numb;
   if (systab->start_user == -1)			// If shutting down
   { exit (0);					// just quit
   }

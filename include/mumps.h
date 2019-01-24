@@ -433,7 +433,7 @@ typedef struct __PACKED__ VOL_DEF
   VOLATILE int dismount_flag;                   // flag to indicate dismounting
   VOLATILE u_int map_dirty_flag;                // set if map is dirty
   VOLATILE int writelock;                       // MUMPS write lock
-  VOLATILE int backup;				// backup in progress
+  VOLATILE int bkprunning;			// backup running
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
 #ifdef MV1_CKIT
@@ -643,6 +643,10 @@ typedef struct __PACKED__ SYSTAB                // system tables
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   VOLATILE u_int delaywt;                       // delay WRITEs
   repltab replicas[MAX_REPLICAS];		// database replicas
+  char bkpfile[VOL_FILENAME_MAX];		// backup file name
+  u_int bkpvolmask;				// backup VOL mask
+  int bkptyp;					// backup type
+  // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

@@ -132,6 +132,7 @@ struct GBD *DB_ViewGet(int volume, int block);   // return gbd address of
 short DB_ViewPut(int volume, struct GBD *ptr);   // que block for write
 short DB_ViewRel(int volume, struct GBD *ptr);   // release block, gbd -> free
 u_int DB_GetDirty(int vol);                      // no. of dirty blocks
+short DB_Backup(const char *path, u_int volmask, int typ); // backup
 
 //****************************************************************************
 // Sequential IO

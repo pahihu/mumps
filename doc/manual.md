@@ -556,25 +556,29 @@ Additional `^$SYSTEM` variables or changed behavior.
 
 | Subscript          | Contains                  | Setable |
 | ------------------ | ------------------------- | ------- |
+| BACKUP_FILE        | Backup file name          | set with priv |
+| BACKUP_TYPE        | Type of backup FULL, CUMULATIVE or SERIAL | set with priv |
+| BACKUP_VOLMASK     | Backup VOL masks          | set with priv |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
 | DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |
+| REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
+| REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
 | RESTTIME           | Daemon rest time          | no |
 | TSIZE              | sizeof(time_t)            | no |
 | ZMINSPACE          | Min. free space in blocks | set with priv |
 | ZOTDATA   	     | Zero free blocks          | set with priv |
 | VOL,n,FILE         | file for volset n         | set with priv  (to mount volset) |
+| VOL,n,BACKUP_RUNNING      | Volume backup is running | set with priv |
+| VOL,n,BLOCKS_CHANGED	    | Number of blocks changed | set with priv |
 | VOL,n,GLOBAL_BUFFER_SIZE  | Global buffer (in MB)    | set with priv |
 | VOL,n,GLOBAL_BUFFER_SYNC  | Volume sync in seconds   | set with priv |
 | VOL,n,JOURNAL_BUFFER_SIZE | Journal buffer (in KB)   | set with priv |
 | VOL,n,JOURNAL_FILE        | Journal file (incl path) | set with priv |
-| VOL,n,param               | Usage parameters for vol set | no |
-| VOL,n,BLOCKS_CHANGED	    | Number of blocks changed | set with priv |
 | VOL,n,TRACK_CHANGES	    | Track block changes in VOL | set with priv |
-| REPLICA,n,CONNECTION      | Replica connection URL   | set with priv |
-| REPLICA,n,TYPE            | Replica type MANDATORY or OPTIONAL | set with priv |
+| VOL,n,param               | Usage parameters for vol set | no |
 
 | Parameters | Contains |
 | ---------- | ------------------- |

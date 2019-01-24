@@ -409,6 +409,22 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         }
 	return -(ERRM38);
       }						// end replica stuff
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_type\0", 12) == 0))
+      { static char *bkptypes[] = {"full","cumulative","serial"};
+        strcpy((char *) buf, bkptypes[systab->bkptyp]);
+        return strlen((char *) buf);		// return length
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_volmask\0", 15) == 0))
+      { return itocstring(buf,
+      	       (systab->bkpvolmask)); 		// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_file\0", 12) == 0))
+      { strcpy((char *) buf, systab->bkpfile);
+        return strlen((char *) buf);		// return the length
+      }
       if (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of vol#
 	if ((!(i < MAX_VOL)) || (i < 0))	// validate it
@@ -428,6 +444,8 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
           return itocstring(buf, systab->vol[i]->blkchanged);
         if (strncasecmp( (char *) subs[2]->buf, "track_changes\0", 14) == 0)
           return itocstring(buf, systab->vol[i]->track_changes);
+        if (strncasecmp( (char *) subs[2]->buf, "backup_running\0", 15) == 0)
+          return itocstring(buf, systab->vol[i]->bkprunning);
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
@@ -709,6 +727,36 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_type\0", 12) == 0))
+      { j = -1;
+        if (strncasecmp((char *) data->buf, "full\0", 5) == 0)
+          j = 0;
+        else if (strncasecmp((char *) data->buf, "cumulative\0", 11) == 0)
+          j = 1;
+        else if (strncasecmp((char *) data->buf, "serial\0", 7) == 0)
+          j = 2;
+	if (j < 0) return -(ERRZ64 + ERRMLAST);
+        systab->bkptyp = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_volmask\0", 15) == 0))
+      { j = cstringtoi(data);
+	if ((j < 0) || (j > 131071)) return -ERRM28;
+        systab->bkpvolmask = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "backup_file\0", 12) == 0))
+      { if ((data->len < 1) || (data->len + 1 > VOL_FILENAME_MAX))
+          return -ERRM28;
+	strcpy(systab->bkpfile, (char *) data->buf);
+        return DB_Backup(systab->bkpfile, systab->bkpvolmask, systab->bkptyp);
+      }
+
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "zminspace\0", 10) == 0))
       { j = cstringtoi(data);
 	if ((j < 128) ||
@@ -786,9 +834,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         if (i && !systab->replicas[i-1].connection[0])	// out of order?
           return -(ERRM38);
 	SemOp( SEM_SYS, -systab->maxjob);	// set file_name
-        strncpy((char *) &systab->replicas[i].connection[0],
-	        (char *) data->buf, VOL_FILENAME_MAX-1);
-        systab->replicas[i].connection[VOL_FILENAME_MAX-1] = '\0';
+        strcpy((char *) &systab->replicas[i].connection[0],
+	       (char *) data->buf);
         SemOp( SEM_SYS, systab->maxjob);
 #ifdef MV1_DGP
         if (partab.dgp_repl[i] != -1)		// if connected, disconnect
@@ -852,6 +899,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
+        if (systab->vol[i]->bkprunning)		// backup running ?
+          return -(ERRM38);
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
@@ -860,6 +909,19 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         { inter_add(&systab->delaywt, 1);
           MEM_BARRIER;
         }
+	return 0;				// return OK
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "backup_running\0", 15) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRZ90 + ERRMLAST);
+        SemOp( SEM_GLOBAL, -systab->maxjob);
+        systab->vol[i]->bkprunning = cstringtob(data);
+        SemOp( SEM_GLOBAL, systab->maxjob);
 	return 0;				// return OK
       }
 
@@ -904,9 +966,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    { return (-ERRM38);
 	    }
 	  }
-          strncpy((char *) &systab->vol[i]->local_name[0], 
-		  (char *) data->buf, MAX_NAME_BYTES-1);
-          systab->vol[i]->local_name[MAX_NAME_BYTES-1] = '\0';
+          strcpy((char *) &systab->vol[i]->local_name[0], 
+		 (char *) data->buf);
 	  return 0;
 	}
 	if ((strncasecmp( (char *) subs[2]->buf, 
@@ -929,9 +990,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    if (!s) return -(ERRM38);
 #endif
 	    SemOp( SEM_SYS, -systab->maxjob);		// set file_name
-            strncpy((char *) &systab->vol[i]->file_name[0],
-		    (char *) data->buf, VOL_FILENAME_MAX-1);
-            systab->vol[i]->file_name[VOL_FILENAME_MAX-1] = '\0';
+            strcpy((char *) &systab->vol[i]->file_name[0],
+		   (char *) data->buf);
             SemOp( SEM_SYS, systab->maxjob);
 #ifdef MV1_DGP
 	    // NB. connect() - disconnect() pair will download remote VOL
