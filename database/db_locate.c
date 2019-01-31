@@ -53,8 +53,6 @@
        u_int   locqry = 0;                              // Locate() stats
        u_int   lochit = 0;
 
-static int     KeyBufUpdated = 0;                       // flag keybuf[] updated
-
 //-----------------------------------------------------------------------------
 // Function:    Build_KeyBuf
 // Descript:    build up keybuf[] in pKeyBuf for pIndex
@@ -163,12 +161,12 @@ short LocateEx(u_char *key, int frominsert)		// find key
   { Index = R;
 #ifdef MV1_CCC
     Build_KeyBuf(Index, &keybuf[0]);                    // build keybuf
+    dbkey = &keybuf[0];
 #else
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
     dbkey = &chunk->buf[1];
 #endif
 #if 0
-    fprintf(stderr," KeyBufUpdated=%d\r\n",KeyBufUpdated);
     fprintf(stderr," Index=%d\r\n",Index);
     fprintf(stderr," dbkey=[%s] %d\r\n",&dbkey[1],dbkey[0]);
     fprintf(stderr,"   key=[%s] %d\r\n",&key[1],key[0]);
@@ -193,13 +191,13 @@ short LocateEx(u_char *key, int frominsert)		// find key
     Index = (L + R) >> 1;                               // find middle
 #ifdef MV1_CCC
     Build_KeyBuf(Index, &keybuf[0]);
+    dbkey = &keybuf[0];
 #else
     chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
     dbkey = &chunk->buf[1];
 #endif
     i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // compare
 #if 0
-    fprintf(stderr," KeyBufUpdated=%d\r\n",KeyBufUpdated);
     fprintf(stderr," Index=%d\r\n",Index);
     fprintf(stderr," dbkey=[%s] %d\r\n",&dbkey[1],dbkey[0]);
     fprintf(stderr,"   key=[%s] %d\r\n",&key[1],key[0]);
@@ -213,8 +211,8 @@ short LocateEx(u_char *key, int frominsert)		// find key
       continue;
     }
 K2_EQUAL:
-    if (KeyBufUpdated == 0)                             // if keybuf[] not upd'd
-      bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);       //   store last dbkey
+    if (dbkey != &keybuf[0])
+      bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);       // store last dbkey
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
     return 0;						// key found, done
   }
@@ -223,7 +221,7 @@ K2_EQUAL:
   { if (!frominsert)
     { 
 #ifdef MV1_CCC
-      if (KeyBufUpdated == 0)                           // if keybuf[] not upd'd
+      if (dbkey != &keybuf[0])                          // if keybuf[] not upd'd
         bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     //   store last dbkey
 #endif
       chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk

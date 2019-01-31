@@ -126,16 +126,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
   if (1 /*locate_used == 0*/)                           // XXX
   { keybuf[0] = 0;                                      // clear keybuf
 #ifdef MV1_CCC
-    // for (i = LOW_INDEX; i < Index; i++)              // for all prev Indexes
-#if 0
-    for (i = FindChunk0(Index); i < Index; i++)         // for all prev Indexes
-    { chunk = (cstring *) &iidx[idx[i]];                // point at the chunk
-      bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-          chunk->buf[1]);                               // update the key
-      keybuf[0] = chunk->buf[0] + chunk->buf[1];        // and the size
-    }              // we insert after this
-#endif
-    Build_KeyBuf(Index - 1, &keybuf[0]);
+    Build_KeyBuf(Index - 1, &keybuf[0]);                // rebuild keybuf[]
 #endif
   }
 
@@ -501,7 +492,11 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
 { int i;                                                // a handy int
   u_short *sfidx;                                       // for Indexes
   int *fiidx;                                           // int ver of Index
+#ifdef MV1_CCC
   u_char fk[260];                                       // for keys
+#else
+  u_char *fk;                                           // for keys
+#endif
   int isdata;                                           // a flag
   cstring *c;                                           // reading from old
   u_char ccc;                                           // common char count
@@ -514,17 +509,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
 
   keybuf[0] = 0;                                        // clear this
 #ifdef MV1_CCC
-  // for (i = LOW_INDEX; i <= blk[level]->mem->last_idx; i++)// scan to end to blk
-#if 0
-  for (i = FindChunk0(blk[level]->mem->last_idx + 1);   // scan to end to blk
-      i <= blk[level]->mem->last_idx; i++)
-  { chunk = (cstring *) &iidx[idx[i]];                  // point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-        chunk->buf[1]);                                 // update the key
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];          // and the size
-  }                                                     // end update keybuf[]
-#endif
-  Build_KeyBuf(blk[level]->mem->last_idx, &keybuf[0]);
+  Build_KeyBuf(blk[level]->mem->last_idx, &keybuf[0]);  // update keybuf[]
 #else
   chunk = (cstring *) &iidx[idx[blk[level]->mem->last_idx]];// point at to chunk
   bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
@@ -534,8 +519,12 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
 
   for (i = LOW_INDEX; i <= fptr->mem->last_idx; i++)    // for each Index
   { c = (cstring *) &fiidx[sfidx[i]];                   // point at chunk
+#ifdef MV1_CCC
     bcopy(&c->buf[2], &fk[c->buf[0] + 1], c->buf[1]);   // copy key
     fk[0] = c->buf[0] + c->buf[1];                      // and the length
+#else
+    fk = &c->buf[1];
+#endif
     if (i < fidx)                                       // copy this one
     { continue;                                         // no - just continue
     }
@@ -555,8 +544,6 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
     }
     ccc = 0;                                            // start here
 #ifdef MV1_CCC
-    // if (((blk[level]->mem->last_idx + 1 - LOW_INDEX) & 7) && // not seg. marker
-    // if (((i - LOW_INDEX) & 7) &&                     // not seg. marker
     if ((fk[0]) && (keybuf[0]))                         // and if any there
     { while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))       // at end of either
@@ -610,7 +597,8 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
         // NOTE: ABOVE ALL FLAGS CLEARED !!!!!!!!
       }
     }
-    bcopy(fk, keybuf, fk[0] + 1);                       // save full key    
+    if (i == fptr->mem->last_idx)
+      bcopy(fk, keybuf, fk[0] + 1);                     // save full key    
   }                                                     // end copy loop
   return;                                               // and exit
 }
