@@ -261,6 +261,20 @@ To set replicas issue the following commands:
 	SET ^$S("REPLICA",2,"CONNECTION")="tcp://192.168.1.23:3000"
 
 
+### Volume states
+
+A volume can be in 4 different states. Normal, write locked, read-only and
+protected. When in normal state both read and write access is allowed.
+When write locked, then read access is allowed, but writers wait until the 
+volume is unlocked. When read-only then no write access is allowed, write 
+access returns an error. When protected then no access is allowed, both read 
+and write access returns an error. 
+
+	SET ^$S("VOL",1,"WRITELOCK")=1	;write lock
+	SET ^$S("VOL",1,"READONLY")=1	;read-only
+	SET ^$S("VOL",1,"PROTECTED")=1	;protected
+
+
 ### MV1API
 
 You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
@@ -577,6 +591,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | VOL,n,GLOBAL_BUFFER_SYNC  | Volume sync in seconds   | set with priv |
 | VOL,n,JOURNAL_BUFFER_SIZE | Journal buffer (in KB)   | set with priv |
 | VOL,n,JOURNAL_FILE        | Journal file (incl path) | set with priv |
+| VOL,n,PROTECTED           | Protect volume (no access) | set with priv |
+| VOL,n,READONLY            | Read-only volume           | set with priv |
 | VOL,n,TRACK_CHANGES	    | Track block changes in VOL | set with priv |
 | VOL,n,param               | Usage parameters for vol set | no |
 

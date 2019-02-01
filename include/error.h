@@ -203,6 +203,8 @@
 #define ERRZ89		89	// NET: Not connected
 #define ERRZ90		90	// Volume not mounted
 #define ERRZ91		91	// Volume is remote
+#define ERRZ92		92	// Volume is protected
+#define ERRZ93		93	// Volume is read-only
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

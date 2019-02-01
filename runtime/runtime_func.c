@@ -2050,6 +2050,11 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
     if (s < 0)
     { return s;
     }
+
+    if (systab->vol[volnum - 1]->flags & VOL_RDONLY)// read-only ?
+    { return -(ERRZ93 + ERRMLAST);		//   exit on error
+    }
+
     if (systab->vol[volnum-1]->local_name[0])  	// remote VOL ?
     { if (s > 0)
         return -(ERRM38);

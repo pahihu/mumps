@@ -212,6 +212,11 @@ EndTTLookup:
   volnum = db_var.volset;				// save this for ron
   ASSERT(0 < volnum);
   ASSERT(volnum <= MAX_VOL);
+
+  if (systab->vol[volnum - 1]->flags & VOL_PROTECT)	// protected ?
+  { return -(ERRZ92 + ERRMLAST);			//   exit on error
+  }
+
 #ifndef NDEBUG
   if (db_var.nsubs != 255)
   { int actsubs;
@@ -316,6 +321,11 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
       return s;						// exit on error
     }
+
+    if (systab->vol[volnum - 1]->flags & VOL_RDONLY)	// read-only ?
+    { return -(ERRZ93 + ERRMLAST);			//   exit on error
+    }
+
     if (s > 0)
     { s--;                                              // point at trantab ent
       return ROU_Process("SET", s, var, &data->buf[0], data->len);
@@ -476,6 +486,11 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
   if (s < 0)
   { return s;						// exit on error
   }
+
+  if (systab->vol[volnum - 1]->flags & VOL_RDONLY)	// read-only ?
+  { return -(ERRZ93 + ERRMLAST);			//   exit on error
+  }
+
   if (s > 0)
   { s--;                                                // point at trantab ent
     sprintf((char *) &buf[0], "%d", what);

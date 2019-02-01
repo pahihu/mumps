@@ -96,6 +96,9 @@ int   X_take(u_char *a, chr_x *b);
 //
 
 // Database prototypes
+int DB_Daemon( int slot, int vol); 		 // write daemon entry point
+int Net_Daemon( int slot, int vol); 		 // network daemon entry point
+void do_queueflush(int dodleay);		 // flush daemon queues
 short DB_Get(mvar *var, u_char *buf);            // get global data
 short DB_GetEx(mvar *var, u_char *buf, int wrlock, int old_stat);// get glb data
 short DB_Set(mvar *var, cstring *data);          // set global data

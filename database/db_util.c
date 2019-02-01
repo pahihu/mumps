@@ -1280,9 +1280,11 @@ typedef struct __attribute__((__packed__))  __BKPBLK__
 } bkpblk_t;
 
 typedef struct __attribute__((__packed__))  __BKPHDR__
-{ u_int magic;
-  u_int nvols;
-  var_u volnams[MAX_VOL];
+{ u_int magic;		// inverted MUMPS_MAGIC
+  time_t time;		// backup UNIX time stamp
+  int   type;		// backup type
+  u_int nvols;		// no. of VOLs in backup
+  var_u volnams[MAX_VOL]; // VOL names
 } bkphdr_t;
 
 //-----------------------------------------------------------------------------
@@ -1316,6 +1318,9 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   int nvols;					// no. of VOLs
   int max_blkbuf;				// max. of block buffers
   bkphdr_t bheader;				// backup file header
+  int jfd;					// jrn file descriptor
+  off_t offs;					// file offset
+  int old_volnum;				// old volnum
   static const char* bkptypes[] =		// backup types
   { "FULL",
     "CUMULATIVE",
@@ -1365,6 +1370,8 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   { labbufs[j] = NULL;
     chgbufs[j] = NULL;
   }
+
+  old_volnum = volnum;				// save old VOL number
 
   for (j = 0; j < nvols; j++)
   { vol    = vols[j];
@@ -1482,11 +1489,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
     if (done) break;
 
     if (1 == pass)				// on 1st pass
-    { bheader.magic = ~MUMPS_MAGIC;		// construct BACKUP header
-      bheader.nvols = nvols;
-      for (j = 0; j < nvols; j++)
-      { bheader.volnams[j] = vollabs[j]->volnam;
-      }
+    { bzero(&bheader, sizeof(bkphdr_t));	// write dummy BACKUP header
       s = bkp_write(fd, &bheader, sizeof(bkphdr_t)); // write out
       if (s < 0) goto ErrOut;			
     }
@@ -1563,12 +1566,32 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 
   // NB. backed up VOLs are writelock-ed here!
 
-  s = close(fd);				// close backup file
-  if (s < 0)					// failed ?
-  { s = -(errno + ERRMLAST + ERRZLAST);
+ErrOut:
+  do_queueflush(1);                             // flush daemon queues
+
+  if (0 == s)					// no error ?
+  { offs = lseek(fd, 0, SEEK_SET);		// write BACKUP header
+    if ((off_t) -1 == offs)
+    { s = -(errno + ERRMLAST + ERRZLAST);
+    }
+    if (0 == s)					// no error ?
+    { bheader.magic = ~MUMPS_MAGIC;		// construct BACKUP header
+      bheader.time  = time(0);			// current UNIX time
+      bheader.type  = typ;			// backup type
+      bheader.nvols = nvols;			// no. of VOLs in backup
+      for (j = 0; j < nvols; j++)
+      { bheader.volnams[j] = vollabs[j]->volnam;// VOL names
+      }
+      s = bkp_write(fd, &bheader, sizeof(bkphdr_t)); // write header
+      if (0 == s)				// no error ?
+      { s = close(fd);				//   close backup file
+        if (s < 0)				//   failed ?
+        { s = -(errno + ERRMLAST + ERRZLAST);	// make error code
+        }
+      }
+    }
   }
 
-ErrOut:
   for (j = 0; j < nvols; j++)
   { vol = vols[j];
     volnum = vol + 1;
@@ -1584,6 +1607,25 @@ ErrOut:
     if (0 == s)
     { if ((0 == typ) || (2 == typ))		// FULL or SERIAL?
       { vollab->bkprevno++;			//   increment BRN
+        systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY;// mark LABEL blk dirty
+      }
+    }
+  }
+
+  for (j = 0; j < nvols; j++)
+  { vol = vols[j];				// current VOL
+    if (systab->vol[vol]->vollab->journal_available) // journal available ?
+    { jfd = attach_jrn(vol, &partab.jnl_fds[0], // attach JRN file
+			    &partab.jnl_seq[0]);
+      if (jfd > 0)
+      { jrnrec jj;                              // write BACKUP record
+        jj.action = JRN_BACKUP;
+        jj.time = MTIME(0);
+        jj.uci = 0;
+        volnum = vol + 1;
+        DoJournal(&jj, 0);                      // do journal
+        FlushJournal(vol, jfd, 0);              // flush journal
+        fsync(jfd);                             // sync to disk
       }
     }
   }
@@ -1593,6 +1635,9 @@ ErrOut:
     volnum = vol + 1;
     SemOp( SEM_GLOBAL, -WRITE);			// release WRITE locks
   }
+
+  inter_add(&systab->delaywt, -1);              // release WRITEs
+  MEM_BARRIER;
 
   for (j = 0; j < nvols; j++)
   { if (labbufs[j]) free(labbufs[j]);		// release mem
@@ -1612,6 +1657,7 @@ ErrOut:
   }
   fflush(stderr);
 
+  volnum = old_volnum;				// restore old VOL number
 
   return s;
 }

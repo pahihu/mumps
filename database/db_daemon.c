@@ -81,7 +81,6 @@ static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_map_write[MAX_VOL];                  // last map write
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 static u_char jnl_seq[MAX_VOL];				// jrn file sequence
-void do_quiescence(void);                               // reach quiet point
 static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
 void do_volsync(int vol);                               // flush vol to disk
@@ -650,8 +649,8 @@ start:
       { do_map_write(vol);				// write map
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
-      { do_quiescence();                                // reach quiet point
-        inter_add(&systab->delaywt, -1);                // decr. delay WRITEs
+      { do_queueflush(0);                               // flush queues
+        inter_add(&systab->delaywt, -1);                // enable WRITEs
         MEM_BARRIER;
         // Set the writelock to a positive value when all quiet
         systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
@@ -1345,16 +1344,26 @@ int attach_jrn(int vol)
 
 
 //-----------------------------------------------------------------------------
-// Function: do_quiescence
-// Descript: Reach a quiet point, ie. the dirty and garbage queues are empty.
+// Function: do_queueflush
+// Descript: Flush the dirty and garbage queues. When finished both queues
+//	     are empty.
 // Input(s): None
 // Return:   None
 //
 
-void do_quiescence(void)
+void do_queueflush(int dodelay)
 { int i, j;                                     // handy ints
 
-  ASSERT(systab->delaywt != 0);                 // only with delay WRITEs
+  if (dodelay)
+  { inter_add(&systab->delaywt, 1);		// delay WRITEs
+    MEM_BARRIER;
+  }
+
+  ASSERT(0 != systab->delaywt);                 // only with delay WRITEs
+  ASSERT(0 == curr_lock);			// no DB locks
+
+  // cannot empty dirty queue if have a WRITE lock (needs READ lock)
+  // cannot empty garbage queue, if have a READ lock (needs WRITE lock)
 
   while (TRUE)					// loop
   { 
@@ -1429,9 +1438,7 @@ void do_volsync(int vol)
 
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
-  inter_add(&systab->delaywt, 1);               // delay WRITEs
-  MEM_BARRIER;
-  do_quiescence();                              // reach quiet point
+  do_queueflush(1);                             // flush queues
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd > 0)

@@ -448,6 +448,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
           return itocstring(buf, systab->vol[i]->bkprunning);
 	if (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0)
 	  return itocstring(buf, systab->vol[i]->writelock);
+	if (strncasecmp( (char *) subs[2]->buf, "protected\0", 10) == 0)
+	  return itocstring(buf, systab->vol[i]->flags & VOL_PROTECT ? 1:0);
+	if (strncasecmp( (char *) subs[2]->buf, "readonly\0", 9) == 0)
+	  return itocstring(buf, systab->vol[i]->flags & VOL_RDONLY ? 1:0);
 	if (strncasecmp( (char *) subs[2]->buf, "blkalloc\0", 9) == 0)
 	  return uitocstring(buf, systab->vol[i]->stats.blkalloc);
 	if (strncasecmp( (char *) subs[2]->buf, "blkdeall\0", 9) == 0)
@@ -901,14 +905,56 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
+	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
 	    : 0;				// clear it
-        if (systab->vol[i]->writelock)          // block Queit()
+        if (systab->vol[i]->writelock)          // block writers
         { inter_add(&systab->delaywt, 1);
           MEM_BARRIER;
         }
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
+	return 0;				// return OK
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "protected\0", 10) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRZ90 + ERRMLAST);
+        if (systab->vol[i]->bkprunning)		// backup running ?
+          return -(ERRM38);
+	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
+        if (cstringtob(data))
+    	{ systab->vol[i]->flags |= VOL_PROTECT;
+	}
+	else
+	{ systab->vol[i]->flags &= ~VOL_PROTECT;
+	}
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
+	return 0;				// return OK
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "readonly\0", 9) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
+	  return -(ERRZ90 + ERRMLAST);
+        if (systab->vol[i]->bkprunning)		// backup running ?
+          return -(ERRM38);
+	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
+        if (cstringtob(data))
+    	{ systab->vol[i]->flags |= VOL_RDONLY;
+	}
+	else
+	{ systab->vol[i]->flags &= ~VOL_RDONLY;
+	}
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
 	return 0;				// return OK
       }
 

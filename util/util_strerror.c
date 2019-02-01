@@ -204,6 +204,8 @@ static struct
   {ERRZ89+ERRMLAST,	"NET: Not connected"},
   {ERRZ90+ERRMLAST,	"Volume not mounted"},
   {ERRZ91+ERRMLAST,	"Volume is remote"},
+  {ERRZ92+ERRMLAST,	"Volume is protected"},
+  {ERRZ93+ERRMLAST,	"Volume is read-only"},
   {0,         NULL}
 };                                                      // merrtab[]
 

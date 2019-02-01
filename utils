@@ -130,12 +130,15 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
 %D
 %D ;Convert %D to printable date
  S:$D(%D)#2=0 %D=+$H S %D=$$D(%D) Q
-D(D,M,Y,ZR) S ZR="D^%D" I D<1!(D>423316) Q ""
+INT(D,M,Y,ZR) S ZR="INT^%D" I D<1!(D>423316) Q ""
  S:D>21608 D=D+1 S M=1,Y=D\1461*4+1841,D=D#1461
  S:'D D=1461,Y=Y-4 F %=1:1:3 Q:D<366  S Y=Y+1,D=D-365
  F %=31,28+(Y#4=0),31,30,31,30,31,31,30,31,30,31 Q:D'>%  S M=M+1,D=D-%
- S M=$P("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",",",M)
- Q $TR($J(D,2)," ",0)_" "_M_" "_Y
+ Q $TR(Y_$J(M,2)_$J(D,2)," ","0")
+D(D,M,ZR) S ZR="D^%D" I D<1!(D>423316) Q ""
+ S D=$$INT(D)
+ S M=$P("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",",",+$E(D,5,6))
+ Q $E(D,7,8)_" "_M_" "_$E(D,1,4)
 
 %DD
 %DD ;Do a document directory
@@ -530,9 +533,9 @@ INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
  ..I $E(R)="%" S %="%25"_$E(R,2,9)
  ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
  ..E  W R
- ..W ?10,$J($L(F),5),?20,$$CVT^JOURNLST($E(F,3,4)),?30
- ..S %=$$CVT^JOURNLST($E(F,5,8)) W $$D^%D(%)," at "
- ..S %=$$CVT^JOURNLST($E(F,9,12)) W $$T^%T(%),!
+ ..W ?10,$J($L(F),5),?20,$$CVT^%JOURNLST($E(F,3,4)),?30
+ ..S %=$$CVT^%JOURNLST($E(F,5,8)) W $$D^%D(%)," at "
+ ..S %=$$CVT^%JOURNLST($E(F,9,12)) W $$T^%T(%),!
  .I FL=3 S @G@(R)=""
  Q
 DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
@@ -676,11 +679,15 @@ PRT W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
 %T
 %T ;Convert %T to printable time
  S:$D(%T)#2=0 %T=$P($H,",",2) S %T=$$T(%T) Q
-T(H,M,S,%,ZR) S ZR="T^%T" I H<0!(H>86399) Q ""
- I 'H Q "12:00:00 PM"
+INT(H,M,S,ZR) S ZR="INT^%T" I H<0!(H>86399) Q ""
+ I 'H Q "00:00:00"
  S S=H#60,H=H\60,M=H#60,H=H\60
- S %=$S(H<12:"AM",M!S:"PM",1:"M ")
- Q $TR($J(H,2)," ",0)_":"_$TR($J(M,2)," ",0)_":"_$TR($J(S,2)," ",0)_" "_%
+ Q $TR($J(H,2)_":"_$J(M,2)_":"_$J(S,2)," ","0")
+T(T,H,%,ZR) S ZR="T^%T" I T<0!(T>86399) Q ""
+ I 'T Q "12:00:00 PM"
+ S T=$$INT(T),H=$E(T,1,2)
+ S %=$S(H<12:"AM",(+$E(T,4,5))!+$E(T,7,8):"PM",1:"M ")
+ Q T_" "_%
 
 %TYP
 %TYP ;Type a routine
@@ -1351,8 +1358,8 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
  V VV:-BLK W "Filed.",! K BLK Q
 ;Do it and exit
 
-JOURNLST
-JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
+%JOURNLST
+%JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
 ;Allow for 64 bit time_t in the file - rdn
 ;typedef struct JRNREC                                   // journal record
 ;{ u_short size;                                         // size of following
@@ -1372,9 +1379,11 @@ JOURNLST ;List journal file ; V 3.0 07 May 2013 06:30 PM
 ;#define JRN_ESTOP       3                               // stop/dism environ
 ;#define JRN_SET         4                               // Set global
 ;#define JRN_KILL        5                               // Kill global
-;#define JRN_SYNC        6                               // sync environ
+;#define JRN_SYNC        6                               // sync VOL
+;#define JRN_BACKUP      7                               // backup VOL
 ;
- N NREC,ANS,OD,CTIME,OTIME,HDR,$ET S $ET="D ^%ET",OTIME=""
+ N NREC,ANS,OD,CTIME,OTIME,HDR,$ET,ACTS
+ S $ET="D ^%ET",OTIME="" S ACTS="CREATE,START,STOP,ESTOP,SET,KILL,SYNC,BACKUP"
 ASK R "Enter file: ",FILE,! Q:FILE=""
  R "Enter outfile: ",OFILE,!
  S OD=0 I $L(OFILE) O 2:(OFILE:"W") S OD=2
@@ -1391,7 +1400,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  .S CTIME=$E(HDR,5,5+TSIZE-1)
  .S:OTIME'=CTIME TIME=$$CVT(CTIME),TIME=(TIME\86400+47117)_","_(TIME#86400),OTIME=CTIME
 ;.Convert time
- .S ACTION=$S(ACTION=6:"SYNC",ACTION=5:"KILL",ACTION=4:"SET",ACTION=3:"ESTOP",ACTION=2:"STOP",ACTION=1:"START",'ACTION:"CREATE")
+ .S ACTION=$P(ACTS,",",ACTION+1)
 ;.Setup ACTION
  .W $$D^%D(+TIME)," ",$$T^%T($P(TIME,",",2)),?24,ACTION W:UCI ?31,UCI
 ;.Write the first bit
@@ -3859,7 +3868,7 @@ show(msg,val) ;show msg and val
  w !,$E(msg_DOTZ,1,W),COL,val
  Q
 compver(rn) ;return compiler version
- Q $$CVT^JOURNLST($E($G(^$R(rn,0)),1,2))
+ Q $$CVT^%JOURNLST($E($G(^$R(rn,0)),1,2))
 bytes(n) ;convert to bytes
  n GB,MB,KB s KB=1024,MB=1024*KB,GB=1024*MB
  Q $S(GB-1<n:$J(n/GB,0,2)_"GB",MB-1<n:$J(n/MB,0,2)_"MB",KB-1<n:$J(n/KB,0,0)_"KB",1:n_"B")
@@ -3874,6 +3883,8 @@ VOL ;System Volume Name;NAME
  ;Volume Header Block Size;HEADER;(V-$$LBLKSIZE^%MV1)*8*B
  ;Volume Free Size;FREE;V*B
  ;Volume Writelock Flag;WRITELOCK
+ ;Volume Readonly Flag;READONLY
+ ;Volume Protected Flag;PROTECTED
  ;Volume Journaling;JOURNAL_AVAILABLE
  ;Volume Journal File;JOURNAL_FILE
  ;Volume Journal File Size;JOURNAL_SIZE;V

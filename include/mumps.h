@@ -237,6 +237,9 @@
 #define JNL_FILENAME_MAX   (234-MAX_NAME_BYTES) // max chars in journal filenam
 #define MAX_REPLICAS		16		// max number of replica envs
 
+#define VOL_PROTECT		128		// VOL is protected
+#define VOL_RDONLY		64		// VOL is read-only
+
 // systab->historic bit flag meanings
 #define	HISTORIC_EOK		1               // E syntax flag
 #define HISTORIC_OFFOK		2               // GO/DO with offset OK
@@ -432,6 +435,7 @@ typedef struct __PACKED__ VOL_DEF
   wdtab_struct wd_tab[MAX_DAEMONS + MAX_NET_DAEMONS];// wr/net daemon info table
   VOLATILE int dismount_flag;                   // flag to indicate dismounting
   VOLATILE u_int map_dirty_flag;                // set if map is dirty
+  VOLATILE int flags;				// flags: protected, read-only
   VOLATILE int writelock;                       // MUMPS write lock
   VOLATILE int bkprunning;			// backup running
   u_int upto;                                   // validating map up-to block

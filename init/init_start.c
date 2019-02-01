@@ -73,8 +73,6 @@ union semun {
 
 extern int rwlock_init();
 
-int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
-int Net_Daemon( int slot, int vol); 		// proto Net_Daemon
 void Routine_Init();                            // proto for routine setup
 #ifdef MV1_GBDRO
 void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release

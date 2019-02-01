@@ -199,7 +199,8 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 #define JRN_ESTOP	3				// stop/dism environ
 #define JRN_SET		4				// Set global
 #define JRN_KILL	5				// Kill global
-#define JRN_SYNC        6                               // sync environ
+#define JRN_SYNC        6                               // sync VOL
+#define JRN_BACKUP	7				// backup VOL
 
 // Note: The first 4 bytes (u_int) = (MUMPS_MAGIC - 1).
 //	 The next 8 bytes (off_t) in the file point at the next free byte.
