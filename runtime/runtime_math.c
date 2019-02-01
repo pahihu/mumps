@@ -45,8 +45,6 @@ short g_sqrt (char *a);                          /* square root */
 short root (char *a, int n);                     /* n.th root */
 void roundit (char *a, int digits);
 
-// #define MV1_MAPM        1
-
 #ifdef MV1_MAPM
 
 #define MV1_LONG_DIGITS         (8 == sizeof(long) ? 18 : 9)
@@ -214,48 +212,6 @@ short ultoa(char *buf, unsigned long n)
 
 #endif
 
-#ifdef MV1_INTMATH
-typedef long long int64;
-
-int64 aa, bb, cc;
-
-int strton(char *a, int64 *ret)
-{
-  char *ptr;
-
-  *ret = strtoll(a, &ptr, 10);
-  if (errno)
-    return -1;
-  if (*ptr != '\0')
-    return -1;
-
-  return 0;
-}
-
-int ntostr(char *buf, int64 n)
-{ static char tmp[64];
-  char *p;
-  int neg = 0;
-
-  if (n < 0)
-  { neg = 1;
-    n = -n;
-  }
-
-  tmp[63] = '\0';
-  p = &tmp[62];
-  do
-  { *--p = '0' + (n % 10);
-    n = n / 10;
-  } while (n);
-  if (neg) *--p = '-';
-
-  strcpy(buf, p);
-  return &tmp[63] - p;
-}
-
-#endif
-
 
 void runtime_math_init(void)
 {
@@ -302,10 +258,6 @@ short runtime_add(char *a, char *b)		// add b to a
     return lena;
 #endif
 
-#ifdef MV1_INTMATH
-    if (!strton(a, &aa) && !strton(b, &bb))
-      return ntostr(a, aa + bb);
-#endif
 
     {
 	short   dpa,			/* decimal point of 'a' */
@@ -589,10 +541,6 @@ short runtime_mul(char *a, char *b)             // multiply a by b
     return lena;
 #endif
 
-#ifdef MV1_INTMATH
-    if (!strton(a, &aa) && !strton(b, &bb))
-      return ntostr(a, aa * bb);
-#endif
 
 /* if zero or one there's not much to do */
     if (b[1] == EOL) {
@@ -913,28 +861,6 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     return lena;
 #endif
 
-#ifdef MV1_INTMATH
-    if (!strton(uu, &aa) && !strton(v, &bb))
-    { int done = 1;
-      switch (typ)
-      { case OPDIV:
-          cc = aa / bb;
-          done = 0 == aa % bb;
-          break;
-        case OPINT:
-          cc = aa / bb;
-          break;
-        case OPMOD:
-          if (2 == llabs(bb))
-            cc = bb < 0 ? -(aa & 1) : (aa & 1);
-          else
-            cc = aa - bb * (aa / bb);
-          break;
-      }
-      if (done)
-        return ntostr(uu, cc);
-    }
-#endif
 
 /* look at the signs */
     strcpy (u, uu);
@@ -1526,10 +1452,6 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
     return ret > 0 ? TRUE : FALSE;
 #endif
 
-#ifdef MV1_INTMATH
-    if (!strton(s, &aa) && !strton(t, &bb))
-      return bb > aa ? TRUE : FALSE;
-#endif
 
     s1 = s[0];
     t1 = t[0];

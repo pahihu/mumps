@@ -585,6 +585,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | ZMINSPACE          | Min. free space in blocks | set with priv |
 | ZOTDATA   	     | Zero free blocks          | set with priv |
 | VOL,n,FILE         | file for volset n         | set with priv  (to mount volset) |
+| VOL,n,BACKUP_REVISION_NUMBER | Backup revision number | set with priv |
 | VOL,n,BACKUP_RUNNING      | Volume backup is running | set with priv |
 | VOL,n,BLOCKS_CHANGED	    | Number of blocks changed | set with priv |
 | VOL,n,GLOBAL_BUFFER_SIZE  | Global buffer (in MB)    | set with priv |

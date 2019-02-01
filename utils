@@ -3885,6 +3885,7 @@ VOL ;System Volume Name;NAME
  ;Volume Writelock Flag;WRITELOCK
  ;Volume Readonly Flag;READONLY
  ;Volume Protected Flag;PROTECTED
+ ;Volume Backup Revision;BACKUP_REVISION_NUMBER
  ;Volume Journaling;JOURNAL_AVAILABLE
  ;Volume Journal File;JOURNAL_FILE
  ;Volume Journal File Size;JOURNAL_SIZE;V
