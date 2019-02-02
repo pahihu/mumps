@@ -1857,6 +1857,18 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     }
     vol = VOLNO(volblk);			// get volume no.
     blknum = BLKNO(volblk);			// get block no.
+    if (vol + 1 > bheader.nvols)		// check volume index
+    { fprintf(stderr,"-E-RESTORE: volume index out of range\r\n");
+      fflush(stderr);
+      s = -(ERRZ74 + ERRMLAST);
+      goto ErrOut;
+    }
+    if (blknum > volbuf->max_block)		// check block number
+    { fprintf(stderr,"-E-RESTORE: block number out of range\r\n");
+      fflush(stderr);
+      s = -(ERRZ74 + ERRMLAST);
+      goto ErrOut;
+    }
     copied = 0;					// assume no copy
     if (vol == bkp_vol)				// restore?
     { s = bkp_read(bkp_fd, blkbuf, volbuf->block_size);// read block
