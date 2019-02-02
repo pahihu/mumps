@@ -1250,6 +1250,23 @@ u_int DB_GetDirty(int vol)
 }
 
 static
+short bkp_read(int fd, void *buf, size_t n)
+{ ssize_t bytes;
+
+  bytes = read(fd, buf, n);
+  if (bytes < 0)
+  { return -(errno + ERRMLAST + ERRZLAST);
+  }
+  else if (0 == bytes)
+  { return -(ERRZ38 + ERRMLAST);
+  }
+  else if (bytes != n)
+  { return -(EIO + ERRMLAST + ERRZLAST);
+  }
+  return 0;
+}
+
+static
 short bkp_write(int fd, const void *buf, size_t n)
 { ssize_t bytes;
 
@@ -1287,6 +1304,12 @@ typedef struct __attribute__((__packed__))  __BKPHDR__
   var_u volnams[MAX_VOL]; // VOL names
 } bkphdr_t;
 
+static const char* bkptypes[] =			// backup types
+{ "FULL",
+  "CUMULATIVE",
+  "SERIAL"
+};
+
 //-----------------------------------------------------------------------------
 // Function: DB_Backup
 // Descript: Backup volumes
@@ -1321,24 +1344,19 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   int jfd;					// jrn file descriptor
   off_t offs;					// file offset
   int old_volnum;				// old volnum
-  static const char* bkptypes[] =		// backup types
-  { "FULL",
-    "CUMULATIVE",
-    "SERIAL"
-  };
 
   if ((typ < 0) || (typ > 2))
-  { fprintf(stderr,"-E-BKP: unknown type (%d)\r\n", typ); 
+  { fprintf(stderr,"-E-BACKUP: unknown backup type (%d)\r\n", typ); 
     fflush(stderr);
     return -(ERRZ74 + ERRMLAST);
   }
   if (!path || !strlen(path))
-  { fprintf(stderr,"-E-BKP: empty path\r\n");
+  { fprintf(stderr,"-E-BACKUP: empty path\r\n");
     fflush(stderr);
     return -(ERRZ74 + ERRMLAST);
   }
 
-  fprintf(stderr,"-I-BKP: start %s backup...\r\n", bkptypes[typ]);
+  fprintf(stderr,"-I-BACKUP: start %s backup...\r\n", bkptypes[typ]);
   fflush(stderr);
   nvols = 0;
   for (j = 0; j < 16; j++)
@@ -1350,14 +1368,14 @@ short DB_Backup(const char *path, u_int volmask, int typ)
       { return -(ERRZ91 + ERRMLAST);		//   return error
       }
       if (systab->vol[j]->bkprunning)		// backup is running ?
-      { fprintf(stderr,"-E-BKP: backup is running on VOL%d\r\n", j+1);
+      { fprintf(stderr,"-E-BACKUP: backup is running on VOL%d\r\n", j+1);
         fflush(stderr);
         return -(ERRZ74 + ERRMLAST);
       }
       vols[nvols++] = j;
     }
   }
-  fprintf(stderr, "-I-BKP: Backup volumes");
+  fprintf(stderr, "-I-BACKUP: Backup volumes");
   for (j = 0; j < nvols; j++)
     fprintf(stderr, " %d", vols[j] + 1);
   fprintf(stderr, "\r\n");
@@ -1378,7 +1396,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
     volnum = vol + 1;
     SemOp( SEM_GLOBAL, WRITE);
     if (systab->vol[vol]->bkprunning)		// check BACKUP state
-    { fprintf(stderr,"-E-BKP: backup is running on VOL%d\r\n", j+1);
+    { fprintf(stderr,"-E-BACKUP: backup is running on VOL%d\r\n", j+1);
       fflush(stderr);
       s = -(ERRZ74 + ERRMLAST);			//   already running
     }
@@ -1411,7 +1429,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
     goto ErrOut;
   }
 
-  fprintf(stderr,"-I-BKP: opening file %s...\r\n", path); fflush(stderr);
+  fprintf(stderr,"-I-BACKUP: opening file %s...\r\n", path); fflush(stderr);
   fd = open(path, O_TRUNC | O_WRONLY | O_CREAT, 0644); // open backup file
   if (fd < 0)					// failed?
   { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
@@ -1419,7 +1437,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   }
 
   for (pass = 1; pass <= 5; pass++)
-  { fprintf(stderr,"-I-BKP: PASS %d...\r\n", pass); fflush(stderr);
+  { fprintf(stderr,"-I-BACKUP: PASS %d...\r\n", pass); fflush(stderr);
     done   = 1;					// assume done
     dolock = 1;					// assume do VOL lock
 
@@ -1445,7 +1463,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
         dolock = dolock &&
                  ((5 == pass) || 			// last pass
 	          (systab->vol[vol]->blkchanged < 300));// OR not much changed
-        fprintf(stderr, "-I-BKP: VOL%d has %d modified blocks\r\n",
+        fprintf(stderr, "-I-BACKUP: VOL%d has %d modified blocks\r\n",
                 	vol + 1, systab->vol[vol]->blkchanged); fflush(stderr);
       }
     }
@@ -1477,7 +1495,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
     //			writelock, release global locks
 
     if (done || dolock)
-    { fprintf(stderr, "-I-BKP: write lock volumes...\r\n");
+    { fprintf(stderr, "-I-BACKUP: write lock volumes...\r\n");
       fflush(stderr);
     }
 
@@ -1517,7 +1535,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
     for (j = 0; j < nvols; j++)
     { vol    = vols[j];
       vollab = vollabs[j];
-      fprintf(stderr,"-I-BKP: saving VOL%d...", vol+1);
+      fprintf(stderr,"-I-BACKUP: saving VOL%d...", vol+1);
       if (1 == pass)				// 1st pass ?
       { map = (u_char *) ((void*) labbufs[j] + SIZEOF_LABEL_BLOCK);
       }
@@ -1541,7 +1559,9 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 	      // NB. the block may be deleted
               s = GetBlockRaw(blknum + i, __FILE__, __LINE__);
               if (s < 0) goto ErrOut;
-              bcopy(blk[level]->mem, &blkbuf->mem, vollab->block_size);
+              bcopy(blk[level]->mem, 
+		    &blkbuf->mem, 
+		    vollab->block_size);
               SemOp( SEM_GLOBAL, -READ);
 
 	      dowrite = (0 == typ) ||		// FULL backup ?
@@ -1650,10 +1670,10 @@ ErrOut:
   }
 
   if (s)
-  { fprintf(stderr, "-E-BKP: failed with error code %d\r\n", s);
+  { fprintf(stderr, "-E-BACKUP: failed with error code %d\r\n", s);
   }
   else
-  { fprintf(stderr,"-I-BKP: completed\r\n");
+  { fprintf(stderr,"-I-BACKUP: completed\r\n");
   }
   fflush(stderr);
 
@@ -1663,3 +1683,219 @@ ErrOut:
 }
 
 
+//-----------------------------------------------------------------------------
+// Function: DB_Restore
+// Descript: Restore a single volume from the backup file.
+// Input(s): bkp_path - input backup file
+// 	     bkp_vol - index of volume to restore in the backup file
+//	     vol_path - output volume file
+// Return:   None
+//
+
+short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
+{ int bkp_fd, vol_fd;				// backup/volume file descriptor
+  short s;					// status
+  int i;					// handy int
+  label_block *volbuf;				// target VOL label
+  u_char *blkbuf;				// target block buffer
+  u_int copied;					// copy block from backup to tgt
+  u_int nwritten;				// no. of blocks written
+  bkphdr_t bheader;				// backup file header
+  off_t offs;					// file offset
+  u_char tmp[MAX_NAME_BYTES + 1];		// temporary string
+  char volnam[MAX_NAME_BYTES + 1];		// target volume name
+  union {
+    label_block vollab;				// label block
+    u_char tmp[SIZEOF_LABEL_BLOCK];		// storage for label block
+  } u;
+  u_int volblk;					// combined volume + block no.
+  int vol;					// backup volume number
+  u_int blknum;					// block number
+  int block_sizes[MAX_VOL];			// volume block sizes
+
+  bkp_fd = 0;					// init vars
+  vol_fd = 0;
+  volbuf = NULL;
+  blkbuf = NULL;
+
+  if (!bkp_path || !strlen(bkp_path))
+  { fprintf(stderr,"-E-RESTORE: empty backup file path\r\n");
+    fflush(stderr);
+    return -(ERRZ74 + ERRMLAST);
+  }
+
+  if (!vol_path || !strlen(vol_path))
+  { fprintf(stderr,"-E-RESTORE: empty volume file path\r\n");
+    fflush(stderr);
+    return -(ERRZ74 + ERRMLAST);
+  }
+
+  fprintf(stderr,"-I-RESTORE: start restore...\r\n");
+  fflush(stderr);
+
+  fprintf(stderr,"-I-RESTORE: opening backup file %s...\r\n", bkp_path);
+  fflush(stderr);
+  bkp_fd = open(bkp_path, O_RDONLY); 		// open backup file
+  if (bkp_fd < 0)				// failed?
+  { s = -(errno + ERRMLAST + ERRZLAST);		//   return error
+    goto ErrOut;
+  }
+
+  fprintf(stderr,"-I-RESTORE: reading backup header...\r\n");
+  fflush(stderr);
+  s = bkp_read(bkp_fd, &bheader, sizeof(bkphdr_t));
+  if (s < 0) goto ErrOut;
+
+  if (bheader.magic != ~MUMPS_MAGIC)
+  { fprintf(stderr, "-E-RESTORE: not a backup file...\r\n");
+    fflush(stderr);
+    s = -(ERRZ74 + ERRMLAST);
+    goto ErrOut;
+  }
+
+  if ((bheader.type < 0) || (bheader.type > 2))
+  { fprintf(stderr,"-E-RESTORE: unknown backup type (%d)\r\n", bheader.type); 
+    fflush(stderr);
+    s = -(ERRZ74 + ERRMLAST);
+    goto ErrOut;
+  }
+
+  fprintf(stderr,"-I-RESTORE: %s is a %s backup file, saved on %s\r\n",
+		bkp_path, 
+		bkptypes[bheader.type],
+  		asctime(gmtime(&bheader.time)));
+
+  fprintf(stderr, "-I-RESTORE: contains %d volume(s):\r\n", bheader.nvols);
+  for (i = 0; i < bheader.nvols; i++)
+  { UTIL_Cat_VarU(tmp, &bheader.volnams[i]);
+    fprintf(stderr, "\t%-2d) %s", i+1, (char *) &tmp[0]);
+    if (i == bkp_vol)
+    { fprintf(stderr, " <==");
+      strcpy(volnam, (char *) &tmp[0]);
+    }
+    fprintf(stderr, "\r\n");
+  }
+  fflush(stderr);
+
+  if ((bkp_vol < 0) || (bkp_vol + 1 > bheader.nvols))
+  { fprintf(stderr,"-E-RESTORE: invalid volume number\r\n");
+    fflush(stderr);
+    s = -(ERRZ74 + ERRMLAST);
+    goto ErrOut;
+  }
+
+  for (i = 0; i < bheader.nvols; i++)
+  { s = bkp_read(bkp_fd, &u.tmp, SIZEOF_LABEL_BLOCK);// read std volume LABEL
+    if (s < 0) goto ErrOut;
+    block_sizes[i] = u.vollab.block_size;	// save block size
+    if (i == bkp_vol)				// volume to restore ?
+    { volbuf = (label_block *) malloc(u.vollab.header_bytes);
+      if (NULL == volbuf)			// allocate buffers
+      { s = -(errno + ERRMLAST + ERRZLAST);
+	goto ErrOut;
+      }
+      blkbuf = (u_char *) malloc(block_sizes[i]);
+      if (NULL == blkbuf)
+      { s = -(errno + ERRMLAST + ERRZLAST);
+	goto ErrOut;
+      }
+      bcopy(&u.tmp, volbuf, SIZEOF_LABEL_BLOCK);// save volume header
+      s = bkp_read(bkp_fd, 
+		   SIZEOF_LABEL_BLOCK + (void *) volbuf,
+		   u.vollab.header_bytes - SIZEOF_LABEL_BLOCK);
+    }
+    else
+    { s = bkp_lseek(bkp_fd, 			// skip header bytes
+		    u.vollab.header_bytes - SIZEOF_LABEL_BLOCK,
+		    SEEK_CUR);
+
+    }
+    if (s < 0) goto ErrOut;			// return on error
+  }
+
+  fprintf(stderr,"-I-RESTORE: opening volume file %s...\r\n", vol_path);
+  fflush(stderr);
+  // NB. target volume may exists, if not create it
+  vol_fd = open(vol_path, O_WRONLY);		// open volume file
+  if (vol_fd < 0)				// failed?
+  { fprintf(stderr,"-W-RESTORE: creating volume file %s...\r\n", vol_path);
+    fflush(stderr);
+    vol_fd = open(vol_path, O_WRONLY | O_CREAT, 0644);// create it
+    if (vol_fd < 0)				// failed?
+    { s = -(errno + ERRMLAST + ERRZLAST);	//   return error
+      goto ErrOut;
+    }
+  }
+
+  fprintf(stderr, "-I-RESTORE: writing volume header...\r\n");
+  fflush(stderr);
+  volbuf->journal_available = 0;		// clear journal settings
+  volbuf->journal_requested = 0;
+  bzero(&volbuf->journal_file[0], JNL_FILENAME_MAX + 1);
+  s = bkp_write(vol_fd, volbuf, volbuf->header_bytes);// write VOL header
+  if (s < 0) goto ErrOut;
+
+  fprintf(stderr, "-I-RESTORE: writing blocks...\r\n");
+  fflush(stderr);
+
+  nwritten = 0;					// no. of blocks written
+  for (;;)
+  { s = bkp_read(bkp_fd, &volblk, sizeof(u_int));// read block number
+    if (s < 0)					// failed?
+    { if (-(ERRZ38 + ERRMLAST) == s)		// EOF reached?
+      { s = 0;					//   clear status flag
+        break;					//   done
+      }
+      goto ErrOut;				// return error
+    }
+    vol = VOLNO(volblk);			// get volume no.
+    blknum = BLKNO(volblk);			// get block no.
+    copied = 0;					// assume no copy
+    if (vol == bkp_vol)				// restore?
+    { s = bkp_read(bkp_fd, blkbuf, volbuf->block_size);// read block
+      if (s < 0) goto ErrOut;
+      offs = (off_t) blknum - 1;
+      offs = (offs * (off_t) volbuf->block_size)// calc. target volume offset
+	     + (off_t) volbuf->header_bytes;
+      s = bkp_lseek(vol_fd,			// go to block in target
+		    offs,
+		    SEEK_SET);
+      if (s < 0) goto ErrOut;
+      s = bkp_write(vol_fd, blkbuf, volbuf->block_size);// write out
+      copied = 1;
+    }
+    else
+    { s = bkp_lseek(bkp_fd, block_sizes[vol], SEEK_CUR);// skip it
+    }
+    if (s < 0) goto ErrOut;			// return on error
+
+    nwritten += copied;
+    if (0 == nwritten % 1000)
+    { fprintf(stderr, "-I-RESTORE: #%u...\r\n", nwritten);
+      fflush(stderr);
+    }
+  }
+
+ErrOut:
+  if (volbuf) free(volbuf);			// release memory
+  if (blkbuf) free(blkbuf);
+
+  if (bkp_fd)					// backup file open?
+  { close(bkp_fd);				//   close it
+  }
+  if (vol_fd)					// volume file open?
+  { close(vol_fd);				//   close it
+    if (s)					// any error ?
+    { unlink(vol_path);				//   remove it
+    }
+  }
+
+  if (s)
+  { fprintf(stderr, "-E-RESTORE: failed with error code %d\r\n", s);
+  }
+  else
+  { fprintf(stderr, "-I-RESTORE: completed\r\n");
+  }
+  fflush(stderr);
+  return s;
+}

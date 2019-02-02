@@ -416,13 +416,18 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         return strlen((char *) buf);		// return length
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "backup_volmask\0", 15) == 0))
+	  (strncasecmp( (char *) subs[0]->buf, "backup_volumes\0", 15) == 0))
       { return itocstring(buf,
       	       (systab->bkpvolmask)); 		// return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "backup_file\0", 12) == 0))
       { strcpy((char *) buf, systab->bkpfile);
+        return strlen((char *) buf);		// return the length
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "restore_file\0", 13) == 0))
+      { strcpy((char *) buf, systab->rstfile);
         return strlen((char *) buf);		// return the length
       }
       if (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0)
@@ -745,7 +750,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "backup_volmask\0", 15) == 0))
+	  (strncasecmp( (char *) subs[0]->buf, "backup_volumes\0", 15) == 0))
       { j = cstringtoi(data);
 	if ((j < 0) || (j > 131071)) return -ERRM28;
         systab->bkpvolmask = j;
@@ -753,11 +758,31 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "restore_file\0", 13) == 0))
+      { if ((data->len < 1) || (data->len + 1 > VOL_FILENAME_MAX))
+          return -ERRM28;
+	strcpy(systab->rstfile, (char *) data->buf);
+	return 0;
+      }
+
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "backup_file\0", 12) == 0))
       { if ((data->len < 1) || (data->len + 1 > VOL_FILENAME_MAX))
           return -ERRM28;
 	strcpy(systab->bkpfile, (char *) data->buf);
-        return DB_Backup(systab->bkpfile, systab->bkpvolmask, systab->bkptyp);
+	if (strlen(systab->rstfile))		// have RESTORE_FILE ?
+	{ s = DB_Restore(systab->bkpfile, 	//   do restore
+			 systab->bkpvolmask, 
+			 systab->rstfile);
+	  systab->rstfile[0] = '\0';		// reset RESTORE_FILE
+	}
+	else
+	{ s = DB_Backup(systab->bkpfile, 	//   do backup
+			systab->bkpvolmask, 
+			systab->bkptyp);
+	}
+	systab->bkpfile[0] = '\0';		// reset BACKUP_FILE
+        return s;
       }
 
       if ((nsubs == 1) &&

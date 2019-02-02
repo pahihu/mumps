@@ -648,9 +648,11 @@ typedef struct __PACKED__ SYSTAB                // system tables
   VOLATILE u_int delaywt;                       // delay WRITEs
   repltab replicas[MAX_REPLICAS];		// database replicas
   char bkpfile[VOL_FILENAME_MAX];		// backup file name
-  u_int bkpvolmask;				// backup VOL mask
+  u_int bkpvolmask;				// backup VOL mask 
+						//   OR volume index to restore
   int bkptyp;					// backup type
   // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
+  char rstfile[VOL_FILENAME_MAX];		// file to restore
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

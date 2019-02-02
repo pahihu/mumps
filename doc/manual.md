@@ -572,7 +572,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | ------------------ | ------------------------- | ------- |
 | BACKUP_FILE        | Backup file name          | set with priv |
 | BACKUP_TYPE        | Type of backup FULL, CUMULATIVE or SERIAL | set with priv |
-| BACKUP_VOLMASK     | Backup VOL masks          | set with priv |
+| BACKUP_VOLUMES     | Backup VOL masks OR VOL index to restore  | set with priv |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
@@ -581,6 +581,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
 | REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
 | RESTTIME           | Daemon rest time          | no |
+| RESTORE_FILE       | Volume file to restore from backup | set with priv |
 | TSIZE              | sizeof(time_t)            | no |
 | ZMINSPACE          | Min. free space in blocks | set with priv |
 | ZOTDATA   	     | Zero free blocks          | set with priv |
