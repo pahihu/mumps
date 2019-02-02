@@ -1335,6 +1335,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   bkpblk_t *blkbuf;				// backup block
   u_char *map, *c, *end;			// map block and ptrs
   u_int blknum;					// current blk number
+  u_int blkoff;					// block offset
   u_int nwritten;				// no. of written blocks
   int vol;					// current VOL
   int vols[MAX_VOL];				// VOLs to backup
@@ -1543,21 +1544,27 @@ short DB_Backup(const char *path, u_int volmask, int typ)
       { map = chgbufs[j];			// use chgbuf
       }
 
-      blknum = 0;				// clear blknum
+      blkoff = 0;				// clear blkoff
       nwritten = 0;				// clear nwritten
+      // NB. block "0" and "1" always marked as allocated
+      //     the first free block will be "2", which is stored
+      //     at block "1"
+      //     reading blknum "2" will give back block "1"
+      //     reading blknum "1" will give back block "0"
       c = map; 					// range setup
       end = map + vollab->max_block / 8;
-      for (; c <= end; c++, blknum += 8)	// scan current map
+      for (; c <= end; c++, blkoff += 8)	// scan current map
       { if (0 == *c)				// empty ?
           continue;
         for (i = 0; i < 8; i++)			// check blocks
         { if (*c & (1 << i))			// changed? (allocated?)
-          { if (blknum + i <= vollab->max_block)// valid block ?
+          { blknum = blkoff + i + 1;		// NB. block numbers from 1 !!!
+	    if (blknum <= vollab->max_block)	// valid block ?
             { volnum = vol + 1;
               SemOp( SEM_GLOBAL, READ);		//   read block
               level = 0;
 	      // NB. the block may be deleted
-              s = GetBlockRaw(blknum + i, __FILE__, __LINE__);
+              s = GetBlockRaw(blknum, __FILE__, __LINE__);
               if (s < 0) goto ErrOut;
               bcopy(blk[level]->mem, 
 		    &blkbuf->mem, 
@@ -1567,7 +1574,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 	      dowrite = (0 == typ) ||		// FULL backup ?
 		(vollab->bkprevno == blkbuf->mem.bkprevno); // OR match BRN ?
 	      if (dowrite)
-              { blkbuf->block = VOLBLK(j,blknum);	// set blknum
+              { blkbuf->block = VOLBLK(j,blknum); // set blknum
                 s = bkp_write(fd, blkbuf, sizeof(u_int) + vollab->block_size);
  	        if (s < 0) goto ErrOut;
 	        nwritten++;
@@ -1854,7 +1861,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     if (vol == bkp_vol)				// restore?
     { s = bkp_read(bkp_fd, blkbuf, volbuf->block_size);// read block
       if (s < 0) goto ErrOut;
-      offs = (off_t) blknum - 1;
+      offs = (off_t) blknum - 1;		// NB. block number from 1 !!!
       offs = (offs * (off_t) volbuf->block_size)// calc. target volume offset
 	     + (off_t) volbuf->header_bytes;
       s = bkp_lseek(vol_fd,			// go to block in target

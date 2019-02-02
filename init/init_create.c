@@ -135,6 +135,9 @@ int INIT_Create_File(int blocks,                // number of blocks
   if (mapalloc < SIZEOF_LABEL_BLOCK + 1024)	// label block + first part
   { mapalloc = SIZEOF_LABEL_BLOCK + 1024;	//   should fit
   }
+  if (mapalloc < bsize)				// block should fit
+  { mapalloc = bsize;
+  }
   x.buff = (int *) malloc(mapalloc);		// allocate mapalloc bytes
   if (x.buff == NULL)
   { fprintf(stderr, "Cannot allocate map bytes\n - %s\n", // complain
