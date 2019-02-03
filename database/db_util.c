@@ -242,10 +242,11 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 //
 
 void Queit()                                            // que a gbd for write
-{ int i;                                                // a handy int
-  gbd *ptr, *nxt;                                       // a handy ptr
+{ gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
+#else
+  int i;                                                // a handy int
 #endif
 
   ASSERT(0 < volnum);                                   // valid volnum
@@ -305,11 +306,12 @@ void Queit()                                            // que a gbd for write
 //
 
 void Garbit(int blknum)                                 // que a blk for garb
-{ int i;                                                // a handy int
-  int j;                                                // for loop
+{ 
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
   bool result;                                          // ck result
+#else
+  int i;                                                // a handy int
 #endif
 
   ASSERT(0 < volnum);                                   // valid vol[] index
@@ -1078,7 +1080,7 @@ void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
   { s = FlushJournal(volnum - 1, 0,                     // flush buffer
                             systab->vol[volnum - 1]->syncjrn); 
     if (s < 0)
-      return;
+      goto fail;
     currsize = systab->vol[volnum - 1]->jrnbufsize;     // init currsize again
   }
   bcopy(jj, systab->vol[volnum - 1]->jrnbuf + currsize, i); // copy buffer
@@ -1098,7 +1100,8 @@ fail:
   systab->vol[volnum - 1]->jrnbufsize = 0;              // clear buffer
   systab->vol[volnum - 1]->vollab->journal_available = 0; // turn it off
   close(partab.jnl_fds[volnum - 1]);                    // close the file
-  partab.jnl_fds[volnum-1] = 0;                         // clear fd
+  partab.jnl_fds[volnum - 1] = 0;                       // clear fd
+  partab.jnl_seq[volnum - 1] = 0;                       // clear seq
   return;                                               // and exit
 }
 
@@ -1138,7 +1141,10 @@ int MSleep(u_int mseconds)
 void Ensure_GBDs(int haslock)
 {
   int j;
-  int qpos, wpos, rpos, qlen, qfree;
+#if !defined(MV1_CKIT)
+  int qpos, wpos, rpos, qlen;
+#endif
+  int qfree;
   int MinSlots;
   int pass = 0;
 
@@ -1558,6 +1564,14 @@ short DB_Backup(const char *path, u_int volmask, int typ)
       SemOp( SEM_GLOBAL, -READ);		// release READ locks
     }
 
+    // NB. The allocated blocks are marked in the map, 
+    //     but the KILLs run in the background, which 
+    //	   clear bits in the map.
+    //     Wait for the queues to be emtpy, the map block
+    //     won't change then.
+    if (done || dolock)
+      do_queueflush(1);                         // flush daemon queues
+
     if (done) break;
 
     if (1 == pass)				// on 1st pass
@@ -1646,8 +1660,6 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   // NB. backed up VOLs are writelock-ed here!
 
 ErrOut:
-  do_queueflush(1);                             // flush daemon queues
-
   if (0 == s)					// no error ?
   { offs = lseek(fd, 0, SEEK_SET);		// write BACKUP header
     if ((off_t) -1 == offs)
@@ -1691,20 +1703,22 @@ ErrOut:
     }
   }
 
-  for (j = 0; j < nvols; j++)
-  { vol = vols[j];				// current VOL
-    if (systab->vol[vol]->vollab->journal_available) // journal available ?
-    { jfd = attach_jrn(vol, &partab.jnl_fds[0], // attach JRN file
-			    &partab.jnl_seq[0]);
-      if (jfd > 0)
-      { jrnrec jj;                              // write BACKUP record
-        jj.action = JRN_BACKUP;
-        jj.time = MTIME(0);
-        jj.uci = 0;
-        volnum = vol + 1;
-        DoJournal(&jj, 0);                      // do journal
-        FlushJournal(vol, jfd, 0);              // flush journal
-        fsync(jfd);                             // sync to disk
+  if (0 == s)					// no error ?
+  { for (j = 0; j < nvols; j++)
+    { vol = vols[j];				// current VOL
+      if (systab->vol[vol]->vollab->journal_available) // journal available ?
+      { jfd = attach_jrn(vol, &partab.jnl_fds[0],// attach JRN file
+			      &partab.jnl_seq[0]);
+        if (jfd > 0)
+        { jrnrec jj;                            // write BACKUP record
+          jj.action = JRN_BACKUP;
+          jj.time = MTIME(0);
+          jj.uci = 0;
+          volnum = vol + 1;
+          DoJournal(&jj, 0);                    // do journal
+          FlushJournal(vol, jfd, 0);            // flush journal
+          fsync(jfd);                           // sync to disk
+        }
       }
     }
   }
@@ -1890,6 +1904,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   volbuf->journal_available = 0;		// clear journal settings
   volbuf->journal_requested = 0;
   bzero(&volbuf->journal_file[0], JNL_FILENAME_MAX + 1);
+  volbuf->clean = 1;				// mark volume as clean
   s = bkp_write(vol_fd, volbuf, volbuf->header_bytes);// write VOL header
   if (s < 0) goto ErrOut;
 
