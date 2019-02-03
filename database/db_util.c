@@ -1791,11 +1791,19 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   volbuf = NULL;
   blkbuf = NULL;
 
-  if (!bkp_path || !strlen(bkp_path))
+  if (!bkp_path || !strlen(bkp_path))		// check backup file path
   { fprintf(stderr,"-E-RESTORE: empty backup file path\r\n");
     fflush(stderr);
     return -(ERRZ74 + ERRMLAST);
   }
+
+  if ((bkp_vol < 1) || (bkp_vol > MAX_VOL))	// check volume index
+  { fprintf(stderr,"-E-RESTORE: invalid volume index\r\n");
+    fflush(stderr);
+    return -(ERRZ74 + ERRMLAST);
+  }
+  bkp_vol--;					// adjust volume index
+
 
   if (!vol_path || !strlen(vol_path))
   { fprintf(stderr,"-E-RESTORE: empty volume file path\r\n");
@@ -1849,8 +1857,8 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   }
   fflush(stderr);
 
-  if ((bkp_vol < 0) || (bkp_vol + 1 > bheader.nvols))
-  { fprintf(stderr,"-E-RESTORE: invalid volume number\r\n");
+  if (bkp_vol + 1 > bheader.nvols)
+  { fprintf(stderr,"-E-RESTORE: invalid volume index\r\n");
     fflush(stderr);
     s = -(ERRZ74 + ERRMLAST);
     goto ErrOut;

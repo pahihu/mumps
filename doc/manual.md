@@ -275,6 +275,40 @@ and write access returns an error.
 	SET ^$S("VOL",1,"PROTECTED")=1	;protected
 
 
+### Online backup
+
+While the database is running, you could back up the volumes.
+MUMPS supports three types of backups: `FULL`, `CUMULATIVE` and `SERIAL`.
+Full backup saves all the blocks in the volume then increments the
+`BACKUP_REVISION_NUMBER` of the volume. Cumulative backup saves all the
+blocks, whose `BACKUP_REVISION_NUMBER` is the same as the volume 
+`BACKUP_REVISION_NUMBER`. Serial backup works like cumulative backup,
+except it increments the `BACKUP_REVISION_NUMBER` at the end of the
+backup.
+
+The volumes to back up is specified as a bitmask
+where 1 corresponds to volume 1, 2 corresponds to volume 2,
+4 corresponds to volume 3, etc.
+
+	SET ^$S("BACKUP_VOLUMES")=5              ;save VOL1 and VOL4
+	SET ^$S("BACKUP_TYPE")="FULL"            ;or "CUMULATIVE" or "SERIAL"
+	SET ^$S("BACKUP_FILE")="/path/to/backup" ;output backup file
+
+
+### Volume restore from backup
+
+Using a backup file you could restore a volume. The volume is restored
+to a specified file. `BACKUP_VOLUMES` should be set to the 
+index of the volume in the backup file, `RESTORE_FILE` should be set
+to the output file name. When the `RESTORE_FILE` exists, then it is
+used as is, so you could restore cumulative and serial backups to the
+same file. When `RESTORE_FILE` does not exists it is created.
+
+	SET ^$S("RESTORE_FILE")="/path/to/volume" ;output volume file
+	SET ^$S("BACKUP_VOLUMES")=2               ;restore 2nd volume from backup
+	SET ^$S("BACKUP_FILE")="/path/to/backup"  ;input backup file
+	
+
 ### MV1API
 
 You can connect to a MUMPS environment with the use of the [MV1 connect API](https://github.com/pahihu/mumps/blob/development/mv1api/mv1api.h) using the
