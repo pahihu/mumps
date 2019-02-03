@@ -12,6 +12,7 @@ Changes:
   * numbers in keys stored as packed decimals
   * multiple volume sets
   * remote volume sets
+  * online backup and restore
   * HANG supports fractional seconds
   * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
   * KVALUE and KSUBSCRIPTS commands
