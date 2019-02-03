@@ -1310,6 +1310,59 @@ static const char* bkptypes[] =			// backup types
   "SERIAL"
 };
 
+static
+void DB_DumpHeader(u_char *hdr, int header_bytes)
+{
+  label_block *vollab;
+  u_char tmp[MAX_NAME_BYTES + 1];
+  u_char *map, *c, *end;
+  u_int blkoff, blknum;
+  int i;
+
+  vollab = (label_block *) hdr;
+  fprintf(stderr,"        magic = %08X\r\n", vollab->magic);
+  fprintf(stderr,"    max_block = %u\r\n", vollab->max_block);
+  fprintf(stderr," header_bytes = %d\r\n", vollab->header_bytes);
+  fprintf(stderr,"   block_size = %d\r\n", vollab->block_size);
+  UTIL_Cat_VarU(&tmp[0], &vollab->volnam);
+  fprintf(stderr,"       volnam = [%s]\r\n", tmp);
+  fprintf(stderr,"       db_ver = %d\r\n", vollab->db_ver);
+  fprintf(stderr,"jrn_available = %d\r\n", vollab->journal_available);
+  fprintf(stderr,"jrn_requested = %d\r\n", vollab->journal_requested);
+  fprintf(stderr,"        clean = %d\r\n", vollab->clean);
+  fprintf(stderr,"     jrn_file = [%s]\r\n", &vollab->journal_file[0]);
+  fprintf(stderr,"         txid = %lld\r\n", vollab->txid);
+  fprintf(stderr,"     bkprevno = %d\r\n", vollab->bkprevno);
+  fprintf(stderr,"UCI table:\r\n");
+  for (i = 0; i < UCIS; i++)
+  { if (0 == vollab->uci[i].name.var_cu[0])
+      break;
+    UTIL_Cat_VarU(&tmp[0], &vollab->uci[i].name);
+    fprintf(stderr,"\t%2d) %s %u\r\n", i+1, (char *) &tmp[0], vollab->uci[i].global);
+  }
+  fflush(stderr);
+
+  fprintf(stderr,"allocated blocks:\r\n");
+  blkoff = 0;
+  map = hdr + SIZEOF_LABEL_BLOCK;
+  c   = map;
+  end = map + vollab->max_block / 8;
+  for (; c <= end; c++, blkoff += 8)
+  { if (0 == *c)
+      continue;
+    for (i = 0; i < 8; i++)
+    { if (*c & (1 << i))
+      { blknum = blkoff + i;
+	if (blknum &&
+	    (blknum <= vollab->max_block))
+        { fprintf(stderr, " %u", blknum);
+        } // for all bits
+      } // end of SCAN map
+    }
+  }
+  fprintf(stderr,"\r\n");
+  fflush(stderr);
+}
 //-----------------------------------------------------------------------------
 // Function: DB_Backup
 // Descript: Backup volumes
@@ -1546,11 +1599,9 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 
       blkoff = 0;				// clear blkoff
       nwritten = 0;				// clear nwritten
-      // NB. block "0" and "1" always marked as allocated
-      //     the first free block will be "2", which is stored
-      //     at block "1"
-      //     reading blknum "2" will give back block "1"
-      //     reading blknum "1" will give back block "0"
+      // NB. in the map bit 0 is always set, bit 1 is set
+      //     because block 1 is allocated. Block 1 is stored
+      //     physically just after the map.
       c = map; 					// range setup
       end = map + vollab->max_block / 8;
       for (; c <= end; c++, blkoff += 8)	// scan current map
@@ -1558,8 +1609,9 @@ short DB_Backup(const char *path, u_int volmask, int typ)
           continue;
         for (i = 0; i < 8; i++)			// check blocks
         { if (*c & (1 << i))			// changed? (allocated?)
-          { blknum = blkoff + i + 1;		// NB. block numbers from 1 !!!
-	    if (blknum <= vollab->max_block)	// valid block ?
+          { blknum = blkoff + i;
+	    if (blknum && 			// NB. block 0 does not exists!
+		(blknum <= vollab->max_block))	// valid block ?
             { volnum = vol + 1;
               SemOp( SEM_GLOBAL, READ);		//   read block
               level = 0;
@@ -1709,7 +1761,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   u_int nwritten;				// no. of blocks written
   bkphdr_t bheader;				// backup file header
   off_t offs;					// file offset
-  u_char tmp[MAX_NAME_BYTES + 1];		// temporary string
+  u_char tmp[64];				// temporary string
   char volnam[MAX_NAME_BYTES + 1];		// target volume name
   union {
     label_block vollab;				// label block
@@ -1767,15 +1819,14 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     goto ErrOut;
   }
 
-  fprintf(stderr,"-I-RESTORE: %s is a %s backup file, saved on %s\r\n",
-		bkp_path, 
-		bkptypes[bheader.type],
-  		asctime(gmtime(&bheader.time)));
+  strftime((char *) &tmp[0], sizeof(tmp), "%F %T", gmtime(&bheader.time));
+  fprintf(stderr,"-I-RESTORE: backup type is %s\r\n",  bkptypes[bheader.type]);
+  fprintf(stderr,"-I-RESTORE: saved on %s\r\n", (char *) &tmp[0]);
 
   fprintf(stderr, "-I-RESTORE: contains %d volume(s):\r\n", bheader.nvols);
   for (i = 0; i < bheader.nvols; i++)
   { UTIL_Cat_VarU(tmp, &bheader.volnams[i]);
-    fprintf(stderr, "\t%-2d) %s", i+1, (char *) &tmp[0]);
+    fprintf(stderr, "\t%2d) %s", i+1, (char *) &tmp[0]);
     if (i == bkp_vol)
     { fprintf(stderr, " <==");
       strcpy(volnam, (char *) &tmp[0]);
@@ -1842,7 +1893,17 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   s = bkp_write(vol_fd, volbuf, volbuf->header_bytes);// write VOL header
   if (s < 0) goto ErrOut;
 
-  fprintf(stderr, "-I-RESTORE: writing blocks...\r\n");
+  // DB_DumpHeader((u_char *) volbuf, volbuf->header_bytes);
+
+  fprintf(stderr, "-I-RESTORE: expanding volume...\r\n");
+  fflush(stderr);
+  bzero(blkbuf, volbuf->block_size);
+  for (i = 0; i < volbuf->max_block; i++)
+  { s = bkp_write(vol_fd, blkbuf, volbuf->block_size);
+    if (s < 0) goto ErrOut;
+  }
+
+  fprintf(stderr, "-I-RESTORE: restoring blocks...\r\n");
   fflush(stderr);
 
   nwritten = 0;					// no. of blocks written
@@ -1863,8 +1924,9 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
       s = -(ERRZ74 + ERRMLAST);
       goto ErrOut;
     }
-    if (blknum > volbuf->max_block)		// check block number
-    { fprintf(stderr,"-E-RESTORE: block number out of range\r\n");
+    if ((0 == blknum) ||
+        (blknum > volbuf->max_block))		// check block number
+    { fprintf(stderr,"-E-RESTORE: block number %u is out of range\r\n", blknum);
       fflush(stderr);
       s = -(ERRZ74 + ERRMLAST);
       goto ErrOut;
@@ -1873,13 +1935,15 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     if (vol == bkp_vol)				// restore?
     { s = bkp_read(bkp_fd, blkbuf, volbuf->block_size);// read block
       if (s < 0) goto ErrOut;
-      offs = (off_t) blknum - 1;		// NB. block number from 1 !!!
+      offs = (off_t) blknum - 1;		// NB. block 1 is stored
+						//   at offset 0
       offs = (offs * (off_t) volbuf->block_size)// calc. target volume offset
 	     + (off_t) volbuf->header_bytes;
       s = bkp_lseek(vol_fd,			// go to block in target
 		    offs,
 		    SEEK_SET);
       if (s < 0) goto ErrOut;
+      // fprintf(stderr, " %u", blknum);
       s = bkp_write(vol_fd, blkbuf, volbuf->block_size);// write out
       copied = 1;
     }
@@ -1889,7 +1953,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     if (s < 0) goto ErrOut;			// return on error
 
     nwritten += copied;
-    if (0 == nwritten % 1000)
+    if (0 == (nwritten % 1000))
     { fprintf(stderr, "-I-RESTORE: #%u...\r\n", nwritten);
       fflush(stderr);
     }
@@ -1918,3 +1982,5 @@ ErrOut:
   fflush(stderr);
   return s;
 }
+
+

@@ -752,7 +752,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "backup_volumes\0", 15) == 0))
       { j = cstringtoi(data);
-	if ((j < 0) || (j > 131071)) return -ERRM28;
+	if ((j < 0) || (j > 65535)) return -ERRM28;
         systab->bkpvolmask = j;
 	return 0;				// and exit
       }
