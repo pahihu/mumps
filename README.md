@@ -6,7 +6,7 @@ The master branch gets only bug fixes.
 
 If you are looking for speed, additional MUMPS commands and functions, 
 object-oriented syntactic sugar, multiple volume sets, remote volume
-sets use the [**development**](https://github.com/pahihu/mumps/tree/development) branch.
+sets, online backup use the [**development**](https://github.com/pahihu/mumps/tree/development) branch.
 
 Changes:
 
