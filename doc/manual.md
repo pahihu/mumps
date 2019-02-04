@@ -394,7 +394,9 @@ Works like `$Q[UERY]`, but it sets *target* to the value of
 `$ZINCR[EMENT](glvn[,expr])`
 
 Atomically increments *glvn* by 1, or with the value of
-*expr*.
+*expr*. If *glvn* is a global and *expr* is `SEQ`, then 
+allocates a sequence of numbers to the MUMPS process and
+gives back one at a time.
 
 ---
 

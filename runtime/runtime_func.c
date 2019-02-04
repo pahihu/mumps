@@ -43,6 +43,7 @@
 #include <limits.h>                     	// for LONG_MAX etc
 #include <math.h>
 #include <stdarg.h>                             // for va macros
+#include <sys/time.h>				// for gettimeofday()
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"                              // standard errors
@@ -2019,19 +2020,11 @@ short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
 //***********************************************************************
 // $ZINCR[EMENT](variable[,expr])
 //
-short Dzincrement1(cstring *ret, mvar *var)
-{ u_char tmp[8];				// some space
-  cstring *cptr;				// for the call
-  cptr = (cstring *) tmp;			// point at the space
-  cptr->len = 1;				// zero length
-  cptr->buf[0] = '1';				// default one
-  cptr->buf[1] = '\0';				// null terminated
-  return Dzincrement2(ret, var, cptr); 	        // do it below
-}
 
 short Copy2local(mvar *var, char *rtn);		// in db_main.c
 
-short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
+static
+short Dzincrement2P(cstring *ret, mvar *var, cstring *expr)
 { short s;					// for return values 
   u_char num[128],temp[128];
   u_char *p;
@@ -2100,6 +2093,62 @@ errout:
   if (curr_lock)
     SemOp( SEM_GLOBAL, -curr_lock);
   return s;
+}
+
+short Dzincrement1(cstring *ret, mvar *var)
+{ u_char tmp[8];				// some space
+  cstring *cptr;				// for the call
+  cptr = (cstring *) tmp;			// point at the space
+  cptr->len = 1;				// zero length
+  cptr->buf[0] = '1';				// default one
+  cptr->buf[1] = '\0';				// null terminated
+  return Dzincrement2P(ret, var, cptr); 	// do it below
+}
+
+u_long getusec(void)
+{ struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (u_long) tv.tv_usec + 			// ~ from yr 2000
+	 1000000L * (u_long) (tv.tv_sec - 946080000L);
+}
+
+short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
+{ int is_seq;					// SEQUENCE flag
+  int docopy;					// do a copy ?
+  cstring cstr;					// temporary cstring
+  int lenseq;					// length of SEQ reuested
+  short s;					// status flag
+  u_long now;					// current time stamp
+
+  is_seq = 0 == strncasecmp((char *) &expr->buf[0], "seq\0", 4);
+  if ((var->uci != UCI_IS_LOCALVAR) && 		// not local
+      (var->name.var_cu[0] != '$') &&		//   AND not ssvn
+      is_seq)					//   AND SEQUENCE?
+  { docopy = 1;					// assume no copy
+    if (0 == partab.lenseq)			// empty local SEQ?
+    { now = getusec();				// current time
+      lenseq = 2;				// get 2 IDs
+      if (partab.lastseq)			// got SEQ before?
+      { lenseq = 10000 / (now - partab.lastseq);
+        if (lenseq < 2) lenseq = 2;
+      }
+      cstr.len = sprintf((char *) &cstr.buf[0], "%d", lenseq);
+      s = Dzincrement2P(ret, var, &cstr);	// increment counter
+      if (s < 0) return s;			// failed?, return error
+      partab.lenseq = lenseq;			// set SEQ length
+						// calc. current value
+      partab.curseq = atoll((char *) &ret->buf[0]) - lenseq;
+      partab.lastseq = now;			// save time stamp
+      docopy = 0;
+    }
+    if (docopy)
+      bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
+    partab.lenseq--;				//   decr. count
+    return sprintf((char *) &ret->buf[0],	// return current SEQ value
+		   "%lld", 
+		   partab.curseq++);
+  }
+  return Dzincrement2P(ret, var, expr);
 }
 
 //***********************************************************************

@@ -689,6 +689,9 @@ typedef struct __PACKED__ PARTAB                // define the partition table
   cstring **lp;                                 // start of the line (ditto)
   int *ln;                                      // line num for $&%ROUCHK()
   mvar src_var;                                 // temp space for src mvar
+  u_long lastseq;				// last SEQUENCE time
+  int lenseq;					// SEQUENCE length
+  long long curseq;				// current SEQUENCE value
 }partab_struct;        				// end of partab type
 						// sizeof(partab) = 339
 

@@ -244,6 +244,8 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.varlst = NULL;				// used by compiler
 
   partab.vol_fds[0] = hnd->dbfd;		// make sure fd is right
+  partab.lenseq = 0;				// no SEQUENCE
+  partab.lastseq = 0;
 
   ST_Init();					// initialize symbol table
 

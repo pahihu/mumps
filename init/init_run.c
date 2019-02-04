@@ -258,6 +258,8 @@ start:
   }
 
   partab.vol_fds[0] = dbfd;			// make sure fd is right
+  partab.lenseq = 0;				// no SEQUENCE
+  partab.lastseq = 0;
 
   ST_Init();					// initialize symbol table
 
