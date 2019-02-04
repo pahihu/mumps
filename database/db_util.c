@@ -1405,7 +1405,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   off_t offs;					// file offset
   int old_volnum;				// old volnum
 
-  if ((typ < 0) || (typ > 2))
+  if ((typ < BKP_FULL) || (typ > BKPLAST))
   { fprintf(stderr,"-E-BACKUP: unknown backup type (%d)\r\n", typ); 
     fflush(stderr);
     return -(ERRZ74 + ERRMLAST);
@@ -1637,7 +1637,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 		    vollab->block_size);
               SemOp( SEM_GLOBAL, -READ);
 
-	      dowrite = (0 == typ) ||		// FULL backup ?
+	      dowrite = (BKP_FULL == typ) ||	// FULL backup ?
 		(vollab->bkprevno == blkbuf->mem.bkprevno); // OR match BRN ?
 	      if (dowrite)
               { blkbuf->block = VOLBLK(j,blknum); // set blknum
@@ -1696,7 +1696,7 @@ ErrOut:
     systab->vol[vol]->bkprunning = 0;		// clear backup state
     systab->vol[vol]->writelock = 0;		// enable write
     if (0 == s)
-    { if ((0 == typ) || (2 == typ))		// FULL or SERIAL?
+    { if ((BKP_FULL == typ) || (BKP_SERIAL == typ))// FULL or SERIAL?
       { vollab->bkprevno++;			//   increment BRN
         systab->vol[vol]->map_dirty_flag |= VOLLAB_DIRTY;// mark LABEL blk dirty
       }
@@ -1785,6 +1785,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   int vol;					// backup volume number
   u_int blknum;					// block number
   int block_sizes[MAX_VOL];			// volume block sizes
+  int new_vol;					// new volume file flag
 
   bkp_fd = 0;					// init vars
   vol_fd = 0;
@@ -1834,7 +1835,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     goto ErrOut;
   }
 
-  if ((bheader.type < 0) || (bheader.type > 2))
+  if ((bheader.type < BKP_FULL) || (bheader.type > BKPLAST))
   { fprintf(stderr,"-E-RESTORE: unknown backup type (%d)\r\n", bheader.type); 
     fflush(stderr);
     s = -(ERRZ74 + ERRMLAST);
@@ -1896,13 +1897,23 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   fprintf(stderr,"-I-RESTORE: opening volume file %s...\r\n", vol_path);
   fflush(stderr);
   // NB. target volume may exists, if not create it
+  new_vol = 0;					// assume volume exists
   vol_fd = open(vol_path, O_WRONLY);		// open volume file
   if (vol_fd < 0)				// failed?
-  { fprintf(stderr,"-W-RESTORE: creating volume file %s...\r\n", vol_path);
-    fflush(stderr);
-    vol_fd = open(vol_path, O_WRONLY | O_CREAT, 0644);// create it
-    if (vol_fd < 0)				// failed?
-    { s = -(errno + ERRMLAST + ERRZLAST);	//   return error
+  { if (BKP_FULL == bheader.type)		// FULL backup ?
+    { fprintf(stderr,"-W-RESTORE: creating volume file %s...\r\n", vol_path);
+      fflush(stderr);
+      vol_fd = open(vol_path, O_WRONLY | O_CREAT, 0644);// create it
+      if (vol_fd < 0)				// failed?
+      { s = -(errno + ERRMLAST + ERRZLAST);	//   return error
+        goto ErrOut;
+      }
+      new_vol = 1;				// new volume file
+    }
+    else
+    { fprintf(stderr, "-E-RESTORE: volume file not found\r\n");
+      fflush(stderr);
+      s = -(errno + ERRMLAST + ERRZLAST);
       goto ErrOut;
     }
   }
@@ -1918,12 +1929,14 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
 
   // DB_DumpHeader((u_char *) volbuf, volbuf->header_bytes);
 
-  fprintf(stderr, "-I-RESTORE: expanding volume...\r\n");
-  fflush(stderr);
-  bzero(blkbuf, volbuf->block_size);
-  for (i = 0; i < volbuf->max_block; i++)
-  { s = bkp_write(vol_fd, blkbuf, volbuf->block_size);
-    if (s < 0) goto ErrOut;
+  if (new_vol)					// expand if new volume file
+  { fprintf(stderr, "-I-RESTORE: expanding volume...\r\n");
+    fflush(stderr);
+    bzero(blkbuf, volbuf->block_size);
+    for (i = 0; i < volbuf->max_block; i++)
+    { s = bkp_write(vol_fd, blkbuf, volbuf->block_size);
+      if (s < 0) goto ErrOut;
+    }
   }
 
   fprintf(stderr, "-I-RESTORE: restoring blocks...\r\n");

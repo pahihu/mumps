@@ -739,11 +739,11 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (strncasecmp( (char *) subs[0]->buf, "backup_type\0", 12) == 0))
       { j = -1;
         if (strncasecmp((char *) data->buf, "full\0", 5) == 0)
-          j = 0;
+          j = BKP_FULL;
         else if (strncasecmp((char *) data->buf, "cumulative\0", 11) == 0)
-          j = 1;
+          j = BKP_CUMULATIVE;
         else if (strncasecmp((char *) data->buf, "serial\0", 7) == 0)
-          j = 2;
+          j = BKP_SERIAL;
 	if (j < 0) return -(ERRZ64 + ERRMLAST);
         systab->bkptyp = j;
 	return 0;				// and exit

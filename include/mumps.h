@@ -240,6 +240,11 @@
 #define VOL_PROTECT		128		// VOL is protected
 #define VOL_RDONLY		64		// VOL is read-only
 
+#define BKP_FULL		0		// FULL backup
+#define BKP_CUMULATIVE		1		// CUMULATIVE backup
+#define BKP_SERIAL		2		// SERIAL backup
+#define BKPLAST			BKP_SERIAL
+
 // systab->historic bit flag meanings
 #define	HISTORIC_EOK		1               // E syntax flag
 #define HISTORIC_OFFOK		2               // GO/DO with offset OK

@@ -1356,8 +1356,8 @@ void do_queueflush(int dodelay)
 
   if (dodelay)
   { inter_add(&systab->delaywt, 1);		// delay WRITEs
-    MEM_BARRIER;
   }
+  MEM_BARRIER;
 
   ASSERT(0 != systab->delaywt);                 // only with delay WRITEs
   ASSERT(0 == curr_lock);			// no DB locks
