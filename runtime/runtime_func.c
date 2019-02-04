@@ -2112,6 +2112,11 @@ u_long getusec(void)
 	 1000000L * (u_long) (tv.tv_sec - 946080000L);
 }
 
+void mvar2simple(mvar *var, simple_mvar *svar)
+{ bcopy(&var->name, &svar->name, sizeof(var->name) + 2);
+  bcopy(&var->slen, &svar->slen, var->slen + 1);
+}
+
 short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
 { int is_seq;					// SEQUENCE flag
   int docopy;					// do a copy ?
@@ -2119,13 +2124,17 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
   int lenseq;					// length of SEQ reuested
   short s;					// status flag
   u_long now;					// current time stamp
+  simple_mvar ref;
 
   is_seq = 0 == strncasecmp((char *) &expr->buf[0], "seq\0", 4);
   if ((var->uci != UCI_IS_LOCALVAR) && 		// not local
       (var->name.var_cu[0] != '$') &&		//   AND not ssvn
       is_seq)					//   AND SEQUENCE?
   { docopy = 1;					// assume no copy
-    if (0 == partab.lenseq)			// empty local SEQ?
+    mvar2simple(var, &ref);			// save var
+    if ((0 == partab.lenseq) ||			// empty local SEQ?
+	(ref.slen != partab.seqref.slen) ||	// OR different subscript len
+        bcmp(&ref, &partab.seqref, SIMPLE_MVAR_SIZE + ref.slen)) // OR diff. SEQ
     { now = getusec();				// current time
       lenseq = 2;				// get 2 IDs
       if (partab.lastseq)			// got SEQ before?
@@ -2137,8 +2146,9 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
       if (s < 0) return s;			// failed?, return error
       partab.lenseq = lenseq;			// set SEQ length
 						// calc. current value
-      partab.curseq = atoll((char *) &ret->buf[0]) - lenseq;
+      partab.curseq  = atoll((char *) &ret->buf[0]) - lenseq;
       partab.lastseq = now;			// save time stamp
+      partab.seqref  = ref;			// save GVN ref
       docopy = 0;
     }
     if (docopy)

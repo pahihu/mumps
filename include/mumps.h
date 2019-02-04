@@ -319,13 +319,22 @@ typedef struct __attribute__ ((__packed__)) MVAR // subscripted MUMPS var
   u_char key[256];                              // the subs (key) - allow for 0
 } mvar;                                         // end MUMPS subs var
 
+typedef struct __attribute__ ((__packed__)) SIMPLE_MVAR
+{ var_u name;                                   // variable name
+  u_char volset;                                // volset number
+  u_char uci;                                   // uci# -> 255 = local var
+  u_char slen;                                  // subs (key) length
+  u_char key[256];                              // the subs (key) - allow for 0
+} simple_mvar;
+
+#define SIMPLE_MVAR_SIZE (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
+
 #ifdef MV1_SUBSPOS
-#define MVAR_SIZE    (sizeof(var_u) + 3*sizeof(u_char) + (MAX_SUBSCRIPTS + 1 + 1)*sizeof(u_char) + 2*sizeof(u_char))
+#define MVAR_SIZE    	(SIMPLE_MVAR_SIZE + sizeof(u_char)*(MAX_SUBSCRIPTS+1+1))
 #else
-#define MVAR_SIZE    (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
+#define MVAR_SIZE	SIMPLE_MVAR_SIZE
 #endif
 						// sizeof(mvar) = 267
-
 //** common memory structures ***/
 
 typedef struct __attribute__ ((__packed__)) UCI_TAB
@@ -692,6 +701,7 @@ typedef struct __PACKED__ PARTAB                // define the partition table
   u_long lastseq;				// last SEQUENCE time
   int lenseq;					// SEQUENCE length
   long long curseq;				// current SEQUENCE value
+  simple_mvar seqref;				// last SEQUENCE ref
 }partab_struct;        				// end of partab type
 						// sizeof(partab) = 339
 
