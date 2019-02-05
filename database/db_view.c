@@ -121,6 +121,7 @@ short DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
   if (ptr->dirty == NULL)				// check dirty ptr
   { ptr->dirty = ptr;					// set if reqd
     blk[level] = ptr;					// ditto
+    TXSET(blk[level]);
     Queit();						// do this
   }
   if (curr_lock)

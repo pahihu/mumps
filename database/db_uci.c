@@ -110,6 +110,7 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
     *(u_int *) record = blk[level]->block;		// point at self
     *(u_int *) &(record->buf[2]) = 0;			// zero flags
     blk[level]->dirty = blk[level];			// setup for write
+    TXSET(blk[level]);
     Queit();						// que for write
   }							// end new block code
   //systab->vol[vol-1]->vollab->uci[uci-1].name.var_qu

@@ -129,6 +129,7 @@ short TrySimpleSet(short s, cstring *data)
       }
       if (blk[level]->dirty == (gbd *) 1)	        // if reserved
       { blk[level]->dirty = blk[level];			// point at self
+	TXSET(blk[level]);
         Queit();				        // que for write
       }
       return data->len;		                        // and return length
@@ -144,6 +145,7 @@ short TrySimpleSet(short s, cstring *data)
       bcopy(data->buf, record->buf, data->len);		// and the data
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
+	TXSET(blk[level]);
         Queit();					// que for write
       }
       return data->len;					// and return length
@@ -174,7 +176,9 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   short rc;						// replication status
 
   if (!curr_lock)
-    while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  { while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+    TX_NEXT;
+  }
 
   trysimple = 0;
   if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0)// if ^$G
@@ -337,10 +341,13 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// terminate list
+      TXSET(blk[level]);
       blk[level + 1]->dirty = blk[level];		// point new here
+      TXSET(blk[level + 1]);
     }
     else
     { blk[level + 1]->dirty = blk[level + 1];		// point new at self
+      TXSET(blk[level + 1]);
     }
     level++;						// back to new block
     idx = (u_short *) blk[level]->mem;			// point at the block
@@ -381,6 +388,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       ((u_int *) record)[1] |= GL_TOP_DEFINED;		// mark defined
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
+	TXSET(blk[level]);
 	Queit();					// que for write
       }
       partab.jobtab->last_block_flags[volnum - 1] |=
@@ -407,6 +415,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       }
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
+	TXSET(blk[level]);
 	Queit();					// que for write
       }
 
@@ -431,6 +440,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       bcopy(data->buf, record->buf, data->len);		// and the data
       if (blk[level]->dirty == (gbd *) 1)		// if reserved
       { blk[level]->dirty = blk[level];			// point at self
+	TXSET(blk[level]);
         Queit();					// que for write
       }
 
@@ -464,6 +474,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     s = Insert(&db_var.slen, data);			// try it
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// point at self
+      TXSET(blk[level]);
       Queit();						// que for write
     }
     if (s >= 0)						// if that worked
@@ -746,9 +757,11 @@ fix_keys:
     if (blk[i]->dirty == (gbd *) 2)			// if changed
     { if (blk[level] == NULL)				// list empty
       { blk[i]->dirty = blk[i];				// point at self
+	TXSET(blk[i]);
       }
       else
       { blk[i]->dirty = blk[level];			// else point at prev
+	TXSET(blk[i]);
       }
       blk[level] = blk[i];				// remember this one
     }
@@ -763,9 +776,11 @@ fix_keys:
     if (cblk[i]->dirty == (gbd *) 1)			// not queued
     { if (blk[level] == NULL)				// list empty
       { cblk[i]->dirty = cblk[i];			// point at self
+	TXSET(cblk[i]);
       }
       else
       { cblk[i]->dirty = blk[level];			// else point at prev
+	TXSET(cblk[i]);
       }
       blk[level] = cblk[i];				// remember this one
     }

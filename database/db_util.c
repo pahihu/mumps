@@ -671,6 +671,7 @@ short Compress1()
       *( (u_int *) record) = blk[2]->block;             // new top level blk
       if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
+	TXSET(blk[level]);
         Queit();                                        // and queue it
       }
       // Now, we totally release the block at level 1 for this global
@@ -750,9 +751,11 @@ short Compress1()
       if (blk[i]->dirty == (gbd *) 2)                   // if changed
       { if (blk[level] == NULL)                         // list empty
         { blk[i]->dirty = blk[i];                       // point at self
+	  TXSET(blk[i]);
         }
         else
         { blk[i]->dirty = blk[level];                   // else point at prev
+	  TXSET(blk[i]);
         }
         blk[level] = blk[i];                            // remember this one
       }
@@ -2017,6 +2020,34 @@ ErrOut:
   }
   fflush(stderr);
   return s;
+}
+
+
+void TX_Set(gbd *ptr)
+{ u_int64 txid;
+
+  ASSERT((0 < volnum) && (volnum < MAX_VOL + 1));
+  ASSERT(NULL != systab->vol[volnum - 1]->vollab);
+  ASSERT(0 == systab->vol[volnum - 1]->local_name[0]);
+  ASSERT(WRITE == curr_lock);
+
+  MEM_BARRIER;
+  txid = systab->vol[volnum - 1]->vollab->txid;
+  ptr->mem->blkver_lo = (0x0FFFFFFFFUL & txid);
+  ptr->mem->blkver_hi = (0x0FFFFFFFFUL & (txid >> 32));
+}
+
+
+void TX_Next(void)
+{ 
+  ASSERT((0 < volnum) && (volnum < MAX_VOL + 1));
+  ASSERT(NULL != systab->vol[volnum - 1]->vollab);
+  ASSERT(0 == systab->vol[volnum - 1]->local_name[0]);
+  ASSERT(WRITE == curr_lock);
+
+  systab->vol[volnum - 1]->vollab->txid++;
+  systab->vol[volnum - 1]->map_dirty_flag |= VOLLAB_DIRTY;
+  MEM_BARRIER;
 }
 
 

@@ -112,6 +112,7 @@ start:
   goto start;
 
 cont:
+  TX_NEXT;
   level = 0;						// reset level
   s = Get_data(0);					// attempt to get it
   if ((s < 0) && (s != -ERRM7))				// error, not undef
@@ -166,6 +167,7 @@ FullGlobalKill:
 
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
+      TXSET(blk[level]);
       Queit();						// and que for write
     }
     if (KILL_ALL == what)
@@ -181,6 +183,7 @@ FullGlobalKill:
       record->len = 0;			                // mark empty
       if (blk[level]->dirty == (gbd *) 1)
       { blk[level]->dirty = blk[level];
+	TXSET(blk[level]);
         Queit();
       }
       level = save_level;
@@ -266,6 +269,7 @@ FullGlobalKill:
     }
     if (blk[level]->dirty == (gbd *) 1)			// if reserved
     { blk[level]->dirty = blk[level];			// set it
+      TXSET(blk[level]);
       Queit();						// and que for write
     }
 
@@ -465,9 +469,11 @@ FullGlobalKill:
     if (blk[i]->dirty == (gbd *) 1)			// reserved?
     { if (blk[level] == NULL)				// if list not started
       { blk[i]->dirty = blk[i];				// point at self
+	TXSET(blk[i]);
       }							// end start of list
       else						// just add it in
       { blk[i]->dirty = blk[level];			// point at previous
+	TXSET(blk[i]);
       }
       blk[level] = blk[i];				// remember this one
     }
@@ -478,9 +484,11 @@ FullGlobalKill:
       if (rblk[i]->dirty == (gbd *) 1)			// reserved?
       { if (blk[level] == NULL)				// if list not started
         { rblk[i]->dirty = rblk[i];			// point at self
+	  TXSET(rblk[i]);
         }						// end start of list
         else						// just add it in
         { rblk[i]->dirty = blk[level];			// point at previous
+	  TXSET(rblk[i]);
         }
         blk[level] = rblk[i];				// remember this one
       }

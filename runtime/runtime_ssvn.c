@@ -542,6 +542,9 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	}
 	if (strncasecmp((char *)subs[2]->buf,"backup_revision_number\0",23)==0)
 	  return itocstring(buf, systab->vol[i]->vollab->bkprevno);
+        if (strncasecmp((char *)subs[2]->buf, "txid\0", 5)==0)
+        { return sprintf((char *)buf, "%llu", systab->vol[i]->vollab->txid);
+        }
 	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_size\0", 19) == 0)
 	  return itocstring(buf, systab->vol[i]->gmb);
 	if (strncasecmp( (char *) subs[2]->buf,"global_buffer_sync\0", 19) == 0)

@@ -134,6 +134,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     blk[level]->dirty = blk[level];			// hook to self
     if (blk[0]->dirty == (gbd *) 1)			// if not queued
     { blk[0]->dirty = blk[level];			// hook it
+      TXSET(blk[0]);
       level = 0;					// and clear level
     }
     Queit();						// que to write
@@ -162,6 +163,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   { 
     if (blk[level]->dirty == (gbd *) 1)
     { blk[level]->dirty = blk[level];			// hook to self
+      TXSET(blk[level]);
       Queit();						// and que
     }
     level--;						// backup a level
@@ -350,9 +352,11 @@ fix_keys:
     if (blk[i]->dirty == (gbd *) 2)			// if changed
     { if (blk[level] == NULL)				// list empty
       { blk[i]->dirty = blk[i];				// point at self
+	TXSET(blk[i]);
       }
       else
       { blk[i]->dirty = blk[level];			// else point at prev
+	TXSET(blk[i]);
       }
       blk[level] = blk[i];				// remember this one
     }
@@ -368,9 +372,11 @@ fix_keys:
     if (cblk[i]->dirty == (gbd *) 1)			// not queued
     { if (blk[level] == NULL)				// list empty
       { cblk[i]->dirty = cblk[i];			// point at self
+	TXSET(cblk[i]);
       }
       else
       { cblk[i]->dirty = blk[level];			// else point at prev
+	TXSET(cblk[i]);
       }
       blk[level] = cblk[i];				// remember this one
     }

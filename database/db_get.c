@@ -109,13 +109,13 @@ short Get_data(int dir)					// locate a record
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
         { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
-          if ((X_NE(ptr->mem->global, 
+Found:    if ((X_NE(ptr->mem->global, 
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
 	      (ptr->last_accessed == (time_t) 0))	// not available
           { break;					// exit the loop
 	  }
-Found:    if (LB_FILL == gbd_local_state)
+	  if (LB_FILL == gbd_local_state)
           { LB_AddBlock(ptr);
           }
 	  level = LAST_USED_LEVEL;			// use this level

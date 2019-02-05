@@ -322,6 +322,11 @@ short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
 #define CBN_ALLOCATED   2
 int  DirtyQ_Len();                                      // length of dirtyQ
 
+void TX_Set(gbd *ptr);
+void TX_Next(void);
+#define TXSET(x)	TX_Set(x)
+#define TX_NEXT		TX_Next()
+
 //*****************************************************************************
 
 

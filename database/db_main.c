@@ -370,6 +370,9 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     return -(ERRZLAST+ERRZ11);				// complain if failed
   }
 
+  if (has_wrlock)					// has WRITE lock?
+  { TX_NEXT;
+  }
   s = Set_data(data, has_wrlock);		        // do the set
 
   if (curr_lock)					// if locked
@@ -559,6 +562,7 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
       }
     }
   }
+
   s = Kill_data_ex(what);				// do the kill
 
   if (curr_lock)					// if locked
