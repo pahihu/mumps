@@ -696,22 +696,27 @@ typedef struct _lck_add {
 #define current	  pctx->_current
 
 static
-int failed(lck_add_ctx *pctx)                 // common code
-{ done = count + 1;                           // begin again from scratch
+int failed(lck_add_ctx *pctx)                 	// common code
+{ u_char lvol, luci;				// lock VOL,UCI
+  done = count + 1;                           	// begin again from scratch
 
-  if (to == 0)                                // if no timeout
-      tryagain = 0;                           // flag as if timeout expired
+  if (to == 0)                                	// if no timeout
+      tryagain = 0;                           	// flag as if timeout expired
 
   if (to > 0)                                   // if timeout value specified
-  // { currtime = time((time_t *) NULL);         // get current time
-  { currtime = MTIME(0);                      // get current time
+  { currtime = MTIME(0);                      	// get current time
     if (strttime + to < currtime) tryagain = 0; // flag if time expired
-  }                                           // end if timeout specified
+  }                                           	// end if timeout specified
 
   if (tryagain == 1)
   { if (0 == (pass & 3))
-      systab->vol[current->buf[0]-1]->stats.lckwait++; // update stats
-    x = SemOp(SEM_LOCK, systab->maxjob);      // unlock SEM_LOCK
+    { lvol = current->buf[0];			// get lock VOL,UCI
+      luci = current->buf[1];
+      if (luci != UCI_IS_LOCALVAR)		// check if local var
+      { systab->vol[lvol-1]->stats.lckwait++; 	// update stats
+      }
+    }
+    x = SemOp(SEM_LOCK, systab->maxjob);      	// unlock SEM_LOCK
     if (pass & 3)
       SchedYield();
     else
@@ -721,7 +726,7 @@ int failed(lck_add_ctx *pctx)                 // common code
   }
         
   if (tryagain == 0)
-      partab.jobtab->test = 0;                // flag failure to lock
+      partab.jobtab->test = 0;                	// flag failure to lock
 
   if (partab.jobtab->attention)
   { if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP))
@@ -780,8 +785,8 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
        
   while ((done < count) && (tryagain == 0))     // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
-    reqd = sizeof(short)*3 + sizeof(int)*2 + sizeof(locktab *) + current->len +
-                sizeof(short);
+    reqd = sizeof(short)*2 + sizeof(int)*2 + sizeof(locktab *) + current->len;
+                
     if (reqd & 7) reqd = (reqd & ~7) + 8;       // round up to 8 byte boundary
     lptr = systab->lockhead;                    // start at first locktab
     plptr = NULL;                               // init previous pointer

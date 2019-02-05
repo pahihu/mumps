@@ -594,7 +594,6 @@ typedef struct __PACKED__ LOCKTAB               // internal lock tables
   int job;                                      // int job (-1 = free)
   short lock_count;                             // how many times locked by job
   short byte_count;                             // size of following reference
-  short dummy1;
   u_char vol;                                   // vol number
   u_char uci;                                   // uci number (255 = local)
   var_u name;                                   // var name

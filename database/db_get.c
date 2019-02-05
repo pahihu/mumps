@@ -127,7 +127,7 @@ Found:    if (LB_FILL == gbd_local_state)
 	       (Index > LOW_INDEX)))			// not at begining
 	  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastok);
                                                         // count success
-            if (LB_ENABLED != gbd_local_state)
+            if (LB_DISABLED == gbd_local_state)
 	      blk[level]->last_accessed = MTIME(0);	// accessed
 #ifdef MV1_REFD
             REFD_MARK(blk[level]);
