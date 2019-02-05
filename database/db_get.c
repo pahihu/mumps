@@ -99,6 +99,12 @@ short Get_data(int dir)					// locate a record
         ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
+      if (LB_ENABLED == gbd_local_state)
+      { ptr = LB_GetBlock(i);
+        if (NULL == ptr)
+          return -(ERRZ94 + ERRMLAST);
+        goto Found;
+      }
       ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
@@ -109,6 +115,9 @@ short Get_data(int dir)					// locate a record
 	      (ptr->last_accessed == (time_t) 0))	// not available
           { break;					// exit the loop
 	  }
+Found:    if (LB_FILL == gbd_local_state)
+          { LB_AddBlock(ptr);
+          }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = ptr;				// point at it
 	  s = Locate(&db_var.slen);			// check for the key
@@ -118,7 +127,8 @@ short Get_data(int dir)					// locate a record
 	       (Index > LOW_INDEX)))			// not at begining
 	  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastok);
                                                         // count success
-	    blk[level]->last_accessed = MTIME(0);	// accessed
+            if (LB_ENABLED != gbd_local_state)
+	      blk[level]->last_accessed = MTIME(0);	// accessed
 #ifdef MV1_REFD
             REFD_MARK(blk[level]);
 #endif

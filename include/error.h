@@ -205,6 +205,7 @@
 #define ERRZ91		91	// Volume is remote
 #define ERRZ92		92	// Volume is protected
 #define ERRZ93		93	// Volume is read-only
+#define ERRZ94		94	// Block not found in local buffer 
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

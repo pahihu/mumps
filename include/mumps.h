@@ -667,6 +667,7 @@ typedef struct __PACKED__ SYSTAB                // system tables
   int bkptyp;					// backup type
   // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
   char rstfile[VOL_FILENAME_MAX];		// file to restore
+  u_int locbufTO;				// local buffer timeout
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256
@@ -681,6 +682,13 @@ extern int sem_id;                              // global semaphore id
 
 //** process memory structures ***/
 //** PARTAB definitions **
+
+#define MAX_LOCBUF	16
+#define MAX_LOCBLK	8192
+
+#define LB_DISABLED	0
+#define LB_ENABLED	1
+#define LB_FILL		2
 
 typedef struct __PACKED__ PARTAB                // define the partition table
 { jobtab_t *jobtab;                             // our jobtab entry
@@ -702,6 +710,9 @@ typedef struct __PACKED__ PARTAB                // define the partition table
   int lenseq;					// SEQUENCE length
   long long curseq;				// current SEQUENCE value
   simple_mvar seqref;				// last SEQUENCE ref
+  u_char *gbd_mem;				// local buffer memory
+  int gbd_nlocal;				// no. of local buffers
+  struct GBD *gbd_local;			// local GBD table
 }partab_struct;        				// end of partab type
 						// sizeof(partab) = 339
 

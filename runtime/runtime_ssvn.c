@@ -430,6 +430,11 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { strcpy((char *) buf, systab->rstfile);
         return strlen((char *) buf);		// return the length
       }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "local_buffer_timeout\0", 21) == 0))
+      { return itocstring(buf,
+      	       (systab->locbufTO)); 		// return the value
+      }
       if (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of vol#
 	if ((!(i < MAX_VOL)) || (i < 0))	// validate it
@@ -799,6 +804,14 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  (strncasecmp( (char *) subs[0]->buf, "zotdata\0", 8) == 0))
       { j = cstringtoi(data);
         systab->ZotData = 0 != j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "local_buffer_timeout\0", 21) == 0))
+      { j = cstringtoi(data);
+	if ((j < 0) || (j > 30000)) return -ERRM28;
+        systab->locbufTO = j;
 	return 0;				// and exit
       }
 

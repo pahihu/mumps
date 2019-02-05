@@ -338,6 +338,7 @@ int INIT_Start( char *file,                     // database
   systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
   for (i = 0; i < 256; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
+  systab->locbufTO = 0;				// disable local buffers
 
   systab->lockstart =				// locktab
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*netjobs));

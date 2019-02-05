@@ -619,6 +619,7 @@ short run(long savasp, long savssp)		// run compiled code
 	break;
 
       case OPHANG:				// hang
+        LB_Clear();				// clear local buffers
 	partab.jobtab->commands++;		// count a command
 	d = cstringtod((cstring *)astk[--asp]); // get the arg
 	if (d < 0.001)				// less than 1ms
@@ -1104,7 +1105,7 @@ short run(long savasp, long savssp)		// run compiled code
 	else
 	{ bcopy( &partab.src_var, &(partab.jobtab->last_ref),
 	    MVAR_SIZE + partab.src_var.slen);     // update naked
-	  s = DB_Get(&partab.src_var, cptr->buf); // do it - global
+	  s = LDB_Get(&partab.src_var, cptr->buf);// do it - global
 	}
         if (s < 0) ERROR(s)			// complain on error
 	cptr->len = s;				// save the length
@@ -2903,6 +2904,7 @@ short run(long savasp, long savssp)		// run compiled code
       case CMLCK:				// LOCK #args()
       case CMLCKP:				// LOCK + #args()
       case CMLCKM:				// LOCK - #args()
+        LB_Clear();				// clear local buffers
 	partab.jobtab->commands++;		// count a command
 	j = cstringtoi((cstring *) astk[--asp]); // get the timeout
 	args = *mumpspc++;			// get arg count

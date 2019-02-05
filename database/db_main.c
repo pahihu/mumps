@@ -72,6 +72,7 @@ int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 int wanna_writing;                                      // 
+int gbd_local_state;					// local buffering
 
 //-----------------------------------------------------------------------------
 // Function: ROU_Process

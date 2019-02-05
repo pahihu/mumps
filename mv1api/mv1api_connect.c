@@ -247,6 +247,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  LB_Init();					// local buffering
   ST_Init();					// initialize symbol table
 
   if ((systab->vol[0]->vollab->journal_available) &&

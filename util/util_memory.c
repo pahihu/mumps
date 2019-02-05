@@ -37,6 +37,7 @@
 #include <stdlib.h>                             // these two
 #include <string.h>                             // for bcopy
 #include <strings.h>
+#include <sys/time.h>				// for gettimeofday()
 #include <sys/types.h>                          // for u_char def
 #include <ctype.h>				// for isdigit
 #include "mumps.h"                              // standard includes
@@ -45,6 +46,7 @@
 #include "compile.h"                            // for rdb def
 #include "symbol.h"                             // for NEW stuff
 #include "dgp.h"				// for DGP stuff
+#include "database.h"				// for database stuff
 
 // ** This function is used in place of bcopy() to trap sstk overflows
 //
@@ -327,6 +329,7 @@ short CleanJob(int job)				// tidy up a job
     }
 #endif
     partab.jobtab = NULL;			// clear jobtab
+    LB_CleanUp();				// clean up local buffers
   }
   bzero(&systab->jobtab[j], sizeof(jobtab_t));	// zot all
   if (job) SemOp( SEM_SYS, systab->maxjob);     // release SYS
@@ -343,3 +346,12 @@ uint32_t FNV1aHash(int n, u_char *buf)          // FNV-1a hash
   }
   return h;
 }
+
+
+u_long GetMicroSec(void)
+{ struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (u_long) tv.tv_usec +                  // ~ from yr 2000
+         1000000L * (u_long) (tv.tv_sec - 946080000L);
+}
+

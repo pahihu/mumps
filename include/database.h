@@ -238,6 +238,9 @@ extern int wanna_writing;
 
 extern int hash_start;					// start searching here
 
+extern int gbd_local_state;				// local buffering
+							// DISABLED/ENABLED/FILL
+
 //**** Function Prototypes*****************************************************
 
 // File: database/db_buffer.c
@@ -274,6 +277,13 @@ short Get_data(int dir);				// get db_var node
 // File: database/db_kill.c
 short Kill_data();					// remove tree
 short Kill_data_ex(int what);				// remove tree,selective
+
+// File: database/db_locbuf.c
+void LB_Init(void);					// init local buffers
+void LB_CleanUp(void);					// release local buffers
+void LB_Clear(void);					// clear local buffers
+gbd *LB_GetBlock(u_int blknum);				// get local block
+void LB_AddBlock(gbd *ptr);				// add GBD to local buf.
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key

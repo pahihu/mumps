@@ -44,6 +44,7 @@ COMOBJS	= 	compile/dollar.o \
 		database/db_ic.o \
 		database/db_kill.o \
 		database/db_locate.o \
+		database/db_locbuf.o \
 		database/db_main.o \
 		database/db_mount.o \
 		database/db_rekey.o \

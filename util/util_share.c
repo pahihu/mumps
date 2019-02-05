@@ -173,6 +173,13 @@ short SemOpEx(int sem_num, int numb,
                   file, line);
     panic(msg);
   }
+  
+  if ((SEM_GLOBAL == sem_num) &&		// GLOBAL lock?
+      (LB_ENABLED == gbd_local_state))		//   AND local buffer enabled?
+  { curr_lock += numb;				// adjust curr_lock
+    return 0;					// do nothing, read local data
+  }
+
   for (i = 0; i < 5; i++)                       // try this many times
   { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
     if ((SEM_GLOBAL == sem_num) && (0 < numb))

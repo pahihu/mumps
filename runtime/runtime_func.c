@@ -118,7 +118,7 @@ short Ddata2(u_char *ret_buffer, mvar *var, mvar *target)
   }
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-    ret = DB_DataEx(var, ret_buffer, dat);      // else it's global
+    ret = LDB_DataEx(var, ret_buffer, dat);     // else it's global
   }
   if (ret < 0)
     return ret;
@@ -763,7 +763,7 @@ short Dget2(u_char *ret_buffer, mvar *var, cstring *expr)
   }
   else						// for a global var
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
-    s = DB_Get(var, ret_buffer);		// attempt to get the data
+    s = LDB_Get(var, ret_buffer);		// attempt to get the data
     if (s >= 0) return s;			// if we got data, return it
     if (s == -(ERRM7)) s = 0;			// flag undefined global var
   }
@@ -1044,7 +1044,7 @@ short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-    ret = DB_OrderEx(var, ret_buffer, realdir, dat);// else it's global
+    ret = LDB_OrderEx(var, ret_buffer, realdir, dat);// else it's global
   }
   if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)
@@ -1171,7 +1171,7 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-    ret = DB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
+    ret = LDB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
   }
   if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)
@@ -2105,13 +2105,6 @@ short Dzincrement1(cstring *ret, mvar *var)
   return Dzincrement2P(ret, var, cptr); 	// do it below
 }
 
-u_long getusec(void)
-{ struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (u_long) tv.tv_usec + 			// ~ from yr 2000
-	 1000000L * (u_long) (tv.tv_sec - 946080000L);
-}
-
 void mvar2simple(mvar *var, simple_mvar *svar)
 { bcopy(&var->name, &svar->name, sizeof(var->name) + 2);
   bcopy(&var->slen, &svar->slen, var->slen + 1);
@@ -2135,7 +2128,7 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
     if ((0 == partab.lenseq) ||			// empty local SEQ?
 	(ref.slen != partab.seqref.slen) ||	// OR different subscript len
         bcmp(&ref, &partab.seqref, SIMPLE_MVAR_SIZE + ref.slen)) // OR diff. SEQ
-    { now = getusec();				// current time
+    { now = GetMicroSec();			// current time stamp
       lenseq = 2;				// get 2 IDs
       if (partab.lastseq)			// got SEQ before?
       { lenseq = 10000 / (now - partab.lastseq);

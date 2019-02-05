@@ -347,6 +347,13 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
   }
 
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
+  if (LB_ENABLED == gbd_local_state)			// local buffer enabled?
+  { ptr = LB_GetBlock(blknum);				//   search block
+    if (NULL == ptr)					// not found?
+      return -(ERRZ94 + ERRMLAST);			//   return error
+    blk[level] = ptr;					// save local block
+    goto exitP;
+  }
   ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == blknum)				// found it?
@@ -495,6 +502,9 @@ unlocked:
   }
   REFD_TYPED_INIT(blk[level]);
 exit:
+  if (LB_FILL == gbd_local_state)			// local buffer fill?
+  { LB_AddBlock(blk[level]);				//   add to local buffer
+  }
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   // if ((writing) && (blk[level]->dirty == NULL))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
@@ -511,6 +521,7 @@ exit:
   { REFD_MARK(blk[level]);
   }
 #endif
+exitP:
   MEM_BARRIER;
   Index = LOW_INDEX;					// first one
   idx = (u_short *) blk[level]->mem;			// point at the block

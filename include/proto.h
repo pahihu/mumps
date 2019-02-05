@@ -139,6 +139,21 @@ short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
 
+// Local buffer prototypes
+short LDB_Get(mvar *var, u_char *buf);            // get global data
+short LDB_GetEx(mvar *var, u_char *buf,		  // get glb data
+		int wrlock, int old_stat);
+short LDB_Data(mvar *var, u_char *buf);           // get $DATA()
+short LDB_DataEx(mvar *var, u_char *buf,          // get $DATA() and value
+		cstring *dat);
+short LDB_Order(mvar *var, u_char *buf, int dir); // get next subscript
+short LDB_OrderEx(mvar *var, u_char *buf,         // get next subs. and value
+		int dir, cstring *dat);
+short LDB_Query(mvar *var, u_char *buf,           // get next key
+		int dir, int docvt); 
+short LDB_QueryEx(mvar *var, u_char *buf,         // get next key and value
+                int dir, int docvt, cstring *dat);
+
 //****************************************************************************
 // Sequential IO
 //
@@ -393,6 +408,7 @@ void Dump_lt();					// dump used/free lockspace
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
                         u_char *str);           // locn of dest string
 short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
+u_long GetMicroSec(void);			// current microsec time
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time

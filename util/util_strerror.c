@@ -206,6 +206,7 @@ static struct
   {ERRZ91+ERRMLAST,	"Volume is remote"},
   {ERRZ92+ERRMLAST,	"Volume is protected"},
   {ERRZ93+ERRMLAST,	"Volume is read-only"},
+  {ERRZ94+ERRMLAST,	"Block not found in local buffer"},
   {0,         NULL}
 };                                                      // merrtab[]
 

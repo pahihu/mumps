@@ -261,6 +261,8 @@ start:
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  LB_Init();					// init local buffers
+
   ST_Init();					// initialize symbol table
 
   if ((systab->vol[0]->vollab->journal_available) &&
