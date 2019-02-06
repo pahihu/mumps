@@ -337,6 +337,8 @@ short CleanJob(int job)				// tidy up a job
 }
 
 
+// Calculate the FNV1-a hash value of the buffer.
+//
 uint32_t FNV1aHash(int n, u_char *buf)          // FNV-1a hash
 { uint32_t h = 2166136261UL;                    
   int i;
@@ -348,10 +350,13 @@ uint32_t FNV1aHash(int n, u_char *buf)          // FNV-1a hash
 }
 
 
-u_long GetMicroSec(void)
+// GetMicroSec returns the current microseconds timestamp from
+// year 2000 (approximately).
+//
+usec_t GetMicroSec(void)
 { struct timeval tv;
   gettimeofday(&tv, NULL);
-  return (u_long) tv.tv_usec +                  // ~ from yr 2000
-         1000000L * (u_long) (tv.tv_sec - 946080000L);
+  return (usec_t) tv.tv_usec +                  // ~ from yr 2000
+         1000000LL * (usec_t) (tv.tv_sec - 946080000LL);
 }
 

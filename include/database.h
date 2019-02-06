@@ -213,8 +213,8 @@ typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
 // Defined in database/db_main.c
 
 extern u_int64 txid;
-extern int curr_locks[MAX_VOL];			        // lock on globals
-#define curr_lock       (curr_locks[volnum - 1])
+extern int curr_locks[MAX_VOL+1];		        // GLOBAL locks
+#define curr_lock       (curr_locks[volnum])
 extern int gbd_expired;
 extern mvar db_var;					// local copy of var
 extern int volnum;					// current volume

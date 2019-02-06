@@ -52,7 +52,7 @@ void LB_Clear(void)
 
 
 gbd* LB_GetBlock(u_int blknum)
-{ u_long now;
+{ usec_t now;
   gbd *ptr;
   int i;
   u_char vol;
@@ -63,7 +63,7 @@ gbd* LB_GetBlock(u_int blknum)
   // fprintf(stderr,"LB_GetBlock(%u)\r\n",blknum); fflush(stderr);
   ptr = 0;
   vol = volnum - 1;
-  now = GetMicroSec();				// get current time stamp
+  now = GetMicroSec() >> 10;			// ~ millisec timestamp
   for (i = 0; i < partab.gbd_nlocal; i++)	// check each local buffer
   { ptr = &partab.gbd_local[i];			// point to local GBD
     if ((vol == ptr->vol) &&			// volumes match?
@@ -80,7 +80,7 @@ gbd* LB_GetBlock(u_int blknum)
 
 
 void LB_AddBlock(gbd *ptr)
-{ u_long now;					// time stamp
+{ usec_t now;					// timestamp
   int i;					// handy int
   int block_size;				// block size
 
@@ -97,7 +97,7 @@ void LB_AddBlock(gbd *ptr)
 
   // fprintf(stderr,"LB_AddBlock(%u)\r\n",ptr->block); fflush(stderr);
 
-  now = GetMicroSec();				// current time stamp
+  now = GetMicroSec() >> 10;			// ~ millisec timestamp
   partab.gbd_local[i].block = ptr->block;	// copy block no.
   bcopy(ptr->mem, partab.gbd_local[i].mem, block_size); // memory
   partab.gbd_local[i].dirty = 0;		// it is clean

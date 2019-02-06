@@ -122,7 +122,7 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   return(0);                                    // return 0 for OK
 }
 
-static int curr_sem[SEM_MAX][MAX_VOL];
+static int curr_sem[SEM_MAX][MAX_VOL + 1];	// 0 - no volnum, VOL1 - VOL16
        int curr_sem_init = 1;
 
 const  char *sem_file;
@@ -138,6 +138,8 @@ short SemOpEx(int sem_num, int numb,
 { short s;                                      // for returns
   int i;                                        // for try loop
   char msg[128];
+
+  ASSERT((volnum > -1) && (volnum < MAX_VOL+1));// valid volume
 
   sem_file = file;
   sem_line = line;
@@ -166,10 +168,10 @@ short SemOpEx(int sem_num, int numb,
                  sem_num, numb, curr_lock, file, line);
     panic(msg);
   }
-  curr_sem[sem_num][volnum-1] += numb;
-  if (abs(curr_sem[sem_num][volnum-1]) > systab->maxjob)
+  curr_sem[sem_num][volnum] += numb;
+  if (abs(curr_sem[sem_num][volnum]) > systab->maxjob)
   { sprintf(msg, "SemOp(): overload sem_num=%d numb=%d curr_sem[%d]=%d @ %s:%d",
-                  sem_num, numb, volnum-1, curr_sem[sem_num][volnum-1], 
+                  sem_num, numb, volnum, curr_sem[sem_num][volnum], 
                   file, line);
     panic(msg);
   }
@@ -195,7 +197,7 @@ short SemOpEx(int sem_num, int numb,
         return -(ERRZ51+ERRMLAST);              // return an error
     }
   }
-  curr_sem[sem_num][volnum-1] -= numb;
+  curr_sem[sem_num][volnum] -= numb;
   if (systab->start_user == -1)			// If shutting down
   { exit (0);					// just quit
   }

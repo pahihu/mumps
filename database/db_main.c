@@ -52,7 +52,7 @@
 #include "dgp_database.h"				// DGP database
 
 
-int curr_locks[MAX_VOL];				// lock on globals
+int curr_locks[MAX_VOL + 1];				// GLOBAL locks
 mvar db_var;						// local copy of var
 int volnum;                                             // current volume
 

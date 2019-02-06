@@ -408,7 +408,8 @@ void Dump_lt();					// dump used/free lockspace
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
                         u_char *str);           // locn of dest string
 short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
-u_long GetMicroSec(void);			// current microsec time
+typedef u_int64 usec_t;
+usec_t GetMicroSec(void);			// microsec timestamp
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time
