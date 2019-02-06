@@ -132,6 +132,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     *( (u_int *) record) = blk[1]->block;		// new top level blk
     level = 1;
     blk[level]->dirty = blk[level];			// hook to self
+    TXSET(blk[level]);
     if (blk[0]->dirty == (gbd *) 1)			// if not queued
     { blk[0]->dirty = blk[level];			// hook it
       TXSET(blk[0]);

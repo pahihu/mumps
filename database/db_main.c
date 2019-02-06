@@ -1192,6 +1192,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   ((int *)record)[1] = i;				// set back to GD
   if (blk[level]->dirty == (gbd *) 1)			// if reserved
   { blk[level]->dirty = blk[level];			// terminate list
+    TXSET(blk[level]);
     Queit();						// que for write
   }
   SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

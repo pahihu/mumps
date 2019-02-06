@@ -39,11 +39,30 @@
 #define EOL ((char)'\000')
 #define toggle(A) (A^=01)
 
+// Three different math packages supported:
+// MV1_FREEMUMPS
+//	MV1 original math, problems with fractional exponents
+// MV1_MAPM
+//	using MAPM library
+// MV1_DECIMAL
+//	using decnumber.c
+//
+
+#if !defined(MV1_MAPM) && !defined(MV1_DECIMAL)
+#define MV1_FREEMUMPS 1
+#endif
+
 // The following sub-routines are called internally in this file only
 //
-short g_sqrt (char *a);                          /* square root */
-short root (char *a, int n);                     /* n.th root */
-void roundit (char *a, int digits);
+#ifdef MV1_FREEMUMPS
+static short g_sqrt (char *a);                          /* square root */
+static short root (char *a, int n);                     /* n.th root */
+static void roundit (char *a, int digits);
+#endif
+
+#ifdef MV1_DECIMAL
+#include "decnumber.h"
+#endif
 
 #ifdef MV1_MAPM
 
@@ -98,6 +117,7 @@ int m_mtoapm(M_APM out, long *lout, char *buf)
       m_apm_set_string(out, sign ? buf - 1 : buf);
     return 0;
 }
+#endif
 
 short ltoa(char *buf, long n)
 {
@@ -210,9 +230,6 @@ short ultoa(char *buf, unsigned long n)
 }
 
 
-#endif
-
-
 void runtime_math_init(void)
 {
 #ifdef MV1_MAPM
@@ -227,7 +244,9 @@ void runtime_math_init(void)
 
 short runtime_add(char *a, char *b)		// add b to a
 {
-    int done = 0, lena;
+#ifdef MV1_DECIMAL
+    DECIMAL daa,dbb,dzz;
+#endif
 
     if (b[0] == ZERO)
 	return strlen(a);
@@ -236,7 +255,17 @@ short runtime_add(char *a, char *b)		// add b to a
 	return strlen(a);
     }
 
+#ifdef MV1_DECIMAL
+    atodec(a, -1, &daa);
+    atodec(b, -1, &dbb);
+    decADD(&daa, &dbb, &dzz);
+    dectoa(&dzz, a, 10);
+    return strlen(a);
+#endif
+
 #ifdef MV1_MAPM
+    int done = 0, lena;
+
     laaq = m_mtoapm(aa, &laa, a);
     lbbq = m_mtoapm(bb, &lbb, b);
     if (laaq && lbbq)
@@ -258,7 +287,7 @@ short runtime_add(char *a, char *b)		// add b to a
     return lena;
 #endif
 
-
+#ifdef MV1_FREEMUMPS
     {
 	short   dpa,			/* decimal point of 'a' */
 	        dpb,			/* decimal point of 'b' */
@@ -503,24 +532,25 @@ short runtime_add(char *a, char *b)		// add b to a
 
         return (short) strlen(a);
     }
+#endif
 }
 
 
 short runtime_mul(char *a, char *b)             // multiply a by b
 {
-        char    c[2*(MAX_NUM_BYTES+1)];
-    short   alen,
-            blen,
-            clen,
-            mi,
-            tmpx;
-    int acur;
-    int bcur;
-    int ccur;
-    int carry;
-    int done = 0, lena;
+#ifdef MV1_DECIMAL
+    DECIMAL daa,dbb,dzz;
+
+    atodec(a, -1, &daa);
+    atodec(b, -1, &dbb);
+    decMUL(&daa, &dbb, &dzz);
+    dectoa(&dzz, a, 10);
+    return strlen(a);
+#endif
 
 #ifdef MV1_MAPM
+    int done = 0, lena;
+
     laaq = m_mtoapm(aa, &laa, a);
     lbbq = m_mtoapm(bb, &lbb, b);
     if (laaq && lbbq)
@@ -541,6 +571,19 @@ short runtime_mul(char *a, char *b)             // multiply a by b
     return lena;
 #endif
 
+#ifdef MV1_FREEMUMPS
+
+  {
+    char    c[2*(MAX_NUM_BYTES+1)];
+    short   alen,
+            blen,
+            clen,
+            mi,
+            tmpx;
+    int acur;
+    int bcur;
+    int ccur;
+    int carry;
 
 /* if zero or one there's not much to do */
     if (b[1] == EOL) {
@@ -747,6 +790,8 @@ multwo:     acur = 0;
         a[0] = MINUS;
     }
     return strlen(a);
+  }
+#endif
 }
 
 
@@ -757,35 +802,37 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
 //        short   typ;                    /* type: '/' or '\' or '#' */
 					/*     OPDIV, OPINT, OPMOD */
 {
-    char    q[MAX_NUM_BYTES + 2];  	/* quotient */
-    char    u[2*(MAX_NUM_BYTES + 1)];	/* intermediate result */
-    char    vv[MAX_NUM_BYTES +1];
-    short   d,
-            d1,
-            k1,
-            m,
-            ulen,
-            vlen,
-            dpu,
-            dpv,
-            guess,
-            mi,
-            plus,
-            v1,
-            s;
-    int i;
-    int j;
-    int k;
-    int carry = 0;
-    int ulast;
-    int done = 0, lena;
+#ifdef MV1_DECIMAL
+    DECIMAL daa, dbb, dzz;
+#endif
 
     if (uu[0] == ZERO)
         return 1;
     if ((v[0] == '0') && (!v[1]))
 	return -ERRM9;
 
+#ifdef MV1_DECIMAL
+    atodec(uu, -1, &daa);
+    atodec( v, -1, &dbb);
+    switch (typ)
+    { case OPDIV: 
+      case OPINT:
+	decDIV(&daa,&dbb,&dzz);
+	if (OPINT == typ)
+        { decINT(&dzz, &dzz);
+        }
+	break;
+      case OPMOD:
+	decMOD(&daa,&dbb,&dzz);
+ 	break;	
+    }
+    dectoa(&dzz, uu, 10);
+    return strlen(uu);
+#endif
+
 #ifdef MV1_MAPM
+    int done = 0, lena;
+
     laaq = m_mtoapm(aa, &laa, uu);
     lbbq = m_mtoapm(bb, &lbb,  v);
 
@@ -861,6 +908,30 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     return lena;
 #endif
 
+#ifdef MV1_FREEMUMPS
+
+  {
+    char    q[MAX_NUM_BYTES + 2];  	/* quotient */
+    char    u[2*(MAX_NUM_BYTES + 1)];	/* intermediate result */
+    char    vv[MAX_NUM_BYTES +1];
+    short   d,
+            d1,
+            k1,
+            m,
+            ulen,
+            vlen,
+            dpu,
+            dpv,
+            guess,
+            mi,
+            plus,
+            v1,
+            s;
+    int i;
+    int j;
+    int k;
+    int carry = 0;
+    int ulast;
 
 /* look at the signs */
     strcpy (u, uu);
@@ -1220,21 +1291,17 @@ short runtime_div (char *uu, char *v, short typ) /* divide string arithmetic */
     }
     strcpy (uu, u);
     return strlen(uu);
+  }
+#endif
 }                                       /* end runtime_div() */
 
 
 
 short runtime_power (char *a, char *b)    /* raise a to the b-th power */
-{   short s;
-    char    c[MAX_NUM_BYTES + 2];
-    char    d[4*(MAX_NUM_BYTES + 1)];
-
-/* is a memory leak resulting in wrong results   */
-/* with fractional powers, e.g. 2**(3/7)         */
-/* even a value of 513 is too small              */
-    char    e[MAX_NUM_BYTES + 2];
-    register long i;
-    register long j;
+{   
+#ifdef MV1_DECIMAL
+    DECIMAL daa, dbb, dzz;
+#endif
 
 /* if zero or one there's not much to do */
     if (a[1] == EOL) {
@@ -1246,6 +1313,14 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	if (a[0] == ONE)
 	    return 1;
     }
+
+#ifdef MV1_DECIMAL
+    atodec(a, -1, &daa);
+    atodec(b, -1, &dbb);
+    decPOW(&daa, &dbb, &dzz);
+    dectoa(&dzz, a, 10);
+    return strlen(a);
+#endif
 
 #ifdef MV1_MAPM
     laaq = m_mtoapm(aa, &laa, a);
@@ -1259,6 +1334,20 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 
     return m_apmtom(a, cc, 1);
 #endif
+
+#ifdef MV1_FREEMUMPS
+
+  {
+    short s;
+    char    c[MAX_NUM_BYTES + 2];
+    char    d[4*(MAX_NUM_BYTES + 1)];
+
+/* is a memory leak resulting in wrong results   */
+/* with fractional powers, e.g. 2**(3/7)         */
+/* even a value of 513 is too small              */
+    char    e[MAX_NUM_BYTES + 2];
+    register long i;
+    register long j;
 
     if (b[0] == MINUS) {
 	s = runtime_power (a, &b[1]);
@@ -1422,14 +1511,20 @@ short runtime_power (char *a, char *b)    /* raise a to the b-th power */
 	roundit (a, partab.jobtab->precision + 1);
     }
     return strlen(a);
-
-
+  }
+#endif
 }                                       /* end power() */
 
 short runtime_comp (char *s, char *t)   /* s and t are strings representing */
                                         /* MUMPS numbers. comp returns t>s  */
-{   int s1;
-    int t1;
+{   
+#ifdef MV1_DECIMAL
+    DECIMAL daa, dbb;
+
+    atodec(s, -1, &daa);
+    atodec(t, -1, &dbb);
+    return decCMP(&daa, &dbb) < 0 ? TRUE : FALSE;
+#endif
 
 #ifdef MV1_MAPM
     int ret;
@@ -1452,6 +1547,10 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
     return ret > 0 ? TRUE : FALSE;
 #endif
 
+#ifdef MV1_FREEMUMPS
+
+    int s1;
+    int t1;
 
     s1 = s[0];
     t1 = t[0];
@@ -1492,12 +1591,15 @@ short runtime_comp (char *s, char *t)   /* s and t are strings representing */
     if (*t > *s)
         return TRUE;
     return FALSE;
-
+#endif
 }                                       /* end of runtime_comp() */
 
 
 /******************************************************************************/
 
+#ifdef MV1_FREEMUMPS
+
+static
 short g_sqrt (char *a)			/* square root */
 {   int i, ch;
     short s;
@@ -1508,15 +1610,6 @@ short g_sqrt (char *a)			/* square root */
     if (a[0] == MINUS) {
 	return -ERRM9;
     }
-
-#ifdef MV1_MAPM
-    laaq = m_mtoapm(aa, &laa, a);
-    if (laaq)
-      m_apm_set_long(aa, laa);
-    m_apm_sqrt(cc, partab.jobtab->precision, aa);
-
-    return m_apmtom(a, cc, 1);
-#endif
 
     {
 	char    tmp1[MAX_NUM_BYTES +2 ],
@@ -1557,8 +1650,10 @@ short g_sqrt (char *a)			/* square root */
 	return strlen(a);
     }
 }					/* end g_sqrt() */
+
 /******************************************************************************/
 
+static
 short root (char *a, int n)		/* n.th root */
 {   int i, ch;
     short s;
@@ -1568,17 +1663,6 @@ short root (char *a, int n)		/* n.th root */
     if (a[0] == MINUS || n == 0) {
 	return -ERRM9;
     }
-
-#ifdef MV1_MAPM
-    laaq = m_mtoapm(aa, &laa, a);
-    if (laaq)
-      m_apm_set_long(aa, laa);
-    m_apm_set_double(bb, 1.0 / (double) n);
-
-    m_apm_pow(cc, partab.jobtab->precision, aa, bb);
-
-    return m_apmtom(a, cc, 1);
-#endif
 
     {
 	char    tmp1[MAX_NUM_BYTES +2],
@@ -1670,21 +1754,13 @@ short root (char *a, int n)		/* n.th root */
         /* rounding */
         /* 'a' is assumed to be a 'canonic' numeric string  */
         /* it is rounded to 'digits' fractional digits      */
+static
 void roundit (char *a, int digits)
 {
     int     ch,
             i,
             pointpos,
             lena;
-
-#ifdef MV1_MAPM
-    laaq = m_mtoapm(aa, &laa, a);
-    if (laaq)
-      m_apm_set_long(aa, laa);
-    m_apm_round(cc, digits, aa);
-
-    m_apmtom(a, cc, 0);
-#endif
 
     pointpos = -1;
     i = 0;
@@ -1732,3 +1808,4 @@ void roundit (char *a, int digits)
     }
     return;
 }                                       /* end roundit */
+#endif
