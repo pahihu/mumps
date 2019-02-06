@@ -353,10 +353,58 @@ uint32_t FNV1aHash(int n, u_char *buf)          // FNV-1a hash
 // GetMicroSec returns the current microseconds timestamp from
 // year 2000 (approximately).
 //
-usec_t GetMicroSec(void)
+usec_t UTIL_GetMicroSec(void)
 { struct timeval tv;
   gettimeofday(&tv, NULL);
   return (usec_t) tv.tv_usec +                  // ~ from yr 2000
          1000000LL * (usec_t) (tv.tv_sec - 946080000LL);
 }
+
+
+// Copy mvar to simple mvar, which does not contain subscript
+// indexes.
+//
+void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar)
+{ bcopy(&var->name, &svar->name, sizeof(var->name) + 2);
+  bcopy(&var->slen, &svar->slen, var->slen + 1);
+}
+
+
+// Save global reference, stores physical block and Index.
+//
+void UTIL_SaveGlobalRef(gbd *ptr, gloref_t *ref) 
+{ UTIL_Mvar2Simple(&db_var, &ref->svar);
+  ref->block = ptr->block;
+  ref->blkver_lo = ptr->mem->blkver_lo;
+  ref->blkver_hi = ptr->mem->blkver_hi;
+  ref->Index     = Index;
+}
+
+
+// Compare var to the global reference stored in ref.
+short UTIL_GlobalRefCmp(gloref_t *ref, mvar *var)
+{ simple_mvar svar;				// simple mvar storage
+  gbd *ptr;					// GBD ptr
+  short s;					// status
+
+  if (ref->svar.slen == var->slen)		// same key length?
+  { UTIL_Mvar2Simple(var, &svar);		// convert to simple mvar
+    if (0 == bcmp(&ref->svar, &svar, 		// same var reference?
+			SIMPLE_MVAR_SIZE + svar.slen))
+    { level = LAST_USED_LEVEL;
+      s = Get_block(ref->block);		// read storage block
+      if (s < 0) return s;			// failed, return error
+      ptr = blk[level];
+      if ((ptr->mem->blkver_lo == ref->blkver_lo) && // block versions match?
+	  (ptr->mem->blkver_hi == ref->blkver_hi))
+      { Index = ref->Index;			// last one
+        idx   = (u_short *) ptr->mem;		// point at the block
+        iidx  = (int *) ptr->mem;		// point at the block
+	return 0;
+      }
+    }
+  }
+  return 1;					// reference does NOT match
+}
+
 

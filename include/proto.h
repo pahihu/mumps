@@ -372,7 +372,7 @@ short SS_Order(mvar *var, u_char *buf, int dir); // get next subscript
 // Key Utility prototypes
 short UTIL_Key_Build( cstring *src, u_char *dest); // locn of source string
 short UTIL_Key_BuildEx( mvar *var, cstring *src, u_char *dest); // locn of source string
-short UTIL_Key_Extract( u_char *key,
+short UTIL_Key_Extract( const u_char *key,
 	u_char *str, int *cnt); 		// extract subscript
 short UTIL_String_Key( u_char *key,
 	u_char *str, int max_subs); 		// extr all keys
@@ -409,7 +409,8 @@ short UTIL_String_Lock( locktab *var,         	// address of lock entry
                         u_char *str);           // locn of dest string
 short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 typedef u_int64 usec_t;
-usec_t GetMicroSec(void);			// microsec timestamp
+usec_t UTIL_GetMicroSec(void);			// microsec timestamp
+void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time

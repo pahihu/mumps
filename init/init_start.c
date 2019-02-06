@@ -265,6 +265,7 @@ int INIT_Start( char *file,                     // database
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
 	      + (sizeof(u_int) * (netjobs))	// size of last_blk_used[]
+              + (sizeof(u_int) * (netjobs))     // size of last_idx_used[]
               + (sizeof(u_int) * (netjobs))     // size of last_blk_written[]
               + (rmb * MBYTE);                  // mb of routine buffers
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
@@ -389,8 +390,10 @@ int INIT_Start( char *file,                     // database
 
   systab->vol[0]->last_blk_used =               // setup last_blk_used[]
     (void *) ((void*)systab->vol[0]->jrnbuf + jkb * KBYTE);
-  systab->vol[0]->last_blk_written =            // setup last_blk_written[]
+  systab->vol[0]->last_idx_used =               // setup last_idx_used[]
     (void *) ((void*)systab->vol[0]->last_blk_used + sizeof(u_int)*netjobs);
+  systab->vol[0]->last_blk_written =            // setup last_blk_written[]
+    (void *) ((void*)systab->vol[0]->last_idx_used + sizeof(u_int)*netjobs);
 
   systab->vol[0]->rbd_head =                    //rbds
     (void *) ((void*)systab->vol[0]->last_blk_written + sizeof(u_int)*netjobs);

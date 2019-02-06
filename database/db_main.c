@@ -283,7 +283,7 @@ short DB_GetEx(mvar *var, 				// get global data
     Ensure_GBDs(0);
   }
 
-  s = Get_data(0);					// attempt to get it
+  s = Get_data_ex(0, TIPIDX(0));			// attempt to get it
   if (s >= 0)						// if worked
   { if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
     { s = itocstring(buf, *(u_int *) record);		// block number
@@ -590,6 +590,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 { short s;						// for returns
   int i;						// a handy int
   int last_key;						// start of last key
+  u_char *keyptr;					// ptr to key[]
 
   s = Copy2local(var,"ORDER");			        // get local copy
   if (s < 0)
@@ -607,7 +608,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   last_key = UTIL_Key_Last(&db_var);			// get start of last
   buf[0] = '\0';					// null terminate ret
   if (dir < 0)						// if it's backward
-  { s = Get_data(-1);					// get the previous
+  { s = Get_data_ex(-1,TIPIDX(0));			// get the previous
     if ((s < 0) && (s != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -630,7 +631,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   }							// end backwards
   else							// it's forward
   { db_var.key[db_var.slen++] = 255;			// force next key
-    s = Get_data(0);					// try to find that
+    s = Get_data_ex(0,TIPIDX(0));			// try to find that
     if (s != -ERRM7)					// MUST be undefined
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -655,32 +656,25 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     }
   }							// end forwards
 #ifdef MV1_CCC
-  // for (i = LOW_INDEX; i <= Index; i++)		// scan to current
-#if 0
-  for (i = FindChunk0(Index + 1); i <= Index; i++)	// scan to current
-  { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  }
-#endif
-  Build_KeyBuf(Index, &keybuf[0]);
+  Build_KeyBuf(Index, &keybuf[0]);			// rebuild key
+  keyptr = &keybuf[0];
 #else
   chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
-  keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+  // bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+  //	  chunk->buf[1]);				// update the key
+  // keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+  keyptr = &chunk->buf[1];
 #endif
 
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
-  if ((keybuf[0] < (last_key + 1)) ||
-      (bcmp(&keybuf[1], db_var.key, last_key)))		// check for past it
+  if ((keyptr[0] < (last_key + 1)) ||
+      (bcmp(&keyptr[1], db_var.key, last_key)))		// check for past it
   { return 0;						// done
   }
   i = 0;						// clear flag
-  s = UTIL_Key_Extract(&keybuf[last_key+1], buf, &i);	// extract the key
+  s = UTIL_Key_Extract(&keyptr[last_key+1], buf, &i);	// extract the key
   // fprintf(stderr, "DB_Order(): i=%d last_key=%d len=%d\r\n",
   //                  i, last_key, keybuf[0]);
   fflush(stderr);
@@ -712,6 +706,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
                         int docvt, cstring *dat)
 { short s;						// for returns
   int i;						// a handy int
+  u_char *keyptr;					// ptr to key[]
 
   s = Copy2local(var,"QUERY");			        // get local copy
   if (s < 0)
@@ -736,7 +731,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
       }
       return 0;                                         // and return
     }
-    s = Get_data(-1);					// get the previous
+    s = Get_data_ex(-1,TIPIDX(0));			// get the previous
     // fprintf(stderr, "DB_Query: Get_data(-1)=%d\r\n", s);
     // fflush(stderr);
     if ((s < 0) && (s != -ERRM7))			// check for errors
@@ -780,7 +775,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     // fflush(stderr);
   }							// end backwards
   else							// it's forward
-  { s = Get_data(0);					// try to find that
+  { s = Get_data_ex(0,TIPIDX(0));			// try to find that
     if ((s < 0) && (s != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -813,27 +808,20 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
 
 #ifdef MV1_CCC
-  // for (i = LOW_INDEX; i <= Index; i++)		// scan to current
-#if 0
-  for (i = FindChunk0(Index + 1); i <= Index; i++)	// scan to current
-  { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  }
-#endif
-  Build_KeyBuf(Index, &keybuf[0]);
+  Build_KeyBuf(Index, &keybuf[0]);			// rebuild key
+  keyptr = &keybuf[0];
 #else
   chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the key
-  keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+  // bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+  //	  chunk->buf[1]);				// update the key
+  // keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
+  keyptr = &chunk->buf[1];
 #endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   if ((s == -ERRM7) &&                                  // not found
-      (keybuf[0] == 0) &&                               // key has no subscript
+      (keyptr[0] == 0) &&                               // key has no subscript
        db_var.slen &&                                   // original subscript is
       (db_var.key[0] == 0 || db_var.key[0] == 255))     //   empty
   { buf[0] = '\0';
@@ -848,8 +836,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   db_var.volset = var->volset;				//   original & new
   //db_var.name.var_qu = var->name.var_qu;		//      data
   db_var.name.var_xu = var->name.var_xu;		//      data
-  db_var.slen = keybuf[0];				//         to
-  bcopy(&keybuf[1], &db_var.key[0], keybuf[0]);		//           db_var
+  db_var.slen = keyptr[0];				//         to
+  bcopy(&keyptr[1], &db_var.key[0], keyptr[0]);		//           db_var
   if (!docvt)                                           // if no conversion
     return db_var.slen;                                 //   return slen
   return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return

@@ -327,6 +327,14 @@ typedef struct __attribute__ ((__packed__)) SIMPLE_MVAR
   u_char key[256];                              // the subs (key) - allow for 0
 } simple_mvar;
 
+typedef struct GLOREF_T
+{ simple_mvar svar;				// global reference
+  u_int block;					// block no.
+  u_int blkver_lo;				// block version
+  u_int blkver_hi;
+  int Index;					// position
+} gloref_t;
+
 #define SIMPLE_MVAR_SIZE (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
 
 #ifdef MV1_SUBSPOS
@@ -479,7 +487,8 @@ typedef struct __PACKED__ VOL_DEF
   VOLATILE time_t lastdojrn;                    // last DoJournal() time
   VOLATILE u_char jnl_seq;			// jrn sequence
   u_int *last_blk_used;                         // actually setup for real jobs
-  u_int *last_blk_written;                      // actually setup for real jobs
+  u_int *last_idx_used;				//   same
+  u_int *last_blk_written;                      //   same
   size_t volset_size;                           // shared memory size of vol_def
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB

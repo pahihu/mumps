@@ -2105,11 +2105,6 @@ short Dzincrement1(cstring *ret, mvar *var)
   return Dzincrement2P(ret, var, cptr); 	// do it below
 }
 
-void mvar2simple(mvar *var, simple_mvar *svar)
-{ bcopy(&var->name, &svar->name, sizeof(var->name) + 2);
-  bcopy(&var->slen, &svar->slen, var->slen + 1);
-}
-
 short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
 { int is_seq;					// SEQUENCE flag
   int docopy;					// do a copy ?
@@ -2124,11 +2119,11 @@ short Dzincrement2(cstring *ret, mvar *var, cstring *expr)
       (var->name.var_cu[0] != '$') &&		//   AND not ssvn
       is_seq)					//   AND SEQUENCE?
   { docopy = 1;					// assume no copy
-    mvar2simple(var, &ref);			// save var
+    UTIL_Mvar2Simple(var, &ref);		// save var
     if ((0 == partab.lenseq) ||			// empty local SEQ?
 	(ref.slen != partab.seqref.slen) ||	// OR different subscript len
         bcmp(&ref, &partab.seqref, SIMPLE_MVAR_SIZE + ref.slen)) // OR diff. SEQ
-    { now = GetMicroSec();			// current time stamp
+    { now = UTIL_GetMicroSec();			// current time stamp
       lenseq = 2;				// get 2 IDs
       if (partab.lastseq)			// got SEQ before?
       { lenseq = 10000 / (now - partab.lastseq);

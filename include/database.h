@@ -272,7 +272,10 @@ void  Block_Unlock(void);
 
 #endif
 // File: database/db_get.c
+#define TIPIDX_OFFS	10
+#define TIPIDX(x)	(TIPIDX_OFFS + (x))
 short Get_data(int dir);				// get db_var node
+short Get_data_ex(int dir, int TipIndex);		// get db_var node
 
 // File: database/db_kill.c
 short Kill_data();					// remove tree
@@ -287,7 +290,7 @@ void LB_AddBlock(gbd *ptr);				// add GBD to local buf.
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
-short LocateEx(u_char *key, int frominsert);		//   used in Insert()
+short LocateEx(u_char *key, int frominsert, int TipIndex);//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
 void Build_KeyBuf(int pIndex, u_char *pKeyBuf);         // pKeyBuf for pIndex
 u_short FindChunk(u_short from,u_char pfxlen);          // find less than pfxlen

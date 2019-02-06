@@ -221,7 +221,7 @@ string:						// do a string key
 //****  Function: UTIL_Key_Extract - Extract a key from a key record ***
 //**  Updates cnt (count of characters at key).                      ***
 //**********************************************************************
-short UTIL_Key_Extract( u_char *key,            // where the key is
+short UTIL_Key_Extract( const u_char *key,      // where the key is
                         u_char *str,            // locn of dest string
                         int *cnt)               // addr of count of chars used
 

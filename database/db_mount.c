@@ -179,6 +179,7 @@ short DB_Mount( char *file,                     // database
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
               + (sizeof(u_int) * netjobs) 	// size of last_blk_used[]
+              + (sizeof(u_int) * netjobs) 	// size of last_idx_used[]
               + (sizeof(u_int) * netjobs);	// size of last_blk_written[]
   volset_size = (((volset_size - 1) / pagesize) + 1) * pagesize; // round up
 
@@ -236,10 +237,13 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->jrnbufsize = 0;             // buffer empty
   systab->vol[vol]->syncjrn    = syncjrn;       // sync flag
 
-  systab->vol[vol]->last_blk_used =               // setup last_blk_used[]
+  systab->vol[vol]->last_blk_used =             // setup last_blk_used[]
     (void *) ((void*)systab->vol[vol]->jrnbuf + jkb * KBYTE);
-  systab->vol[vol]->last_blk_written =            // setup last_blk_written[]
+  systab->vol[vol]->last_idx_used =             // setup last_idx_used[]
     (void *) ((void*)systab->vol[vol]->last_blk_used + 
+                                        sizeof(u_int) * netjobs);
+  systab->vol[vol]->last_blk_written =            // setup last_blk_written[]
+    (void *) ((void*)systab->vol[vol]->last_idx_used + 
                                         sizeof(u_int) * netjobs);
 
   systab->vol[vol]->shm_id = systab->vol[0]->shm_id;	// set up share id

@@ -139,7 +139,7 @@ void Build_KeyBuf(int pIndex, u_char *pKeyBuf)
 //		(u_char)	keybuf	the current full key
 //
 
-short LocateEx(u_char *key, int frominsert)		// find key
+short LocateEx(u_char *key, int frominsert, int TipIndex) // find key
 { int i;						// a handy int
   int L, R;                                             // bin.search limits
   int wr_flag;
@@ -147,6 +147,17 @@ short LocateEx(u_char *key, int frominsert)		// find key
 
   idx = (u_short *) blk[level]->mem;			// point at the block
   iidx = (int *) blk[level]->mem;			// point at the block
+/*
+  if (TipIndex && TipIndex <= blk[level]->mem->last_idx)
+  { Index = TipIndex;
+    chunk = (cstring *) &iidx[idx[Index]];	        // point at the chunk
+    dbkey = &chunk->buf[1];
+    if (KEQUAL == UTIL_Key_KeyEqu(&dbkey[1], &key[1], dbkey[0], key[0]))
+    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt);
+      goto K2_EQUAL;
+    }
+  }
+*/
   Index = LOW_INDEX;					// start at the start
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
 
@@ -236,7 +247,7 @@ K2_EQUAL:
 
 short Locate(u_char *key)
 {
-  return LocateEx(key, 0);
+  return LocateEx(key, 0, 0);
 }
 
 //-----------------------------------------------------------------------------

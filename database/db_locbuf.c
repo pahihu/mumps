@@ -63,7 +63,7 @@ gbd* LB_GetBlock(u_int blknum)
   // fprintf(stderr,"LB_GetBlock(%u)\r\n",blknum); fflush(stderr);
   ptr = 0;
   vol = volnum - 1;
-  now = GetMicroSec() >> 10;			// ~ millisec timestamp
+  now = UTIL_GetMicroSec() >> 10;		// ~ millisec timestamp
   for (i = 0; i < partab.gbd_nlocal; i++)	// check each local buffer
   { ptr = &partab.gbd_local[i];			// point to local GBD
     if ((vol == ptr->vol) &&			// volumes match?
@@ -97,7 +97,7 @@ void LB_AddBlock(gbd *ptr)
 
   // fprintf(stderr,"LB_AddBlock(%u)\r\n",ptr->block); fflush(stderr);
 
-  now = GetMicroSec() >> 10;			// ~ millisec timestamp
+  now = UTIL_GetMicroSec() >> 10;		// ~ millisec timestamp
   partab.gbd_local[i].block = ptr->block;	// copy block no.
   bcopy(ptr->mem, partab.gbd_local[i].mem, block_size); // memory
   partab.gbd_local[i].dirty = 0;		// it is clean
@@ -117,7 +117,7 @@ Restart: \
   s = fn; \
   if (LB_FAILED == s) \
   { gbd_local_state = LB_FILL; \
-    systab->vol[volnum-1]->stats.eventcnt++; \
+    /* systab->vol[volnum-1]->stats.eventcnt++; */ \
     goto Restart; \
   } \
   gbd_local_state = LB_DISABLED; \
