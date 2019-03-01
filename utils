@@ -1386,12 +1386,12 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
  S $ET="D ^%ET",OTIME="" S ACTS="CREATE,START,STOP,ESTOP,SET,KILL,SYNC,BACKUP"
 ASK R "Enter file: ",FILE,! Q:FILE=""
  R "Enter outfile: ",OFILE,!
- S OD=0 I $L(OFILE) O 2:(OFILE:"W") S OD=2
  I '$&%FILE(FILE,"EXISTS") W "NO SUCH FILE",! G ASK
+ S OD=0 I $L(OFILE) O 2:(OFILE:"W") S OD=2
  C 1 O 1:(FILE:"R") U 1:("TERMINATOR=")
  R MAGIC#4,OFFSET#8 U OD
  S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
- I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 G ASK
+ I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 C:OD OD G ASK
  W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
  S OFF=12,TSIZE=^$S("tsize") F  D  Q:OFF'<OFFSET
 ;Scan the file
