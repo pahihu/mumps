@@ -497,7 +497,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
 #ifdef MV1_CCC
   u_char fk[260];                                       // for keys
 #else
-  u_char *fk;                                           // for keys
+  u_char *fk, *sav_fk;                               	// for keys
 #endif
   int isdata;                                           // a flag
   cstring *c;                                           // reading from old
@@ -517,6 +517,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
   bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
       chunk->buf[1]);                                   // update the key
   keybuf[0] = chunk->buf[0] + chunk->buf[1];            // and the size
+  sav_fk = 0;						// full key to save
 #endif
 
   for (i = LOW_INDEX; i <= fptr->mem->last_idx; i++)    // for each Index
@@ -567,7 +568,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
     if (cs >=
         ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
     { if (fidx == -1)
-      { return;
+      { goto Lreturn;
       }
       panic("Copy_data: about to overflow block");
     }
@@ -599,9 +600,17 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
         // NOTE: ABOVE ALL FLAGS CLEARED !!!!!!!!
       }
     }
-    if (i == fptr->mem->last_idx)
-      bcopy(fk, keybuf, fk[0] + 1);                     // save full key    
+#ifdef MV1_CCC
+    bcopy(fk, keybuf, fk[0] + 1);                     	// save full key
+#else
+    sav_fk = fk;					// save full key ptr
+#endif
   }                                                     // end copy loop
+Lreturn:
+#ifndef MV1_CCC
+  if (sav_fk)
+    bcopy(sav_fk, keybuf, sav_fk[0] + 1);         	// save full key
+#endif
   return;                                               // and exit
 }
 
