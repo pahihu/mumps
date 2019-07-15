@@ -337,9 +337,7 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     }
   }
   i = 4 + db_var.slen + 2 + data->len;			// space reqd
-  if (i & 3)						// if required
-  { i += (4 - (i & 3));					// round up
-  }
+  i = ((i + 3) >> 2) << 2;				// round it up
   i += 4;						// add Index
   if (i > (systab->vol[volnum-1]->vollab->block_size - BLK_HDR_SIZE)) // if too big
   { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
@@ -905,12 +903,6 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
     return s;						// done
   }
 
-//  for (i = LOW_INDEX; i <= Index; i++)		// scan to current
-//  { chunk = (cstring *) &iidx[idx[i]];             	// point at the chunk
-//    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-//	  chunk->buf[1]);				// update the key
-//    keybuf[0] = chunk->buf[0] + chunk->buf[1];	// and the size
-//  }
 #ifdef MV1_CCC
   bcopy(&keybuf[1], var->key, (int) keybuf[0]);		// copy in the key
 #else

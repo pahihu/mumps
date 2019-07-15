@@ -506,9 +506,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
 
   rs = 4 + db_var.slen + 2 + data->len;			// max required space
-  if (rs & 3)						// if reqd
-  { rs += (4 - (rs & 3));				// allign
-  }
+  rs = ((rs + 3) >> 2) << 2;				// align
   rs += 4;						// allow for index
 
   s = Locate(&db_var.slen);				// locate it again
@@ -519,13 +517,6 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   if (trailings <= blk[level]->mem->last_idx)		// if any point
   { 
 #ifdef MV1_CCC
-    // for (i = LOW_INDEX; i < trailings; i++)		// scan front of blk
-#if 0
-    for (i = FindChunk0(trailings); i < trailings; i++)	// scan front of blk
-    { chunk = (cstring *) &iidx[idx[i]];		// point at chunk
-      bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
-    }							// get fk[] correct
-#endif
     Build_KeyBuf(trailings - 1, &fk[0]);
 #else
     if (trailings != LOW_INDEX)

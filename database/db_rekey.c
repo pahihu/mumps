@@ -187,9 +187,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     }
   }
   rs = 4 + db_var.slen + 4;				// reqd key + ptr space
-  if (rs & 3)						// if required
-  { rs += (4 - (rs &3));				// round up
-  }
+  rs = ((rs + 3) >> 2) << 2;				// round it up
   rs += 4;						// allow for index
 
   cblk[0] = blk[level];					// remember this

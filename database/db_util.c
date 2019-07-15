@@ -60,30 +60,6 @@
 
 extern int KeyLocated;                                  // flag key located
 
-u_short FindChunk0(u_short from)
-{
-  cstring *tsunk;
-
-  for (from-- ; from >= LOW_INDEX; from--)              // search backward
-  { tsunk = (cstring *) &iidx[idx[from]];
-    if (tsunk->buf[0] == 0)                             // if prefix is zero
-      return from;                                      //   done
-  }
-  return LOW_INDEX;                                     // sentinel
-}
-
-u_short FindChunk(u_short from, u_char pfxlen)
-{
-  cstring *tsunk;
-
-  for (from-- ; from >= LOW_INDEX; from--)              // search backward
-  { tsunk = (cstring *) &iidx[idx[from]];
-    if (tsunk->buf[0] < pfxlen)                         // if prefix is shorter
-      return from;                                      //   done
-  }
-  return LOW_INDEX;                                     // sentinel
-}
-
 short Insert(u_char *key, cstring *data)                // insert a node
 { int i;                                                // a handy int
   int isdata;                                           // data/ptr flag
@@ -92,16 +68,13 @@ short Insert(u_char *key, cstring *data)                // insert a node
   u_char ccc;                                           // common char count
   u_char ucc;                                           // uncommon char count
   u_int flags = 0;                                      // for $GLOBAL
-  int locate_used;                                      // Locate() used
 
   isdata = ((blk[level]->mem->type > 64) &&             // data block and
             (level));                                   // not the directory
 
-  locate_used = 0;
   if (blk[level]->mem->last_idx > LOW_INDEX - 1)        // if some data
   { if (!KeyLocated)                                    // key not located yet
-    { locate_used = 1;                                  // flag using Locate()
-      s = Locate(key);                                  // search for it
+    { s = Locate(key);                                  // search for it
       if (s >= 0)                                       // if found
       { return -(ERRMLAST+ERRZ61);                      // database stuffed
       }
@@ -123,21 +96,18 @@ short Insert(u_char *key, cstring *data)                // insert a node
     partab.jobtab->last_block_flags[volnum - 1] = flags;
   }
 
-  if (1 /*locate_used == 0*/)                           // XXX
-  { keybuf[0] = 0;                                      // clear keybuf
+  keybuf[0] = 0;                                      	// clear keybuf
 #ifdef MV1_CCC
-    Build_KeyBuf(Index - 1, &keybuf[0]);                // rebuild keybuf[]
+  Build_KeyBuf(Index - 1, &keybuf[0]);                	// rebuild keybuf[]
+#else
+  chunk = (cstring *) &iidx[idx[Index - 1]];		// point at to chunk
+  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
+      chunk->buf[1]);                                   // update the key
+  keybuf[0] = chunk->buf[0] + chunk->buf[1];            // and the size
 #endif
-  }
 
   ccc = 0;            // start here
 #ifdef MV1_CCC
-  // Key segmentation
-  //
-  //   To conserve space, we compress 7 keys, then 
-  //   store 1 w/o compression.
-  //
-  // if (((Index - LOW_INDEX) & 7) &&                   // not segment marker
   if ((key[0]) && (keybuf[0]))                          //   and any there
   { while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))        // at end of either
@@ -156,9 +126,7 @@ short Insert(u_char *key, cstring *data)                // insert a node
   else if (!level)                                      // if GD
   { rs += 4;                                            // allow for flags
   }
-  if (rs & 3)                                           // not even long word
-  { rs += (4 - (rs & 3));                               // round it up
-  }
+  rs = ((rs + 3) >> 2) << 2;				// round it up
   rs += 4;                                              // allow for the Index
 
   if (rs > ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
@@ -561,9 +529,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
     if (!level)                                         // if GD
     { cs += 4;                                          // allow for flags
     }
-    if (cs & 3)                                         // but
-    { cs += (4 - (cs & 3));                             // round up
-    }
+    cs = ((cs + 3) >> 2) << 2;				// round it up
 
     if (cs >=
         ((blk[level]->mem->last_free*2 + 1 - blk[level]->mem->last_idx)*2))
@@ -1798,11 +1764,13 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
   u_int blknum;					// block number
   int block_sizes[MAX_VOL];			// volume block sizes
   int new_vol;					// new volume file flag
+  time_t tmp_time;				// temp storage
 
   bkp_fd = 0;					// init vars
   vol_fd = 0;
   volbuf = NULL;
   blkbuf = NULL;
+  tmp_time = 0;
 
   if (!bkp_path || !strlen(bkp_path))		// check backup file path
   { fprintf(stderr,"-E-RESTORE: empty backup file path\r\n");
@@ -1854,7 +1822,8 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
     goto ErrOut;
   }
 
-  strftime((char *) &tmp[0], sizeof(tmp), "%F %T", gmtime(&bheader.time));
+  strftime((char *) &tmp[0], sizeof(tmp), "%F %T", gmtime(&tmp_time));
+  bheader.time = tmp_time;
   fprintf(stderr,"-I-RESTORE: backup type is %s\r\n",  bkptypes[bheader.type]);
   fprintf(stderr,"-I-RESTORE: saved on %s\r\n", (char *) &tmp[0]);
 

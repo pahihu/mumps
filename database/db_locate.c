@@ -60,66 +60,13 @@
 
 void Build_KeyBuf(int pIndex, u_char *pKeyBuf)
 { int i;                                                // handy int
-  u_short  pos, from;
-  u_char   pfx,nxtpfx;
-  int      ncptr = 256;
-  cstring *cptr[256];
-  u_char   stride[256];
-  u_char   last_ccc,last_ucc;
 
-  chunk = (cstring *) &iidx[idx[pIndex]];
-  pfx   = chunk->buf[0];
-  pKeyBuf[0] = pfx + chunk->buf[1];                     // set keybuf size
-  if (pfx == 0)
-  { // fprintf(stderr,"keybuf ptr\r\n");
+  pKeyBuf[0] = 0;
+  for (i = LOW_INDEX; i <= pIndex; i++)
+  { chunk = (cstring *) &iidx[idx[i]];			// point at chunk
     bcopy(&chunk->buf[2], &pKeyBuf[chunk->buf[0]+1],    // update the keybuf
 	  chunk->buf[1]);			
-    return;
-  }
-
-  // last_ccc = chunk->buf[0];
-  // last_ucc = chunk->buf[1];
-
-  cptr[--ncptr] = chunk;                        // put chunk as last
-  stride[ncptr] = chunk->buf[1];                // chunk should point there
-
-  from = pIndex;
-  do
-  { pos = FindChunk(from, pfx);
-    chunk = (cstring *) &iidx[idx[pos]];
-    cptr[--ncptr] = chunk;
-    stride[ncptr] = pfx - (nxtpfx = chunk->buf[0]);
-    pfx = nxtpfx;
-    from = pos;
-  } while (pfx != 0);
-
-  //    0 ucc0  cpy  ccc1 - 0     from    0  to  0
-  // ccc1 ucc1  cpy  ccc2 - ccc1  from ccc1  to  ccc1
-  // ccc2 ucc2
-  //
-  //    0    3  abc
-  //    2    4  abxyzx
-  //    3    2  abxab
-  //    5
-
-  // fprintf(stderr,"keybuf stride = %d\r\n",256 - ntidx);
-  // keybuf[0] = 0;                                     // clear keybuf
-#if 0
-  fprintf(stderr,"keybuf stride = %d\r\n",Index-i);
-  for (; i <= Index; i++)                               // for all collected idx
-  { chunk = (cstring *) &iidx[idx[i]];	                // point at the chunk
-    bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-	  chunk->buf[1]);				// update the keybuf
-    keybuf[0] = chunk->buf[0] + chunk->buf[1];          // and the keybuf size
-  }
-#endif
-  for (; ncptr < 256; ncptr++)                          // for all collected idx
-  { chunk = cptr[ncptr];                                // point at the chunk
-    // fprintf(stderr,"ccc=%d ucc=%d stride=%d\r\n",
-    //                 chunk->buf[0],chunk->buf[1],stride[ncptr]);
-    bcopy(&chunk->buf[2],
-          &pKeyBuf[chunk->buf[0]+1],
-	  stride[ncptr] /*chunk->buf[1]*/);		// update the keybuf
+    pKeyBuf[0] = chunk->buf[0] + chunk->buf[1];
   }
 }
 
