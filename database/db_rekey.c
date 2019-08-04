@@ -542,8 +542,8 @@ void Un_key()
 	else						// lower level is empty
 
 	{ 
-          mt_lvl[mtno++] = level;			// remember mt block
-#if 0
+          // mt_lvl[mtno++] = level;			// remember mt block
+#if 1
           save_level = level;				// remember where we at
 	  blkno = 0;					// clear block#
 
