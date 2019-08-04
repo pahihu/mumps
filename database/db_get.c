@@ -80,7 +80,8 @@ short Get_data(int dir)					// locate a record
   }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
       (dir != 0) ||					// or level or backward
-      ((systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
+      /* NB. we can write without journaling! */
+      (// (systab->vol[volnum-1]->vollab->journal_available) && // or journaling
        (writing)))					// and writing
   { systab->last_blk_used[partab.jobtab - systab->jobtab] = 0; // zot this
   }
