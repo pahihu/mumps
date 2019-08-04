@@ -36,5 +36,7 @@ Fixes:
   * reverse $QUERY() for locals
   * $FNUMBER() suppress sign for 0
   * JOB argument passing
+  * fixed cached block usage in Get_data() when journaling turned off and writing
+  * fixed key removal Un_key()  in the case of multi-level B-trees (level > 3)
 
 **NOTE**: Use the code! Good luck!
