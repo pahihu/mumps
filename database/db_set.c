@@ -114,15 +114,11 @@
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-extern int KeyLocated;                                  // flag key located
-
 short TrySimpleSet(short s, cstring *data)
 { int i;
 
   if (s < 0)                                            // it's a new node
-  { KeyLocated = 1;
-    s = Insert(&db_var.slen, data);			// try it
-    KeyLocated = 0;
+  { s = Insert(&db_var.slen, data);			// try it
     if (s != -(ERRMLAST+ERRZ62))		        // if it did fit
     { if (s < 0)
       { return s;				        // exit on error
@@ -130,7 +126,7 @@ short TrySimpleSet(short s, cstring *data)
       if (blk[level]->dirty == (gbd *) 1)	        // if reserved
       { blk[level]->dirty = blk[level];			// point at self
 	TXSET(blk[level]);
-        Queit();				        // que for write
+        Queit();			        	// que for write
       }
       return data->len;		                        // and return length
     }
@@ -516,13 +512,12 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   trailings = Index;					// for ron
   if (trailings <= blk[level]->mem->last_idx)		// if any point
   { 
+#if 0
 #ifdef MV1_CCC
-    Build_KeyBuf(trailings - 1, &fk[0]);
+    Build_KeyBuf(trailings - 1, &fk[0], KEY_COPY);	// build keybuf[]
 #else
-    if (trailings != LOW_INDEX)
-    { chunk = (cstring *) &iidx[idx[trailings - 1]];	// point at chunk
-      bcopy(&chunk->buf[2], &fk[chunk->buf[0] + 1], chunk->buf[1]);
-    }
+    Build_KeyBuf(trailings - 1, &fk[0], KEY_NOCOPY);	// fk[] IS NOT USED
+#endif
 #endif
     i = Index;						// start here
     chunk = (cstring *) &iidx[idx[i]];			// point at first chunk
@@ -563,39 +558,6 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     blk[level]->mem->last_free
       = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
-
-#if 0
-    // NB.
-    // - ha rs < ts, akkor miert ne lehetne G1 G2 - G3 G4 eloszor ?
-    if ((rs < ts) && (trailings != LOW_INDEX))
-    { Copy_data(cblk[0], trailings);			// copy trailings
-      Copy_data(cblk[3], LOW_INDEX);			// and old RL
-
-      btmp = blk[level]->mem;				// save this
-      blk[level]->mem = cblk[3]->mem;			// copy in this
-      cblk[3]->mem = btmp;				// end swap 'mem'
-      Free_GBD(blk[level]);				// give it back
-
-      blk[level] = cblk[0];				// orig blk again
-      idx = (u_short *) blk[level]->mem;		// point at it
-      iidx = (int *) blk[level]->mem;			// point at it
-
-      for (i = trailings; i <= blk[level]->mem->last_idx; i++)
-      { chunk = (cstring *) &iidx[idx[i]];		// point at the chunk
-        record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at the dbc
-        record->len = NODE_UNDEFINED;			// junk it
-      }
-      Tidy_block();					// tidy it
-
-      s = Insert(&db_var.slen, data);			// attempt to insert
-      if (s >= 0)					// if OK
-      { goto fix_keys;					// exit **2A**
-      }
-      else if (s != -(ERRMLAST+ERRZ62))
-      { return s;					// error
-      }
-    }
-#endif
 
     if (((ts + rs) < rls) && (trailings != LOW_INDEX))	// if new record fits
     { s = Insert(&db_var.slen, data);			// insert it

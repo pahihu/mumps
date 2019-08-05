@@ -69,7 +69,7 @@ short logit(int where,short ret)
 //			   unless blk[0] == NULL (for lastused)
 //	     This calls Locate() which sets up chunk, record, idx,
 //		iidx, keybuf Index.
-// NOTE: lastused block is NOT used if dir != 0 or journaling is on and writing
+// NOTE: lastused block is NOT used if dir != 0 or writing
 
 short Get_data_ex(int dir, int TipIndex)		// locate a record
 { int i, j;						// a handy int
@@ -89,7 +89,8 @@ short Get_data_ex(int dir, int TipIndex)		// locate a record
   }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
       (dir != 0) ||					// or level or backward
-      ((systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
+      /* NB. we CAN write without journaling */
+      (// (systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
        (writing)))					// and writing
   { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // zot this
   }

@@ -654,14 +654,9 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     }
   }							// end forwards
 #ifdef MV1_CCC
-  Build_KeyBuf(Index, &keybuf[0]);			// rebuild key
-  keyptr = &keybuf[0];
+  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-  // bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-  //	  chunk->buf[1]);				// update the key
-  // keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  keyptr = &chunk->buf[1];
+  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);	// point at the chunk
 #endif
 
   if (curr_lock)					// if locked
@@ -806,14 +801,9 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
 
 #ifdef MV1_CCC
-  Build_KeyBuf(Index, &keybuf[0]);			// rebuild key
-  keyptr = &keybuf[0];
+  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
-  // bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-  //	  chunk->buf[1]);				// update the key
-  // keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
-  keyptr = &chunk->buf[1];
+  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY); // point at the chunk
 #endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

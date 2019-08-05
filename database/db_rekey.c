@@ -500,7 +500,7 @@ void Un_key()
     if (s == -ERRM7)					// if not found
     { if (Index > blk[level]->mem->last_idx)		// if ran off end
       { save = blk[level];				// save this one
-	s = Locate_next(0);				// get rl
+	s = Locate_next(keybuf);			// get rl
 	if (s == 0)					// if one there
 	{ s = Locate(uptr);				// look for key
 	  if (s < 0)					// if not found

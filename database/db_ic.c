@@ -289,7 +289,7 @@ u_int ic_block(u_int block, u_int points_at,
 
   while (SemOp( SEM_GLOBAL, READ));			// get a read lock
 
-  s = Get_block(block);					// get it
+  s = Get_block_raw(block);				// get it
   if (s < 0)						// if that failed
   { i = SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
     s = UTIL_strerror(s, emsg);				// decode message

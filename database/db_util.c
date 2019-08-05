@@ -58,9 +58,7 @@
 // Return:   String length -> Ok, negative MUMPS error -(ERRMLAST+ERRZ62)
 //
 
-extern int KeyLocated;                                  // flag key located
-
-short Insert(u_char *key, cstring *data)                // insert a node
+short Insert(u_char *key, cstring *data)		// insert a node
 { int i;                                                // a handy int
   int isdata;                                           // data/ptr flag
   int rs;                                               // required size
@@ -73,14 +71,12 @@ short Insert(u_char *key, cstring *data)                // insert a node
             (level));                                   // not the directory
 
   if (blk[level]->mem->last_idx > LOW_INDEX - 1)        // if some data
-  { if (!KeyLocated)                                    // key not located yet
-    { s = Locate(key);                                  // search for it
-      if (s >= 0)                                       // if found
-      { return -(ERRMLAST+ERRZ61);                      // database stuffed
-      }
-      else if (s != -ERRM7)                             // for any other error
-      { return s;                                       // exit
-      }
+  { s = Locate(key);                                  	// search for it
+    if (s >= 0)                                       	// if found
+    { return -(ERRMLAST+ERRZ61);                      	// database stuffed
+    }
+    else if (s != -ERRM7)                             	// for any other error
+    { return s;                                       	// exit
     }
   }
   else                                                  // empty block
@@ -98,16 +94,13 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
   keybuf[0] = 0;                                      	// clear keybuf
 #ifdef MV1_CCC
-  Build_KeyBuf(Index - 1, &keybuf[0]);                	// rebuild keybuf[]
+  Build_KeyBuf(Index - 1, &keybuf[0], KEY_COPY);        // rebuild keybuf[]
 #else
-  chunk = (cstring *) &iidx[idx[Index - 1]];		// point at to chunk
-  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-      chunk->buf[1]);                                   // update the key
-  keybuf[0] = chunk->buf[0] + chunk->buf[1];            // and the size
+  Build_KeyBuf(Index - 1, &keybuf[0], KEY_COPY);
 #endif
 
   ccc = 0;            // start here
-#ifdef MV1_CCC
+#ifdef MV1_CCC_DOCOMP
   if ((key[0]) && (keybuf[0]))                          //   and any there
   { while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))        // at end of either
@@ -165,6 +158,10 @@ short Insert(u_char *key, cstring *data)                // insert a node
   blk[level]->mem->last_idx++;                          // add to the index
   blk[level]->mem->flags |= BLOCK_DIRTY;                // mark dirty
 
+#ifdef MV1_LOCATE_DEBUG
+  LocateCountP(blk[level],key,__FILE__,__LINE__);
+#endif
+
   return 0;                                             // done
 }
 
@@ -209,7 +206,7 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 // Note:     Must hold a write lock before calling this function
 //
 
-void Queit()                                            // que a gbd for write
+void Queit(void)  					// que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
@@ -228,6 +225,9 @@ void Queit()                                            // que a gbd for write
   if (systab->vol[volnum-1]->track_changes)		// track changes ?
   { Mark_changes(volnum-1, ptr->block);			//   mark blk as changed
   }
+#ifdef MV1_LOCATE_DEBUG
+  LocateAllP(ptr,level,__FILE__,__LINE__);
+#endif
   while (ptr->dirty != ptr)                             // check it
   { ptr = ptr->dirty;                                   // point at next
     // fprintf(stderr," %d",ptr->block);
@@ -235,6 +235,9 @@ void Queit()                                            // que a gbd for write
     if (systab->vol[volnum-1]->track_changes)		// track changes ?
     { Mark_changes(volnum-1, ptr->block);		//   mark blk as changed
     }
+#ifdef MV1_LOCATE_DEBUG
+    LocateAllP(ptr,-1,__FILE__,__LINE__);
+#endif
   }
   // fprintf(stderr,"\r\n");
 
@@ -391,12 +394,13 @@ void Used_block(int vol, int blknum)                    // set blk in map
 //       This function ommits pointers with record = PTR_UNDEFINED
 //
 
-void Tidy_block()                                       // tidy current blk
+void Tidy_block(void)					// tidy current blk
 { gbd *ptr;                                             // a handy pointer
   DB_Block *btmp;                                       // ditto
 
   ptr = blk[level];                                     // remember current
   Get_GBD();                                            // get another
+  ASSERT(blk[level] != ptr);
   bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size); // zot
   blk[level]->mem->type = ptr->mem->type;               // copy type
 
@@ -418,6 +422,11 @@ void Tidy_block()                                       // tidy current blk
   blk[level] = ptr;                                     // restore the ptr
   idx = (u_short *) blk[level]->mem;                    // set this up
   iidx = (int *) blk[level]->mem;                       // and this
+
+#ifdef MV1_LOCATE_DEBUG
+  LocateAllP(blk[level],level,__FILE__,__LINE__);
+#endif
+
   return;                                               // and exit
 }
 
@@ -458,7 +467,7 @@ void Mark_map_dirty(int vol, int blknum)                // mark map dirty
 //           This function ommits pointers with record = PTR_UNDEFINED
 //
 
-void Copy_data(gbd *fptr, int fidx)                     // copy records
+void Copy_data(gbd *fptr, int fidx)			// copy records
 { int i;                                                // a handy int
   u_short *sfidx;                                       // for Indexes
   int *fiidx;                                           // int ver of Index
@@ -479,12 +488,11 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
 
   keybuf[0] = 0;                                        // clear this
 #ifdef MV1_CCC
-  Build_KeyBuf(blk[level]->mem->last_idx, &keybuf[0]);  // update keybuf[]
+  Build_KeyBuf(blk[level]->mem->last_idx, 		// update keybuf[]
+	       &keybuf[0], KEY_COPY);
 #else
-  chunk = (cstring *) &iidx[idx[blk[level]->mem->last_idx]];// point at to chunk
-  bcopy(&chunk->buf[2], &keybuf[chunk->buf[0]+1],
-      chunk->buf[1]);                                   // update the key
-  keybuf[0] = chunk->buf[0] + chunk->buf[1];            // and the size
+  Build_KeyBuf(blk[level]->mem->last_idx,
+	       &keybuf[0], KEY_COPY);
   sav_fk = 0;						// full key to save
 #endif
 
@@ -494,7 +502,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
     bcopy(&c->buf[2], &fk[c->buf[0] + 1], c->buf[1]);   // copy key
     fk[0] = c->buf[0] + c->buf[1];                      // and the length
 #else
-    fk = &c->buf[1];
+    fk = &c->buf[1];					// point at the key
 #endif
     if (i < fidx)                                       // copy this one
     { continue;                                         // no - just continue
@@ -514,7 +522,7 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
       }
     }
     ccc = 0;                                            // start here
-#ifdef MV1_CCC
+#ifdef MV1_CCC_DOCOMP
     if ((fk[0]) && (keybuf[0]))                         // and if any there
     { while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))       // at end of either
@@ -563,7 +571,6 @@ void Copy_data(gbd *fptr, int fidx)                     // copy records
       }
       if (!level)                                       // if GD
       { ((u_int *) record)[1] = ((u_int *) c)[1] & GL_FLAGS; // copy flags
-        // NOTE: ABOVE ALL FLAGS CLEARED !!!!!!!!
       }
     }
 #ifdef MV1_CCC
@@ -577,6 +584,11 @@ Lreturn:
   if (sav_fk)
     bcopy(sav_fk, keybuf, sav_fk[0] + 1);         	// save full key
 #endif
+
+#ifdef MV1_LOCATE_DEBUG
+  LocateAllP(blk[level],level,__PATH__,__LINE__);
+#endif
+
   return;                                               // and exit
 }
 
@@ -589,7 +601,7 @@ Lreturn:
 // Note:     Must only be called for pointer/directory blocks
 //
 
-  void Allign_record()                                  // allign record (int)
+void Allign_record()                                  	// allign record (int)
 { if ((long) record & 3)                                // if not alligned
   { record = (cstring *) &record->buf[2 - ((long) record & 3)]; // allign
   }
@@ -647,7 +659,7 @@ short Compress1()
       if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
 	TXSET(blk[level]);
-        Queit();                                        // and queue it
+        Queit();                                       	// and queue it
       }
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
@@ -740,7 +752,7 @@ short Compress1()
     } 
   }
   if (blk[level] != NULL)                               // if something there
-  { Queit();                                            // que that lot
+  { Queit();                                           	// que that lot
   }
 
   return Re_key();                                      // re-key and return
@@ -1163,7 +1175,7 @@ cont:
 
 
 short Check_BlockNo(int vol, u_int blkno, int checks,
-                        char *where, char *file, int lno, int dopanic)
+                        char *where, const char *file, int lno, int dopanic)
 {
   char msg[128];
   u_char *bitmap = (u_char *) systab->vol[vol]->map;

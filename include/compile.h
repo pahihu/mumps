@@ -36,8 +36,6 @@
 #ifndef _MUMPS_COMPILE_H_                       // only do this once
 #define _MUMPS_COMPILE_H_
 
-// #define __PACKED__      __alignment__ ((__packed__))
-#define __PACKED__
 
 #define comperror(x)	CompError(x,__FILE__,__LINE__)
 #define UNVAR { comperror(-ERRM8); return; } 	// compile undef spec var
@@ -96,7 +94,7 @@ extern int     disp_errors;			// flag to display errors
 extern u_char istk[];				// indirect stack
 extern long isp;				// indirect stack pointer
 
-typedef struct __PACKED__ FOR_STACK             // saved FOR details
+typedef struct __ALIGNED__ FOR_STACK             // saved FOR details
 { short type;					// type of for (see above)
   short svar;					// syment of simple var
 						// ( if -1 use var)
@@ -109,13 +107,13 @@ typedef struct __PACKED__ FOR_STACK             // saved FOR details
 } for_stack;					// end of FOR stuff
 
 
-typedef struct __attribute__ ((__packed__)) TAGS // define routine tags
+typedef struct __PACKED__ TAGS 			// define routine tags
 { var_u name;                                   // tag name
   u_short code;                                 // start of code this tag
 } tags;                                         // end tags struct
 
 
-typedef struct __attribute__ ((__packed__)) RBD // define routine buf desciptor
+typedef struct __PACKED__ RBD 			// define routine buf desciptor
 { struct RBD *fwd_link;				// forward link this hash
   int chunk_size;                               // bytes in this chunk
   int attached;                                 // processes attached

@@ -98,7 +98,6 @@ int main(int argc,char **argv)                  // main entry point
 
   strcpy(srvurl, "");
 
-//  printf ("argc = %d\nargv[0] = %s\n", argc, argv[0]);
   if (argc == 1)
   { if (strcmp( argv[0], "one\0" ) == 0 )       // allow for a name of 'one'
     { cmd = cmd1;                               // use this command

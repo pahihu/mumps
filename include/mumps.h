@@ -67,8 +67,8 @@
 #define VOLATILE
 #endif
 
-// #define __PACKED__      __attribute__ ((__packed__))
-#define __PACKED__
+#define __ALIGNED__
+#define __PACKED__	__attribute__ ((__packed__))
 
 //** general constant definitions ***/
 
@@ -290,24 +290,24 @@ typedef union semun semun_t;
 typedef unsigned long long      u_int64;        // unix unsigned quadword
 
 //typedef u_int64 chr_q;                        // our quadword special
-typedef struct __attribute__ ((__packed__)) CHR_X
+typedef struct __PACKED__ CHR_X
 {
   u_char buf[MAX_NAME_BYTES];
 } chr_x;                                        // our variable length special
 
-typedef union __attribute__ ((__packed__)) VAR_U // get at this two ways
+typedef union __PACKED__ VAR_U 			// get at this two ways
 { chr_x var_xu;                                 // variable name (quadword)
   u_char var_cu[MAX_NAME_BYTES];                // variable name (as char[])
 } var_u;                                        // variable name union
 
-typedef struct __attribute__ ((__packed__)) CSTRING // our string type
+typedef struct __PACKED__ CSTRING 		// our string type
 { short len;                                    // length of it
   u_char buf[32768];                            // and the content
 } cstring;                                      // end counted string
 
 #define MV1_SUBSPOS     1
 
-typedef struct __attribute__ ((__packed__)) MVAR // subscripted MUMPS var
+typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 { var_u name;                                   // variable name
   u_char volset;                                // volset number
   u_char uci;                                   // uci# -> 255 = local var
@@ -319,7 +319,7 @@ typedef struct __attribute__ ((__packed__)) MVAR // subscripted MUMPS var
   u_char key[256];                              // the subs (key) - allow for 0
 } mvar;                                         // end MUMPS subs var
 
-typedef struct __attribute__ ((__packed__)) SIMPLE_MVAR
+typedef struct __PACKED__ SIMPLE_MVAR
 { var_u name;                                   // variable name
   u_char volset;                                // volset number
   u_char uci;                                   // uci# -> 255 = local var
@@ -345,12 +345,12 @@ typedef struct GLOREF_T
 						// sizeof(mvar) = 267
 //** common memory structures ***/
 
-typedef struct __attribute__ ((__packed__)) UCI_TAB
+typedef struct __PACKED__ UCI_TAB
 { var_u name;                                   // uci name
   u_int global;                                 // ptr to global directory
 } uci_tab;                                      // define the uci table
 
-typedef union __PACKED__ DATA_UNION             // diff types of msg data
+typedef union __ALIGNED__ DATA_UNION           // diff types of msg data
 { struct GBD *gbddata;                          // a gbd pointer
   u_int intdata;                                // or an integer (block number)
 } msg_data;                                     // end data msg union
@@ -358,14 +358,14 @@ typedef union __PACKED__ DATA_UNION             // diff types of msg data
 #define WD_WRITE	0
 #define WD_NET		1
 
-typedef struct __PACKED__ WD_TAB                // write daemon table
+typedef struct __ALIGNED__ WD_TAB              // write daemon table
 { int pid;                                      // the wd's pid
   int type;					// 0 - write, 1 - network
   VOLATILE int doing;                           // what we are doing
   VOLATILE msg_data currmsg;                    // the current gbd */block#
 } wdtab_struct;                                 // end write daemon structure
 
-typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
+typedef struct __PACKED__ LABEL_BLOCK
 { u_int magic;                                  // mumps magic number
   u_int max_block;                              // maximum block number
   int header_bytes;                             // bytes in label/map
@@ -389,7 +389,7 @@ typedef struct __attribute__ ((__packed__)) LABEL_BLOCK
 #define SIZEOF_LABEL_BLOCK	4096
 #endif
 
-typedef struct __PACKED__ DB_STAT
+typedef struct __ALIGNED__ DB_STAT
 { u_int dbget;                                  // Global Gets
   u_int dbset;                                  // Global Sets
   u_int dbkil;                                  // Global Kills
@@ -436,7 +436,7 @@ typedef struct MSEM_STAT
 struct GBD;                                     // defined in "db_util.h"
 struct RBD;                                     // see compile.h
 
-typedef struct __PACKED__ VOL_DEF
+typedef struct __ALIGNED__ VOL_DEF
 { VOLATILE label_block *vollab;                 // ptr to volset label block
   void *map;                                    // start of map area
   VOLATILE void *first_free;                    // first word with free bits
@@ -501,7 +501,7 @@ typedef struct __PACKED__ VOL_DEF
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
 
-typedef struct __PACKED__ DO_FRAME
+typedef struct __ALIGNED__ DO_FRAME
 { u_char *routine;                              // addr of rou (or X src)
   u_char *pc;                                   // current mumps pc
   short *symbol;                                // process space sym ptrs
@@ -525,12 +525,12 @@ typedef struct __PACKED__ DO_FRAME
 
 // *** SEQIO specific *** //
 
-typedef struct __PACKED__ FORKTAB
+typedef struct __ALIGNED__ FORKTAB
 { int job_no;
   int pid;
 } forktab;
 
-typedef struct __PACKED__ SERVERTAB
+typedef struct __ALIGNED__ SERVERTAB
 { int slots;
   int taken;
   int cid;
@@ -538,7 +538,7 @@ typedef struct __PACKED__ SERVERTAB
   forktab *forked;
 } servertab;
 
-typedef struct __PACKED__ SQ_CHAN
+typedef struct __ALIGNED__ SQ_CHAN
 { u_char type;                                  // type of device
   u_char options;                               // type specific options
   u_char mode;                                  // how object is opened
@@ -565,7 +565,7 @@ typedef struct __PACKED__ SQ_CHAN
 
 // *** End SEQIO specific *** //
 
-typedef struct __PACKED__ JOBTAB
+typedef struct __ALIGNED__ JOBTAB
 { int pid;                                      // O/S PID (0 if unused)
   int cur_do;	                             	// current do frame addr
   u_int commands;                               // commands executed
@@ -597,7 +597,7 @@ typedef struct __PACKED__ JOBTAB
 } jobtab_t;            				// define jobtab
 						// sizeof(jobtab) = 21939
 
-typedef struct __PACKED__ LOCKTAB               // internal lock tables
+typedef struct __ALIGNED__ LOCKTAB             // internal lock tables
 { struct LOCKTAB *fwd_link;                     // point at next one
   int size;                                     // how many bytes
   int job;                                      // int job (-1 = free)
@@ -609,7 +609,7 @@ typedef struct __PACKED__ LOCKTAB               // internal lock tables
   u_char key[256];                              // and the key
 } locktab;             				// define locktab
 
-typedef struct __PACKED__ TRANTAB               // translation table
+typedef struct __ALIGNED__ TRANTAB             // translation table
 { var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
   u_char from_uci;                              //      uci#
@@ -618,19 +618,19 @@ typedef struct __PACKED__ TRANTAB               // translation table
   u_char to_uci;                                //      uci#
 } trantab;             				// define trantab
 
-typedef struct __PACKED__ TRANHASH              // trantab hash entry
+typedef struct __ALIGNED__ TRANHASH            // trantab hash entry
 { int    tti;                                   // trantab[] index
   var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
   u_char from_uci;                              //      uci#
 } tranhash;                                     // define tranhash
 
-typedef struct __PACKED__ REPLTAB
+typedef struct __ALIGNED__ REPLTAB
 { char connection[VOL_FILENAME_MAX];		// connection URL in nanomsg fmt
   int  typ;					// DGP_SYNC_REQ, DGP_SYNC_OPT
 } repltab;
 
-typedef struct __PACKED__ SYSTAB                // system tables
+typedef struct __ALIGNED__ SYSTAB              // system tables
 { void *address;
   jobtab_t *jobtab;                             // address of jobtab
   int maxjob;                                   // maximum jobs permitted
@@ -698,7 +698,7 @@ extern int sem_id;                              // global semaphore id
 #define LB_ENABLED	1
 #define LB_FILL		2
 
-typedef struct __PACKED__ PARTAB                // define the partition table
+typedef struct __ALIGNED__ PARTAB              // define the partition table
 { jobtab_t *jobtab;                             // our jobtab entry
   int vol_fds[MAX_VOL];                         // the filedes for the volumes
   int jnl_fds[MAX_VOL];                         // the filedes for journals

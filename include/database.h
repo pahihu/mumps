@@ -40,10 +40,6 @@
 #define VOLATILE
 #endif
 
-// #define __PACKED__      __attribute__ ((__packed__))
-#define __PACKED__
-
-
 // **** Defines ***************************************************************
 
 #define READ		(-1)				// Locking defines makes
@@ -85,7 +81,7 @@
 
 // **** Structures ***********************************************************
 
-typedef struct __PACKED__ DB_BLOCK	                // database block layout
+typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 { u_char type;						// block type
   u_char flags;						// flags
   u_char bkprevno;                                      // backup revision
@@ -98,18 +94,47 @@ typedef struct __PACKED__ DB_BLOCK	                // database block layout
   u_int blkver_hi;
 } DB_Block;						// end block header
 
+/*
+ * BLK_HDR_SIZE	- (1 + sizeof(DB_Block)) / sizeof(short)
+ * LOW_INDEX	- BLK_HDR_SIZE / sizeof(short)
+ *
+ */
 #if MAX_NAME_BYTES == 8
-#define BLK_HDR_SIZE	20                              // (1+sizeof(DB_Block))
-                                                        //   / sizeof(short)
-#define LOW_INDEX	10                              // BLK_HDR_SIZE
-                                                        //   / sizeof(short)
+#define BLK_HDR_SIZE	20
+#define LOW_INDEX	10
 #else
-#define BLK_HDR_SIZE    52                              // 44
-#define LOW_INDEX       26                              // 22
+#define BLK_HDR_SIZE    52
+#define LOW_INDEX       26
 #endif
 
-// #define MV1_CCC              1
-// #define MV1_CACHE	        1
+/*
+ * MV1_CCC        - use MV1 key build routines, key locate is sequential
+ * MV1_CCC_DOCOMP - do MV1 prefix compression on keys
+ *
+ * If MV1_CCC is not defined, MV1R2DEV does NOT prefix compress keys,
+ * and uses binary search to locate the key.
+ *
+ */
+#undef MV1_CCC          1
+#undef MV1_CCC_DOCOMP	1
+
+#undef MV1_CACHE
+
+/*
+ * MV1_CACHE_DEBUG	- debug global buffer cache
+ * MV1_CACHE_IO		- report replacement in global buffer cache
+ * MV1_LOCATE_DEBUG	- check key uniqueness in global blocks
+ *
+ */
+#undef MV1_CACHE_DEBUG
+#undef MV1_CACHE_IO
+#undef MV1_LOCATE_DEBUG
+
+/*
+ * MV1_REFD	    - use CLOCK algorithm for block replacement
+ * MV1_REFD_GCLOCK  - use generalized CLOCK algorithm for block replacement
+ *
+ */
 #define MV1_REFD	        1
 #define MV1_REFD_GCLOCK         1
 
@@ -159,7 +184,7 @@ typedef struct __PACKED__ DB_BLOCK	                // database block layout
 
 #endif
 
-typedef struct __PACKED__ GBD		                // global buf desciptor
+typedef struct __ALIGNED__ GBD		                // global buf desciptor
 { u_int block;						// block number
 #ifdef MV1_REFD
   VOLATILE struct GBD *prev;				// prev entry in list
@@ -181,7 +206,7 @@ typedef struct __PACKED__ GBD		                // global buf desciptor
 #define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))
 #define MIN_JRNREC      20                              // min. JRN records
 
-typedef struct __attribute__ ((__packed__)) JRNREC	// journal record
+typedef struct __PACKED__ JRNREC			// journal record
 { u_short size;						// size of record
   u_char action;					// what it is
   u_char uci;						// uci number
@@ -247,6 +272,7 @@ extern int gbd_local_state;				// local buffering
 short GetBlock(u_int blknum,char *file,int line);       // Get block, chk valid
 short GetBlockRaw(u_int blknum,char *file,int line);	// Get block, raw
 #define Get_block(u)    GetBlock(u,__FILE__,__LINE__)
+#define Get_block_raw(u)    GetBlockRaw(u,__FILE__,__LINE__)
 short New_block();					// get new block
 void Get_GBD();				                // get a GBD
 void Get_GBDs(int greqd);				// get n free GBDs
@@ -275,7 +301,7 @@ void  Block_Unlock(void);
 #define TIPIDX_OFFS	10
 #define TIPIDX(x)	(TIPIDX_OFFS + (x))
 short Get_data(int dir);				// get db_var node
-short Get_data_ex(int dir, int TipIndex);		// get db_var node
+short Get_data_ex(int dir, int indexTip);		// get db_var node
 
 // File: database/db_kill.c
 short Kill_data();					// remove tree
@@ -290,9 +316,12 @@ void LB_AddBlock(gbd *ptr);				// add GBD to local buf.
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
-short LocateEx(u_char *key, int frominsert, int TipIndex);//   used in Insert()
+short LocateEx(u_char *key, int frominsert, int indexTip);//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
-void Build_KeyBuf(int pIndex, u_char *pKeyBuf);         // pKeyBuf for pIndex
+u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy);
+							// pKeyBuf for pIndex
+#define KEY_NOCOPY 0
+#define KEY_COPY   1
 u_short FindChunk(u_short from,u_char pfxlen);          // find less than pfxlen
 u_short FindChunk0(u_short from);                       // find zero length
                                         // chunk backwards, not including from
@@ -314,13 +343,13 @@ void Mark_map_dirty(int vol, int blknum);		// mark map dirty
 void Garbit(int blknum);				// que a blk for garb
 short Insert(u_char *key, cstring *data);		// insert a node
 int Queit2(gbd *p_gbd);				        // que a gbd for write
-void Queit();						// que blk[level] for write
-void Tidy_block();					// tidy current blk
+void Queit(void);				// que blk[level] for write
+void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
 short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
-           char *where,char *file,int lno,int dopanic);
+           char *where,const char *file,int lno,int dopanic);
 #define CBN_INRANGE     1
 #define CBN_ALLOCATED   2
 int  DirtyQ_Len();                                      // length of dirtyQ
@@ -330,7 +359,18 @@ void TX_Next(void);
 #define TXSET(x)	TX_Set(x)
 #define TX_NEXT		TX_Next()
 
-//*****************************************************************************
+void LocateAllP(gbd *ptr,int level,const char *path,int line);
+void LocateCountP(gbd *ptr,u_char *key,const char *path,int line);
 
+#ifdef MV1_LOCATE_DEBUG
+#define LOCATE_ALL_PTR(ptr,lvl)	LocateAllP(ptr,lvl,__FILE__,__LINE__)
+#define LOCATE_ALL		LOCATE_ALL_PTR(blk[level],level)
+#define LOCATE_COUNT(key)	LocateCountP(blk[level],key,__FILE__,__LINE__)
+#else
+#define LOCATE_ALL
+#define LOCATE_COUNT(key)
+#endif
+
+//*****************************************************************************
 
 #endif							// !_MUMPS_DATABASE_H_
