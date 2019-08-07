@@ -102,6 +102,8 @@ UNKEY(C,T,X) I $E(K,1,2)=$C(0,0) S K=$E(K,3,999) Q """"""
  S ^%C("GSAVE",1)="Global Save spec filename header text"
  S ^%C("HELP")="internal %M command"
  S ^%C("HELP",1)="This text is displayed."
+ S ^%C("JKILL")="D JKILL^%M(CCL)"
+ S ^%C("JKILL",1)="Job kill."
  S ^%C("LIST")="D INT^%GL(CCL,SW)"
  S ^%C("LIST",1)="List global /D=data only, /L=max level, /M=max lines"
  S ^%C("OS")="S:CCL="""" CCL=""exec $SHELL"" S %=$&%SPAWN(""stty onlcr""_$C(59)_CCL_$C(59)_""stty -onlcr"")"
@@ -495,6 +497,9 @@ WWW(A,F) ;
  W "</pre></body></html>",!
  K A S ^CMD=CMD
  QUIT ""
+JKILL(A,%) ;
+ F %=1:1:$L(A," ") K ^$J($P(A," ",%))
+ Q
  ;
 
 %MH
