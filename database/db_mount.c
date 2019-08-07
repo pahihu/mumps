@@ -159,9 +159,9 @@ short DB_Mount( char *file,                     // database
   }
   n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
-  syncjrn = 1;                                  // buffer flush w/ fsync()
+  syncjrn = 1;                                  // buffer flush w/ sync
   if (jkb < 0)                                  // if negative
-  { syncjrn = 0;                                //   then disable fsync()
+  { syncjrn = 0;                                //   then disable sync
     jkb   = -jkb;
   }
   minjkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
