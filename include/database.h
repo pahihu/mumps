@@ -115,8 +115,8 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  * and uses binary search to locate the key.
  *
  */
-#undef MV1_CCC          1
-#undef MV1_CCC_DOCOMP	1
+#undef MV1_CCC
+#undef MV1_CCC_DOCOMP
 
 #undef MV1_CACHE
 
@@ -269,8 +269,8 @@ extern int gbd_local_state;				// local buffering
 //**** Function Prototypes*****************************************************
 
 // File: database/db_buffer.c
-short GetBlock(u_int blknum,char *file,int line);       // Get block, chk valid
-short GetBlockRaw(u_int blknum,char *file,int line);	// Get block, raw
+short GetBlock(u_int blknum,const char *file,int line);	// Get block, chk valid
+short GetBlockRaw(u_int blknum,const char *file,int line);// Get block, raw
 #define Get_block(u)    GetBlock(u,__FILE__,__LINE__)
 #define Get_block_raw(u)    GetBlockRaw(u,__FILE__,__LINE__)
 short New_block();					// get new block

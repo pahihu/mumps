@@ -82,10 +82,6 @@ u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy)
   return &pKeyBuf[0];					// return ptr to buf
 }
 
-short LocateEx(u_char *key, int frominsert, int indexTip)
-{
-  return Locate(key);
-}
 
 //-----------------------------------------------------------------------------
 // Function: Locate
@@ -131,9 +127,14 @@ short Locate(u_char *key)				// find key
   }							// end locate loop
 }
 
+short LocateEx(u_char *key, int frominsert, int indexTip)
+{
+  return Locate(key);
+}
+
 #else
 
-short Locate(u_char *key)
+short LocateEx(u_char *key, int frominsert, int indexTip)
 { int i;						// a handy int
   int L, R;                                             // bin.search limits
   u_char *dbkey;                                        // ptr to key in blk
@@ -145,6 +146,50 @@ short Locate(u_char *key)
   L = LOW_INDEX; R = blk[level]->mem->last_idx;         // setup limits
 
   dbkey = &keybuf[0];
+
+  if ((frominsert) &&                                   // insert: check last
+      (blk[level]->mem->right_ptr == 0))                //   if no right_ptr
+  { Index = R;
+#ifdef MV1_CCC
+    dbkey = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);  // build keybuf
+#else
+    dbkey = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);// point at the chunk
+#endif
+    i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // cmp
+    if (i == K2_GREATER)                                // key > last key
+    { Index = R + 1;                                    // early exit
+      if (dbkey != &keybuf[0])
+        bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
+      return -ERRM7;
+    }
+    else if (i != K2_LESSER)
+    { goto K2_EQUAL;
+    }
+  }
+
+  if (R - L < 25)					// small no of elts ?
+  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt);
+    Index = LOW_INDEX;					// start at the start
+    while (TRUE)						// loop
+    { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
+      dbkey = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);// point at the chunk
+      record = (cstring *) &chunk->buf[chunk->buf[1]+2];// point at the dbc
+      i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // compare
+      if (i == KEQUAL)					// same?
+      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
+        return 0;					// done
+      }
+      if (i == K2_LESSER)				// passed it?
+      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
+        return -ERRM7;					// no such
+      }
+      Index++;						// point at next
+      if (Index > blk[level]->mem->last_idx)		// passed the end
+      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
+        return -ERRM7;					// no such
+      }
+    }							// end locate loop
+  }
 
   while (L <= R)                                        // loop
   { Index = (L + R) >> 1;                               // find middle
@@ -162,6 +207,7 @@ short Locate(u_char *key)
     { R = Index - 1;
       continue;
     }
+K2_EQUAL:
     if (dbkey != &keybuf[0])
       bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);       // store last dbkey
     record = (cstring *) &chunk->buf[chunk->buf[1]+2];	// point at the dbc
@@ -178,6 +224,11 @@ short Locate(u_char *key)
   keybuf[0] = chunk->buf[0] + chunk->buf[1];		// and the size
   record = (cstring *) &chunk->buf[chunk->buf[1]+2];  	// point at the dbc
   return -ERRM7;
+}
+
+short Locate(u_char *key)
+{
+  return LocateEx(key, 0, 0);
 }
 
 #endif

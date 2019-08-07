@@ -481,6 +481,52 @@ int Net_Daemon(int slot, int vol)			// start a daemon
 }
 
 //-----------------------------------------------------------------------------
+// Function: do_rest
+// Descript: Recalculate rest time if slot = 0.
+// Input(s): uses old_stalls and stalls
+// Return:   sets systab->ZRestTime
+//
+
+static unsigned old_stalls, stalls;		// #stalls
+static time_t last_do_rest;			// last do_rest() time
+
+void do_rest(void)
+{ int i;					// handy int
+  int rest;					// rest time in ms
+
+  if (myslot) return;				// daemon 0 calculates
+
+  if (last_do_rest == MTIME(0))			// once in every sec
+    return;
+
+  stalls = 0; 					// collect #stalls
+  for (i = 0; i < MAX_VOL; i++)
+  { if (systab->vol[i]->local_name[0])	// remote VOL ?
+      continue;					//   skip it
+    if (NULL == systab->vol[i]->vollab)		// stop at first
+      break;					//   unallocated vol.
+    stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
+      systab->vol[i]->stats.gbswait;		//   and GBDs waits
+  }
+  MEM_BARRIER;
+  rest = systab->ZRestTime;
+  if (stalls <= old_stalls)			// same or less stalls ?
+    rest *= 1.5;				//   wait more
+  else
+    rest /= 2;					// more stalls, rest less
+  if (rest < MIN_REST_TIME)			// adjust rest time to
+    rest = MIN_REST_TIME;			// [MIN_REST_TIME,MAX_REST_TIME]
+  else if (rest > MAX_REST_TIME)
+    rest = MAX_REST_TIME;
+  systab->ZRestTime = rest;			// set in systab
+  MEM_BARRIER;
+  // do_log("old_stalls=%u stalls=%u -> RestT=%d\n",old_stalls,stalls,systab->ZRestTime);
+  old_stalls = stalls;				// save stalls in old
+
+  last_do_rest = MTIME(0);
+}
+
+//-----------------------------------------------------------------------------
 // Function: DB_Daemon
 // Descript: Start daemon for passed in slot and vol#
 // Input(s): slot# and Vol#
@@ -496,8 +542,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
-  int rest;						// rest time
-  unsigned stalls, old_stalls;				// no. of stalls
 
   volnum = vol;						// save vol# here
 
@@ -515,6 +559,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
   last_daemon_check = (time_t) 0;
+  last_do_rest = (time_t) 0;
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
@@ -533,6 +578,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   sprintf(&logfile[strlen(logfile)],"daemon_%d.log",slot); // add slot to name
   myslot = slot;					// remember my slot
+
+  if (!myslot) old_stalls = 0;				// clear #stalls
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
@@ -578,32 +625,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   i = MSLEEP(1000);					// wait a bit
 
-  old_stalls = 0;
   while (TRUE)						// forever
-  { if (!myslot)					// daemon 0 calculates
-    { stalls = 0; 					//   rest time
-      for (i = 0; i < MAX_VOL; i++)
-      { if (systab->vol[vol]->local_name[0])		// remote VOL ?
-	  continue;					//   skip it
-        if (NULL == systab->vol[i]->vollab)		// stop at first
-          break;					//   unallocated vol.
-        stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
-		  systab->vol[i]->stats.gbswait;	//   and GBDs waits
-      }
-      rest = systab->ZRestTime;
-      if (stalls == old_stalls)
-        rest *= 1.1;
-      else
-        rest /= 2;
-      if (rest < MIN_REST_TIME)
-        rest = MIN_REST_TIME;
-      else if (rest > MAX_REST_TIME)
-        rest = MAX_REST_TIME;
-      systab->ZRestTime = rest;
-      old_stalls = stalls;
-    }
-
-    MEM_BARRIER;
+  { MEM_BARRIER;
     if ((systab->dgpRESTART) &&				// DGP RESTART phase ?
         (MTIME(0) > systab->dgpRESTART))		//   and time passed
     { systab->dgpRESTART = 0;				//   leave RESTART phase
@@ -634,6 +657,7 @@ void do_daemon()					// do something
 start:
   if (!myslot)                                          // update M time
   { systab->Mtime = time(0);
+    do_rest();						// adjust rest time
   }
 
   daemon_check();					// ensure all running
@@ -1414,7 +1438,7 @@ void do_jrnflush(int vol)
     while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
-    fsync(jfd);                                 // sync to disk
+    SyncFD(jfd);                                // sync to disk
   }
   volnum = old_volnum;                          // restore volnum
 }
@@ -1436,6 +1460,8 @@ void do_volsync(int vol)
   ASSERT(0 == systab->vol[vol]->local_name[0]);	// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
+  do_log("Start volume sync on VOL%d\n",vol);
+
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
   do_queueflush(1);                             // flush queues
@@ -1446,10 +1472,10 @@ void do_volsync(int vol)
       while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      fsync(jfd);                               // sync JRN to disk
+      SyncFD(jfd);                              // sync JRN to disk
     }
   }
-  fsync(dbfds[vol]);                            // sync volume to disk
+  SyncFD(dbfds[vol]);                           // sync volume to disk
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd > 0)
@@ -1462,13 +1488,15 @@ void do_volsync(int vol)
       DoJournal(&jj, 0);                        // do journal
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      fsync(jfd);                               // sync to disk
+      SyncFD(jfd);                              // sync to disk
     }
   }
   inter_add(&systab->delaywt, -1);              // release WRITEs
   MEM_BARRIER;
   last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
   volnum = old_volnum;
+
+  do_log("Done  volume sync on VOL%d\n",vol);
 }
 
 

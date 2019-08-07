@@ -83,7 +83,7 @@
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
-#define VERSION_TEST	1                       // Test version number
+#define VERSION_TEST	2                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon

@@ -71,7 +71,7 @@ short logit(int where,short ret)
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or writing
 
-short Get_data_ex(int dir, int TipIndex)		// locate a record
+short Get_data_ex(int dir, int indexTip)
 { int i, j;						// a handy int
   short s;						// for function returns
   u_char tmp[2*MAX_NAME_BYTES-1];			// spare string
@@ -91,7 +91,7 @@ short Get_data_ex(int dir, int TipIndex)		// locate a record
       (dir != 0) ||					// or level or backward
       /* NB. we CAN write without journaling */
       (// (systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
-       (writing)))					// and writing
+       (writing + wanna_writing)))			// and (wanna) writing 
   { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // zot this
   }
   else
@@ -132,7 +132,7 @@ Found:    if ((X_NE(ptr->mem->global,
           }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = ptr;				// point at it
-	  s = LocateEx(&db_var.slen,0,TipIndex);	// check for the key
+	  s = LocateEx(&db_var.slen,0,indexTip);	// check for the key
 	  if ((s >= 0) ||				// if found or
 	      ((s = -ERRM7) &&				// not found and
 	       (Index <= blk[level]->mem->last_idx) &&	// still in block

@@ -326,7 +326,7 @@ void Release_GBDs(int stopat)
 extern pid_t mypid;
 
 static
-short GetBlockEx(u_int blknum,char *file,int line)      // Get block
+short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
 { int i;						// a handy int
   short s = -1;						// for functions
   off_t file_off;					// for lseek()
@@ -532,7 +532,7 @@ exitP:
   return 0;						// return success
 }
 
-short GetBlock(u_int blknum,char *file,int line)        // Get block
+short GetBlock(u_int blknum,const char *file,int line)        // Get block
 {
   Check_BlockNo(volnum-1, blknum,                       // check blknum, die
                 CBN_ALLOCATED | CBN_INRANGE,    
@@ -540,10 +540,10 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
   return GetBlockEx(blknum,file,line);
 }
 
-short GetBlockRaw(u_int blknum, char *file, int line)   // Get block, raw
+short GetBlockRaw(u_int blknum, const char *file, int line)   // Get block, raw
 { short s;
   s = Check_BlockNo(volnum-1, blknum, CBN_INRANGE,      // check blknum
-                        "Get_block", file, line, 0);
+                        "Get_block_raw", file, line, 0);
   if (s < 0)
     return s;
   return GetBlockEx(blknum,file,line);
