@@ -88,6 +88,7 @@ short Kill_data_ex(int what)				// remove tree
   bzero(rekey_lvl, MAXREKEY * sizeof(int));		// and that table
 
   SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
+
   systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;  // clear last
 
   writing = 1;						// say we are killing
@@ -135,6 +136,7 @@ cont:
     DoJournal(&jj, NULL);				// and do it
   }
 
+  ptr = 0;						// init ptr
   if ((db_var.slen == 0) && (KILL_VAL & what))	        // full global kill?
   { 
 FullGlobalKill:
