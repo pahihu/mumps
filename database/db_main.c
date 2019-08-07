@@ -1208,7 +1208,8 @@ short DB_Compress(mvar *var, int flags)			// Compress global
   s = Get_data(flags);					// get to level 'flags'
   retlevel = level;					// save real level
   if (!level)
-  { return -ERRM7;					// give up if nosuch
+  { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);	// release curr. lock
+    return -ERRM7;					// give up if nosuch
   }
   chunk = (cstring *) &iidx[idx[LOW_INDEX]];		// point at the first
   bcopy(&chunk->buf[1], &var->slen, chunk->buf[1]+1);	// save the real key
