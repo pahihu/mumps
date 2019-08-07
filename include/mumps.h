@@ -172,7 +172,7 @@
 
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
-#define MIN_REST_TIME	   8			// min. daemon rest time
+#define MIN_REST_TIME	  10			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
 
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
