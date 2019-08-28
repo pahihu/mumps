@@ -1570,21 +1570,6 @@ void do_map_write(int vol)
       SemOp( SEM_GLOBAL, -curr_lock);		// release lock
     }
   }
-/*
-  file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
-  if (file_off<0)
-  { systab->vol[vol]->stats.diskerrors++;	// count an error
-    sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-    panic(msg);
-  }
-  i = write( dbfds[vol], systab->vol[vol]->vollab,
-	     systab->vol[vol]->vollab->header_bytes);// map/label
-  if (i < 0)
-  { systab->vol[vol]->stats.diskerrors++;	// count an error
-    sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-    panic(msg);
-  }
-*/
   inter_add(&systab->vol[vol]->map_dirty_flag, -dirty_flag); // alter dirty flag
   ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt); // count a write
   last_map_write[vol] = MTIME(0);
