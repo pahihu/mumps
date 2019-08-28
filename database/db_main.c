@@ -94,7 +94,7 @@ short ROU_Process(char *entry,
   s = UTIL_String_Mvar(var, (u_char *) &tmp[0], 9999);
   if (s < 0)
     return s;
-  return -(ERRZLAST+ERRZ52);                            // not implemented yet
+  return -(ERRMLAST+ERRZ52);                            // not implemented yet
 }
 
 //-----------------------------------------------------------------------------
@@ -277,7 +277,7 @@ short DB_GetEx(mvar *var, 				// get global data
     { i = Sleep(5);					// wait a bit
       if (partab.jobtab->attention)
       { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
-        return -(ERRZLAST+ERRZ51);			// for <Control><C>
+        return -(ERRMLAST+ERRZ51);			// for <Control><C>
       }
     }							// end writelock check
     Ensure_GBDs(0);
@@ -351,7 +351,7 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
     { i = Sleep(5);					// wait a bit
       if (partab.jobtab->attention)
       { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
-        return -(ERRZLAST+ERRZ51);			// for <Control><C>
+        return -(ERRMLAST+ERRZ51);			// for <Control><C>
       }
     }							
   }                                                     // end writelock check
@@ -365,7 +365,7 @@ short DB_SetEx(mvar *var, cstring *data, int has_wrlock)// set global data
 
   if (!i)
   { if (curr_lock) SemOp( SEM_GLOBAL, -curr_lock);
-    return -(ERRZLAST+ERRZ11);				// complain if failed
+    return -(ERRMLAST+ERRZ11);				// complain if failed
   }
 
   if (has_wrlock)					// has WRITE lock?
@@ -507,7 +507,7 @@ short DB_KillEx(mvar *var, int what)                   	// remove sub-tree
          systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   wanna_writing = 1;
@@ -1153,7 +1153,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
          systab->delaywt)                               //   or delay WRITEs
   { i = Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   Get_GBDs(0);						// ensure this many
@@ -1222,11 +1222,11 @@ short DB_Compress(mvar *var, int flags)			// Compress global
            systab->delaywt)                             //   or delay WRITEs
     { i = Sleep(5);					// wait a bit
       if (partab.jobtab->attention)
-      { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+      { return -(ERRMLAST+ERRZ51);			// for <Control><C>
       }
     }							// end writelock check
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
 
     s = Get_data(retlevel);				// get the block
