@@ -167,30 +167,6 @@ short LocateEx(u_char *key, int frominsert, int indexTip)
     }
   }
 
-  if (R - L < 25)					// small no of elts ?
-  { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.eventcnt);
-    Index = LOW_INDEX;					// start at the start
-    while (TRUE)						// loop
-    { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
-      dbkey = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);// point at the chunk
-      record = (cstring *) &chunk->buf[chunk->buf[1]+2];// point at the dbc
-      i = UTIL_Key_KeyCmp(&dbkey[1], &key[1], dbkey[0], key[0]); // compare
-      if (i == KEQUAL)					// same?
-      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
-        return 0;					// done
-      }
-      if (i == K2_LESSER)				// passed it?
-      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
-        return -ERRM7;					// no such
-      }
-      Index++;						// point at next
-      if (Index > blk[level]->mem->last_idx)		// passed the end
-      { bcopy(&dbkey[0], &keybuf[0], dbkey[0] + 1);     // store last dbkey
-        return -ERRM7;					// no such
-      }
-    }							// end locate loop
-  }
-
   while (L <= R)                                        // loop
   { Index = (L + R) >> 1;                               // find middle
 #ifdef MV1_CCC
