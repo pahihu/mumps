@@ -37,5 +37,6 @@ Fixes:
   * $FNUMBER() suppress sign for 0
   * JOB argument passing
   * fixed cached block usage in Get_data() when journaling turned off and writing
+  * fixed Control-C handling
 
 **NOTE**: Use the code! Good luck!
