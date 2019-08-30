@@ -267,7 +267,7 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
-	SemOp( SEM_SYS, -systab->maxjob);
+	while (SemOp( SEM_SYS, -systab->maxjob));
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// copy VOL label
 		    (u_char *) systab->vol[s-1]->vollab);
 	SemOp( SEM_SYS, systab->maxjob);
@@ -668,8 +668,8 @@ start:
       if (NULL == systab->vol[vol]->vollab)             // stop at first
         break;                                          //   not mounted
       if ((!myslot) &&                                  // first daemon ?
-          (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
-          (MTIME(0) != last_map_write[vol]))            //     not updated ?
+          (systab->vol[vol]->map_dirty_flag) // &&         //   vol map dirty ?
+          /*(MTIME(0) - last_map_write[vol] > 5)*/)    	//     not updated ?
       { do_map_write(vol);				// write map
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
@@ -709,7 +709,7 @@ start:
       systab->vol[0]->wd_tab[myslot].doing = DOING_GARB;
     }
 #else
-    while (SemOp(SEM_WD, WRITE));			// lock WD
+    while (SemOp( SEM_WD, WRITE));			// lock WD
     dirtyQr = systab->vol[0]->dirtyQr;
     garbQr  = systab->vol[0]->garbQr;
     if (systab->vol[0]->dirtyQ[dirtyQr] != NULL)	// any writes?
@@ -1071,7 +1071,7 @@ int do_zot(int vol,u_int gb)				// zot block
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
   volnum = vol + 1;                                     // set volnum
-  while (SemOp(SEM_GLOBAL, WRITE));			// take a global lock
+  while (SemOp( SEM_GLOBAL, WRITE));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -1083,7 +1083,7 @@ int do_zot(int vol,u_int gb)				// zot block
     }
     ptr = ptr->next;					// point at next
   }							// end memory search
-  SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
+  SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
   { file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
@@ -1409,9 +1409,9 @@ void do_queueflush(int dodelay)
     { break;					// leave loop
     }
     daemon_check();				// ensure all running
-    i = MSLEEP(1000);				// wait a bit
+    // i = MSLEEP(1000);			// wait a bit
   }						// end while (TRUE)
-  i = MSLEEP(1000);				// just a bit more
+  // i = MSLEEP(1000);				// just a bit more
 }
 
 
@@ -1516,24 +1516,36 @@ void do_map_write(int vol)
   u_int chunk;					// chunk bitmap
   char msg[128];				// msg buffer
 
+  msg[0] = '\0';				// clear panic message
+
   do_mount(vol);                                // mount db file
+
+#ifdef MV1_USEDELAY
+  do_queueflush(1);                             // flush queues
+#endif
+
   dirty_flag = systab->vol[vol]->map_dirty_flag;
   if (dirty_flag & VOLLAB_DIRTY)		// check label block
-  { while (SemOp( SEM_GLOBAL, READ));		// take a READ lock
+  { 
+#ifndef MV1_USEDELAY
+    while (SemOp( SEM_GLOBAL, READ));		// read lock GLOBAL
+#endif
     file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
     if (file_off < 0)
     { systab->vol[vol]->stats.diskerrors++;	// count an error
       sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-      panic(msg);
+      goto PANIC;
     }
     i = write( dbfds[vol], systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
     if ((i < 0) || (i != SIZEOF_LABEL_BLOCK))
     { systab->vol[vol]->stats.diskerrors++;	// count an error
       sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-      panic(msg);
+      goto PANIC;
     }
     systab->vol[vol]->map_dirty_flag ^= VOLLAB_DIRTY;
+#ifndef MV1_USEDELAY
     SemOp( SEM_GLOBAL, -curr_lock);		// release lock
+#endif
     dirty_flag ^= VOLLAB_DIRTY;			// clear VOLLAB flag
   }
   if (dirty_flag != VOLLAB_DIRTY)		// check map chunks
@@ -1544,7 +1556,9 @@ void do_map_write(int vol)
       { block += 32;
 	continue;
       }
-      while (SemOp( SEM_GLOBAL, READ));		// take a READ lock
+#ifndef MV1_USEDELAY
+      while (SemOp( SEM_GLOBAL, READ));		// read lock GLOBAL
+#endif
       for (j = 0; j < 32; j++)			// check every bit
       { if (chunk & 1)				// needs writing ?
         { file_off = (off_t) SIZEOF_LABEL_BLOCK + // calc. map block offset
@@ -1553,7 +1567,7 @@ void do_map_write(int vol)
           if (file_off < 0)
           { systab->vol[vol]->stats.diskerrors++; // count an error
             sprintf(msg, "do_daemon: lseek() to map block (%d) of vol %d failed", block, vol);
-            panic(msg);
+            goto PANIC;
           }
           ret = write( dbfds[vol], 		// write the map chunk
 		       systab->vol[vol]->map + block * MAP_CHUNK,
@@ -1561,18 +1575,32 @@ void do_map_write(int vol)
   	  if (ret < 0)
           { systab->vol[vol]->stats.diskerrors++; // count an error
             sprintf(msg, "do_daemon: write() map block (%d) of vol %d failed", block, vol);
-            panic(msg);
+            goto PANIC;
           }
 	}
 	block++; chunk >>= 1;
       }
       systab->vol[vol]->map_chunks[i] = 0;	// clear map chunk
+#ifndef MV1_USEDELAY
       SemOp( SEM_GLOBAL, -curr_lock);		// release lock
+#endif
     }
   }
   inter_add(&systab->vol[vol]->map_dirty_flag, -dirty_flag); // alter dirty flag
   ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt); // count a write
   last_map_write[vol] = MTIME(0);
+
+PANIC:
+#ifdef MV1_USEDELAY
+  inter_add(&systab->delaywt, -1);              // enable WRITEs
+  MEM_BARRIER;
+#else
+  if (curr_lock)
+    SemOp( SEM_GLOBAL, -curr_lock);		// release lock
+#endif
+
+  if (msg[0])					// msg not empty ?
+    panic(msg);					//   do panic
 }
 
 
