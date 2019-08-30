@@ -208,7 +208,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = msleep(WRLOCK_SLEEP);                           // wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
 
@@ -220,7 +220,7 @@ short DB_Set(mvar *var, cstring *data)	         	// set global data
   }
 
   if (!i)
-  { return -(ERRZLAST+ERRZ11);				// complain if failed
+  { return -(ERRMLAST+ERRZ11);				// complain if failed
   }
 
   s = Set_data(data);					// do the set
@@ -314,7 +314,7 @@ short DB_Kill(mvar *var)	                       	// remove sub-tree
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void)msleep(WRLOCK_SLEEP);				// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   s = Get_data(0);					// attempt to get it
@@ -847,7 +847,7 @@ int DB_SetFlags(mvar *var, int flags)                  	// Set flags
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { i = msleep(WRLOCK_SLEEP);				// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   Ensure_GBDs(1);					// ensure this many
@@ -912,11 +912,11 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     while (systab->vol[volnum - 1]->writelock)		// check for write lock
     { i = msleep(WRLOCK_SLEEP);				// wait a bit
       if (partab.jobtab->attention)
-      { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+      { return -(ERRMLAST+ERRZ51);			// for <Control><C>
       }
     }							// end writelock check
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
 
     s = Get_data(retlevel);				// get the block

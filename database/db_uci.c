@@ -71,7 +71,7 @@ short DB_UCISet(int vol, int uci, var_u name)	  	// set uci name
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void)msleep(WRLOCK_SLEEP);			        // wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   volnum = vol;						// set this
@@ -141,7 +141,7 @@ short DB_UCIKill(int vol, int uci)			// kill uci entry
   while (systab->vol[volnum - 1]->writelock)		// check for write lock
   { (void)msleep(WRLOCK_SLEEP);			        // wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   volnum = vol;						// set this
