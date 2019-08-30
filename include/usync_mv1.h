@@ -19,7 +19,11 @@ typedef volatile uint32_t MV1LATCH_T;
 
 
 // --- interlocked increment -----------------
-AO_t inter_add(volatile AO_t *ptr, AO_t incr);
+#ifdef USE_LIBATOMIC_OPS
+#define inter_add	AO_fetch_and_add_acquire_read
+#else
+#define inter_add 	__sync_add_and_fetch
+#endif
 
 // --- latch
 void MV1LatchInit(MV1LATCH_T *latch);
@@ -35,8 +39,8 @@ typedef struct _MV1SEM_T
 } MV1SEM_T;
 
 void MV1SemInit(MV1SEM_T *sem);
-void MV1SemWait(MV1SEM_T *sem);
-void MV1SemSignal(MV1SEM_T *sem, int numb);
+int  MV1SemWait(MV1SEM_T *sem);
+int  MV1SemSignal(MV1SEM_T *sem, int numb);
 
 
 // --- read-write lock -----------------------
