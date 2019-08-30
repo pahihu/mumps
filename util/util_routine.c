@@ -83,7 +83,7 @@ void Dump_rbd()					// dump rbds
   rbd *p;					// a pointer
   char tmp[2+MAX_NAME_BYTES];			// some space
 
-  i = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
+  i = SemOp( SEM_ROU, -systab->maxjob);		// write lock the rbds
   if (i < 0) return;				// exit on error
   p = (rbd *) systab->vol[0]->rbd_head;		// get the start
   printf("Dump of all Routine Buffer Descriptors at %ld\r\n", (long) time(0));
@@ -103,7 +103,7 @@ void Dump_rbd()					// dump rbds
     p = (rbd *) ((u_char *) p + p->chunk_size); // point at next
     if (p >= (rbd *) systab->vol[0]->rbd_end) break; // quit when done
   }
-  i = SemOp(SEM_ROU, systab->maxjob);		// release lock
+  i = SemOp( SEM_ROU, systab->maxjob);		// release lock
   return;					// and exit
 }
 
@@ -310,7 +310,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   
   test = (var_u *) &routine;			// map as a var_u
   hash = Routine_Hash(routine);			// get the hash
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
+  s = SemOp( SEM_ROU, -systab->maxjob);		// write lock the rbds
   if (s < 0) return NULL;			// say can't find on error
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
@@ -327,12 +327,12 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
 	(ptr->uci == uci) &&
         (ptr->vol == vol))			// if this is the right one
     { ptr->attached++;				// count an attach
-      s = SemOp(SEM_ROU, systab->maxjob);	// release the lock
+      s = SemOp( SEM_ROU, systab->maxjob);	// release the lock
       return ptr;				// and return the pointer
     }
     ptr = ptr->fwd_link;			// point at the next one
   }						// end while loop
-  s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+  s = SemOp( SEM_ROU, systab->maxjob);		// release the lock
 
   X_set( "$ROUTINE", rouglob.name.var_cu, 8);	// global name
   rouglob.nsubs = 255;
@@ -357,7 +357,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   rouglob.slen = rouglob.slen + s;		// save count so far
   s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
   if (s < 1) return NULL;			// no such
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock & try again
+  s = SemOp( SEM_ROU, -systab->maxjob);		// write lock & try again
   if (s < 0) return NULL;			// no such
 
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
@@ -368,7 +368,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
 	(ptr->uci == uci) &&
 	(ptr->vol == vol))			// if this is the right one
     { ptr->attached++;				// count an attach
-      s = SemOp(SEM_ROU, systab->maxjob);	// release the lock
+      s = SemOp( SEM_ROU, systab->maxjob);	// release the lock
       return ptr;				// and return the pointer
     }
     p = ptr;					// save for ron
@@ -378,14 +378,14 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
   if (s < 1)					// if it's gone
   { s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
-    s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+    s = SemOp( SEM_ROU, systab->maxjob);	// release the lock
     return NULL;				// say no such
   }
   size = s + RBD_OVERHEAD + 1;			// space required
   if (size & 7) size = (size & ~7) + 8;		// rount up to 8 byte boundary
   ptr = Routine_Find(size);			// find location
   if (ptr == NULL)				// no space mate!!
-  { s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+  { s = SemOp( SEM_ROU, systab->maxjob);	// release the lock
     s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
     return (rbd *)(-1);				// say no space
   }
@@ -411,23 +411,23 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   if (ptr->comp_ver != COMP_VER) 		// check comp version
   { ptr->attached--;				// decrement the count
     Routine_Free(ptr);				// free the space
-    s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+    s = SemOp( SEM_ROU, systab->maxjob);	// release the lock
     return (rbd *)(-2);				// yet another *magic* number
   }
-  s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+  s = SemOp( SEM_ROU, systab->maxjob);		// release the lock
   return ptr;					// success
 }
 
 void Routine_Detach(rbd *pointer)		// Detach from routine
 { short s;					// for SemOp() call
-  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// lock the rbds, check error
+  while (SemOp( SEM_ROU, -systab->maxjob) < 0);	// lock the rbds, check error
   if (pointer->attached > 0)			// if not lost
   { pointer->attached--;			// decrement the count
   }
   if ((pointer->uci == 0) &&			// if it's invalid
       (pointer->attached == 0))			// and nothing is attached
     Routine_Free(pointer);			// free the space
-  s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
+  s = SemOp( SEM_ROU, systab->maxjob);		// release the lock
   return;					// done
 }
 

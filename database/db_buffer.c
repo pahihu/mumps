@@ -168,34 +168,34 @@ void Free_GBDROs(gbd **ptrs, int nptrs)
   int  i;
   bool result;
 
-  while(SemOp(SEM_GBDRO, WRITE));
+  while (SemOp( SEM_GBDRO, WRITE));
   for (i = 0; i < nptrs; i++)
   { result = ck_ring_enqueue_spmc(
                 &systab->vol[volnum-1]->rogbdQ,
                 &systab->vol[volnum-1]->rogbdQBuffer[0],
                 ptrs[i]);
     if (!result)
-    { SemOp(SEM_GBDRO, -WRITE);
+    { SemOp( SEM_GBDRO, -WRITE);
       panic("cannot release ROGBD!!");
     }
   }
-  SemOp(SEM_GBDRO, -WRITE);
+  SemOp( SEM_GBDRO, -WRITE);
 }
 
 void Free_GBDRO(gbd *ptr)
 {
   bool result;
 
-  while(SemOp(SEM_GBDRO, WRITE));
+  while (SemOp( SEM_GBDRO, WRITE));
   result = ck_ring_enqueue_spmc(
                 &systab->vol[volnum-1]->rogbdQ,
                 &systab->vol[volnum-1]->rogbdQBuffer[0],
                 ptr);
   if (!result)
-  { SemOp(SEM_GBDRO, -WRITE);
+  { SemOp( SEM_GBDRO, -WRITE);
     panic("cannot release ROGBD!!");
   }
-  SemOp(SEM_GBDRO, -WRITE);
+  SemOp( SEM_GBDRO, -WRITE);
 }
 #endif
 
@@ -427,7 +427,7 @@ writelock:
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
-	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+	while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
         MEM_BARRIER;
         wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
@@ -463,7 +463,7 @@ writelock:
 #endif
   MEM_BARRIER;
   if (!writing)						// if reading
-  { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+  { while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
   }
 unlocked:
 #ifdef MV1_CACHE_IO
@@ -696,7 +696,7 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 
 start:
   if (!haslock)
-    while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+    while (SemOp( SEM_GLOBAL, WRITE));                  // get write lock
   haslock = 0;                                          // clear for next turns
   curr = 0;						// clear current  
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
@@ -746,7 +746,7 @@ start:
 
   if (0 == (pass & 3))                                  // will wait ?
     systab->vol[volnum - 1]->stats.gbswait++;           //   update stats
-  SemOp(SEM_GLOBAL, -curr_lock);			// release our lock
+  SemOp( SEM_GLOBAL, -curr_lock);			// release our lock
   if (pass & 3)
     SchedYield();                                       // yield
   else
@@ -847,7 +847,7 @@ start:
     }
 
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
-    SemOp(SEM_GLOBAL, -curr_lock);			// release current
+    SemOp( SEM_GLOBAL, -curr_lock);			// release current
     if (pass & 3)
       SchedYield();                                     // yield
     else
@@ -856,7 +856,7 @@ start:
     if (pass > GBD_TRIES)				// this is crazy!
     { panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
-    while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
+    while (SemOp( SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again
   }
 
@@ -915,7 +915,7 @@ void Get_GBD(void)                                      // get a GBD
 gbd* Get_RdGBD(void)                                    // get a read-only GBD
 { gbd *ret = 0;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { while(SemOp( SEM_GBDGET, WRITE));
+  { while (SemOp( SEM_GBDGET, WRITE));
     ret = GetGBDEx(1);                                  // no I/O involved !!!
     if (!ret)
       SemOp( SEM_GBDGET, -WRITE);

@@ -40,9 +40,9 @@
 
 #if defined(__linux__) && defined(__PPC__)
 #undef MV1_SHSEM
-#define MEM_BARRIER
+#define MEM_BARRIER	__sync_synchronize()
 #else
-#define MV1_SHSEM       1
+#define MV1_SHSEM	1
 #define MEM_BARRIER     __sync_synchronize()
 #endif
 

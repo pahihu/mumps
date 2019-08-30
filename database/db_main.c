@@ -1059,7 +1059,7 @@ int DB_Dismount(int volume)	                       	// dismount a volume
 { // if (volume > 1)
   { int old_volnum = volnum;
     volnum = volume;                                    // set volnum
-    while (SemOp( SEM_GLOBAL, WRITE))
+    while (SemOp( SEM_GLOBAL, WRITE))			// lock GLOBAL
       ;
     DB_StopJournal(volume, JRN_ESTOP);
     SemOp( SEM_GLOBAL, -curr_lock);

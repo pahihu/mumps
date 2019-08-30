@@ -434,7 +434,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      same = 1;				// same rou and source
   }						// end source ssvn check
   if (!partab.checkonly)			// if it's a real compile
-  { s = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
+  { s = SemOp( SEM_ROU, -systab->maxjob);	// grab the routine semaphore
     if (s < 0) return s;			// if we got an error, quit
     rou_slen  = rou->slen;			// save routine key size
     rou_nsubs = rou->nsubs;
@@ -442,7 +442,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   if (!same)					// if not the same
   { s = DB_Kill(rou);				// dong it
     if (s < 0)					// complain on error
-    { i = SemOp(SEM_ROU, systab->maxjob);	// release sem
+    { i = SemOp( SEM_ROU, systab->maxjob);	// release sem
       return s;					// exit
     }
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
@@ -586,7 +586,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
       rou->slen = rou_slen + s;			// store the new length
       s = DB_Set(rou, line);			// write out the source line
       if (s < 0)
-      { if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+      { if (!partab.checkonly) SemOp( SEM_ROU, systab->maxjob); // unlock
         partab.varlst = NULL;			// for localvar()
         return s;				// exit with error
       }
@@ -689,7 +689,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   i = p - line->buf + (comp_ptr - code) + i + j; // total size
   if (i > MAX_STR_LEN) 
   { comperror(-(ERRZ54+ERRMLAST));		// complain
-    if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+    if (!partab.checkonly) SemOp( SEM_ROU, systab->maxjob); // unlock
     return -ERRM75;				// ignore the rest
   }
   line->len = i;				// save the length
@@ -706,6 +706,6 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   if (same)
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
     Routine_Delete(rounam.var_xu, rou->uci, rou->volset); // delete the routine
-  i = SemOp(SEM_ROU, systab->maxjob);		// release sem
+  i = SemOp( SEM_ROU, systab->maxjob);		// release sem
   return s;					// NEED MORE HERE
 }

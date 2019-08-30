@@ -168,7 +168,7 @@ int ForkIt(int cft)				// Copy File Table True/False
 #endif
 
   if (cft > -1)					// not a write daemon
-  { i = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
+  { i = SemOp( SEM_SYS, -systab->maxjob);	// lock systab
     if (i < 0) return 0;			// quit on error
     for (i = 0; i < systab->maxjob; i++)        // look for a free slot
       if (systab->jobtab[i].pid == 0)           // this one ?
@@ -176,7 +176,7 @@ int ForkIt(int cft)				// Copy File Table True/False
         break;                                  // and exit
       }
     if (mid == -1)				// if no slots
-    { i = SemOp(SEM_SYS, systab->maxjob);	// unlock
+    { i = SemOp( SEM_SYS, systab->maxjob);	// unlock
       return 0;					// return fail
     }
   }
@@ -207,13 +207,13 @@ int ForkIt(int cft)				// Copy File Table True/False
     (void) setSignal ( SIGINT, IGNORE );	// disable control C
 
   if (i < 0)					// fail ?
-  { i = SemOp(SEM_SYS, systab->maxjob);		// unlock
+  { i = SemOp( SEM_SYS, systab->maxjob);	// unlock
     return 0;					// return fail
   }
   if (i > 0)					// the parent ?
   { bcopy(partab.jobtab, &systab->jobtab[mid], sizeof(jobtab_t)); // copy job info
     systab->jobtab[mid].pid = i;		// save the pid
-    i = SemOp(SEM_SYS, systab->maxjob);		// unlock
+    i = SemOp( SEM_SYS, systab->maxjob);	// unlock
     return (mid + 1);				// return child job number
   }
   ret = -((MV1_PID) + 1); // save minus parent job#
@@ -237,13 +237,13 @@ int ForkIt(int cft)				// Copy File Table True/False
     }
   }
   if (cft)					// fork type?
-  { i = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
+  { i = SemOp( SEM_ROU, -systab->maxjob);	// grab the routine semaphore
     if (i < 0) panic("Can't get SEM_ROU in ForkIt()"); // die on fail
     for (i = partab.jobtab->cur_do; i > 0; i--)	// scan all do frames
     { if (partab.jobtab->dostk[i].flags & DO_FLAG_ATT)
         ((rbd *) partab.jobtab->dostk[i].routine)->attached++; // count attached
     }
-    i = SemOp(SEM_ROU, systab->maxjob);		// release the routine buffers
+    i = SemOp( SEM_ROU, systab->maxjob);	// release the routine buffers
     return ret;					// return -parent job#
   }
   for (i = 1; i < MAX_SEQ_IO; SQ_Close(i++));	// close all open files

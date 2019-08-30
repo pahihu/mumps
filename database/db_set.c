@@ -172,7 +172,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   short rc;						// replication status
 
   if (!curr_lock)
-  { while (SemOp(SEM_GLOBAL, WRITE));                   // get write lock
+  { while (SemOp( SEM_GLOBAL, WRITE));                  // get write lock
     TX_NEXT;
   }
 

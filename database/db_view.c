@@ -72,7 +72,7 @@ struct GBD *DB_ViewGet(int volume, int block)		// return gbd for blk
   level = 0;						// where it goes
   volnum = volume;					// need this
   writing = 0;						// clear this
-  s = SemOp(SEM_GLOBAL, READ);				// write lock
+  s = SemOp( SEM_GLOBAL, READ);				// write lock
   if (s < 0)						// check error
   { return NULL;					// quit if so
   }
@@ -105,7 +105,7 @@ short DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 #endif
   volnum = volume;					// for ron
   writing = 0;						// clear this
-  s = SemOp(SEM_GLOBAL, WRITE);				// write lock
+  s = SemOp( SEM_GLOBAL, WRITE);			// write lock
   if (s < 0)						// check error
   { return s;						// quit if so
   }
@@ -125,7 +125,7 @@ short DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
     Queit();						// do this
   }
   if (curr_lock)
-  { SemOp(SEM_GLOBAL, -curr_lock);			// release lock
+  { SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   }
   return 0;						// and exit
 }
@@ -151,7 +151,7 @@ short DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
   writing = 0;						// clear this
   ptr->last_accessed = MTIME(0);			// reset access
   if (ptr->dirty && (ptr->dirty < (gbd *) 5))		// not owned elsewhere
-  { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
+  { s = SemOp( SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error
     { return s;						// quit if so
     }
@@ -159,7 +159,7 @@ short DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
     fprintf(stderr,"--- DB_ViewRel: !!! free !!!\r\n");fflush(stderr);
 #endif
     Free_GBD(volume-1, ptr);				// free it
-    SemOp(SEM_GLOBAL, -curr_lock);			// release lock
+    SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   }
   return 0;						// and exit
 }

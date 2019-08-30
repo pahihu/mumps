@@ -179,7 +179,7 @@ start:
     }
   }
 
-  ret = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
+  ret = SemOp( SEM_SYS, -systab->maxjob);	// lock systab
   if (ret < 0) goto exit;			// give up on error
   for (i = 0; i < systab->maxjob; i++)		// look for a free slot
   { if (((systab->jobtab[i].pid == 0) &&	// this one ?
@@ -192,7 +192,7 @@ start:
       break;					// end loop
     }
   }
-  ret = SemOp(SEM_SYS, systab->maxjob);		// unlock systab
+  ret = SemOp( SEM_SYS, systab->maxjob);	// unlock systab
   if (partab.jobtab == NULL)			// if that failed
   { ret = ENOMEM;				// error message
     goto exit;					// and exit
