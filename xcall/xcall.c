@@ -519,7 +519,12 @@ short Xcall_e(char *ret_buffer, cstring *istr, cstring *STR_mask)
   char c;
   int mask = 445;                               // bit mask for edit
   if (STR_mask->len != 0)                       // if we have a mask
-  { if ( STR_mask->buf[0] < 'A' )               // If it's a numeric arg
+  { if ( STR_mask->buf[0] == 'H')               // convert to hexadecimal
+    { i = cstringtoi(istr);		        // get number
+      sprintf(ret_buffer, "%X", i);             // print as hexadecimal
+      return strlen(ret_buffer);                // return length
+    }
+    else if ( STR_mask->buf[0] < 'A' )          // If it's a numeric arg
     { mask = 0;                                 // clear mask
       for (i = 0; i != (int)STR_mask->len; i++) // For all characters
         mask = ( mask * 10 ) + ( (int)STR_mask->buf[i] - 48 ); // Cvt to int
