@@ -142,11 +142,35 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 // Return:   0 -> Ok, negative MUMPS error
 //
 
+void DB_Locked(void)
+{ int i, num_gbd;
+  int vol;
+
+  vol = volnum - 1;                                     // calc. vol index
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  systab->vol[vol]->gcollect++;                         // incr. counter
+  if (systab->vol[vol]->gcollect & (256 * 1024))        // not 256K th
+    return;                                             //   return
+
+#if 0
+  num_gbd = systab->vol[vol]->num_gbd;
+  for (i = 0; i < num_gbd; i++)
+  { gbd* ptr = &(systab->vol[vol]->gbd_head[i]);
+    if (ptr->dirty && (ptr->dirty < ((gbd *) 5)))
+    { ptr->dirty = 0;
+    }
+  }
+#endif
+}
+
 void DB_Unlocked(void)
 {
   return;
 }
-
 
 void Release_GBDs(int stopat)
 { if (0 == stopat)
@@ -231,7 +255,8 @@ short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
-	while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
+	while (SemOp( SEM_GLOBAL, WR_TO_R))		// drop to read lock
+          ;
         MEM_BARRIER;
         wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
@@ -269,7 +294,6 @@ short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
   if (!writing)						// if reading
   { while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
   }
-unlocked:
 #ifdef MV1_CACHE_IO
   fprintf(stderr,"%d %20lld R %d\r\n",mypid,monotonic_time(),blk[level]->block);
   fflush(stderr);
@@ -573,15 +597,14 @@ gbd* GetGBDEx(int rdonly)				// get a GBD
   int avail;                                            // flag available blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
   int oldpos;
-  u_int oldval;
 
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"ENTER GBD\r\n"); fflush(stderr);
 #endif
   pass    = 0;
-  oldval  = (u_int) -1;
 start:
   oldptr = NULL;
+  oldpos = -1;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { oldptr
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one

@@ -131,8 +131,6 @@ const  char *sem_file;
 pid_t mypid = 0;
 extern void mv1_log_init();
 
-extern void DB_Unlocked();
-
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
@@ -158,9 +156,11 @@ short SemOpEx(int sem_num, int numb,
     }
     curr_sem_init = 0;
   }
+
   if (numb == 0)				// check for junk
   { return 0;					// just return
   }
+
   if ((SEM_GLOBAL == sem_num) &&
       (curr_lock  != curr_sem[sem_num][volnum]))
   { sprintf(msg,"SemOp(): curr_lock unsynchronized curr_lock=%d curr_sem=%d @ %s:%d",
@@ -191,11 +191,16 @@ short SemOpEx(int sem_num, int numb,
 
   for (i = 0; i < 5; i++)                       // try this many times
   { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
-    if ((SEM_GLOBAL == sem_num) && (0 < numb))
-      DB_Unlocked();
     if (s == 0)					// if that worked
-    { if (SEM_GLOBAL == sem_num)                // adjust curr_lock
-        curr_lock += numb;
+    { if (SEM_GLOBAL == sem_num) 
+      { curr_lock += numb;                      // adjust curr_lock
+#if 0
+        if (numb < -1)                          // WRITE locked ?
+          DB_Locked();                          //   callback
+        else if (0 < numb)                      // unlocked ?
+          DB_Unlocked();                        //   callback
+#endif
+      }
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
@@ -215,17 +220,3 @@ short SemOpEx(int sem_num, int numb,
   return 0;                                     // shouldn't get here
 }
 
-u_int semslot(int pass)
-{
-  u_int slot;
-  db_stat *stats;
-
-  slot  = (u_int) MTIME(0);
-  if (partab.jobtab)
-    slot += partab.jobtab->pid + partab.jobtab->commands +
-            partab.jobtab->grefs;
-  stats = &systab->vol[0]->stats;
-  slot += stats->dbget + stats->dbset + stats->dbkil + 
-          stats->dbdat + stats->dbord + stats->dbqry;
-  return slot ^ (u_int) pass;
-}

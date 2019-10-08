@@ -449,6 +449,7 @@ typedef struct __ALIGNED__ VOL_DEF
   VOLATILE int writelock;                       // MUMPS write lock
   VOLATILE int bkprunning;			// backup running
   u_int upto;                                   // validating map up-to block
+  u_int gcollect;                               // GC counter
   int shm_id;                                   // GBD share mem id
 #ifdef MV1_CKIT
   ck_ring_t dirtyQ;

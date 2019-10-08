@@ -138,7 +138,9 @@ u_int DB_GetDirty(int vol);                      // no. of dirty blocks
 short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
-int SyncFD(int fd);				// sync file descriptor
+int SyncFD(int fd);				 // sync file descriptor
+void DB_Locked(void);                            // DB locked callback
+void DB_Unlocked(void);                          // DB unlocked callback
 
 // Local buffer prototypes
 short LDB_Get(mvar *var, u_char *buf);            // get global data
