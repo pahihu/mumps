@@ -658,8 +658,8 @@ start:
       if (NULL == systab->vol[vol]->vollab)             // stop at first
         break;                                          //   not mounted
       if ((!myslot) &&                                  // first daemon ?
-          (systab->vol[vol]->map_dirty_flag) // &&         //   vol map dirty ?
-          /*(MTIME(0) - last_map_write[vol] > 5)*/)    	//     not updated ?
+          (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
+          (MTIME(0) - last_map_write[vol] > 1))    	//     not updated ?
       { do_map_write(vol);				// write map
       }							// end map write
       if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
