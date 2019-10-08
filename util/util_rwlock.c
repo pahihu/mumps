@@ -23,11 +23,7 @@ extern       int   sem_line;
 extern     pid_t   mypid;
        const char *rtn;
 
-#ifdef USE_LIBATOMIC_OPS
-#define ATOMIC_SYNC     AO_nop_full()
-#else
 #define ATOMIC_SYNC     __sync_synchronize()
-#endif
 
 static
 int Semop(int semid, struct sembuf *sops, size_t nsops)

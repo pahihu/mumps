@@ -26,44 +26,25 @@ extern void panic(char*);
 #define LOCK_SPINS              1024
 #endif
 
-#ifndef USE_LIBATOMIC_OPS
 #define LATCH_FREE 0
-#endif
 
 
 void MV1LatchInit(MV1LATCH_T *latch)
-{
-#ifdef USE_LIBATOMIC_OPS
-  *latch = AO_TS_INITIALIZER;
-#else
-  MV1LatchUnlock(latch);
-#endif
+{ MV1LatchUnlock(latch);
 }
 
 
 static
 int MV1LatchTryLock(MV1LATCH_T *latch)
-{
-#ifdef USE_LIBATOMIC_OPS
-  AO_TS_t ret;
-  ret = AO_test_and_set_acquire_read(latch);
-  return AO_TS_CLEAR == ret;
-#else
-  AO_t ret;
+{ AO_t ret;
 
   ret = __sync_lock_test_and_set(latch, LATCH_FREE + 1);
   return LATCH_FREE == ret;
-#endif
 }
 
 
 void MV1LatchUnlock(MV1LATCH_T *latch)
-{
-#ifdef USE_LIBATOMIC_OPS
-  AO_CLEAR(latch);
-#else
-  __sync_lock_release(latch);
-#endif
+{ __sync_lock_release(latch);
 }
 
 void MicroSleep(u_long useconds)

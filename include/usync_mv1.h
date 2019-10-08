@@ -3,27 +3,12 @@
 
 #include <stdint.h>
 
-// #define USE_LIBATOMIC_OPS 1
-
-#ifdef USE_LIBATOMIC_OPS
-
-#include <atomic_ops.h>
-typedef AO_TS_t LATCH_T;
-
-#else
 
 typedef uint32_t AO_t;
 typedef volatile uint32_t MV1LATCH_T;
 
-#endif
-
-
 // --- interlocked increment -----------------
-#ifdef USE_LIBATOMIC_OPS
-#define inter_add	AO_fetch_and_add_acquire_read
-#else
 #define inter_add 	__sync_add_and_fetch
-#endif
 
 // --- latch
 void MV1LatchInit(MV1LATCH_T *latch);
