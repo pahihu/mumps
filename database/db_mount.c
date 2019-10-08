@@ -124,7 +124,7 @@ short DB_Mount( char *file,                     // database
              strerror(errno));                  // what was returned
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }                                             // end file create test
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_DB_NOCACHE
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block

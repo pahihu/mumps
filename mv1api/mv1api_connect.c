@@ -126,7 +126,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
   hnd->dbfd = open(file, O_RDWR);               // open the database for write
   if (hnd->dbfd < 0) return (errno);            // if that failed
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_DB_NOCACHE
   i = fcntl(hnd->dbfd, F_NOCACHE, 1);
 #endif
   if (hnd->start_type == TYPE_RUN)		// if not from JOB
@@ -261,7 +261,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
     }
     else
     { 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_JRN_NOCACHE
       i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
 #endif
     }

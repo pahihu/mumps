@@ -817,7 +817,7 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     { return (-errno+ERRMLAST+ERRZLAST);
     }
 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_JRN_NOCACHE
     j = fcntl(jfd, F_NOCACHE, 1);
 #endif
     lseek(jfd, 0, SEEK_SET);
@@ -1002,7 +1002,7 @@ void OpenJournal(int vol, int printlog)
     else                                                // if open OK
     { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_JRN_NOCACHE
       i = fcntl(jfd, F_NOCACHE, 1);
 #endif
       lseek(jfd, 0, SEEK_SET);

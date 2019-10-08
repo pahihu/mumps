@@ -134,7 +134,7 @@ start:
   dbfd = open(file, O_RDONLY);                  // open the database for read
   // dbfd = open(file, O_RDWR);                  // open the database for read/write XXX
   if (dbfd < 0) return (errno);                 // if that failed
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_DB_NOCACHE
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   if (start_type == TYPE_RUN)			// if not from JOB
@@ -276,7 +276,7 @@ start:
     }
     else
     { 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_JRN_NOCACHE
       i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
 #endif
       partab.jnl_seq[0] = systab->vol[0]->jnl_seq;

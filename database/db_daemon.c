@@ -587,7 +587,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     return(errno);					// check for error
   }
 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_DB_NOCACHE
   i = fcntl(dbfds[0], F_NOCACHE, 1);
 #endif
   t = time(0);						// for ctime()
@@ -1268,7 +1268,7 @@ void do_mount(int vol)                                  // mount volume
     panic(msg);                                         // die on error
   }
 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_DB_NOCACHE
   i = fcntl(dbfds[vol], F_NOCACHE, 1);
 #endif
 
@@ -1327,7 +1327,7 @@ int attach_jrn(int vol)
       return 0;
     }
 
-#ifdef MV1_F_NOCACHE
+#ifdef MV1_JRN_NOCACHE
     j = fcntl(jfd, F_NOCACHE, 1);
 #endif
     lseek(jfd, 0, SEEK_SET);
