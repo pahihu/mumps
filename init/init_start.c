@@ -245,7 +245,7 @@ int INIT_Start( char *file,                     // database
   }
 
   for (i = 0; i < SEM_MAX; i++)                 // setup for sem init
-#ifdef MV1_SHSEM
+#ifdef MV1_SH_SEM
     sem_val[i] = 0;
 #else
     sem_val[i] = jobs;
@@ -457,7 +457,7 @@ int INIT_Start( char *file,                     // database
 
   systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
-#ifdef MV1_SHSEM
+#ifdef MV1_SH_SEM
   for (i = 0; i < SEM_GLOBAL; i++)              // init shared IPC
     LatchInit(&systab->shsem[i]);
   for (i = 0; i < MAX_VOL; i++)

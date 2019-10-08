@@ -499,15 +499,8 @@ void do_rest(void)
   if (last_do_rest == MTIME(0))			// once in every sec
     return;
 
-  stalls = 0; 					// collect #stalls
-  for (i = 0; i < MAX_VOL; i++)
-  { if (systab->vol[i]->local_name[0])	// remote VOL ?
-      continue;					//   skip it
-    if (NULL == systab->vol[i]->vollab)		// stop at first
-      break;					//   unallocated vol.
-    stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
-      systab->vol[i]->stats.gbswait;		//   and GBDs waits
-  }
+  stalls = DirtyQ_Len() >> 9;                   // check dirty queue length
+
   MEM_BARRIER;
   rest = systab->ZRestTime;
   if (stalls <= old_stalls)			// same or less stalls ?
@@ -632,8 +625,14 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     { systab->dgpRESTART = 0;				//   leave RESTART phase
       MEM_BARRIER;
     }
-     
-    i = MSLEEP(systab->ZRestTime);                      // rest
+    
+    i = systab->ZRestTime / 2;
+    if (i < MIN_REST_TIME)
+      SchedYield();
+    else
+    { i = MSLEEP(i);                                    // rest
+    }
+
     do_daemon();					// do something
   }
   return 0;						// never gets here

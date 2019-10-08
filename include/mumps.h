@@ -38,11 +38,11 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#if defined(__linux__) && defined(__PPC__)
-#undef MV1_SHSEM
+#if (defined(__linux__) && defined(__PPC__)) || defined(MV1_OS_SEM)
+#undef MV1_SH_SEM
 #define MEM_BARRIER	__sync_synchronize()
 #else
-#define MV1_SHSEM	1
+#define MV1_SH_SEM	1
 #define MEM_BARRIER     __sync_synchronize()
 #endif
 
@@ -53,7 +53,7 @@
 // #define MV1_PROFILE     1
 
 #include <stdint.h>
-#ifdef MV1_SHSEM
+#ifdef MV1_SH_SEM
 # ifdef MV1_CKIT
 #  include "usync_ck.h"
 # else
@@ -179,8 +179,8 @@
 
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        4096                    // hash size for global buffers
-#define NUM_DIRTY       8192                    // max queued dirty chains
-#define NUM_GARB        8192                    // max queued garbage blocks
+#define NUM_DIRTY       4096                    // max queued dirty chains
+#define NUM_GARB        4096                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
 
@@ -659,7 +659,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpULOK;				// DGP local ULOK in progress
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   u_char dgpSTART[256];				// client: MV1_PIDs (0-255)
-#ifdef MV1_SHSEM
+#ifdef MV1_SH_SEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
 #ifdef MV1_BLKSEM
