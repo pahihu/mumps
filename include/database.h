@@ -197,9 +197,6 @@ typedef struct __ALIGNED__ GBD		                // global buf desciptor
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
 #endif
-#ifdef MV1_BLKSEM
-  short  curr_lock;                                     // current block lock
-#endif
   u_char vol;                                           // vol[] index
 } gbd;							// end gbd struct
 
@@ -280,23 +277,6 @@ void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(int vol, gbd *free);			// Free a GBD
 void Release_GBDs(int stopat);                          // release rsvd blk[]
 
-#ifdef MV1_BLKSEM
-
-short Block_TryReadLock(gbd *blk);
-short Block_TryWriteLock(gbd *blk);
-void  Block_Unlock(void);
-
-#define BLOCK_UNLOCK(x)         Block_Unlock()
-#define BLOCK_TRYREADLOCK(x)    Block_TryReadLock(x)
-#define BLOCK_TRYWRITELOCK(x)   Block_TryWriteLock(x)
-
-#else
-
-#define BLOCK_UNLOCK(x)
-#define BLOCK_TRYREADLOCK(x)    0
-#define BLOCK_TRYWRITELOCK(x)   0
-
-#endif
 // File: database/db_get.c
 #define TIPIDX_OFFS	10
 #define TIPIDX(x)	(TIPIDX_OFFS + (x))

@@ -580,15 +580,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
 
-#ifdef MV1_BLKSEM
-  wrbuf = (u_char *) mv1malloc(                         // alloc a write buffer
-   		 systab->vol[volnum-1]->vollab->block_size);
-  if (0 == wrbuf)
-  { do_log("Cannot alloc write buffer\n");
-    return(ENOMEM);					// check for error
-  }
-#endif
-
   dbfds[0] = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfds[0] < 0)
   { do_log("Cannot open database file %s\n",
@@ -941,17 +932,7 @@ void do_write()						// write GBDs
       Check_BlockNo(vol, blkno,				// because of ^IC
 		    CBN_INRANGE,			// check only range
                     "Write_Chain", 0, 0, 1);     	// validity
-#ifdef MV1_BLKSEM
-      while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
-      { ATOMIC_INCREMENT(systab->vol[vol]->stats.brdwait);// count a wait
-        SchedYield();                                   //   release quant
-      }                                                 //   if failed
-      bcopy(gbdptr->mem, wrbuf,                         // copy block
-		 systab->vol[vol]->vollab->block_size);
-      BLOCK_UNLOCK(gpdptr);
-#else
       wrbuf = gbdptr->mem;
-#endif
       file_off = (off_t) blkno - 1;	                // block#
       file_off = (file_off * (off_t)
     			systab->vol[vol]->vollab->block_size)

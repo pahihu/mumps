@@ -142,158 +142,9 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
 // Return:   0 -> Ok, negative MUMPS error
 //
 
-gbd *ro_gbd[MAXTREEDEPTH];
-int nro_gbd = 0;
-
-#ifdef MV1_GBDRO
-gbd* Get_GBDRO()
-{
-  gbd *ret = 0;
-  void *qentry;
-  bool result;
-
-  result = ck_ring_dequeue_spmc(
-                &systab->vol[volnum-1]->rogbdQ,
-                &systab->vol[volnum-1]->rogbdQBuffer[0],
-                &qentry);
-  if (result)
-  { ret = (gbd *) qentry;
-    ro_gbd[nro_gbd++] = ret;
-  }
-  return ret;
-}
-
-void Free_GBDROs(gbd **ptrs, int nptrs)
-{
-  int  i;
-  bool result;
-
-  while (SemOp( SEM_GBDRO, WRITE));
-  for (i = 0; i < nptrs; i++)
-  { result = ck_ring_enqueue_spmc(
-                &systab->vol[volnum-1]->rogbdQ,
-                &systab->vol[volnum-1]->rogbdQBuffer[0],
-                ptrs[i]);
-    if (!result)
-    { SemOp( SEM_GBDRO, -WRITE);
-      panic("cannot release ROGBD!!");
-    }
-  }
-  SemOp( SEM_GBDRO, -WRITE);
-}
-
-void Free_GBDRO(gbd *ptr)
-{
-  bool result;
-
-  while (SemOp( SEM_GBDRO, WRITE));
-  result = ck_ring_enqueue_spmc(
-                &systab->vol[volnum-1]->rogbdQ,
-                &systab->vol[volnum-1]->rogbdQBuffer[0],
-                ptr);
-  if (!result)
-  { SemOp( SEM_GBDRO, -WRITE);
-    panic("cannot release ROGBD!!");
-  }
-  SemOp( SEM_GBDRO, -WRITE);
-}
-#endif
-
-gbd *Get_RdGBD();				        // proto
-
-gbd *locked_blk = 0;                                    // locked block
-
-#ifdef MV1_BLKSEM
-
-short Block_TryReadLock(gbd *blk)
-{ int semidx;                                           // block sema index
-  short oldlock;                                        // old value of blk lock
-
-  ASSERT(0 == locked_blk);
-
-  semidx = blk->block & (BLKSEM_MAX - 1);               // calc. sem to lock
-  LatchLock(&systab->blksem[semidx]);                   // acquire block
-  oldlock = blk->curr_lock;                             // get current lock
-  if (oldlock < 0)                                      // signal error if
-  { LatchUnlock(&systab->blksem[semidx]);               //   negative
-    ASSERT(0 <= oldlock);
-  }
-  if (BLK_WRITE == oldlock)                             // exclusive lock ?
-  { LatchUnlock(&systab->blksem[semidx]);               // release block
-    return -1;                                          // failed
-  }
-  blk->curr_lock++;                                     // flag as reading
-  LatchUnlock(&systab->blksem[semidx]);                 // release block
-  
-  locked_blk = blk;                                     // remember it
-
-  return 0;
-}
-
-short Block_TryWriteLock(gbd *blk)
-{ int semidx;                                           // block sema index
-  short oldlock;                                        // old value of blk lock
-
-  ASSERT(0 == locked_blk);
-
-  semidx = blk->block & (BLKSEM_MAX - 1);               // calc. sem to lock
-  LatchLock(&systab->blksem[semidx]);                   // acquire block
-  oldlock = blk->curr_lock;                             // get current lock
-  if (oldlock < 0)                                      // signal error if
-  { LatchUnlock(&systab->blksem[semidx]);               //   negative
-    ASSERT(0 <= oldlock);
-  }
-  if (oldlock)                                          // already locked ?
-  { LatchUnlock(&systab->blksem[semidx]);               // release block
-    return -1;                                          // failed
-  }
-  blk->curr_lock = BLK_WRITE;                           // flag as writing
-  LatchUnlock(&systab->blksem[semidx]);                 // release block
-
-  locked_blk = blk;                                     // remember it
-
-  return 0;
-}
-
-void Block_Unlock(void)
-{ int semidx;                                           // block sema index
-  short oldlock;                                        // old value of blk lock
-
-  ASSERT(0 != locked_blk);                              // should locked
-
-  semidx = locked_blk->block  & (BLKSEM_MAX - 1);       // calc. sem to lock
-  LatchLock(&systab->blksem[semidx]);                   // acquire block
-  oldlock = locked_blk->curr_lock;                      // get current lock
-  if (oldlock < 0)                                      // signal error
-  { LatchUnlock(&systab->blksem[semidx]);               //   if negative
-    ASSERT(0 <= oldlock);
-  }
-  if (BLK_WRITE == oldlock)                             // we had a write lock
-    locked_blk->curr_lock = 0;                          //   release it
-  else
-    locked_blk->curr_lock--;                            // else decr. read count
-  LatchUnlock(&systab->blksem[semidx]);                 // release block
-
-  locked_blk = 0;                                       // forget it
-}
-
-#endif
-
 void DB_Unlocked(void)
 {
-#ifdef MV1_GBDRO
-  if (nro_gbd)
-  { Free_GBDROs(ro_gbd, nro_gbd);
-    nro_gbd = 0;
-  }
-#endif
-#ifdef MV1_BLKSEM
-  if (locked_blk)
-  { if (!writing)
-    { BLOCK_UNLOCK(locked_blk);
-    }
-  }
-#endif
+  return;
 }
 
 
@@ -340,12 +191,6 @@ short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
   fprintf(stderr,"--- S:GetBlock(%u)\r\n",blknum);fflush(stderr);
 #endif
 
-  if (!writing)                                         // a reader
-  { if (locked_blk)                                     //  if locked a block
-    { BLOCK_UNLOCK(locked_blk);                         //  unlock it
-    }
-  }
-
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.logrd); // update stats
   if (LB_ENABLED == gbd_local_state)			// local buffer enabled?
   { ptr = LB_GetBlock(blknum);				//   search block
@@ -377,48 +222,7 @@ short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
   }							// end memory search
 
   if (!writing)						// if read mode
-  { 
-#ifdef MV1_GBDRO
-    if (!wanna_writing)                                 // not pre-write mode ?
-    { ptr = Get_RdGBD();                                // try to get a free GBD
-      if (ptr)                                          //   if succeeded, done
-      { // fprintf(stderr,"Get_FreeGBD(): success\r\n");
-        systab->vol[volnum-1]->stats.phyrd++;           // update stats
-        blk[level] = ptr;                               // save in blk[] chain
-        blk[level]->block = blknum;			// set block number
-#ifdef MV1_REFD
-        REFD_READ_INIT(blk[level]);
-        refd_inited = 1;
-#endif
-        blk[level]->last_accessed = (time_t) 0;		// clear last access
-#ifdef MV1_REFD
-        Link_GBD(blknum, blk[level]);
-#else
-        i = GBD_BUCKET(blknum);
-        blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
-        systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
-#endif
-        SemOp( SEM_GBDGET, -WRITE);
-        goto unlocked;
-      }
-      blk[level] = Get_GBDRO();                         // try to get one
-      if (!blk[level])                                  // if failed, do a
-      { // systab->vol[volnum-1]->stats.eventcnt++;        // update stats
-        goto writelock;                                 //   write lock
-      }
-      systab->vol[volnum-1]->stats.phyrd++;             // update stats
-      blk[level]->block = blknum;			// set block number
-#ifdef MV1_REFD
-      REFD_READ_INIT(blk[level]);
-      refd_inited = 1;
-#endif
-      blk[level]->last_accessed = (time_t) 0;		// clear last access
-      MEM_BARRIER;
-      goto unlocked;
-    }
-#endif
-writelock:
-    SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
+  { SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
     s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
     if (s < 0)                                          // on error
     { return s;                                         // return it
@@ -508,12 +312,6 @@ exit:
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
   // if ((writing) && (blk[level]->dirty == NULL))	// if writing
   { blk[level]->dirty = (gbd *) 1;			// reserve it
-  }
-  if (!writing)                                         // if reading
-  { while (BLOCK_TRYREADLOCK(blk[level]) < 0)           //   wait for read lock
-    { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.brdwait); // count a wait
-      SchedYield();                                     //   release quant
-    }
   }
   blk[level]->last_accessed = MTIME(0);			// set access time
 #ifdef MV1_REFD
@@ -910,19 +708,6 @@ void Get_GBD(void)                                      // get a GBD
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif
 }
-
-#ifdef MV1_GBDRO
-gbd* Get_RdGBD(void)                                    // get a read-only GBD
-{ gbd *ret = 0;
-  if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
-  { while (SemOp( SEM_GBDGET, WRITE));
-    ret = GetGBDEx(1);                                  // no I/O involved !!!
-    if (!ret)
-      SemOp( SEM_GBDGET, -WRITE);
-  }
-  return ret;
-}
-#endif
 
 
 //-----------------------------------------------------------------------------

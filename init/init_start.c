@@ -74,9 +74,6 @@ union semun {
 extern int rwlock_init();
 
 void Routine_Init();                            // proto for routine setup
-#ifdef MV1_GBDRO
-void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
-#endif
 
 //****************************************************************************
 // Init an environment
@@ -214,7 +211,6 @@ int INIT_Start( char *file,                     // database
   { gmb++;					// increase it
     n_gbd = (gmb * MBYTE) / hbuf[3];		// number of gbd
   }
-  n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
   syncjrn = 1;                                  // buffer flush w/ sync
   if (jkb < 0)                                  // if negative
@@ -260,7 +256,7 @@ int INIT_Start( char *file,                     // database
   volset_size = MAX_VOL * sizeof(vol_def)	// size of VOL_DEF
 	      + hbuf[2]				// size of head and map block
               + (hbuf[2] - SIZEOF_LABEL_BLOCK)	// size of change map
-	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
+	      + ((n_gbd) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
@@ -377,7 +373,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[0]->global_buf =
-    (void *) &systab->vol[0]->gbd_head[n_gbd + NUM_GBDRO];//glob buffs
+    (void *) &systab->vol[0]->gbd_head[n_gbd];//glob buffs
   systab->vol[0]->zero_block =
     (void *) &(((u_char *)systab->vol[0]->global_buf)[gmb*MBYTE]);
 						// pointer to zero blk
@@ -462,10 +458,6 @@ int INIT_Start( char *file,                     // database
     LatchInit(&systab->shsem[i]);
   for (i = 0; i < MAX_VOL; i++)
     RWLockInit(&systab->glorw[i], systab->maxjob);
-#ifdef MV1_BLKSEM
-  for (i = 0; i < BLKSEM_MAX; i++)              // init shared block semaphores
-    LatchInit(&systab->blksem[i]);
-#endif
 #endif
 
   volnum = 1;
@@ -473,9 +465,6 @@ int INIT_Start( char *file,                     // database
 #ifdef MV1_CKIT
   ck_ring_init(&systab->vol[volnum-1]->dirtyQ, NUM_DIRTY);
   ck_ring_init(&systab->vol[volnum-1]->garbQ,  NUM_GARB);
-#ifdef MV1_GBDRO
-  ck_ring_init(&systab->vol[volnum-1]->rogbdQ, NUM_GBDRO);
-#endif
 #endif
 
   while (SemOp( SEM_WD, WRITE));		// lock WD
@@ -522,18 +511,8 @@ int INIT_Start( char *file,                     // database
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
 #endif
-#ifdef MV1_BLKSEM
-    gptr[i].curr_lock = 0;                      // block lock flag
-#endif
     gptr[i].vol = 0;                            // vol[] index
   }						// end setup gbds
-#ifdef MV1_GBDRO
-  for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail
-  { gptr[i].mem = (struct DB_BLOCK *) ptr;
-    ptr += systab->vol[0]->vollab->block_size;	// point at next
-    Free_GBDRO(&gptr[i]);
-  }
-#endif
 
   Routine_Init();				// and the routine junk
   i = shmdt(systab);                            // detach the shared mem
