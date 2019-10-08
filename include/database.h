@@ -132,35 +132,9 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 
 /*
  * MV1_REFD	    - use CLOCK algorithm for block replacement
- * MV1_REFD_GCLOCK  - use generalized CLOCK algorithm for block replacement
  *
  */
 #define MV1_REFD	        1
-#define MV1_REFD_GCLOCK         1
-
-#ifdef MV1_REFD_GCLOCK
-
-#define REFD_NEW_START          1
-#define REFD_READ_START         1
-
-#define REFD_NEW_INIT(x)        (x)->refd = REFD_NEW_START
-#define REFD_READ_INIT(x)       (x)->refd = REFD_READ_START
-#define REFD_TYPED_INIT(x)
-#define REFD_VALUE(x)           (x)->refd
-#define REFD_MARK(x)            (x)->refd++
-#define REFD_UNMARK(x)          if ((x)->refd) (x)->refd--
-#define REFD_CLEAR(x)           (x)->refd = 0
-#define REFD_RETYPE(x)          REFD_UNMARK(x)
-#define REFD_DEC(x,n)           \
-        { if ((n) > (x)->refd)  \
-          { REFD_CLEAR(x);      \
-          }                     \
-          else                  \
-          { (x)->refd -= (n);   \
-          }                     \
-        }
-
-#else
 
 #define REFD_NEW_START          1
 #define REFD_READ_START         1
@@ -182,7 +156,6 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
           }			\
         }
 
-#endif
 
 typedef struct __ALIGNED__ GBD		                // global buf desciptor
 { u_int block;						// block number

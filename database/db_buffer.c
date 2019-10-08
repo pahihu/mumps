@@ -478,12 +478,6 @@ void Get_GBDs(int greqd)				// get n free GBDs
 //	     When it completes, it returns with a write lock held.
 //
 
-// block allapotok
-//      szabad                  a free listaban van
-//      piszkos                 modositottak a blokkot
-//      piszkos + sorban van    modositottak a blokkot + WD sorban van
-//      nem piszkos             nem modositottak
-//
 void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
 { int i, j;						// a handy int
   int curr;						// current count
@@ -513,8 +507,8 @@ start:
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (GBD_HASH == ptr->hash)                       	// skip GBDs on free lst
-        // || (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
+    if ((GBD_HASH == ptr->hash) ||                      // skip GBDs on free lst
+        (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
       continue;
     if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
@@ -618,23 +612,17 @@ start:
       // fflush(stderr);
       goto unlink_gbd;				        // common exit code
     }							// end found expired
-    avail = (ptr->dirty == NULL) &&			// if free
-	    (now > ptr->last_accessed) &&               //   and not viewed
-            (0   < ptr->last_accessed);                 //   and not being read
-    if (avail)
-    { if (REFD_VALUE(ptr))                              // hasznalt ?
-      { REFD_UNMARK(ptr);                               //   csokkentsuk a reft
-        if ((REFD_VALUE(ptr)) &&                        // keressuk meg
-            (REFD_VALUE(ptr) < oldval))                 //   a hasznaltak
-        { oldptr = ptr;                                 //   minimumat
-          oldpos = i;
-          oldval = REFD_VALUE(ptr);
-        }
-      }
-      if (0 == REFD_VALUE(ptr))                         // nem hasznalt ?
-      { oldptr = ptr;                                   //  hasznaljuk
+    if (REFD_VALUE(ptr))                                // referenced ?
+    { REFD_UNMARK(ptr);                                 //   decrement ref
+    }
+    else
+    { avail = (ptr->dirty == NULL) &&                   // not dirty
+              (now > ptr->last_accessed) &&             //   and not viewed
+              (0   < ptr->last_accessed);               //   and not being read
+      if (avail)                                        // available?
+      { oldptr = ptr;                                   // save ptr
         oldpos = i;
-        goto unlink_gbd;
+        goto unlink_gbd;                                // and use it
       }
     }
   }							// end for every GBD
@@ -658,24 +646,6 @@ start:
     goto start;						// and try again
   }
 
-  // NB.
-  // - oldval lehet nulla, ha eppen 1-rol csokkentettuk
-  // - mindenkit csokkenteni kell (oldval-1)-el
-  if (oldval && --oldval)
-  { for (i = 0; i < num_gbd; i++)                       // for each GBD
-    { ptr = &systab->vol[volnum-1]->gbd_head[i];
-      if ((0    == ptr->block) ||                       // no block ?
-          (NULL != ptr->dirty))                         //   or dirty ?
-        continue;
-      avail = (now > ptr->last_accessed) &&             // not viewed
-              (0   < ptr->last_accessed);               //   and not being read
-      if (avail)
-      { if (REFD_VALUE(ptr))
-        { REFD_DEC(ptr,oldval);
-        }
-      }
-    }
-  }							// end for every GBD
 unlink_gbd:
 #ifdef MV1_CACHE_IO
   fprintf(stderr,"%d %20lld C %d(%d)\r\n",mypid,monotonic_time(),oldptr->block,oldptr->refd);
