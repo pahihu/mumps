@@ -298,20 +298,6 @@ void Garbit(int blknum)                                 // que a blk for garb
     panic(msg);
   }
 
-#if 0
-  save_level = level;					// save current level
-  level = MAXTREEDEPTH-1;				// set level to spare
-  s = Get_block_unsafe(blknum);				// read block
-  if (s >= 0)
-  { blk[level]->last_accessed = MTIME(0);		// clear last access
-#ifdef MV1_REFD
-    REFD_MARK(blk[level]);				// mark it
-#endif
-    MEM_BARRIER;
-  }
-  level = save_level;					// restore level
-#endif
-
 #ifdef MV1_CKIT
   qentry = (void*) blknum;
   result = ck_ring_enqueue_spmc(
@@ -679,9 +665,7 @@ short Compress1()
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
       blk[1]->last_accessed = MTIME(0);                 // clear last access
-#ifdef MV1_REFD
       REFD_MARK(blk[1]);
-#endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
@@ -715,9 +699,7 @@ short Compress1()
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
     blk[level]->last_accessed = MTIME(0);               // clear last access
-#ifdef MV1_REFD
     REFD_MARK(blk[level]);
-#endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore

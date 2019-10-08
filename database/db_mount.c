@@ -305,10 +305,8 @@ short DB_Mount( char *file,                     // database
     { gptr[i].next = NULL;			// end of list
     }
     systab->vol[vol]->gbd_hash[ GBD_HASH ] = gptr; // head of free list
-#ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
-#endif
     gptr[i].vol = vol;                          // vol[] index
   }						// end setup gbds
 

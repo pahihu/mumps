@@ -80,8 +80,6 @@
 // SEM_GBD is used for reading/writing GBDs and the hash table
 //
 
-#ifdef MV1_REFD
-
 #define Unlink_GBD(vol,x)   UnlinkGBD(vol,x,__FILE__,__LINE__)
 
 void UnlinkGBD(int vol, gbd *oldptr,                    // unlink a GBD
@@ -129,7 +127,6 @@ void Link_GBD(u_int blknum, gbd *newptr)                // lnk gbd in hash chain
   systab->vol[volnum-1]->gbd_hash[hash] = newptr;       // set as new head
 }
 
-#endif
 
 //-----------------------------------------------------------------------------
 // Function: Get_block
@@ -278,18 +275,10 @@ short GetBlockEx(u_int blknum,const char *file,int line)      // Get block
   systab->vol[volnum-1]->stats.phyrd++;                 // update stats
   Get_GBD();					        // get a GBD
   blk[level]->block = blknum;				// set block number
-#ifdef MV1_REFD
   REFD_READ_INIT(blk[level]);
   refd_inited = 1;
-#endif
   blk[level]->last_accessed = (time_t) 0;		// clear last access
-#ifdef MV1_REFD
   Link_GBD(blknum, blk[level]);
-#else
-  i = GBD_BUCKET(blknum);
-  blk[level]->next = systab->vol[volnum-1]->gbd_hash[i];// link it in
-  systab->vol[volnum-1]->gbd_hash[i] = blk[level];	//
-#endif
   MEM_BARRIER;
   if (!writing)						// if reading
   { while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
@@ -338,11 +327,9 @@ exit:
   { blk[level]->dirty = (gbd *) 1;			// reserve it
   }
   blk[level]->last_accessed = MTIME(0);			// set access time
-#ifdef MV1_REFD
   if (!refd_inited)
   { REFD_MARK(blk[level]);
   }
-#endif
 exitP:
   MEM_BARRIER;
   Index = LOW_INDEX;					// first one
@@ -409,15 +396,8 @@ short New_block()					// get new block
         blk[level]->block = blknum;			// save in structure
 	blk[level]->dirty = (gbd *) 1;			// reserve it
 	blk[level]->last_accessed = MTIME(0);		// accessed
-#ifdef MV1_REFD
         REFD_NEW_INIT(blk[level]);                      // mark referenced
         Link_GBD(blknum, blk[level]);
-#else
-        hash = GBD_BUCKET(blknum);
-        blk[level]->next                                // link it in
-          = systab->vol[volnum-1]->gbd_hash[hash];
-	systab->vol[volnum-1]->gbd_hash[hash] = blk[level];
-#endif
 	bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size);
         MEM_BARRIER;
 	systab->vol[volnum-1]->first_free = c;		// save this
@@ -719,29 +699,12 @@ void Free_GBD(int vol, gbd *free)			// Free a GBD
   ASSERT(free->vol == vol);                             // same volume
 
   if (free->block)					// if there is a blk#
-  { 
-#ifdef MV1_CACHE
-    ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(free->block)];
-    if (ptr == free)					// if this one
-    { systab->vol[vol]->gbd_hash[GBD_BUCKET(free->block)]
-        = free->next;					// unlink it
-    }
-    else						// look for it
-    { while (ptr->next != free)				// til found
-      { ptr = ptr->next;				// get next
-      }
-      ptr->next = free->next;				// unlink it
-    }
-#else
-    Unlink_GBD(vol, free);                              // unlink GBD ptr
-#endif
+  { Unlink_GBD(vol, free);                              // unlink GBD ptr
   }
 
-#ifdef MV1_REFD
   free->prev = NULL;
   REFD_CLEAR(free);
   free->hash = GBD_HASH;
-#endif
   free->next = systab->vol[vol]->gbd_hash[GBD_HASH];    // get free list
   systab->vol[vol]->gbd_hash[GBD_HASH] = free; 	        // link it in
   free->block = 0;					// clear this

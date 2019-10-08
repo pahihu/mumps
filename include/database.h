@@ -115,10 +115,9 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  * and uses binary search to locate the key.
  *
  */
-#undef MV1_CCC
-#undef MV1_CCC_DOCOMP
-
-#undef MV1_CACHE
+#ifdef MV1_CCC
+#define MV1_CCC_DOCOMP  1
+#endif
 
 /*
  * MV1_CACHE_DEBUG	- debug global buffer cache
@@ -134,7 +133,6 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  * MV1_REFD	    - use CLOCK algorithm for block replacement
  *
  */
-#define MV1_REFD	        1
 
 #define REFD_NEW_START          1
 #define REFD_READ_START         1
@@ -159,17 +157,13 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 
 typedef struct __ALIGNED__ GBD		                // global buf desciptor
 { u_int block;						// block number
-#ifdef MV1_REFD
   VOLATILE struct GBD *prev;				// prev entry in list
-#endif
   VOLATILE struct GBD *next;				// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
   VOLATILE struct GBD* dirty;				// to write -> next
   VOLATILE time_t last_accessed;			// last time used
-#ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
-#endif
   u_char vol;                                           // vol[] index
 } gbd;							// end gbd struct
 
