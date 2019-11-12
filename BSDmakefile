@@ -3,7 +3,8 @@
 # with help from Sam Habiel
 
 CC	=	gcc
-LIBS	  = -lm -lcrypt
+LIBS	= -lm -lcrypt
+# LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
 EXTRA     = -O -Wall -Iinclude
 
 .ifmake test
@@ -27,16 +28,22 @@ OBJS	= 	compile/dollar.o \
 		database/db_ic.o \
 		database/db_kill.o \
 		database/db_locate.o \
+		database/db_locbuf.o \
 		database/db_main.o \
+		database/db_mount.o \
 		database/db_rekey.o \
 		database/db_set.o \
 		database/db_uci.o \
 		database/db_util.o \
 		database/db_view.o \
+                database/dgp.o \
+                database/dgp_main.o \
 		init/init_create.o \
 		init/init_run.o \
 		init/init_start.o \
 		init/mumps.o \
+                runtime/dlmalloc.o \
+                runtime/decnumber.o \
 		runtime/runtime_attn.o \
 		runtime/runtime_buildmvar.o \
 		runtime/runtime_debug.o \
@@ -57,12 +64,15 @@ OBJS	= 	compile/dollar.o \
 		seqio/SQ_Tcpip.o \
 		symbol/symbol_new.o \
 		symbol/symbol_util.o \
+                util/util_bswap.o \
 		util/util_key.o \
 		util/util_lock.o \
 		util/util_memory.o \
 		util/util_routine.o \
 		util/util_share.o \
 		util/util_strerror.o \
+                util/util_rwlock.o \
+                util/util_usync.o \
 		xcall/xcall.o
 
 .c.o:
