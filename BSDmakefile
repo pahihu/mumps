@@ -3,8 +3,9 @@
 # with help from Sam Habiel
 
 CC	=	gcc
-LIBS	  = -lm -lcrypt
-EXTRA     = -O -Wall -Iinclude
+LIBS	= -lm -lcrypt
+# LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
+EXTRA   = -O -Wall -Iinclude
 
 .ifmake test
 EXTRA     = -O0 -g -Wall -Iinclude
