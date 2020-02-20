@@ -115,8 +115,6 @@ void BAD_MVAR()
   return;
 }
 
-void DB_Unlocked(void);                                 // proto for DB unlock
-
 // NB. ha rtn eleje ":", akkor nem kell meghivni, mint rutint
 short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int

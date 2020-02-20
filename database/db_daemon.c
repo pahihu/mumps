@@ -496,8 +496,8 @@ void do_rest(void)
 
   if (myslot) return;				// daemon 0 calculates
 
-  if (last_do_rest == MTIME(0))			// once in every sec
-    return;
+  if (last_do_rest == MTIME(0))		        // once in every sec
+     return;
 
   stalls = DirtyQ_Len() >> 9;                   // check dirty queue length
 

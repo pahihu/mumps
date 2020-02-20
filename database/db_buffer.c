@@ -149,10 +149,6 @@ void DB_Locked(void)
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  systab->vol[vol]->gcollect++;                         // incr. counter
-  if (systab->vol[vol]->gcollect & (256 * 1024))        // not 256K th
-    return;                                             //   return
-
 #if 0
   num_gbd = systab->vol[vol]->num_gbd;
   for (i = 0; i < num_gbd; i++)
@@ -164,8 +160,20 @@ void DB_Locked(void)
 #endif
 }
 
-void DB_Unlocked(void)
-{
+#define MAX_RESERVED_GBDS   (2*MAXTREEDEPTH)
+static int numReservedGBDs = 0;                         // no. of reserved GBDs
+static gbd *reservedGBDs[MAX_RESERVED_GBDS];            // reserved GBDs
+
+void DB_WillUnlock(void)
+{ int i;                                                // a handy int
+
+  if (writing)                                          // writing ?
+    for (i = 0; i < numReservedGBDs; i++) {             // check each rsvd GBD
+      if (reservedGBDs[i]->dirty < (gbd *)5)            // if reserved
+        reservedGBDs[i]->dirty = 0;                     //   release it
+    }
+
+  numReservedGBDs = 0;                                  // clear reserved
   return;
 }
 
@@ -677,6 +685,12 @@ exit:
 
 void Get_GBD(void)                                      // get a GBD
 { blk[level] = GetGBDEx(0);				// store where reqd
+  if (writing)                                          // writing ?
+  { if (numReservedGBDs == MAX_RESERVED_GBDS)           // reserved buffer full?
+    { panic("reserved GBD buffer overflow");            // do panic
+    }
+    reservedGBDs[numReservedGBDs++] = blk[level];       // save GBD
+  }
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif

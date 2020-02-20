@@ -190,15 +190,17 @@ short SemOpEx(int sem_num, int numb,
   }
 
   for (i = 0; i < 5; i++)                       // try this many times
-  { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
+  { if (0 == i)                                 // first iteration ?
+    { if (SEM_GLOBAL == sem_num && 1 < numb)    // GLOBAL unlock ?
+        DB_WillUnlock();                        //   call back
+    }
+    s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
     if (s == 0)					// if that worked
     { if (SEM_GLOBAL == sem_num) 
       { curr_lock += numb;                      // adjust curr_lock
 #if 0
         if (numb < -1)                          // WRITE locked ?
           DB_Locked();                          //   callback
-        else if (0 < numb)                      // unlocked ?
-          DB_Unlocked();                        //   callback
 #endif
       }
       return 0;					// exit success
