@@ -279,21 +279,23 @@ void Block_Unlock(void)
 
 #endif
 
-void DB_Unlocked(void)
-{
-#ifdef MV1_GBDRO
-  if (nro_gbd)
-  { Free_GBDROs(ro_gbd, nro_gbd);
-    nro_gbd = 0;
-  }
-#endif
-#ifdef MV1_BLKSEM
-  if (locked_blk)
-  { if (!writing)
-    { BLOCK_UNLOCK(locked_blk);
+
+#define MAX_RESERVED_GBDS       (2*MAXTREEDEPTH)
+static int numReservedGBDs = 0;                         // no. of reserved GBDs
+static gbd *reservedGBDs[MAX_RESERVED_GBDS];            // reserved GBDs
+
+void DB_WillUnlock(void)
+{ int i;                                                // a handy int
+  gbd *ptr;                                             // a GBD ptr
+
+  if (writing)                                          // writing ?
+    for (i = 0; i < numReservedGBDs; i++)               // check each rsvd GBD
+    { ptr = reservedGBDs[i];
+      if (ptr->dirty && (ptr->dirty < (gbd *)5))        // if reserved
+        ptr->dirty = 0;                                 //   release it
     }
-  }
-#endif
+  numReservedGBDs = 0;
+  return;
 }
 
 
@@ -906,6 +908,12 @@ exit:
 
 void Get_GBD(void)                                      // get a GBD
 { blk[level] = GetGBDEx(0);				// store where reqd
+  if (writing)                                          // writing?
+  { if (MAX_RESERVED_GBDS == numReservedGBDs)           //   rsvd buffer full?
+    { panic("reserved GBD buffer overflow");            //     do panic
+    }
+    reservedGBDs[numReservedGBDs++] = blk[level];       // save GBD
+  }
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif

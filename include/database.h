@@ -115,8 +115,8 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  * and uses binary search to locate the key.
  *
  */
-#undef MV1_CCC          1
-#undef MV1_CCC_DOCOMP	1
+#undef MV1_CCC
+#undef MV1_CCC_DOCOMP
 
 #undef MV1_CACHE
 

@@ -3,7 +3,7 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
-OSTYPE	= linux
+ OSTYPE	= linux
 CC	= gcc -g
 LIBS	= -lm -lcrypt
 
@@ -22,8 +22,8 @@ endif
 
 
 ifeq ($(OSTYPE),darwin)
-LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security -mmacosx-version-min=10.5
-EXTRA += -mmacosx-version-min=10.5 -Wno-deprecated-declarations
+LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
+EXTRA += -Wno-deprecated-declarations
 
 endif
 
