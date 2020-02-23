@@ -188,7 +188,9 @@ short SemOpEx(int sem_num, int numb,
 
   for (i = 0; i < 5; i++)                       // try this many times
   { if (0 == i)                                 // first iteration ?
-    { if ((SEM_GLOBAL == sem_num) && (1 < numb))//   GLOBAL unlock ?
+    { if ((SEM_GLOBAL == sem_num) &&            // GLOBAL lock ?
+          writing &&                            //   writing ?
+          (0 < numb))                           //   unlock ?
         DB_WillUnlock();                        //     call back
     }
     s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
