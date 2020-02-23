@@ -466,7 +466,7 @@ short LCK_Order(cstring *ent, u_char *buf, int dir) // get next/prev entry
   short s;                                      // for functions
   short x;                                      // for SEM's
 
-  x = SemOp( SEM_LOCK, -1);                     // read lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -1);                      // read lock SEM_LOCK
   if (x < 0) return x;                          // return error
 
   lptr = systab->lockhead;                      // get the list head
@@ -492,7 +492,7 @@ short LCK_Order(cstring *ent, u_char *buf, int dir) // get next/prev entry
   s = 0;                                        // return value
   if (lptr != NULL)                             // got something ?
     s = UTIL_String_Lock(lptr, buf);            // convert it
-  x = SemOp( SEM_LOCK, 1);                      // release SEM_LOCK
+  x = SemOp(SEM_LOCK, 1);                       // release SEM_LOCK
   return s;                                     // and return
 }
 
@@ -505,7 +505,7 @@ short LCK_Get(cstring *ent, u_char *buf)        // get job#,lock_count
   short x;                                      // for SEM's
   buf[0] = '\0';                                // JIC
 
-  x = SemOp( SEM_LOCK, -1);                     // read lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -1);                      // read lock SEM_LOCK
   if (x < 0) return x;                          // return the error
 
   lptr = systab->lockhead;                      // init current locktab pointer
@@ -520,7 +520,7 @@ short LCK_Get(cstring *ent, u_char *buf)        // get job#,lock_count
     }                                           // end if exact match
     lptr = lptr->fwd_link;                      // get next
   }                                             // end while more lock tabs
-  x = SemOp( SEM_LOCK, 1);                      // release SEM_LOCK
+  x = SemOp(SEM_LOCK, 1);                       // release SEM_LOCK
   return s;                                     // return the count
 }                                               // end function LCK_Get()
 
@@ -581,7 +581,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
     }
   }
 
-  x = SemOp( SEM_LOCK, -systab->maxjob);        // write lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return;                            // return on error
 
   lptr = systab->lockhead;                      // init current locktab pointer
@@ -609,7 +609,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
       lptr = lptr->fwd_link;                    // check next locktab
     }                                           // end else job numbers !=
   }                                             // end while more lock tabs
-  x = SemOp( SEM_LOCK, systab->maxjob);         // unlock SEM_LOCK
+  x = SemOp(SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
   return;                                       // return
 }                                               // end function LCK_Remove()
 
@@ -625,7 +625,7 @@ void LCK_RemoveVOL(int volume)                  // remove all locks for a volume
   if (NULL == systab->vol[volume-1]->vollab)	// not mounted ?
     return;					// just return
 
-  x = SemOp( SEM_LOCK, -systab->maxjob);        // write lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return;                            // return on error
 
   lptr = systab->lockhead;                      // init current locktab pointer
@@ -652,7 +652,7 @@ void LCK_RemoveVOL(int volume)                  // remove all locks for a volume
       lptr = lptr->fwd_link;                    // check next locktab
     }                                           // end else job numbers !=
   }                                             // end while more lock tabs
-  x = SemOp( SEM_LOCK, systab->maxjob);         // unlock SEM_LOCK
+  x = SemOp(SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
   return;                                       // return
 }                                               // end function LCK_Remove()
 
@@ -716,7 +716,7 @@ int failed(lck_add_ctx *pctx)                 	// common code
       { systab->vol[lvol-1]->stats.lckwait++; 	// update stats
       }
     }
-    x = SemOp( SEM_LOCK, systab->maxjob);      	// unlock SEM_LOCK
+    x = SemOp(SEM_LOCK, systab->maxjob);      	// unlock SEM_LOCK
     if (pass & 3)
       SchedYield();
     else
@@ -731,7 +731,7 @@ int failed(lck_add_ctx *pctx)                 	// common code
   if (partab.jobtab->attention)
   { if (partab.jobtab->trap & (SIG_CC | SIG_QUIT | SIG_TERM | SIG_STOP))
     { if (tryagain == 0)
-        x = SemOp( SEM_LOCK, systab->maxjob);	// unlock SEM_LOCK
+        x = SemOp(SEM_LOCK, systab->maxjob);	// unlock SEM_LOCK
       return -(ERRMLAST+ERRZ51);
     }
   }
@@ -780,7 +780,7 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
   done = 0;                                     // init
   size = 0;                                     // these
   pos = 0;                                      // now
-  x = SemOp( SEM_LOCK, -systab->maxjob);        // write lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return x;                          // return the error
        
   while ((done < count) && (tryagain == 0))     // while more to do
@@ -1044,7 +1044,7 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
   }                                             // end while more to do
  }                                              // end while try again
     
- x = SemOp( SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
+ x = SemOp(SEM_LOCK, systab->maxjob);           // unlock SEM_LOCK
       
  return 0;                                      // finished OK
 }                                               // end function LCK_Add()
@@ -1121,7 +1121,7 @@ short LCK_SubP(int count, cstring *list, int job)// lock minus
 
   if (!job) job = MV1_PID + 1;			// current job
 
-  x = SemOp( SEM_LOCK, -systab->maxjob);        // write lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return x;                          // return the error
 
   while (done < count)                          // while more to do
@@ -1178,7 +1178,7 @@ short LCK_SubP(int count, cstring *list, int job)// lock minus
     pos = pos + size;                           // find next start pos
     done++;                                     // number done + 1
   }                                             // successful
-  x = SemOp( SEM_LOCK, systab->maxjob);         // unlock SEM_LOCK
+  x = SemOp(SEM_LOCK, systab->maxjob);          // unlock SEM_LOCK
   return 0;                                     // finished OK
 }                                               // end function LCK_Sub()
 
@@ -1214,7 +1214,7 @@ void Dump_lt()
   u_char keystr[300];
   u_char workstr[300];
 
-  x = SemOp( SEM_LOCK, -systab->maxjob);        // write lock SEM_LOCK
+  x = SemOp(SEM_LOCK, -systab->maxjob);         // write lock SEM_LOCK
   if (x < 0) return;                            // return the error
 
 
@@ -1244,6 +1244,6 @@ void Dump_lt()
     { break;
     }
   }
-  x = SemOp( SEM_LOCK, systab->maxjob);		// unlock SEM_LOCK
+  x = SemOp(SEM_LOCK, systab->maxjob);		// unlock SEM_LOCK
   return;					// finished OK
 }

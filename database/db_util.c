@@ -277,8 +277,7 @@ void Queit(void)  					// que a gbd for write
 //
 
 void Garbit(int blknum)                                 // que a blk for garb
-{ int save_level;					// for current level
-  short s;						// status
+{ 
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
   bool result;                                          // ck result
@@ -665,7 +664,9 @@ short Compress1()
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
       blk[1]->last_accessed = MTIME(0);                 // clear last access
+#ifdef MV1_REFD
       REFD_MARK(blk[1]);
+#endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
@@ -699,7 +700,9 @@ short Compress1()
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
     blk[level]->last_accessed = MTIME(0);               // clear last access
+#ifdef MV1_REFD
     REFD_MARK(blk[level]);
+#endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
@@ -799,7 +802,7 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     { return (-errno+ERRMLAST+ERRZLAST);
     }
 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
     j = fcntl(jfd, F_NOCACHE, 1);
 #endif
     lseek(jfd, 0, SEEK_SET);
@@ -856,7 +859,7 @@ int AttachJournal(int vol)
 //-----------------------------------------------------------------------------
 // Function: FlushJournal
 // Descript: Flush journal buffer contents
-// Input(s): volume index, journal file descriptor or 0, flag a sync
+// Input(s): volume index, journal file descriptor or 0, flag an fsync()
 // Return:   none
 // Note:     Must be called with a write lock
 //
@@ -900,7 +903,7 @@ short FlushJournal(int vol, int jfd, int dosync)
   }
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   if (dosync)                                           // if requested
-    SyncFD(jfd);                                        //   do a sync.
+    fsync(jfd);                                         //   do a sync.
   return 0;
 
 fail:
@@ -984,7 +987,7 @@ void OpenJournal(int vol, int printlog)
     else                                                // if open OK
     { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
       i = fcntl(jfd, F_NOCACHE, 1);
 #endif
       lseek(jfd, 0, SEEK_SET);
@@ -1441,7 +1444,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   for (j = 0; j < nvols; j++)
   { vol    = vols[j];
     volnum = vol + 1;
-    while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
+    SemOp( SEM_GLOBAL, WRITE);
     if (systab->vol[vol]->bkprunning)		// check BACKUP state
     { fprintf(stderr,"-E-BACKUP: backup is running on VOL%d\r\n", j+1);
       fflush(stderr);
@@ -1490,7 +1493,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 
     for (j = 0; j < nvols; j++)
     { volnum = vols[j] + 1;
-      while (SemOp( SEM_GLOBAL, READ));		// acquire READ locks
+      SemOp( SEM_GLOBAL, READ);			// acquire READ locks
     }
 
     for (j = 0; j < nvols; j++)
@@ -1614,7 +1617,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 	    if (blknum && 			// NB. block 0 does not exists!
 		(blknum <= vollab->max_block))	// valid block ?
             { volnum = vol + 1;
-              while (SemOp( SEM_GLOBAL, READ));	//   read block
+              SemOp( SEM_GLOBAL, READ);		//   read block
               level = 0;
 	      // NB. the block may be deleted
               s = GetBlockRaw(blknum, __FILE__, __LINE__);
@@ -1673,7 +1676,7 @@ ErrOut:
   for (j = 0; j < nvols; j++)
   { vol = vols[j];
     volnum = vol + 1;
-    while (SemOp( SEM_GLOBAL, WRITE));		// acquire WRITE locks
+    SemOp( SEM_GLOBAL, WRITE);			// acquire WRITE locks
   }
 
   for (j = 0; j < nvols; j++)
@@ -1704,7 +1707,7 @@ ErrOut:
           volnum = vol + 1;
           DoJournal(&jj, 0);                    // do journal
           FlushJournal(vol, jfd, 0);            // flush journal
-          SyncFD(jfd);                          // sync to disk
+          fsync(jfd);                           // sync to disk
         }
       }
     }
@@ -2037,14 +2040,4 @@ void TX_Next(void)
   MEM_BARRIER;
 }
 
-int SyncFD(int fd)
-{ int rc;
 
-#ifdef __APPLE__
-   rc = fcntl(fd, F_FULLFSYNC);
-#else
-   rc = fsync(fd);
-#endif
-
-  return rc;
-}

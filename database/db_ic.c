@@ -84,7 +84,7 @@ int DB_ic(int volume, int block)                  	 // integrity checker
   volnum = volume;					// save this
   // curr_lock = 0;					// ensure this is clear
   if (curr_lock)
-    SemOp( SEM_GLOBAL, -curr_lock);
+    SemOp(SEM_GLOBAL, -curr_lock);
   writing = 0;						// clear this
   icerr = 0;						// clear errors
   doing_full = 0;					// and this
@@ -556,7 +556,7 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
   while (c <= e)					// scan the map
   { base = ((u_int) (c - (u_char *) systab->vol[vol]->map)) << 3;
 							// base block number
-    while (SemOp( SEM_GLOBAL, lock));			// grab a lock
+    while (SemOp(SEM_GLOBAL, lock));			// grab a lock
 
     for (off = off; off < 8; off++)			// scan the byte
     { block = base + off;				// the block#
@@ -611,7 +611,7 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
       }
       Mark_map_dirty(vol, block);			// map needs writing
     }							// end byte scan
-    SemOp( SEM_GLOBAL, -curr_lock);			// free lock
+    SemOp(SEM_GLOBAL, -curr_lock);			// free lock
     c++;						// point at next
     off = 0;						// now start at 0
     if (flag == -3)					// daemon?

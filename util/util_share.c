@@ -131,6 +131,8 @@ const  char *sem_file;
 pid_t mypid = 0;
 extern void mv1_log_init();
 
+extern void DB_Unlocked();
+
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
 { short s;                                      // for returns
@@ -156,18 +158,9 @@ short SemOpEx(int sem_num, int numb,
     }
     curr_sem_init = 0;
   }
-
   if (numb == 0)				// check for junk
   { return 0;					// just return
   }
-
-  if ((SEM_GLOBAL == sem_num) &&
-      (curr_lock  != curr_sem[sem_num][volnum]))
-  { sprintf(msg,"SemOp(): curr_lock unsynchronized curr_lock=%d curr_sem=%d @ %s:%d",
-                 curr_lock, curr_sem[sem_num][volnum], file, line);
-    panic(msg);
-  }
-
   if ((SEM_GLOBAL == sem_num) &&                // global lock ?
       (abs(curr_lock) >= systab->maxjob) &&     //   AND already have WRITE lock
       (numb < 0))                               //   AND acquire
@@ -175,7 +168,7 @@ short SemOpEx(int sem_num, int numb,
                  sem_num, numb, curr_lock, file, line);
     panic(msg);
   }
-  curr_sem[sem_num][volnum] += numb;            // keep track changes
+  curr_sem[sem_num][volnum] += numb;
   if (abs(curr_sem[sem_num][volnum]) > systab->maxjob)
   { sprintf(msg, "SemOp(): overload sem_num=%d numb=%d curr_sem[%d]=%d @ %s:%d",
                   sem_num, numb, volnum, curr_sem[sem_num][volnum], 
@@ -190,28 +183,18 @@ short SemOpEx(int sem_num, int numb,
   }
 
   for (i = 0; i < 5; i++)                       // try this many times
-  { if (0 == i)                                 // first iteration ?
-    { if (SEM_GLOBAL == sem_num && 1 < numb)    // GLOBAL unlock ?
-        DB_WillUnlock();                        //   call back
-    }
-    s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
+  { s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
+    if ((SEM_GLOBAL == sem_num) && (0 < numb))
+      DB_Unlocked();
     if (s == 0)					// if that worked
-    { if (SEM_GLOBAL == sem_num) 
-      { curr_lock += numb;                      // adjust curr_lock
-#if 0
-        if (numb < -1)                          // WRITE locked ?
-          DB_Locked();                          //   callback
-#endif
-      }
+    { if (SEM_GLOBAL == sem_num)curr_lock += numb; // adjust curr_lock
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
     { if (partab.jobtab == NULL)		// from a daemon
 	panic("SemOp() error in write daemon");	// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
-      { curr_sem[sem_num][volnum] -= numb;      // adjust tracking info
         return -(ERRZ51+ERRMLAST);              // return an error
-      }
     }
   }
   curr_sem[sem_num][volnum] -= numb;
@@ -222,3 +205,17 @@ short SemOpEx(int sem_num, int numb,
   return 0;                                     // shouldn't get here
 }
 
+u_int semslot(int pass)
+{
+  u_int slot;
+  db_stat *stats;
+
+  slot  = (u_int) MTIME(0);
+  if (partab.jobtab)
+    slot += partab.jobtab->pid + partab.jobtab->commands +
+            partab.jobtab->grefs;
+  stats = &systab->vol[0]->stats;
+  slot += stats->dbget + stats->dbset + stats->dbkil + 
+          stats->dbdat + stats->dbord + stats->dbqry;
+  return slot ^ (u_int) pass;
+}

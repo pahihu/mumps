@@ -187,7 +187,7 @@ short DGP_ReplSet(mvar *var, cstring *data)
       break;
     if (DGP_REPL_REQ == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
-      if (s < 0) return -(ERRZ88+ERRMLAST);
+      if (s < 0) return -(ERRZ88+ERRZLAST);
     }
   }
   // optional members
@@ -215,7 +215,7 @@ short DGP_ReplKill(mvar *var, int what)
       break;
     if (DGP_REPL_REQ == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
-      if (s < 0) return -(ERRZ88+ERRMLAST);
+      if (s < 0) return -(ERRZ88+ERRZLAST);
     }
   }
   // optional members

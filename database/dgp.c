@@ -151,7 +151,7 @@ short DGP_Connect(int vol)
       remote_label->uci[i].global = ntohl(remote_label->uci[i].global);
     remote_label->txid         = ntohll(remote_label->txid);
   }
-  while (SemOp( SEM_SYS, -systab->maxjob));
+  SemOp( SEM_SYS, -systab->maxjob);
   if (systab->vol[vol]->vollab == NULL)
   { // fprintf(stderr,"VOL%d copying vollab\r\n",vol);
     systab->vol[vol]->vollab =
@@ -458,7 +458,7 @@ ReSend:
       // fprintf(stderr, "got server restart\r\n"); fflush(stderr);
       MEM_BARRIER;
       if (0 == systab->dgpRESTART)			// not in RESTART phase?
-      { while (SemOp( SEM_SYS, WRITE));			// lock SYS
+      { SemOp( SEM_SYS, WRITE);
         if (0 == systab->dgpRESTART)			//   still not?
         { systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// do local RESTART
 	  do_drop = 1;					//    drop remote LOCKs

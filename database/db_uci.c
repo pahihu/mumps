@@ -72,7 +72,7 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
          systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   volnum = volume;					// set this
@@ -145,7 +145,7 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
          systab->delaywt)                               //   or delay WRITEs
   { (void)Sleep(5);					// wait a bit
     if (partab.jobtab->attention)
-    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
+    { return -(ERRZLAST+ERRZ51);			// for <Control><C>
     }
   }							// end writelock check
   volnum = volume;					// set this

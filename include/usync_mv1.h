@@ -3,12 +3,23 @@
 
 #include <stdint.h>
 
+// #define USE_LIBATOMIC_OPS 1
+
+#ifdef USE_LIBATOMIC_OPS
+
+#include <atomic_ops.h>
+typedef AO_TS_t LATCH_T;
+
+#else
 
 typedef uint32_t AO_t;
 typedef volatile uint32_t MV1LATCH_T;
 
+#endif
+
+
 // --- interlocked increment -----------------
-#define inter_add 	__sync_add_and_fetch
+AO_t inter_add(volatile AO_t *ptr, AO_t incr);
 
 // --- latch
 void MV1LatchInit(MV1LATCH_T *latch);
@@ -24,8 +35,8 @@ typedef struct _MV1SEM_T
 } MV1SEM_T;
 
 void MV1SemInit(MV1SEM_T *sem);
-int  MV1SemWait(MV1SEM_T *sem);
-int  MV1SemSignal(MV1SEM_T *sem, int numb);
+void MV1SemWait(MV1SEM_T *sem);
+void MV1SemSignal(MV1SEM_T *sem, int numb);
 
 
 // --- read-write lock -----------------------

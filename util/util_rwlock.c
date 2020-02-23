@@ -23,7 +23,11 @@ extern       int   sem_line;
 extern     pid_t   mypid;
        const char *rtn;
 
+#ifdef USE_LIBATOMIC_OPS
+#define ATOMIC_SYNC     AO_nop_full()
+#else
 #define ATOMIC_SYNC     __sync_synchronize()
+#endif
 
 static
 int Semop(int semid, struct sembuf *sops, size_t nsops)
@@ -96,7 +100,7 @@ static struct timeval sem_start[SEM_MAX];
 
 #define NUMTRY  (1024*1024)
 
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
 static
 void SpinLockWriter(RWLOCK_T *lok)
 {
@@ -147,7 +151,7 @@ void SpinLockReader(RWLOCK_T *lok)
 short TrySemLock(int sem_num, int numb)
 {
   short s;
-#ifndef MV1_SH_SEM
+#ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
 #endif
 #ifdef MV1_PROFILE
@@ -157,7 +161,7 @@ short TrySemLock(int sem_num, int numb)
 #endif
 
   s = 0;
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
     { SpinLockWriter(&systab->glorw[0]);
@@ -200,7 +204,7 @@ short SemLock(int sem_num, int numb)
 {
   short s;
   u_int semop_time_sav;
-#ifndef MV1_SH_SEM
+#ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
 #endif
 #ifdef MV1_PROFILE
@@ -218,7 +222,7 @@ short SemLock(int sem_num, int numb)
   semop_time = 0;
   s = TrySemLock(sem_num, numb);
   semop_time_sav = semop_time; 
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
   if (s < 0)
   { panic("TrySemLock: failed");
   }
@@ -245,7 +249,7 @@ short SemLock(int sem_num, int numb)
 short SemUnlock(int sem_num, int numb)
 {
   short s;
-#ifndef MV1_SH_SEM
+#ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
 #endif
 #ifdef MV1_PROFILE
@@ -263,7 +267,7 @@ short SemUnlock(int sem_num, int numb)
 #endif
 
   s = 0;
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == -WRITE)
       UnlockWriter(&systab->glorw[0]);

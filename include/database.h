@@ -115,9 +115,10 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  * and uses binary search to locate the key.
  *
  */
-#ifdef MV1_CCC
-#define MV1_CCC_DOCOMP  1
-#endif
+#undef MV1_CCC          1
+#undef MV1_CCC_DOCOMP	1
+
+#undef MV1_CACHE
 
 /*
  * MV1_CACHE_DEBUG	- debug global buffer cache
@@ -131,8 +132,35 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 
 /*
  * MV1_REFD	    - use CLOCK algorithm for block replacement
+ * MV1_REFD_GCLOCK  - use generalized CLOCK algorithm for block replacement
  *
  */
+#define MV1_REFD	        1
+#define MV1_REFD_GCLOCK         1
+
+#ifdef MV1_REFD_GCLOCK
+
+#define REFD_NEW_START          1
+#define REFD_READ_START         1
+
+#define REFD_NEW_INIT(x)        (x)->refd = REFD_NEW_START
+#define REFD_READ_INIT(x)       (x)->refd = REFD_READ_START
+#define REFD_TYPED_INIT(x)
+#define REFD_VALUE(x)           (x)->refd
+#define REFD_MARK(x)            (x)->refd++
+#define REFD_UNMARK(x)          if ((x)->refd) (x)->refd--
+#define REFD_CLEAR(x)           (x)->refd = 0
+#define REFD_RETYPE(x)          REFD_UNMARK(x)
+#define REFD_DEC(x,n)           \
+        { if ((n) > (x)->refd)  \
+          { REFD_CLEAR(x);      \
+          }                     \
+          else                  \
+          { (x)->refd -= (n);   \
+          }                     \
+        }
+
+#else
 
 #define REFD_NEW_START          1
 #define REFD_READ_START         1
@@ -154,16 +182,24 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
           }			\
         }
 
+#endif
 
 typedef struct __ALIGNED__ GBD		                // global buf desciptor
 { u_int block;						// block number
+#ifdef MV1_REFD
   VOLATILE struct GBD *prev;				// prev entry in list
+#endif
   VOLATILE struct GBD *next;				// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
   VOLATILE struct GBD* dirty;				// to write -> next
   VOLATILE time_t last_accessed;			// last time used
+#ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
+#endif
+#ifdef MV1_BLKSEM
+  short  curr_lock;                                     // current block lock
+#endif
   u_char vol;                                           // vol[] index
 } gbd;							// end gbd struct
 
@@ -233,8 +269,8 @@ extern int gbd_local_state;				// local buffering
 //**** Function Prototypes*****************************************************
 
 // File: database/db_buffer.c
-short GetBlock(u_int blknum,const char *file,int line);	// Get block, chk valid
-short GetBlockRaw(u_int blknum,const char *file,int line);// Get block, raw
+short GetBlock(u_int blknum,char *file,int line);       // Get block, chk valid
+short GetBlockRaw(u_int blknum,char *file,int line);	// Get block, raw
 #define Get_block(u)    GetBlock(u,__FILE__,__LINE__)
 #define Get_block_raw(u)    GetBlockRaw(u,__FILE__,__LINE__)
 short New_block();					// get new block
@@ -244,6 +280,23 @@ void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(int vol, gbd *free);			// Free a GBD
 void Release_GBDs(int stopat);                          // release rsvd blk[]
 
+#ifdef MV1_BLKSEM
+
+short Block_TryReadLock(gbd *blk);
+short Block_TryWriteLock(gbd *blk);
+void  Block_Unlock(void);
+
+#define BLOCK_UNLOCK(x)         Block_Unlock()
+#define BLOCK_TRYREADLOCK(x)    Block_TryReadLock(x)
+#define BLOCK_TRYWRITELOCK(x)   Block_TryWriteLock(x)
+
+#else
+
+#define BLOCK_UNLOCK(x)
+#define BLOCK_TRYREADLOCK(x)    0
+#define BLOCK_TRYWRITELOCK(x)   0
+
+#endif
 // File: database/db_get.c
 #define TIPIDX_OFFS	10
 #define TIPIDX(x)	(TIPIDX_OFFS + (x))

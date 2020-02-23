@@ -245,8 +245,8 @@ void panic(char *msg)					// print msg and exit
 
   dopanic = 1;
 
-  if (curr_lock)					// has GLOBAL lock ?
-  { SemOp( SEM_GLOBAL, -curr_lock);			//   release it
+  if (curr_lock)
+  { SemOp( SEM_GLOBAL, -curr_lock);
   }
   errsv = errno;
   fprintf( stderr, "\n\rFATAL MUMPS ERROR occured!!\n\r%s\n\r", msg); // print
