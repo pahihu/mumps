@@ -43,7 +43,7 @@ AO_t inter_add(volatile AO_t *ptr, AO_t incr)
 #endif
 
 #ifndef USE_LIBATOMIC_OPS
-static LATCH_T LATCH_FREE;
+#define LATCH_FREE 0
 #endif
 
 
@@ -53,7 +53,6 @@ void MV1LatchInit(MV1LATCH_T *latch)
   *latch = AO_TS_INITIALIZER;
 #else
   MV1LatchUnlock(latch);
-  LATCH_FREE = *latch;
 #endif
 }
 

@@ -194,7 +194,9 @@ short SemOpEx(int sem_num, int numb,
     { if (partab.jobtab == NULL)		// from a daemon
 	panic("SemOp() error in write daemon");	// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
+      { curr_sem[sem_num][volnum] -= numb;      // adjust tracking info
         return -(ERRZ51+ERRMLAST);              // return an error
+      }
     }
   }
   curr_sem[sem_num][volnum] -= numb;
