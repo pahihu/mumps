@@ -429,7 +429,8 @@ writelock:
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
-	while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
+	while (SemOp( SEM_GLOBAL, WR_TO_R)) 		// drop to read lock
+                ;
         MEM_BARRIER;
         wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
@@ -717,8 +718,8 @@ start:
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
-    if (GBD_HASH == ptr->hash)                       	// skip GBDs on free lst
-        // || (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
+    if ((GBD_HASH == ptr->hash)                       	// skip GBDs on free lst
+        || (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
       continue;
     if (0 == ptr->block)  				// if no block
     { // fprintf(stderr,"Get_GBDs(): block == 0\r\n"); fflush(stderr);
@@ -778,7 +779,7 @@ gbd* GetGBDEx(int rdonly)				// get a GBD
 { int i, j;						// a handy int
   time_t now;						// current time
   gbd *ptr;						// loop gbd ptr
-  gbd *oldptr = NULL;					// remember last unrefd
+  gbd *oldptr;					        // remember last unrefd
   int pass;
   int avail;                                            // flag available blk
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
@@ -792,6 +793,7 @@ gbd* GetGBDEx(int rdonly)				// get a GBD
   oldval  = (u_int) -1;
 start:
   oldptr = NULL;
+  oldpos = -1;
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { oldptr
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
