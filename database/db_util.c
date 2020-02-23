@@ -1444,7 +1444,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   for (j = 0; j < nvols; j++)
   { vol    = vols[j];
     volnum = vol + 1;
-    SemOp( SEM_GLOBAL, WRITE);
+    while (SemOp( SEM_GLOBAL, WRITE));
     if (systab->vol[vol]->bkprunning)		// check BACKUP state
     { fprintf(stderr,"-E-BACKUP: backup is running on VOL%d\r\n", j+1);
       fflush(stderr);
@@ -1493,7 +1493,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 
     for (j = 0; j < nvols; j++)
     { volnum = vols[j] + 1;
-      SemOp( SEM_GLOBAL, READ);			// acquire READ locks
+      while (SemOp( SEM_GLOBAL, READ));		// acquire READ locks
     }
 
     for (j = 0; j < nvols; j++)
@@ -1617,7 +1617,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
 	    if (blknum && 			// NB. block 0 does not exists!
 		(blknum <= vollab->max_block))	// valid block ?
             { volnum = vol + 1;
-              SemOp( SEM_GLOBAL, READ);		//   read block
+              while (SemOp( SEM_GLOBAL, READ));	//   read block
               level = 0;
 	      // NB. the block may be deleted
               s = GetBlockRaw(blknum, __FILE__, __LINE__);
@@ -1676,7 +1676,7 @@ ErrOut:
   for (j = 0; j < nvols; j++)
   { vol = vols[j];
     volnum = vol + 1;
-    SemOp( SEM_GLOBAL, WRITE);			// acquire WRITE locks
+    while (SemOp( SEM_GLOBAL, WRITE));		// acquire WRITE locks
   }
 
   for (j = 0; j < nvols; j++)

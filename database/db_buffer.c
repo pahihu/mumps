@@ -429,7 +429,7 @@ writelock:
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
       { blk[level] = ptr;				// save the ptr
-	SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+	while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
         MEM_BARRIER;
         wait_start = MTIME(0);
         while (ptr->last_accessed == (time_t) 0)	// if being read
@@ -465,7 +465,7 @@ writelock:
 #endif
   MEM_BARRIER;
   if (!writing)						// if reading
-  { SemOp( SEM_GLOBAL, WR_TO_R);			// drop to read lock
+  { while (SemOp( SEM_GLOBAL, WR_TO_R));		// drop to read lock
   }
 unlocked:
 #ifdef MV1_CACHE_IO

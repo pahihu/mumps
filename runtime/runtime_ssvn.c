@@ -878,7 +878,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           return -(ERRM38);
         if (i && !systab->replicas[i-1].connection[0])	// out of order?
           return -(ERRM38);
-	SemOp( SEM_SYS, -systab->maxjob);	// set file_name
+	while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
         strcpy((char *) &systab->replicas[i].connection[0],
 	       (char *) data->buf);
         SemOp( SEM_SYS, systab->maxjob);
@@ -946,7 +946,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
@@ -968,7 +968,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_PROTECT;
 	}
@@ -988,7 +988,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	SemOp( SEM_SYS, -systab->maxjob);	// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_RDONLY;
 	}
@@ -1006,7 +1006,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        SemOp( SEM_GLOBAL, -systab->maxjob);
+        while (SemOp( SEM_GLOBAL, -systab->maxjob));
         systab->vol[i]->bkprunning = cstringtob(data);
         SemOp( SEM_GLOBAL, systab->maxjob);
 	return 0;				// return OK
@@ -1023,7 +1023,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 
 	j = cstringtob(data);
 	volnum = i + 1;
-        SemOp( SEM_GLOBAL, -systab->maxjob);
+        while (SemOp( SEM_GLOBAL, -systab->maxjob));
 	if (j)
 	{ bzero(systab->vol[i]->chgmap, 
 		systab->vol[i]->vollab->header_bytes - SIZEOF_LABEL_BLOCK);
@@ -1076,7 +1076,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             if (s < 0) return s;			// has remote VOL name?
 	    if (!s) return -(ERRM38);
 #endif
-	    SemOp( SEM_SYS, -systab->maxjob);		// set file_name
+	    while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
             strcpy((char *) &systab->vol[i]->file_name[0],
 		   (char *) data->buf);
             SemOp( SEM_SYS, systab->maxjob);
@@ -1095,7 +1095,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 #endif
 	  } else
           { 
-            SemOp( SEM_SYS, -systab->maxjob);
+            while (SemOp( SEM_SYS, -systab->maxjob));
             s = DB_Mount((char *) &data->buf[0],	// mount volume
                         i + 1,
                         systab->vol[i]->gmb,
@@ -1211,7 +1211,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           { return -(ERRM38);
           }
 	  volnum = i + 1;
-	  SemOp( SEM_GLOBAL, -systab->maxjob);
+	  while (SemOp( SEM_GLOBAL, -systab->maxjob));
           systab->vol[i]->vollab->bkprevno = j;
           systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;
 	  SemOp( SEM_GLOBAL, systab->maxjob);

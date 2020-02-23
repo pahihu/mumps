@@ -267,7 +267,7 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
-	SemOp( SEM_SYS, -systab->maxjob);
+	while (SemOp( SEM_SYS, -systab->maxjob);
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// copy VOL label
 		    (u_char *) systab->vol[s-1]->vollab);
 	SemOp( SEM_SYS, systab->maxjob);
@@ -686,7 +686,7 @@ start:
       systab->vol[0]->wd_tab[myslot].doing = DOING_GARB;
     }
 #else
-    while (SemOp(SEM_WD, WRITE));			// lock WD
+    while (SemOp( SEM_WD, WRITE));			// lock WD
     dirtyQr = systab->vol[0]->dirtyQr;
     garbQr  = systab->vol[0]->garbQr;
     if (systab->vol[0]->dirtyQ[dirtyQr] != NULL)	// any writes?
@@ -1048,7 +1048,7 @@ int do_zot(int vol,u_int gb)				// zot block
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
   volnum = vol + 1;                                     // set volnum
-  while (SemOp(SEM_GLOBAL, WRITE));			// take a global lock
+  while (SemOp( SEM_GLOBAL, WRITE));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
@@ -1060,7 +1060,7 @@ int do_zot(int vol,u_int gb)				// zot block
     }
     ptr = ptr->next;					// point at next
   }							// end memory search
-  SemOp(SEM_GLOBAL, -curr_lock);			// release the lock
+  SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
   { file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
@@ -1211,7 +1211,7 @@ void daemon_check()					// ensure all running
   if (systab->vol[0]->dismount_flag)			// do NOT restart if
     return;						//   dismounting
 
-  while (SemOp(SEM_WD, WRITE));			        // lock WD
+  while (SemOp( SEM_WD, WRITE));			// lock WD
   num_daemons = systab->vol[0]->num_of_daemons +	// write daemons
                 systab->vol[0]->num_of_net_daemons;	// network daemons
   for (i = 0; i < num_daemons; i++)
@@ -1230,7 +1230,7 @@ void daemon_check()					// ensure all running
       }
     }
   }							// end daemon check
-  SemOp(SEM_WD, -WRITE);				// release lock
+  SemOp( SEM_WD, -WRITE);				// release lock
 
   last_daemon_check = MTIME(0);
   return;
