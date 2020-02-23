@@ -91,7 +91,7 @@ short Get_data_ex(int dir, int TipIndex)		// locate a record
       (dir != 0) ||					// or level or backward
       /* NB. we CAN write without journaling */
       (// (systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
-       (writing)))					// and writing
+       (writing + wanna_writing)))		        // and writing
   { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // zot this
   }
   else

@@ -138,6 +138,7 @@ u_int DB_GetDirty(int vol);                      // no. of dirty blocks
 short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
+int SyncFD(int fd);                              // sync file descriptor
 void DB_WillUnlock(void);                        // DB unlock
 
 // Local buffer prototypes

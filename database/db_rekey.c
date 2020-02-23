@@ -279,7 +279,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     Un_key();						// delete current key
     s = Insert(&db_var.slen, ptr);			// insert it
     if (s >= 0)						// if OK
-    { goto fix_keys;					// exit **5**
+    { goto fix_keys;					// exit **6**
     }
     else if (s != -(ERRMLAST+ERRZ62))
     { return s;						// error!
@@ -341,7 +341,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   else if (s != -(ERRMLAST+ERRZ62))
   { return s;						// error!
   }
-  panic("Set_key: Options 0->5 didn't work");		// die
+  panic("Set_key: Options 0->6 didn't work");		// die
 
 fix_keys:
 

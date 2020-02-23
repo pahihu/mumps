@@ -3,7 +3,7 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
- OSTYPE	= linux
+OSTYPE	= linux
 CC	= gcc -g
 LIBS	= -lm -lcrypt
 

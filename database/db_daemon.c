@@ -534,6 +534,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   sprintf(&logfile[strlen(logfile)],"daemon_%d.log",slot); // add slot to name
   myslot = slot;					// remember my slot
 
+  if (!myslot) old_stalls = 0;                          // clear #stalls
+
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
   a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
@@ -578,7 +580,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   i = MSLEEP(1000);					// wait a bit
 
-  old_stalls = 0;
   while (TRUE)						// forever
   { if (!myslot)					// daemon 0 calculates
     { stalls = 0; 					//   rest time
@@ -1414,7 +1415,7 @@ void do_jrnflush(int vol)
     while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
-    fsync(jfd);                                 // sync to disk
+    SyncFD(jfd);                                // sync to disk
   }
   volnum = old_volnum;                          // restore volnum
 }
@@ -1436,6 +1437,8 @@ void do_volsync(int vol)
   ASSERT(0 == systab->vol[vol]->local_name[0]);	// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);     // mounted
 
+  do_log("Start volume sync on VOL%d\n",vol);
+
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
   do_queueflush(1);                             // flush queues
@@ -1446,10 +1449,10 @@ void do_volsync(int vol)
       while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      fsync(jfd);                               // sync JRN to disk
+      SyncFD(jfd);                              // sync JRN to disk
     }
   }
-  fsync(dbfds[vol]);                            // sync volume to disk
+  SyncFD(dbfds[vol]);                           // sync volume to disk
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd > 0)
@@ -1462,13 +1465,15 @@ void do_volsync(int vol)
       DoJournal(&jj, 0);                        // do journal
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      fsync(jfd);                               // sync to disk
+      SyncFD(jfd);                              // sync to disk
     }
   }
   inter_add(&systab->delaywt, -1);              // release WRITEs
   MEM_BARRIER;
   last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
   volnum = old_volnum;
+
+  do_log("Done  volume sync on VOL%d\n",vol);
 }
 
 

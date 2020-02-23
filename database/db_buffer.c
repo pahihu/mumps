@@ -545,7 +545,7 @@ short GetBlock(u_int blknum,char *file,int line)        // Get block
 short GetBlockRaw(u_int blknum, char *file, int line)   // Get block, raw
 { short s;
   s = Check_BlockNo(volnum-1, blknum, CBN_INRANGE,      // check blknum
-                        "Get_block", file, line, 0);
+                        "Get_block_raw", file, line, 0);
   if (s < 0)
     return s;
   return GetBlockEx(blknum,file,line);
