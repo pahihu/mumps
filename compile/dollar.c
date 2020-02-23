@@ -573,14 +573,14 @@ function:					// function code starts here
       if (len > 1)
       { switch (toupper(name[1]))
         { case 'B':                             // $LISTBUILD, $LB
-ListBuild:  if (len > 2) EXPRE
-            if (args > 255) EXPRE		// check number of args
+            if (len > 2) EXPRE
+ListBuild:  if (args > 255) EXPRE		// check number of args
             *comp_ptr++ = FUNLB;                // unlimited args
             *comp_ptr++ = (u_char) args;	// number of arguments
             return;                             // and exit
           case 'D':                             // $LISTDATA, $LD
-ListData:   if (len > 2) EXPRE
-            if (1 == args)
+            if (len > 2) EXPRE
+ListData:   if (1 == args)
               *comp_ptr++ = FUNLD1;             // one arg form
             else if (2 == args)
               *comp_ptr++ = FUNLD2;             // two args form
@@ -590,16 +590,16 @@ ListData:   if (len > 2) EXPRE
             if (strncasecmp(name, "length", 6) != 0) EXPRE
             goto Length;
           case 'F':                             // $LISTFIND, $LF
-ListFind:   if (len > 2) EXPRE
-            if (2 == args)
+            if (len > 2) EXPRE
+ListFind:   if (2 == args)
               *comp_ptr++ = FUNLF2;             // two args form
             else if (3 == args)
               *comp_ptr++ = FUNLF3;             // three args form
             else EXPRE                          // all else is junk
             return;                             // and exit
           case 'G':                             // $LISTGET, $LG
-ListGet:    if (len > 2) EXPRE
-            if (1 == args)
+            if (len > 2) EXPRE
+ListGet:    if (1 == args)
               *comp_ptr++ = FUNLG1;             // one arg form
             else if (2 == args)
               *comp_ptr++ = FUNLG2;             // two args form
@@ -625,8 +625,8 @@ ListGet:    if (len > 2) EXPRE
             else EXPRE                          // all else is junk
             return;                             // and exit
           case 'L':                             // $LISTLENGTH, $LL
-ListLength: if (len > 2) EXPRE
-            if (1 == args)
+            if (len > 2) EXPRE
+ListLength: if (1 == args)
               *comp_ptr++ = FUNLL;              // one arg form
             else EXPRE                          // all else is junk
             return;                             // and exit
