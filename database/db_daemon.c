@@ -131,6 +131,44 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
+static int old_stalls;
+static time_t last_calc_rest;
+
+static
+void do_calc_rest(void)
+{ int stalls, i;
+  int rest;
+
+  if (myslot)
+    return;
+  if (MTIME(0) == last_calc_rest)
+    return;
+
+  stalls = 0; 					        //   rest time
+  for (i = 0; i < MAX_VOL; i++)
+  { if (systab->vol[i]->local_name[0])		        // remote VOL ?
+      continue;					        //   skip it
+    if (NULL == systab->vol[i]->vollab)		        // stop at first
+      break;					        //   unallocated vol.
+    stalls += systab->vol[i]->stats.dqstall +	        // check dirtyQ stalls
+              systab->vol[i]->stats.gbswait;	        //   and GBDs waits
+  }
+  // stalls = DirtyQ_Len() >> 9;
+
+  rest = systab->ZRestTime;
+  if (!stalls || (stalls <= old_stalls))
+    rest *= 1.1;
+  else
+    rest /= 2;
+  if (rest < MIN_REST_TIME)
+    rest = MIN_REST_TIME;
+  else if (rest > MAX_REST_TIME)
+     rest = MAX_REST_TIME;
+  systab->ZRestTime = rest;
+  old_stalls = stalls;
+
+  last_calc_rest = MTIME(0);
+}
 
 extern int   curr_sem_init;
 extern pid_t mypid;
@@ -267,7 +305,8 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
-	while (SemOp( SEM_SYS, -systab->maxjob);
+	while (SemOp( SEM_SYS, -systab->maxjob))
+                ;
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// copy VOL label
 		    (u_char *) systab->vol[s-1]->vollab);
 	SemOp( SEM_SYS, systab->maxjob);
@@ -496,8 +535,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   char logfile[100];					// daemon log file name
   FILE *a;						// file pointer
   time_t t;						// for ctime()
-  int rest;						// rest time
-  unsigned stalls, old_stalls;				// no. of stalls
 
   volnum = vol;						// save vol# here
 
@@ -534,7 +571,10 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   sprintf(&logfile[strlen(logfile)],"daemon_%d.log",slot); // add slot to name
   myslot = slot;					// remember my slot
 
-  if (!myslot) old_stalls = 0;                          // clear #stalls
+  if (!myslot)                                          // clear #stalls
+  { old_stalls = 0;
+    last_calc_rest = (time_t) 0;
+  }
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
   a = freopen("/dev/null","r",stdin);			// stdin to bitbucket
@@ -581,29 +621,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  { if (!myslot)					// daemon 0 calculates
-    { stalls = 0; 					//   rest time
-      for (i = 0; i < MAX_VOL; i++)
-      { if (systab->vol[vol]->local_name[0])		// remote VOL ?
-	  continue;					//   skip it
-        if (NULL == systab->vol[i]->vollab)		// stop at first
-          break;					//   unallocated vol.
-        stalls += systab->vol[i]->stats.dqstall +	// check dirtyQ stalls
-		  systab->vol[i]->stats.gbswait;	//   and GBDs waits
-      }
-      rest = systab->ZRestTime;
-      if (stalls == old_stalls)
-        rest *= 1.1;
-      else
-        rest /= 2;
-      if (rest < MIN_REST_TIME)
-        rest = MIN_REST_TIME;
-      else if (rest > MAX_REST_TIME)
-        rest = MAX_REST_TIME;
-      systab->ZRestTime = rest;
-      old_stalls = stalls;
-    }
-
+  { do_calc_rest();
     MEM_BARRIER;
     if ((systab->dgpRESTART) &&				// DGP RESTART phase ?
         (MTIME(0) > systab->dgpRESTART))		//   and time passed
@@ -635,6 +653,7 @@ void do_daemon()					// do something
 start:
   if (!myslot)                                          // update M time
   { systab->Mtime = time(0);
+    do_calc_rest();
   }
 
   daemon_check();					// ensure all running
