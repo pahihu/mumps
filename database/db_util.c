@@ -1231,16 +1231,19 @@ int DirtyQ_Len(void)
 u_int DB_GetDirty(int vol)
 { int i, num_gbd;
   u_int cnt;
+  vol_def *curr_vol;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+  curr_vol = systab->vol[vol];
+  ASSERT(NULL != curr_vol->vollab);                     // mounted
 
-  num_gbd = systab->vol[vol]->num_gbd;
+  num_gbd = curr_vol->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-     if (systab->vol[vol]->gbd_head[i].dirty)
-       cnt++;
+    if (curr_vol->gbd_head[i].dirty &&                  // dirty
+        curr_vol->gbd_head[i].block)                    //   AND has block
+      cnt++;
 
   return cnt;
 }
