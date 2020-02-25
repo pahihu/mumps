@@ -173,8 +173,10 @@
 
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        4096                    // hash size for global buffers
-#define NUM_DIRTY       4096                    // max queued dirty chains
-#define NUM_GARB        4096                    // max queued garbage blocks
+// #define NUM_DIRTY       4096                    // max queued dirty chains
+// #define NUM_GARB        4096                    // max queued garbage blocks
+#define NUM_DIRTY       8192                    // max queued dirty chains
+#define NUM_GARB        8192                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
 
@@ -478,6 +480,9 @@ typedef struct __ALIGNED__ VOL_DEF
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
+  time_t last_dirty_percent;
+  u_int dirty_percent;
+  int dirty_policy;
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label

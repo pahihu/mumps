@@ -404,6 +404,8 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->gmb         = gmb;            // global bufffer cache in MB
   systab->vol[0]->jkb         = jkb;            // jrn buffer cache in KB
   systab->vol[0]->gbsync      = DEFAULT_GBSYNC; // global buffer sync in sec
+  systab->vol[0]->last_dirty_percent = (time_t) 0;
+  systab->vol[0]->dirty_policy = 0;
 
   bzero(semtab, sizeof(semtab));
 

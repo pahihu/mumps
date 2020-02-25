@@ -70,7 +70,7 @@ static int SLOT_VOLSYNC;                                // VOLSYNC daemon
 
 void do_daemon();					// do something
 void do_dismount();					// dismount volnum
-void do_write();					// write GBDs
+void do_write(int force);				// write GBDs
 void do_garb();						// garbage collect
 int do_zot(int vol, u_int gb);				// zot block and lower
 void do_free(int vol, u_int gb);			// free from map et al
@@ -267,7 +267,8 @@ void do_netdaemon(void)
 	{ s = -(ERRZ84+ERRMLAST);			//   report error
 	  goto Error;
 	}
-	while (SemOp( SEM_SYS, -systab->maxjob));
+	while (SemOp( SEM_SYS, -systab->maxjob))
+                ;
         DGP_MkValue(&rep, SIZEOF_LABEL_BLOCK,		// copy VOL label
 		    (u_char *) systab->vol[s-1]->vollab);
 	SemOp( SEM_SYS, systab->maxjob);
@@ -503,7 +504,9 @@ void do_rest(void)
 
   MEM_BARRIER;
   rest = systab->ZRestTime;
-  if (stalls <= old_stalls)			// same or less stalls ?
+  if (0 == stalls)
+    rest = MAX_REST_TIME;
+  else if (stalls < old_stalls)		        // same or less stalls ?
     rest *= 1.5;				//   wait more
   else
     rest /= 2;					// more stalls, rest less
@@ -739,7 +742,7 @@ start:
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_WRITE)
   { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
-    do_write();						// do it 
+    do_write(0);					// do it 
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
@@ -829,9 +832,9 @@ void do_dismount()					// dismount volnum
       { systab->vol[vol]->gbd_head[i].dirty
           = &systab->vol[vol]->gbd_head[i]; 	        // point at self
 
-        systab->vol[0]->wd_tab[0].currmsg.gbddata     // add to our struct
+        systab->vol[0]->wd_tab[0].currmsg.gbddata       // add to our struct
 	  = &systab->vol[vol]->gbd_head[i];
-        do_write();					// write it
+        do_write(1);					// write it
       }							// end gbd has blk
     }							// end blk search
   }
@@ -882,6 +885,7 @@ void do_dismount()					// dismount volnum
     if (i != systab->vol[vol]->vollab->header_bytes )
     { do_log("do_dismount: write() map block failed");
     }   
+    close(dbfds[vol]);                                  // close db
   }
   i = semctl(systab->sem_id, 0, (IPC_RMID), NULL);	// remove the semaphores
   if (i)
@@ -897,7 +901,7 @@ void do_dismount()					// dismount volnum
 // Return:   none
 //
 
-void do_write()						// write GBDs
+void do_write(int force)				// write GBDs
 { off_t file_off;                               	// for lseek() et al
   int i;						// a handy int
   gbd *gbdptr;						// for the gbd
@@ -906,6 +910,9 @@ void do_write()						// write GBDs
   DB_Block *wrbuf;                                      // write buffer
   int vol;                                              // vol[] index
   char msg[128];                                        // msg buffer
+  int dowrite, written;                                 // flag a write
+  vol_def *curr_vol;
+  int sav_curr_lock;                                    // save curr_lock
 
   gbdptr = systab->vol[0]->			        // get the gbdptr
   		wd_tab[myslot].currmsg.gbddata;		// from daemon table
@@ -922,36 +929,63 @@ void do_write()						// write GBDs
   { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   while (TRUE)						// until we break
-  { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
+  { written = 0;
+    if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
     { gbdptr->block = 0;				// just zot the block
+      written = 1;
     }
     else						// do a write
     { blkno = gbdptr->block;                            // get blkno
       vol   = gbdptr->vol;                              //   and volume
+      curr_vol = systab->vol[vol];
       do_mount(vol);                                    // mount db file
       Check_BlockNo(vol, blkno,				// because of ^IC
 		    CBN_INRANGE,			// check only range
                     "Write_Chain", 0, 0, 1);     	// validity
       wrbuf = gbdptr->mem;
-      file_off = (off_t) blkno - 1;	                // block#
-      file_off = (file_off * (off_t)
-    			systab->vol[vol]->vollab->block_size)
-		 + (off_t) systab->vol[vol]->vollab->header_bytes;
-      file_off = lseek( dbfds[vol], file_off, SEEK_SET);// Seek to block
-      if (file_off < 1)
-      { systab->vol[vol]->stats.diskerrors++;	        // count an error
-        sprintf(msg, "lseek of vol %d failed in Write_Chain()!!", vol);
-        panic(msg);                                     // die on error
+
+      if (curr_vol->last_dirty_percent != MTIME(0))
+      { curr_vol->dirty_percent = DB_GetDirty(vol) / (curr_vol->num_gbd / 100);
+        curr_vol->last_dirty_percent = MTIME(0);
+        if (curr_vol->dirty_policy)
+        { curr_vol->dirty_policy = curr_vol->dirty_percent > 10;
+        }
+        else
+        { curr_vol->dirty_policy = curr_vol->dirty_percent > 85;
+        } 
       }
-      wrbuf->bkprevno = systab->vol[vol]->vollab->bkprevno;
-      i = write( dbfds[vol], wrbuf,
+      dowrite = force || curr_vol->dirty_policy;
+
+      if (dowrite)
+      { file_off = (off_t) blkno - 1;	                // block#
+        file_off = (file_off * (off_t)
+    			  systab->vol[vol]->vollab->block_size)
+		   + (off_t) systab->vol[vol]->vollab->header_bytes;
+        file_off = lseek( dbfds[vol], file_off, SEEK_SET);// Seek to block
+        if (file_off < 1)
+        { systab->vol[vol]->stats.diskerrors++;	        // count an error
+          sprintf(msg, "lseek of vol %d failed in Write_Chain()!!", vol);
+          panic(msg);                                     // die on error
+        }
+        wrbuf->bkprevno = systab->vol[vol]->vollab->bkprevno;
+
+        sav_curr_lock = curr_lock;
+        gbdptr->last_accessed = (time_t) 0;
+        SemOp( SEM_GLOBAL, -curr_lock);
+        i = write( dbfds[vol], wrbuf,
 		 systab->vol[vol]->vollab->block_size); // write it
-      if (i < 0)
-      { systab->vol[vol]->stats.diskerrors++;	        // count an error
-        sprintf(msg, "write of vol %d failed in Write_Chain()!!", vol);   
-        panic(msg);                                     // die on error
+        gbdptr->last_accessed = MTIME(0);
+        MEM_BARRIER;
+        while (SemOp( SEM_GLOBAL, sav_curr_lock));
+
+        if (i < 0)
+        { systab->vol[vol]->stats.diskerrors++;	        // count an error
+          sprintf(msg, "write of vol %d failed in Write_Chain()!!", vol);   
+          panic(msg);                                     // die on error
+        }
+        ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);  // count a write
+        written = 1;
       }
-      ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);  // count a write
     }							// end write code
 
     if (!gbdptr->dirty)
@@ -975,7 +1009,10 @@ void do_write()						// write GBDs
       systab->vol[0]->wd_tab[myslot].
       		doing = DOING_NOTHING;			// and here
     }
-    lastptr->dirty = NULL;				// clear old dirtyptr
+    if (written)
+      lastptr->dirty = NULL;				// clear old dirtyptr
+    else
+      lastptr->dirty = lastptr;
     MEM_BARRIER;
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while

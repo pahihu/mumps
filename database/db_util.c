@@ -1236,8 +1236,9 @@ u_int DB_GetDirty(int vol)
   num_gbd = systab->vol[vol]->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-     if (systab->vol[vol]->gbd_head[i].dirty)
-       cnt++;
+    if ((systab->vol[vol]->gbd_head[i].dirty) &&        // dirty
+        (systab->vol[vol]->gbd_head[i].block))          //   AND has block
+      cnt++;
 
   return cnt;
 }
