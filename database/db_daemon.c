@@ -132,17 +132,18 @@ u_int MSLEEP(u_int mseconds)
 }
 
 static int old_stalls;
-static time_t last_calc_rest;
+static time_t last_do_rest;
 
 static
-void do_calc_rest(void)
+void do_rest(void)
 { int stalls, i;
   int rest;
 
-  if (myslot)
-    return;
-  if (MTIME(0) == last_calc_rest)
-    return;
+  if (myslot)                                           // return if not
+    return;                                             //   daemon 0
+
+  if (MTIME(0) == last_do_rest)                         // just recalculated ?
+    return;                                             //  return
 
   stalls = 0; 					        //   rest time
   for (i = 0; i < MAX_VOL; i++)
@@ -153,21 +154,22 @@ void do_calc_rest(void)
     stalls += systab->vol[i]->stats.dqstall +	        // check dirtyQ stalls
               systab->vol[i]->stats.gbswait;	        //   and GBDs waits
   }
-  // stalls = DirtyQ_Len() >> 9;
 
+  MEM_BARRIER;
   rest = systab->ZRestTime;
-  if (!stalls || (stalls <= old_stalls))
-    rest *= 1.1;
+  if (stalls <= old_stalls)                             // same or less stalls ?
+    rest *= 1.1;                                        //   wait more
   else
-    rest /= 2;
-  if (rest < MIN_REST_TIME)
-    rest = MIN_REST_TIME;
+    rest /= 2;                                          // more stalls,rest less
+  if (rest < MIN_REST_TIME)                             // clip rest time to
+    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
   else if (rest > MAX_REST_TIME)
      rest = MAX_REST_TIME;
-  systab->ZRestTime = rest;
-  old_stalls = stalls;
+  systab->ZRestTime = rest;                             // set in systab
+  MEM_BARRIER;
 
-  last_calc_rest = MTIME(0);
+  old_stalls = stalls;                                  // save current stalls
+  last_do_rest = MTIME(0);
 }
 
 extern int   curr_sem_init;
@@ -573,7 +575,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
 
   if (!myslot)                                          // clear #stalls
   { old_stalls = 0;
-    last_calc_rest = (time_t) 0;
+    last_do_rest = (time_t) 0;
   }
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
@@ -621,14 +623,13 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   i = MSLEEP(1000);					// wait a bit
 
   while (TRUE)						// forever
-  { do_calc_rest();
-    MEM_BARRIER;
+  { MEM_BARRIER;
     if ((systab->dgpRESTART) &&				// DGP RESTART phase ?
         (MTIME(0) > systab->dgpRESTART))		//   and time passed
     { systab->dgpRESTART = 0;				//   leave RESTART phase
       MEM_BARRIER;
     }
-     
+
     i = MSLEEP(systab->ZRestTime);                      // rest
     do_daemon();					// do something
   }
@@ -653,7 +654,7 @@ void do_daemon()					// do something
 start:
   if (!myslot)                                          // update M time
   { systab->Mtime = time(0);
-    do_calc_rest();
+    do_rest();
   }
 
   daemon_check();					// ensure all running
@@ -736,7 +737,7 @@ start:
         SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
-      do_dismount(vol);				        // dismount it
+      do_dismount();				        // dismount it
       exit (0);					        // and exit
     }							// end dismount code
     else
@@ -888,6 +889,7 @@ void do_dismount()					// dismount volnum
     if (i != systab->vol[vol]->vollab->header_bytes )
     { do_log("do_dismount: write() map block failed");
     }   
+    close(dbfds[vol]);                                  // close db file
   }
   i = semctl(systab->sem_id, 0, (IPC_RMID), NULL);	// remove the semaphores
   if (i)
