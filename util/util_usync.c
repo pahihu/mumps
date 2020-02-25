@@ -11,6 +11,7 @@
 
 extern void panic(char*);
 
+#ifdef MV1_SHSEM
 
 #ifdef USE_LIBATOMIC_OPS
 #define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
@@ -437,3 +438,5 @@ int SRWTryLockShared(SRWLOCK_T *lok)
 }
 
 #undef CAS
+
+#endif
