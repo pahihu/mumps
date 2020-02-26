@@ -72,7 +72,7 @@ static int SLOT_VOLSYNC;                                // VOLSYNC daemon
 
 void do_daemon();					// do something
 void do_dismount();					// dismount volnum
-void do_write(int force);				// write GBDs
+void do_write(int locked, int force);		        // write GBDs
 void do_garb();						// garbage collect
 int do_zot(int vol, u_int gb);				// zot block and lower
 void do_free(int vol, u_int gb);			// free from map et al
@@ -760,7 +760,7 @@ start:
     if (GBD_PTR_FLUSH == systab->vol[0]->wd_tab[myslot].currmsg.gbddata)
       do_flush();
     else
-      do_write(0);		                        // do it 
+      do_write(0, 0);		                        // do it 
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
@@ -852,7 +852,7 @@ void do_dismount()					// dismount volnum
 
         systab->vol[0]->wd_tab[0].currmsg.gbddata       // add to our struct
 	  = &systab->vol[vol]->gbd_head[i];
-        do_write(1);					// write it
+        do_write(0, 1);					// write it
       }							// end gbd has blk
     }							// end blk search
   }
@@ -919,7 +919,7 @@ void do_dismount()					// dismount volnum
 // Return:   none
 //
 
-void do_write(int force)				// write GBDs
+void do_write(int locked, int force)		        // write GBDs
 { off_t file_off;                               	// for lseek() et al
   int i;						// a handy int
   gbd *gbdptr;						// for the gbd
@@ -943,7 +943,16 @@ void do_write(int force)				// write GBDs
   // NB. egy lancban egy volume-hoz tartoznak!
   volnum = gbdptr->vol + 1;                             // set volnum
 
-  if (!curr_lock)					// if we need a lock
+#if !defined(NDEBUG)
+  if (locked)                                           // check locks
+  { ASSERT(curr_lock);
+  }
+  else if (!locked)
+  { ASSERT(!curr_lock);
+  }
+#endif
+
+  if (!locked)					        // if we need a lock
   { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   while (TRUE)						// until we break
@@ -962,10 +971,11 @@ void do_write(int force)				// write GBDs
                     "Write_Chain", 0, 0, 1);     	// validity
       wrbuf = gbdptr->mem;
 
-      if (curr_vol->last_num_dirty != MTIME(0))         // stale num_dirty ?
-      { curr_vol->num_dirty = DB_GetDirty(vol);         // recalc. num_dirty
-        curr_vol->last_num_dirty = MTIME(0);
-      }
+      if (!force)                                       // not forced ?
+        if (curr_vol->last_num_dirty != MTIME(0))       // stale num_dirty ?
+        { curr_vol->num_dirty = DB_GetDirty(vol);       // recalc. num_dirty
+          curr_vol->last_num_dirty = MTIME(0);
+        }
       dowrite = force ||
                 (curr_vol->num_dirty > 1024) ||
                 (MTIME(0) - gbdptr->last_accessed > 1);
@@ -983,14 +993,21 @@ void do_write(int force)				// write GBDs
         }
         wrbuf->bkprevno = systab->vol[vol]->vollab->bkprevno;
 
-        sav_curr_lock = curr_lock;
-        gbdptr->last_accessed = (time_t) 0;
-        SemOp( SEM_GLOBAL, -curr_lock);
-        i = write( dbfds[vol], wrbuf,
-		 systab->vol[vol]->vollab->block_size); // write it
-        gbdptr->last_accessed = MTIME(0);
-        MEM_BARRIER;
-        while (SemOp( SEM_GLOBAL, sav_curr_lock));
+        if (force)                                      // forced ?
+        { i = write( dbfds[vol], wrbuf,                 // write it
+		 systab->vol[vol]->vollab->block_size);
+        }
+        else
+        { sav_curr_lock = curr_lock;                    // save current lock
+          gbdptr->last_accessed = (time_t) 0;           // make not available
+          MEM_BARRIER;
+          SemOp( SEM_GLOBAL, -curr_lock);               // release curr lock
+          i = write( dbfds[vol], wrbuf,                 // write it
+		 systab->vol[vol]->vollab->block_size);
+          gbdptr->last_accessed = MTIME(0);             // make available
+          MEM_BARRIER;
+          while (SemOp( SEM_GLOBAL, sav_curr_lock));    // acquire old lock
+        }
 
         if (i < 0)
         { systab->vol[vol]->stats.diskerrors++;	        // count an error
@@ -1031,7 +1048,9 @@ void do_write(int force)				// write GBDs
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
   }							// end dirty write
-  SemOp( SEM_GLOBAL, -curr_lock);			// release lock
+  if (!locked)
+  { SemOp( SEM_GLOBAL, -curr_lock);			// release lock
+  }
   return;						// done
 
 }
@@ -1666,7 +1685,7 @@ void do_gbdflush(int vol, int num_flush)
 
       systab->vol[0]->wd_tab[myslot].currmsg.gbddata    // add to our struct
         = &curr_vol->gbd_head[i];
-      do_write(1);					// write it
+      do_write(1, 1);					// write it
 
       num_flush--;                                      // decrement counter
     }							// end gbd has blk
