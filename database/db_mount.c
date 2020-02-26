@@ -248,8 +248,8 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->gmb        = gmb;           // global bufffer cache in MB
   systab->vol[vol]->jkb        = jkb;           // jrn buffer cache in KB
   systab->vol[vol]->gbsync     = DEFAULT_GBSYNC;// global buffer sync in sec
-  systab->vol[vol]->last_dirty_percent = (time_t) 0;
-  systab->vol[vol]->dirty_policy = 0;
+  systab->vol[vol]->last_num_dirty = (time_t) 0;
+  systab->vol[vol]->last_gbdflush  = (time_t) 0;
 
   // bzero(semtab, sizeof(semtab));
 

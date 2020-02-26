@@ -968,7 +968,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		        // backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));	// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
+                ;
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_PROTECT;
 	}
@@ -988,7 +989,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		        // backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));	// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
+                ;
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_RDONLY;
 	}
@@ -1078,7 +1080,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             if (s < 0) return s;			// has remote VOL name?
 	    if (!s) return -(ERRM38);
 #endif
-	    while (SemOp( SEM_SYS, -systab->maxjob));	// lock SYSTEM
+	    while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
+                ;
             strcpy((char *) &systab->vol[i]->file_name[0],
 		   (char *) data->buf);			// set file_name
             SemOp( SEM_SYS, systab->maxjob);

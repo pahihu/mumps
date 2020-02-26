@@ -69,6 +69,7 @@
 #define DOING_WRITE	2				// writing
 #define DOING_GARB	3				// garbage collect
 #define DOING_DISMOUNT	4				// dismounting
+#define DOING_FLUSH     5                               // flusing GBD
 
 // #include <libkern/OSAtomic.h>
 // #define ATOMIC_INCREMENT(x)      OSAtomicIncrement32((volatile int32_t*)&(x))
@@ -289,8 +290,8 @@ void Free_block(int vol, int blknum);			// free blk in map
 void Mark_map_dirty(int vol, int blknum);		// mark map dirty
 void Garbit(int blknum);				// que a blk for garb
 short Insert(u_char *key, cstring *data);		// insert a node
-int Queit2(gbd *p_gbd);				        // que a gbd for write
-void Queit(void);				// que blk[level] for write
+void QueGBD(gbd *p_gbd);				// que a gbd for write
+void Queit(void);				        // que blk[level] for wt
 void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
 short Compress1();					// compress 1 block

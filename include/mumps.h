@@ -480,9 +480,9 @@ typedef struct __ALIGNED__ VOL_DEF
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
-  time_t last_dirty_percent;
-  u_int dirty_percent;
-  int dirty_policy;
+  time_t last_num_dirty;                        // last DB_GetDirty()
+  u_int num_dirty;                              // result of DB_GetDirty()
+  time_t last_gbdflush;                         // last GBD flush
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label

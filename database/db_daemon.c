@@ -62,6 +62,8 @@
 #include "dgp.h"					// DGP protos
 #endif
 
+#define GBD_PTR_FLUSH   ((gbd *)-1)
+
 static int dbfds[MAX_VOL];				// global db file desc
 static int myslot;					// my slot in WD table
 static int myslot_net;					// my slot in network
@@ -85,6 +87,8 @@ static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
 void do_volsync(int vol);                               // flush vol to disk
 void do_map_write(int vol);				// write label/map
+void do_gbdflush(int vol, int num_flush);               // flush vol GBDs to dsk
+void do_flush(void);                                    // flush GBDs to disk
 
 int do_log(const char *fmt,...)
 { int i;
@@ -506,7 +510,7 @@ void do_rest(void)
   rest = systab->ZRestTime;
   if (0 == stalls)
     rest = MAX_REST_TIME;
-  else if (stalls < old_stalls)		        // same or less stalls ?
+  else if (stalls <= old_stalls)		// same or less stalls ?
     rest *= 1.5;				//   wait more
   else
     rest /= 2;					// more stalls, rest less
@@ -627,6 +631,17 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     { i = MSLEEP(i);                                    // rest
     }
 
+    if (!myslot)                                        // daemon 0 ?
+    { if (MTIME(0) - systab->vol[0]->last_gbdflush > 1) // 1sec elapsed ?
+      { while (SemOp( SEM_GLOBAL, WRITE));
+        if (0 == DirtyQ_Len())                          // dirtyQ empty ?
+        { QueGBD(GBD_PTR_FLUSH);                        // queue a flush op
+        }
+        SemOp( SEM_GLOBAL, -curr_lock);
+        systab->vol[0]->last_gbdflush = MTIME(0);
+      }
+    }
+
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -723,7 +738,7 @@ start:
 #endif
   }							// end looking for work
 
-  // XXX most ne lehessen kulon/kulon dismount-olni, csak egyben
+  // dismount all volumes at once
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { if (systab->vol[0]->dismount_flag)		        // dismounting?
     { if (myslot)					// first?
@@ -742,7 +757,10 @@ start:
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_WRITE)
   { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
-    do_write(0);					// do it 
+    if (GBD_PTR_FLUSH == systab->vol[0]->wd_tab[myslot].currmsg.gbddata)
+      do_flush();
+    else
+      do_write(0);		                        // do it 
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
@@ -944,17 +962,13 @@ void do_write(int force)				// write GBDs
                     "Write_Chain", 0, 0, 1);     	// validity
       wrbuf = gbdptr->mem;
 
-      if (curr_vol->last_dirty_percent != MTIME(0))
-      { curr_vol->dirty_percent = DB_GetDirty(vol) / (curr_vol->num_gbd / 100);
-        curr_vol->last_dirty_percent = MTIME(0);
-        if (curr_vol->dirty_policy)
-        { curr_vol->dirty_policy = curr_vol->dirty_percent > 10;
-        }
-        else
-        { curr_vol->dirty_policy = curr_vol->dirty_percent > 85;
-        } 
+      if (curr_vol->last_num_dirty != MTIME(0))         // stale num_dirty ?
+      { curr_vol->num_dirty = DB_GetDirty(vol);         // recalc. num_dirty
+        curr_vol->last_num_dirty = MTIME(0);
       }
-      dowrite = force || curr_vol->dirty_policy;
+      dowrite = force ||
+                (curr_vol->num_dirty > 1024) ||
+                (MTIME(0) - gbdptr->last_accessed > 1);
 
       if (dowrite)
       { file_off = (off_t) blkno - 1;	                // block#
@@ -1426,9 +1440,7 @@ void do_queueflush(int dodelay)
     { break;					// leave loop
     }
     daemon_check();				// ensure all running
-    // i = MSLEEP(1000);			// wait a bit
   }						// end while (TRUE)
-  // i = MSLEEP(1000);				// just a bit more
 }
 
 
@@ -1482,15 +1494,10 @@ void do_volsync(int vol)
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
   do_queueflush(1);                             // flush queues
+  do_map_write(vol);                            // write back MAP
+  do_gbdflush(vol, 0);                          // flush GBDs
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
-  { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
-    if (jfd > 0)
-    { volnum = vol + 1;
-      while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
-      FlushJournal(vol, jfd, 0);                // flush journal
-      SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      SyncFD(jfd);                              // sync JRN to disk
-    }
+  { do_jrnflush(vol);                           // flush journal
   }
   SyncFD(dbfds[vol]);                           // sync volume to disk
   if (systab->vol[vol]->vollab->journal_available) // journal available ?
@@ -1620,4 +1627,90 @@ PANIC:
     panic(msg);					//   do panic
 }
 
+
+//-----------------------------------------------------------------------------
+// Function: do_gbdflush
+// Descript: Write the dirty GBDs to disk
+// Input(s): vol - the volume
+// Return:   None
+//
+
+void do_gbdflush(int vol, int num_flush)
+{ int i;                                                // a handy int
+  int old_volnum;                                       // old volnum
+  vol_def *curr_vol;                                    // current volume
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  curr_vol = systab->vol[vol];                          // current volume
+  ASSERT(0 == curr_vol->local_name[0]);	                // not remote VOL
+  ASSERT(NULL != curr_vol->vollab);                     // mounted
+
+  old_volnum = volnum;                                  // save volnum
+  volnum = vol + 1;
+
+  if (num_flush)                                        // flush # buffers ?
+  { while(SemOp( SEM_GLOBAL, WRITE));                   //   GLOBAL lock
+  }
+
+  if (0 == num_flush)                                   // flush all ?
+     num_flush = curr_vol->num_gbd;
+
+  do_log("Flushing GBDs...\n");
+  for (i = 0; num_flush && (i < curr_vol->num_gbd); i++)// look for unwritten
+  { if ((curr_vol->gbd_head[i].block) && 	        // if there is a blk
+        (curr_vol->gbd_head[i].last_accessed != (time_t) 0) &&
+        (curr_vol->gbd_head[i].dirty))
+    { curr_vol->gbd_head[i].dirty                       // point at self
+        = &curr_vol->gbd_head[i];
+
+      systab->vol[0]->wd_tab[myslot].currmsg.gbddata    // add to our struct
+        = &curr_vol->gbd_head[i];
+      do_write(1);					// write it
+
+      num_flush--;                                      // decrement counter
+    }							// end gbd has blk
+  }                                                     // end look for unwt
+
+  if (curr_lock)                                        // release lock
+    SemOp( SEM_GLOBAL, -curr_lock);
+
+  volnum = old_volnum;                                  // restore volnum
+}
+
+//-----------------------------------------------------------------------------
+// Function: do_flush
+// Descript: Write the dirty GBDs to disk
+// Input(s): None
+// Return:   None
+//
+
+void do_flush(void)
+{ u_int num_dirty;                                      // no. of dirty GBDs
+  int vol;                                              // volume to check
+  vol_def *curr_vol;                                    // current volume
+
+  if (0 == DirtyQ_Len())                                // dirty empty ?
+  { for (vol = 0; vol < MAX_VOL; vol++)                 // for each volume
+    { curr_vol = systab->vol[vol];                      // current volume
+      if (curr_vol->local_name[0])	                // remote VOL ?
+	continue;					//   skip it
+      if (NULL == curr_vol->vollab)                     // stop at first
+        break;                                          //   not mounted
+
+      if (curr_vol->last_num_dirty != MTIME(0))         // stale num_dirty ?
+      { curr_vol->num_dirty = DB_GetDirty(vol);         // recalc. num_dirty
+        curr_vol->last_num_dirty = MTIME(0);
+      }
+
+      num_dirty = curr_vol->num_dirty;                  // no. of dirty GBDs
+      if (num_dirty)                                    // vol has dirty ?
+        do_gbdflush(vol, num_dirty > 256 ?              // flush at most 256
+                         256 : num_dirty);
+    }
+  }
+  systab->vol[0]->wd_tab[myslot].doing = DOING_NOTHING; // doing nothing
+  MEM_BARRIER;
+  systab->vol[0]->last_gbdflush = MTIME(0);             // save last time
+}
 

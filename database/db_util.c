@@ -199,6 +199,47 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 }
 
 //-----------------------------------------------------------------------------
+// Function: QueGBD
+// Descript: Que the gbd p_gbd
+// Input(s): the gbd to queue
+// Return:   None
+// Note:     Must hold a write lock before calling this function
+//
+
+void QueGBD(gbd *p_gbd)                                 // que a gbd for write
+{ int i;                                                // a handy int
+#ifdef MV1_CKIT
+  bool result;
+#endif
+
+  if (curr_lock != WRITE)
+  { char msg[32];
+    sprintf(msg, "QueGBD(): curr_lock = %d", curr_lock);
+    panic(msg);
+  }
+
+#ifdef MV1_CKIT
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[0]->dirtyQ,
+    &systab->vol[0]->dirtyQBuffer[0],
+    p_gbd);
+  if (false == result)
+  { panic("QueGBD(): dirtyQ overflow");
+  }
+#else
+  // we have the WRITE lock, at least NUM_DIRTY/2 is free
+  i = systab->vol[0]->dirtyQw;                          // where to put it
+  if (systab->vol[0]->dirtyQ[i] != NULL)
+  { panic("QueGBD(): dirtyQ overflow");
+  }
+  systab->vol[0]->dirtyQ[i] = p_gbd;                    // stuff it in
+  systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
+#endif
+
+  return;                                               // and exit
+}
+
+//-----------------------------------------------------------------------------
 // Function: Queit
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
@@ -208,11 +249,6 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 
 void Queit(void)  					// que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
-#ifdef MV1_CKIT
-  bool result;
-#else
-  int i;                                                // a handy int
-#endif
 
   ASSERT(0 < volnum);                                   // valid volnum
   ASSERT(volnum <= MAX_VOL);
@@ -241,30 +277,7 @@ void Queit(void)  					// que a gbd for write
   }
   // fprintf(stderr,"\r\n");
 
-  if (curr_lock != WRITE)
-  { char msg[32];
-    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
-    panic(msg);
-  }
-
-#ifdef MV1_CKIT
-  result = ck_ring_enqueue_spmc(
-                &systab->vol[0]->dirtyQ,
-    &systab->vol[0]->dirtyQBuffer[0],
-    blk[level]);
-  if (false == result)
-  { panic("Queit(): dirtyQ overflow");
-  }
-#else
-  // we have the WRITE lock, at least NUM_DIRTY/2 is free
-  i = systab->vol[0]->dirtyQw;                          // where to put it
-  if (systab->vol[0]->dirtyQ[i] != NULL)
-  { panic("Queit(): dirtyQ overflow");
-  }
-  systab->vol[0]->dirtyQ[i] = blk[level];               // stuff it in
-  systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
-#endif
-
+  QueGBD(blk[level]);                                   // queue it
   return;                                               // and exit
 }
 
@@ -277,8 +290,7 @@ void Queit(void)  					// que a gbd for write
 //
 
 void Garbit(int blknum)                                 // que a blk for garb
-{ int save_level;					// for current level
-  short s;						// status
+{ 
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
   bool result;                                          // ck result
@@ -1129,7 +1141,7 @@ void Ensure_GBDs(int haslock)
 {
   int j;
 #if !defined(MV1_CKIT)
-  int qpos, wpos, rpos, qlen;
+  int wpos, rpos, qlen;
 #endif
   int qfree;
   int MinSlots;
@@ -1228,16 +1240,20 @@ int DirtyQ_Len(void)
 u_int DB_GetDirty(int vol)
 { int i, num_gbd;
   u_int cnt;
+  vol_def *curr_vol;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+  curr_vol = systab->vol[vol];
+  if (systab->vol[vol]->local_name[0])		        // remote VOL ?
+    return 0;
+  ASSERT(NULL != curr_vol->vollab);                     // mounted
 
-  num_gbd = systab->vol[vol]->num_gbd;
+  num_gbd = curr_vol->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-    if ((systab->vol[vol]->gbd_head[i].dirty) &&        // dirty
-        (systab->vol[vol]->gbd_head[i].block))          //   AND has block
+    if ((curr_vol->gbd_head[i].dirty) &&                // dirty
+        (curr_vol->gbd_head[i].block))                  //   AND has block
       cnt++;
 
   return cnt;

@@ -100,17 +100,6 @@ short Get_data_ex(int dir, int indexTip)
         ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
-/*
-      if (TipIndex)	// TIPIDX_OFFS + -1,0,1
-      { j = systab->vol[volnum - 1]->last_idx_used[MV1_PID];
-	if (j)
-        { TipIndex = TipIndex + j - TIPIDX_OFFS;
-        }
-	else
-        { TipIndex = 0;
-        }
-      }
-*/
       if (LB_ENABLED == gbd_local_state)
       { ptr = LB_GetBlock(i);
         if (NULL == ptr)
