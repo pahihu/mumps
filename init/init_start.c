@@ -406,6 +406,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->gbsync      = DEFAULT_GBSYNC; // global buffer sync in sec
   systab->vol[0]->last_num_dirty = (time_t) 0;
   systab->vol[0]->last_gbdflush  = (time_t) 0;
+  systab->vol[0]->gbdflush_pos   = 0;
 
   bzero(semtab, sizeof(semtab));
 

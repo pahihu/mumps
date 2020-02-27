@@ -483,6 +483,7 @@ typedef struct __ALIGNED__ VOL_DEF
   time_t last_num_dirty;                        // last DB_GetDirty()
   u_int num_dirty;                              // result of DB_GetDirty()
   time_t last_gbdflush;                         // last GBD flush
+  int gbdflush_pos;                             // GBD flush position
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label

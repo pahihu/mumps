@@ -640,7 +640,10 @@ start:
 
   if (NULL == oldptr)
   { if (writing)				        // SET or KILL
-    { panic("Get_GBD: Failed to find an available GBD while writing"); // die
+    { SchedYield();
+      goto start;
+      /* XXX - miert ??? - XXX */
+      panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
 
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
