@@ -281,6 +281,7 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->shm_id = shar_mem_id;		// set up share id
   systab->sem_id = sem_id;			// set up semaphore id
   systab->vol[0]->map_dirty_flag = 0;		// clear dirty map flag
+  systab->vol[0]->hash_start = 0;               // start search here
 
   if ( (realpath( file, fullpathvol) ) )	// get full path
     { if (strlen(fullpathvol) < VOL_FILENAME_MAX) // if can fit in our struct

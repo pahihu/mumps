@@ -123,15 +123,9 @@
 #define MIN_GBD		40			// minumum number GBDs
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#if 0
-#define GBD_HASH        1024                    // hash size for global buffers
-#define NUM_DIRTY       1024                    // max queued dirty chains
-#define NUM_GARB        8192                    // max queued garbage blocks
-#else
 #define GBD_HASH        4096                    // hash size for global buffers
-#define NUM_DIRTY       1024                    // max queued dirty chains
+#define NUM_DIRTY       8192                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
-#endif
 
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list
@@ -335,6 +329,7 @@ typedef struct __attribute__ ((__packed__)) VOL_DEF
   int writelock;                                // MUMPS write lock
   u_int upto;                                   // validating map up-to block
   int shm_id;                                   // GBD share mem id
+  int hash_start;                               // start search here
   int dirtyQw;                                  // write ptr for dirty que
   int dirtyQr;                                  // read ptr for dirty que
   u_int garbQ[NUM_GARB];                        // garbage que (for daemons)
