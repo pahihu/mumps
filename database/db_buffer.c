@@ -274,11 +274,13 @@ void Get_GBDs(int greqd)				// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   TIMER_T tim;
+  int hash_start;                                       // last hash start
 
   assert(curr_lock == 0);
   TimerStart(&tim, 60, "Get_GBDs: waiting for %d GBDs\r\n", greqd);
 start:
   while (SemOp(SEM_GLOBAL, WRITE));			// get write lock
+  hash_start = systab->vol[volnum-1]->hash_start;       // last start
   ptr = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// head of free list
   curr = 0;						// clear current  
   while (ptr != NULL)					// while some there
@@ -290,7 +292,7 @@ start:
   }							// end while
   now = MTIME(0) + 1;					// get current time +
 
-  i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
+  i = (hash_start + 1) & (GBD_HASH - 1);                // where to start
   while (TRUE)						// loop
   { ptr = systab->vol[volnum-1]->gbd_hash[i];		// get first entry
     last = NULL;					// clear last
@@ -372,6 +374,7 @@ void Get_GBD()						// get a GBD
   gbd *oldptr = NULL;					// remember oldest
   gbd *last;						// points to ptr
   int pass = 0;                                         // pass number
+  int hash_start;                                       // last hash start
 
   assert(curr_lock == WRITE);
 start:
@@ -386,6 +389,7 @@ start:
   now = MTIME(0);					// get current time
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
+  hash_start = systab->vol[volnum-1]->hash_start;       // last hash start
 
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
   while (TRUE)						// loop
@@ -405,7 +409,7 @@ start:
 	else						// subsequent
 	{ last->next = ptr->next;			// unlink
 	}
-	hash_start = i;					// remember this
+	hash = i;					// remember this
 	blk[level] = ptr;				// store where reqd
 	goto exit;					// common exit code
       }							// end found expired
@@ -414,7 +418,12 @@ start:
 	  (ptr->last_accessed > 0))			// and there is a time
       { old = ptr->last_accessed;			// save time
 	oldptr = ptr;					// save the ptr
-	hash = i;					// and the hash
+        if (-1 == hash)                                 // first old ?
+	  hash = i;					// save the hash
+        else                                            // found an older
+        { hash = i;                                     // save the hash
+          goto found;                                   // and leave
+        }
       }
       last = ptr;					// save last
       ptr = ptr->next;					// point at next
@@ -424,6 +433,7 @@ start:
     { break;						// done
     }
   }							// end while (TRUE)
+found:
   if (oldptr == NULL)					// did we get one
   { if (writing)					// SET or KILL
     { panic("Get_GBD: Failed to find an available GBD while writing"); // die
@@ -451,6 +461,7 @@ start:
   blk[level] = oldptr;					// store where reqd
 
 exit:
+  systab->vol[volnum-1]->hash_start = hash;             // save hash start
   blk[level]->block = 0;				// no block attached
   blk[level]->next = NULL;				// clear link
   blk[level]->dirty = NULL;				// clear dirty

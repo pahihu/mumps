@@ -71,8 +71,6 @@ int *iidx;                                              // int ver of Index
 
 int writing;						// set when writing
 
-int hash_start = 0;					// start searching here
-
 //-----------------------------------------------------------------------------
 // Function: Copy2local
 // Descript: Copy passed in mvar to db_var, adjusting volset and uci
