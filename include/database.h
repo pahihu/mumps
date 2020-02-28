@@ -68,10 +68,9 @@
 #define DOING_DISMOUNT	4				// dismounting
 
 // Sleep times in milliseconds
-#define DQ_SLEEP         125
-#define GQ_SLEEP         125
-// #define GBD_SLEEP       250
-#define GBD_SLEEP         30
+#define DQ_SLEEP          10
+#define GQ_SLEEP          10
+#define GBD_SLEEP         10
 #define WRLOCK_SLEEP    1000
 
 // MUMPS time
@@ -155,8 +154,6 @@ extern u_short *idx;					// for indexes
 extern int *iidx;					// int ver of index
 
 extern int writing;					// set when writing
-
-extern int hash_start;					// start searching here
 
 //**** Function Prototypes*****************************************************
 

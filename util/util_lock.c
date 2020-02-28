@@ -50,7 +50,7 @@
 #include <sys/sem.h>                            // semaphore stuff
 
 #define LOCKTAB_VAR_SIZE   (sizeof(var_u) + (2 * sizeof(u_char)))
-#define LCK_SLEEP       10
+#define LCK_SLEEP       1
 
 //****************************************************************
 short UTIL_String_Lock( locktab *var,         	// address of lock entry
