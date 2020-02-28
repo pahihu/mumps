@@ -778,7 +778,7 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   if (!systab->vol[vol - 1]->vollab->journal_available) // if no journal
   { return;						// just exit
   }
-  while (SemOp( SEM_GLOBAL, WRITE))
+  while (SemOp( SEM_GLOBAL, WRITE))                     // acquire GLOBAL lock
   { msleep(1000);
   }
   jj.action = action;
@@ -786,9 +786,10 @@ void DB_StopJournal(int vol, u_char action)		// Stop journal
   //jj.name.var_qu = 0;
   X_Clear(jj.name.var_xu);
   jj.slen = 0;
-  DoJournal(&jj, NULL);
-  systab->vol[vol - 1]->vollab->journal_available = 0;
-  SemOp( SEM_GLOBAL, -curr_lock);
+  DoJournal(&jj, NULL);                                 // write jnl record
+  systab->vol[vol - 1]->vollab->journal_available = 0;  // mark jnl not avail
+  SemOp( SEM_GLOBAL, -curr_lock);                       // release GLOBAL lock
+  close(partab.jnl_fds[vol - 1]);                       // close journal file
   return;
 }
 

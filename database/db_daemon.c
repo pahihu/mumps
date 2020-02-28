@@ -407,6 +407,7 @@ void do_dismount()					// dismount volnum
   if (i != systab->vol[volnum-1]->vollab->header_bytes )
   { do_log("do_dismount: write() map block failed\n");
   } 
+  close(dbfd);                                          // close database file
   i = semctl(systab->sem_id, 0, (IPC_RMID), NULL);	// remove the semaphores
   if (i)
   { do_log("do_dismount: semctl() failed to remove semaphores\n");

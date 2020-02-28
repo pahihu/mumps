@@ -38,5 +38,6 @@ Fixes:
   * JOB argument passing
   * fixed cached block usage in Get_data() when journaling turned off and writing
   * fixed Control-C handling
+  * close database and journal file on dismount
 
 **NOTE**: Use the code! Good luck!
