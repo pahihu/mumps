@@ -1,8 +1,10 @@
 MUMPS V1R2DEV
 =============
 
+**NOTE**: This is the **stable** branch. It contains fixes and changes considered stable from the [**development**](https://github.com/pahihu/mumps/tree/development) branch.
+
 Based on [MUMPS V1 1.65](http://sf.net/projects/mumps) from Ray Newman.
-Work in progress. For more information see the [manual](https://github.com/pahihu/mumps/blob/development/doc/manual.md).
+Work in progress. For more information see the [manual](https://github.com/pahihu/mumps/blob/stable/doc/manual.md).
 
 Changes:
 
