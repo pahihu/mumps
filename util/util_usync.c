@@ -11,7 +11,7 @@
 
 extern void panic(char*);
 
-#ifdef MV1_SHSEM
+#if defined(MV1_SHSEM) && !defined(MV1_CKIT)
 
 #ifdef USE_LIBATOMIC_OPS
 #define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
