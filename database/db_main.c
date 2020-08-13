@@ -655,7 +655,8 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 #ifdef MV1_CCC
   keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);	// point at the chunk
+  keyptr = Build_KeyBuf(Index, &keybuf[0], dat ? KEY_COPY : KEY_NOCOPY);
+                                                        // point at the chunk
 #endif
 
   if (curr_lock)					// if locked
@@ -802,7 +803,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
 #ifdef MV1_CCC
   keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY); // point at the chunk
+  keyptr = Build_KeyBuf(Index, &keybuf[0], dat ? KEY_COPY : KEY_NOCOPY);
+                                                        // point at the chunk
 #endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
