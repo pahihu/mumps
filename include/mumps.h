@@ -38,11 +38,11 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#if (defined(__linux__) && defined(__PPC__)) || defined(MV1_OS_SEM)
-#undef MV1_SH_SEM
-#define MEM_BARRIER	__sync_synchronize()
+#if defined(__linux__) && defined(__PPC__)
+#undef MV1_SHSEM
+#define MEM_BARRIER     __sync_synchronize()
 #else
-#define MV1_SH_SEM	1
+#define MV1_SHSEM       1
 #define MEM_BARRIER     __sync_synchronize()
 #endif
 
@@ -53,7 +53,7 @@
 // #define MV1_PROFILE     1
 
 #include <stdint.h>
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
 # ifdef MV1_CKIT
 #  include "usync_ck.h"
 # else
@@ -83,7 +83,7 @@
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   1                       // Major version number
 #define VERSION_MINOR   70                      // Minor version number
-#define VERSION_TEST	2                       // Test version number
+#define VERSION_TEST	3                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
@@ -164,7 +164,13 @@
 #define SHMAT_SEED      (void *)0
 #endif
 
-#define MIN_GBD		(40)                    // minumum number GBDs
+#ifdef MV1_GBDRO
+#define NUM_GBDRO       32                      // no. of R/O GBDs
+#else
+#define NUM_GBDRO        0                      // no. of R/O GBDs
+#endif
+
+#define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
 #define MIN_REST_TIME	  10			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
@@ -173,8 +179,6 @@
 
 // Note the following three MUST be a power of 2 as they are masks for &
 #define GBD_HASH        4096                    // hash size for global buffers
-// #define NUM_DIRTY       4096                    // max queued dirty chains
-// #define NUM_GARB        4096                    // max queued garbage blocks
 #define NUM_DIRTY       8192                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
@@ -257,9 +261,15 @@
 #define SEM_WD          3                       // write daemons
 #define SEM_GLOBAL      4                       // global database module
 
-// #define SEM_GBDGET   5                       // get GBDs
+// #define SEM_GBDRO       5                       // read-only GBDs
+// #define SEM_GBDGET      6                       // get GBDs
 
 #define SEM_MAX         (SEM_GLOBAL + MAX_VOL) // total number of these
+
+#ifdef MV1_BLKSEM
+#define BLK_WRITE       ((short) 0x7FFF)        // block WRITE lock
+#define BLKSEM_MAX      16                      // total no. of block semaphores
+#endif
 
 #define KILL_VAL        1                       // kill only value
 #define KILL_SUBS       2                       // kill only subscripts
@@ -458,6 +468,9 @@ typedef struct __ALIGNED__ VOL_DEF
   ck_ring_t garbQ;
   ck_ring_buffer_t garbQBuffer[NUM_GARB];       // garbage queue (for daemons)
   ck_ring_t rogbdQ;
+#ifdef MV1_GBDRO
+  ck_ring_buffer_t rogbdQBuffer[NUM_GBDRO];     // R/O GBD queue (for readers)
+#endif
 #else
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   VOLATILE int dirtyQw;                         // write ptr for dirty que
@@ -480,14 +493,15 @@ typedef struct __ALIGNED__ VOL_DEF
   int gmb;                                      // global buffer cache in MB
   int jkb;                                      // jrn buffer cache in KB
   int gbsync;                                   // global buffer sync in sec
-  time_t last_num_dirty;                        // last DB_GetDirty()
-  u_int num_dirty;                              // result of DB_GetDirty()
-  time_t last_gbdflush;                         // last GBD flush
-  int gbdflush_pos;                             // GBD flush position
   char file_name[VOL_FILENAME_MAX];             // absolute pathname of volfile
   u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label
   db_stat stats;                                // database statistics
+#ifdef MV1_WRITER
+  VOLATILE time_t lastgbdwrite;                 // last GBD write
+  VOLATILE int dirty_start;                     // dirty block scan starts here
+  VOLATILE int dowriteback;                     // write-back dirty blocks
+#endif
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
@@ -650,9 +664,12 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpULOK;				// DGP local ULOK in progress
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   u_char dgpSTART[256];				// client: MV1_PIDs (0-255)
-#ifdef MV1_SH_SEM
+#ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
+#ifdef MV1_BLKSEM
+  LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
+#endif
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   VOLATILE u_int delaywt;                       // delay WRITEs

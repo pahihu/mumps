@@ -458,7 +458,7 @@ ReSend:
       // fprintf(stderr, "got server restart\r\n"); fflush(stderr);
       MEM_BARRIER;
       if (0 == systab->dgpRESTART)			// not in RESTART phase?
-      { while (SemOp( SEM_SYS, WRITE));			// lock SYS
+      { while (SemOp( SEM_SYS, WRITE));
         if (0 == systab->dgpRESTART)			//   still not?
         { systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// do local RESTART
 	  do_drop = 1;					//    drop remote LOCKs

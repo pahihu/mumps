@@ -73,6 +73,9 @@ union semun {
 extern int rwlock_init();
 
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
+#ifdef MV1_GBDRO
+void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
+#endif
 
 //****************************************************************************
 // Init an environment
@@ -124,7 +127,7 @@ short DB_Mount( char *file,                     // database
              strerror(errno));                  // what was returned
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }                                             // end file create test
-#ifdef MV1_DB_NOCACHE
+#ifdef MV1_F_NOCACHE
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
@@ -154,6 +157,7 @@ short DB_Mount( char *file,                     // database
   { gmb++;					// increase it
     n_gbd = (gmb * MBYTE) / hbuf[3];		// number of gbd
   }
+  n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
   syncjrn = 1;                                  // buffer flush w/ sync
   if (jkb < 0)                                  // if negative
@@ -170,7 +174,7 @@ short DB_Mount( char *file,                     // database
 
   volset_size = hbuf[2]				// size of head and map block
 	      + (hbuf[2] - SIZEOF_LABEL_BLOCK)	// change map
-	      + ((n_gbd) * sizeof(struct GBD))	// the gbd
+	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
@@ -222,7 +226,7 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[vol]->global_buf =
-    (void *) &systab->vol[vol]->gbd_head[n_gbd];//glob buffs
+    (void *) &systab->vol[vol]->gbd_head[n_gbd + NUM_GBDRO];//glob buffs
   systab->vol[vol]->zero_block =
     (void *) &(((u_char *)systab->vol[vol]->global_buf)[gmb*MBYTE]);
 						// pointer to zero blk
@@ -248,9 +252,6 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->gmb        = gmb;           // global bufffer cache in MB
   systab->vol[vol]->jkb        = jkb;           // jrn buffer cache in KB
   systab->vol[vol]->gbsync     = DEFAULT_GBSYNC;// global buffer sync in sec
-  systab->vol[vol]->last_num_dirty = (time_t) 0;
-  systab->vol[vol]->last_gbdflush  = (time_t) 0;
-  systab->vol[vol]->gbdflush_pos   = 0;
 
   // bzero(semtab, sizeof(semtab));
 
@@ -308,10 +309,22 @@ short DB_Mount( char *file,                     // database
     { gptr[i].next = NULL;			// end of list
     }
     systab->vol[vol]->gbd_hash[ GBD_HASH ] = gptr; // head of free list
+#ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
+#endif
+#ifdef MV1_BLKSEM
+    gptr[i].curr_lock = 0;                      // block lock flag
+#endif
     gptr[i].vol = vol;                          // vol[] index
   }						// end setup gbds
+#ifdef MV1_GBDRO
+  for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail
+  { gptr[i].mem = (struct DB_BLOCK *) ptr;
+    ptr += vollab->block_size;			// point at next
+    Free_GBDRO(&gptr[i]);
+  }
+#endif
 
   i = close(dbfd);                              // close the database
 

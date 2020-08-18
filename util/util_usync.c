@@ -8,9 +8,26 @@
 
 #include "mumps.h"
 #include "proto.h"
-#include "usync_mv1.h"
 
 extern void panic(char*);
+
+#if defined(MV1_SHSEM) && !defined(MV1_CKIT)
+
+#ifdef USE_LIBATOMIC_OPS
+#define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
+#else
+
+AO_t inter_add(volatile AO_t *ptr, AO_t incr)
+{
+  AO_t oldval, newval;
+  do
+  { oldval = *ptr;
+    newval = oldval + incr;
+  } while(!__sync_bool_compare_and_swap(ptr, oldval, newval));
+  return newval;
+}
+
+#endif
 
 
 /* --- LATCH --- */
@@ -26,25 +43,44 @@ extern void panic(char*);
 #define LOCK_SPINS              1024
 #endif
 
+#ifndef USE_LIBATOMIC_OPS
 #define LATCH_FREE 0
+#endif
 
 
 void MV1LatchInit(MV1LATCH_T *latch)
-{ MV1LatchUnlock(latch);
+{
+#ifdef USE_LIBATOMIC_OPS
+  *latch = AO_TS_INITIALIZER;
+#else
+  MV1LatchUnlock(latch);
+#endif
 }
 
 
 static
 int MV1LatchTryLock(MV1LATCH_T *latch)
-{ AO_t ret;
+{
+#ifdef USE_LIBATOMIC_OPS
+  AO_TS_t ret;
+  ret = AO_test_and_set_acquire_read(latch);
+  return AO_TS_CLEAR == ret;
+#else
+  AO_t ret;
 
   ret = __sync_lock_test_and_set(latch, LATCH_FREE + 1);
   return LATCH_FREE == ret;
+#endif
 }
 
 
 void MV1LatchUnlock(MV1LATCH_T *latch)
-{ __sync_lock_release(latch);
+{
+#ifdef USE_LIBATOMIC_OPS
+  AO_CLEAR(latch);
+#else
+  __sync_lock_release(latch);
+#endif
 }
 
 void MicroSleep(u_long useconds)
@@ -62,21 +98,21 @@ int MV1LatchLock(MV1LATCH_T *latch)
 
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
-    { if (MV1LatchTryLock(latch))			// try lock
-        return 0;					//   done
+    { if (MV1LatchTryLock(latch))
+        return 0;
 #ifdef USE_EXPBACK
-      slot = random() & ((1 << j) - 1);			// random wait
+      slot = random() & ((1 << j) - 1);
       MicroSleep(slot);
 #endif
     }
 #ifdef USE_EXPBACK
-    if (0 == (i & 3))					// release CPU
-      sched_yield();					//   in slot 0
+    if (0 == (i & 3))
+      sched_yield();
 #else
-    if (i & 3)						// release CPU
-      sched_yield();					//   in slot 1, 2, 3
+    if (i & 3)
+      sched_yield();
     else
-      MicroSleep(1000 * LOCK_SLEEP);			// sleep in slot 0
+      MicroSleep(1000 * LOCK_SLEEP);
 #endif
   }
   // fprintf(stderr, "lock_latch: timeout\n");
@@ -87,72 +123,67 @@ int MV1LatchLock(MV1LATCH_T *latch)
 
 /* --- SEM --- */
 
-void MV1SemInit(MV1SEM_T *sem)				// init SEM struct
+void MV1SemInit(MV1SEM_T *sem)
 {
   bzero(sem, sizeof(MV1SEM_T));
   MV1LatchInit(&sem->g_latch);
 }
 
 
-int MV1SemWait(MV1SEM_T *sem)
+void MV1SemWait(MV1SEM_T *sem)
 { int i, j, s, done;
   u_int slot;
   
   for (i = 0; i < LOCK_TRIES; i++)
   { for (j = 0; j < LOCK_SPINS; j++)
     { done = 0;
-      s = MV1LatchLock(&sem->g_latch);			// lock SEM struct
-      if (s < 0)					// failed ?
-        continue;					//   just skip
-      if (sem->ntok)					// has tokens ?
-      { sem->ntok--;					//   get READER token
+      s = MV1LatchLock(&sem->g_latch);
+      if (s < 0)
+      { panic("SemWait(): failed [g_latch]");
+      }
+      if (sem->ntok)
+      { sem->ntok--;
         done = 1;
       }
-      MV1LatchUnlock(&sem->g_latch);			// release SEM struct
-      if (done)						// done ?
-        return 0;					//   return
+      MV1LatchUnlock(&sem->g_latch);
+      if (done)
+        return;
 #ifdef USE_EXPBACK
-      slot = random() & ((1 << j) - 1);			// random wait
+      slot = random() & ((1 << j) - 1);
       MicroSleep(slot);
 #endif
     }
 #ifdef USE_EXPBACK
-    if (0 == (i & 3))					// release CPU
-      sched_yield();					//   in slot 0
+    if (0 == (i & 3))
+      sched_yield();
 #else
-    if (i & 3)						// release CPU
-      sched_yield();					//   in slot 1, 2, 3
+    if (i & 3)
+      sched_yield();
     else
-      MicroSleep(1000 * LOCK_SLEEP);			// sleep in slot 0
+      MicroSleep(1000 * LOCK_SLEEP);
 #endif
   }
-  errno = ETIMEDOUT;					// report error
-  return -1;
+  // fprintf(stderr, "SemWait(): timeout\n");
+  // fflush(stderr);
+  panic("SemWait(): failed");
 }
 
 
-int MV1SemSignal(MV1SEM_T *sem, int numb)
+void MV1SemSignal(MV1SEM_T *sem, int numb)
 { int s;
 
-#if 1
-  inter_add(&sem->ntok, numb);				// increment #tokens
-  MEM_BARRIER;
-#else
-  s = MV1LatchLock(&sem->g_latch);			// lock SEM struct
-  if (s < 0)						// failed ?
-  { errno = EAGAIN;					//   report error
-    return -1;						//   done
+  s = MV1LatchLock(&sem->g_latch);
+  if (s < 0)
+  { panic("SemSignal(): failed [g_latch]");
   }
-  sem->ntok += numb;					// adjust READER tokens
-  MV1LatchUnlock(&sem->g_latch);			// unlock SEM struct
-#endif
-  return 0;						// done
+  sem->ntok += numb;
+  MV1LatchUnlock(&sem->g_latch);
 }
 
 
 /* --- RWLOCK --- */
 
-int MV1RWLockInit(MV1RWLOCK_T *lok, int maxjob)		// init RWLOCK struct
+int MV1RWLockInit(MV1RWLOCK_T *lok, int maxjob)
 {
   bzero(lok, sizeof(MV1RWLOCK_T));
 
@@ -172,25 +203,24 @@ void MV1LockWriter(MV1RWLOCK_T *lok)
   char msg[128];
 
   dowait = 0;
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { panic("LockWriter(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("LockWriter(): failed [g_latch]");
   }
-  if (lok->readers || lok->writers)			// READERs or WRITERs
-  { dowait = 1;						//   present ? wait
+  if (lok->readers || lok->writers)
+  { dowait = 1;
   }
-  lok->writers++;					// adjust WRITERs
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+  lok->writers++;
+  MV1LatchUnlock(&lok->g_latch);
 
-  if (dowait)						// should wait ?
+  if (dowait)
   { // fprintf(stderr, "LockWriter(): %d waiting...\n", getpid());
     // fflush(stderr);
-    s = MV1LatchLock(&lok->wr_latch);			// lock wr_latch
-    if (s < 0)						// failed ?
-    { inter_add(&lok->writers, -1);			//   adjust WRITERs
-      sprintf(msg,"LockWriter(): failed [wr_latch] %d,%d,%d",
+    s = MV1LatchLock(&lok->wr_latch);
+    if (s < 0)
+    { sprintf(msg,"LockWriter(): failed [wr_latch] %d,%d,%d",
                     lok->readers,lok->wait_to_read,lok->writers);
-      panic(msg);					//   do panic
+      panic(msg);
     }
   }
 }
@@ -198,46 +228,42 @@ void MV1LockWriter(MV1RWLOCK_T *lok)
 
 int MV1TryLockWriter(MV1RWLOCK_T *lok)
 { int dowait, s;
+  char msg[128];
 
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { panic("TryLockWriter(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("TryLockWriter(): failed [g_latch]");
   }
   dowait = 0;
-  if (lok->readers || lok->writers)			// READERs or WRITERs
-  { dowait = 1;						//   present ? wait
+  if (lok->readers || lok->writers)
+  { dowait = 1;
   }
   else
-    lok->writers++;					// adjust WRITERs
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+    lok->writers++;
+  MV1LatchUnlock(&lok->g_latch);
 
   return dowait ? 0 : 1;
 }
 
 
 void MV1UnlockWriter(MV1RWLOCK_T *lok)
-{ int i, s;
+{ int s;
 
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { inter_add(&lok->writers, -1);			//   adjust writers
-    panic("UnlockWriter(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockWriter(): failed [g_latch]");
   }
-  ASSERT(0 == lok->readers);				// check READERs
-  lok->writers--;					// adjust writers
-  ASSERT(0 <= lok->writers);				// check WRITERs
-  if (lok->wait_to_read)				// READERs waiting ?
-  { lok->readers = lok->wait_to_read;			//   release them
-    lok->wait_to_read = 0;				//   all
-    for (i = 0; i < 5; i++)				// try 5 times
-    { s = MV1SemSignal(&lok->rd_sem, lok->readers);	//   signal READERs
-      if (0 == s)
-        break;
-    }
+  ASSERT(0 == lok->readers);
+  lok->writers--;
+  ASSERT(0 <= lok->writers);
+  if (lok->wait_to_read)
+  { lok->readers = lok->wait_to_read;
+    lok->wait_to_read = 0;
+    MV1SemSignal(&lok->rd_sem, lok->readers);
   }
-  else if (lok->writers)				// WRITERs waiting ?
-    MV1LatchUnlock(&lok->wr_latch);			//   release wr_latch
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+  else if (lok->writers)
+    MV1LatchUnlock(&lok->wr_latch);
+  MV1LatchUnlock(&lok->g_latch);
 }
 
 
@@ -245,68 +271,60 @@ void MV1UnlockWriterToReader(MV1RWLOCK_T *lok)
 { int s;
   AO_t wait_to_read;
 
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { inter_add(&lok->writers, -1);			//   adjust writers
-    panic("UnlockWriterToReader(): failed [g_latch]");	//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockWriterToReader(): failed [g_latch]");
   }
-  ASSERT(0 == lok->readers);				// check READERs
-  lok->writers--;					// adjust writers
+  ASSERT(0 == lok->readers);
+  lok->writers--;
   wait_to_read = lok->wait_to_read;
-  lok->readers = 1 + lok->wait_to_read;			// all waiting + myself
+  lok->readers = 1 + lok->wait_to_read;
   lok->wait_to_read = 0;
-  MV1SemSignal(&lok->rd_sem, wait_to_read);		// rel. waiting READERs
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+  MV1SemSignal(&lok->rd_sem, wait_to_read);
+  MV1LatchUnlock(&lok->g_latch);
 }
 
 
 void MV1LockReader(MV1RWLOCK_T *lok)
 { int dowait;
-  int s;
-  char msg[128];
+  int i, s;
 
   dowait = 0;
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { panic("LockReader(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("LockReader(): failed [g_latch]");
   }
-  if (lok->writers)					// WRITERs present ?
-  { dowait = 1;						//   should wait
-    lok->wait_to_read++;				//   adjust waiting RDs
+  if (lok->writers)
+  { dowait = 1;
+    lok->wait_to_read++;
   }
   else
-    lok->readers++;					// adjust READERs
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+    lok->readers++;
+  MV1LatchUnlock(&lok->g_latch);
 
-  if (dowait)						// should wait ?
+  if (dowait)
   { // fprintf(stderr, "LockReader(): %d waiting...\n", getpid());
     // fflush(stderr);
-    s = MV1SemWait(&lok->rd_sem);			// wait for rd_sem
-    if (s < 0)						// failed ?
-    { inter_add(&lok->wait_to_read, -1);		//   adjust waiting RDs
-      sprintf(msg,"LockReader(): failed [rd_sem] %d,%d,%d",
-                    lok->readers,lok->wait_to_read,lok->writers);
-      panic(msg);					//   do panic
-    }
+    MV1SemWait(&lok->rd_sem);
   }
 }
 
 
 int MV1TryLockReader(MV1RWLOCK_T *lok)
 { int dowait;
-  int s;
+  int i, s;
 
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { panic("TryLockReader(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("TryLockReader(): failed [g_latch]");
   }
   dowait = 0;
-  if (lok->writers)					// WRITERs present ?
-  { dowait = 1;						// flag wait
+  if (lok->writers)
+  { dowait = 1;
   }
   else
-    lok->readers++;					// adjust READERs
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+    lok->readers++;
+  MV1LatchUnlock(&lok->g_latch);
 
   return dowait ? 0 : 1;
 }
@@ -315,17 +333,16 @@ int MV1TryLockReader(MV1RWLOCK_T *lok)
 void MV1UnlockReader(MV1RWLOCK_T *lok)
 { int s;
 
-  s = MV1LatchLock(&lok->g_latch);			// lock RWLOCK struct
-  if (s < 0)						// failed ?
-  { inter_add(&lok->readers, -1);			//   adjust READERs
-    panic("UnlockReader(): failed [g_latch]");		//   do panic
+  s = MV1LatchLock(&lok->g_latch);
+  if (s < 0)
+  { panic("UnlockReader(): failed [g_latch]");
   }
-  ASSERT(0 != lok->readers);				// check READERs
-  lok->readers--;					// adjust READERs
-  ASSERT(0 <= lok->readers);				// check READERs again
-  if ((0 == lok->readers) && (0 < lok->writers))	// WRITERs waiting ?
-    MV1LatchUnlock(&lok->wr_latch);			//   release wr_latch
-  MV1LatchUnlock(&lok->g_latch);			// release RWLOCK struct
+  ASSERT(0 != lok->readers);
+  lok->readers--;
+  ASSERT(0 <= lok->readers);
+  if ((0 == lok->readers) && (0 < lok->writers))
+    MV1LatchUnlock(&lok->wr_latch);
+  MV1LatchUnlock(&lok->g_latch);
 }
 
 
@@ -421,3 +438,5 @@ int SRWTryLockShared(SRWLOCK_T *lok)
 }
 
 #undef CAS
+
+#endif

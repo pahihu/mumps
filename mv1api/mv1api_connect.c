@@ -126,7 +126,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
   hnd->dbfd = open(file, O_RDWR);               // open the database for write
   if (hnd->dbfd < 0) return (errno);            // if that failed
-#ifdef MV1_DB_NOCACHE
+#ifdef MV1_F_NOCACHE
   i = fcntl(hnd->dbfd, F_NOCACHE, 1);
 #endif
   if (hnd->start_type == TYPE_RUN)		// if not from JOB
@@ -171,7 +171,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
     }
   }
 
-  hnd->ret = SemOp( SEM_SYS, -systab->maxjob);	// lock systab
+  hnd->ret = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
   if (hnd->ret < 0) goto exit;			// give up on error
   for (i = 0; i < systab->maxjob; i++)		// look for a free slot
   { if (((systab->jobtab[i].pid == 0) &&	// this one ?
@@ -184,7 +184,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
       break;					// end loop
     }
   }
-  hnd->ret = SemOp( SEM_SYS, systab->maxjob);	// unlock systab
+  hnd->ret = SemOp(SEM_SYS, systab->maxjob);		// unlock systab
   if (partab.jobtab == NULL)			// if that failed
   { hnd->ret = ENOMEM;				// error message
     goto exit;					// and exit
@@ -261,7 +261,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
     }
     else
     { 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
       i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
 #endif
     }

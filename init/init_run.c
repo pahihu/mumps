@@ -131,10 +131,13 @@ start:
   bzero(semtab, sizeof(semtab));
 
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
+#ifdef MV1_WRITER
+  dbfd = open(file, O_RDWR);                    // open the database for R/W
+#else
   dbfd = open(file, O_RDONLY);                  // open the database for read
-  // dbfd = open(file, O_RDWR);                  // open the database for read/write XXX
+#endif
   if (dbfd < 0) return (errno);                 // if that failed
-#ifdef MV1_DB_NOCACHE
+#ifdef MV1_F_NOCACHE
   i = fcntl(dbfd, F_NOCACHE, 1);
 #endif
   if (start_type == TYPE_RUN)			// if not from JOB
@@ -179,7 +182,7 @@ start:
     }
   }
 
-  ret = SemOp( SEM_SYS, -systab->maxjob);	// lock systab
+  ret = SemOp(SEM_SYS, -systab->maxjob);	// lock systab
   if (ret < 0) goto exit;			// give up on error
   for (i = 0; i < systab->maxjob; i++)		// look for a free slot
   { if (((systab->jobtab[i].pid == 0) &&	// this one ?
@@ -192,7 +195,7 @@ start:
       break;					// end loop
     }
   }
-  ret = SemOp( SEM_SYS, systab->maxjob);	// unlock systab
+  ret = SemOp(SEM_SYS, systab->maxjob);		// unlock systab
   if (partab.jobtab == NULL)			// if that failed
   { ret = ENOMEM;				// error message
     goto exit;					// and exit
@@ -276,7 +279,7 @@ start:
     }
     else
     { 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
       i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
 #endif
       partab.jnl_seq[0] = systab->vol[0]->jnl_seq;

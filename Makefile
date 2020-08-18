@@ -3,11 +3,11 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
-OSTYPE	= darwin
-CC	= gcc
+OSTYPE	= linux
+CC	= gcc -g
 LIBS	= -lm -lcrypt
 
-EXTRA   = -O3 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1 -DMV1_DLMALLOC=1
+EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 #-DNDEBUG=1 -DMV1_DLMALLOC=1
 ifeq ($(MAKECMDGOALS),test)
 EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
 endif
@@ -22,8 +22,8 @@ endif
 
 
 ifeq ($(OSTYPE),darwin)
-LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security -mmacosx-version-min=10.5
-EXTRA += -mmacosx-version-min=10.5 -Wno-deprecated-declarations
+LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
+EXTRA += -Wno-deprecated-declarations
 
 endif
 

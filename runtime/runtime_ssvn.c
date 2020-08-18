@@ -878,9 +878,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           return -(ERRM38);
         if (i && !systab->replicas[i-1].connection[0])	// out of order?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYS
+	while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
         strcpy((char *) &systab->replicas[i].connection[0],
-	       (char *) data->buf);		// set file name
+	       (char *) data->buf);
         SemOp( SEM_SYS, systab->maxjob);
 #ifdef MV1_DGP
         if (partab.dgp_repl[i] != -1)		// if connected, disconnect
@@ -940,94 +940,90 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "writelock\0", 10) == 0))
-      { i = cstringtoi(subs[1]) - 1;		        // get vol#
-	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60);// out of range
-	if (NULL == systab->vol[i]->vollab)	        // not mounted ?
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        if (systab->vol[i]->bkprunning)		        // backup running ?
+        if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));       // lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
-	    ? -(MV1_PID + 1)			        // set it
-	    : 0;				        // clear it
-        if (systab->vol[i]->writelock)                  // block writers
+	    ? -(MV1_PID + 1)			// set it
+	    : 0;				// clear it
+        if (systab->vol[i]->writelock)          // block writers
         { inter_add(&systab->delaywt, 1);
           MEM_BARRIER;
         }
-	SemOp( SEM_SYS, systab->maxjob);	        // unlock SYSTEM
-	return 0;				        // return OK
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
+	return 0;				// return OK
       }
 
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "protected\0", 10) == 0))
-      { i = cstringtoi(subs[1]) - 1;		        // get vol#
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
-	if (NULL == systab->vol[i]->vollab)	        // not mounted ?
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        if (systab->vol[i]->bkprunning)		        // backup running ?
+        if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
-                ;
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_PROTECT;
 	}
 	else
 	{ systab->vol[i]->flags &= ~VOL_PROTECT;
 	}
-	SemOp( SEM_SYS, systab->maxjob);	        // unlock SYSTEM
-	return 0;				        // return OK
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
+	return 0;				// return OK
       }
 
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "readonly\0", 9) == 0))
-      { i = cstringtoi(subs[1]) - 1;		        // get vol#
-	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60);// out of range
-	if (NULL == systab->vol[i]->vollab)	        // not mounted ?
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        if (systab->vol[i]->bkprunning)		        // backup running ?
+        if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
-                ;
+	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_RDONLY;
 	}
 	else
 	{ systab->vol[i]->flags &= ~VOL_RDONLY;
 	}
-	SemOp( SEM_SYS, systab->maxjob);	        // unlock SYSTEM
-	return 0;				        // return OK
+	SemOp( SEM_SYS, systab->maxjob);	// unlock SYSTEM
+	return 0;				// return OK
       }
 
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "backup_running\0", 15) == 0))
-      { i = cstringtoi(subs[1]) - 1;		        // get vol#
-	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60);// out of range
-	if (NULL == systab->vol[i]->vollab)	        // not mounted ?
+      { i = cstringtoi(subs[1]) - 1;		// get vol#
+	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
+	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        while (SemOp( SEM_GLOBAL, -systab->maxjob))     // lock GLOBAL
-                ;
+        while (SemOp( SEM_GLOBAL, -systab->maxjob));
         systab->vol[i]->bkprunning = cstringtob(data);
         SemOp( SEM_GLOBAL, systab->maxjob);
-	return 0;				        // return OK
+	return 0;				// return OK
       }
 
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "vol\0", 4) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "track_changes\0", 14) == 0))
       { int old_volnum = volnum;
-        i = cstringtoi(subs[1]) - 1;		        // get vol#
+        i = cstringtoi(subs[1]) - 1;		// get vol#
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
-        if (NULL == systab->vol[i]->vollab)	        // not mounted ?
+        if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
 
 	j = cstringtob(data);
 	volnum = i + 1;
-        while (SemOp( SEM_GLOBAL, -systab->maxjob))     // lock GLOBAL
-                ;
+        while (SemOp( SEM_GLOBAL, -systab->maxjob));
 	if (j)
 	{ bzero(systab->vol[i]->chgmap, 
 		systab->vol[i]->vollab->header_bytes - SIZEOF_LABEL_BLOCK);
@@ -1036,7 +1032,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	systab->vol[i]->track_changes = j;
         SemOp( SEM_GLOBAL, systab->maxjob);
 	volnum = old_volnum;
-	return 0;				        // return OK
+	return 0;				// return OK
       }
 
       if ((nsubs == 3) &&
@@ -1080,10 +1076,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             if (s < 0) return s;			// has remote VOL name?
 	    if (!s) return -(ERRM38);
 #endif
-	    while (SemOp( SEM_SYS, -systab->maxjob))	// lock SYSTEM
-                ;
+	    while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
             strcpy((char *) &systab->vol[i]->file_name[0],
-		   (char *) data->buf);			// set file_name
+		   (char *) data->buf);
             SemOp( SEM_SYS, systab->maxjob);
 #ifdef MV1_DGP
 	    // NB. connect() - disconnect() pair will download remote VOL
@@ -1100,7 +1095,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 #endif
 	  } else
           { 
-            while (SemOp( SEM_SYS, -systab->maxjob));	// lock SYSTEM
+            while (SemOp( SEM_SYS, -systab->maxjob));
             s = DB_Mount((char *) &data->buf[0],	// mount volume
                         i + 1,
                         systab->vol[i]->gmb,
@@ -1115,24 +1110,23 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         }						// below
 
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_size\0", 13) == 0) &&
-	    (cstringtoi(data) == 0))		        // clear journal
-	{ int old_volnum = volnum;                      // set volnum
+	    (cstringtoi(data) == 0))		// clear journal
+	{ int old_volnum = volnum;              // set volnum
           volnum = i + 1;
-          while (SemOp( SEM_GLOBAL, -systab->maxjob))   // lock GLOBAL
-                ;
-	  ClearJournal(partab.jnl_fds[i], i);	        // do it
-	  SemOp( SEM_GLOBAL, systab->maxjob);	        // unlock global
+          while (SemOp( SEM_GLOBAL, -systab->maxjob)); // lock GLOBAL
+	  ClearJournal(partab.jnl_fds[i], i);	// do it
+	  SemOp( SEM_GLOBAL, systab->maxjob);	// unlock global
           volnum = old_volnum;
-	  return 0;				        // done
+	  return 0;				// done
 	}
 	if (strncasecmp( (char *) subs[2]->buf, "journal_requested\0", 18) == 0)
 	{ systab->vol[i]->vollab->journal_requested = cstringtob(data);
 	  if (!systab->vol[i]->vollab->journal_requested)
 	  { int old_volnum = volnum;
-            volnum = i + 1;                             // set volnum
-            while (SemOp( SEM_GLOBAL, WRITE))           // lock GLOBAL
-                ;
-            DB_StopJournal(i + 1, 2);		        // JRN_STOP
+            volnum = i + 1;                     // set volnum
+            while (SemOp( SEM_GLOBAL, WRITE))
+              ;
+            DB_StopJournal(i + 1, 2);		// JRN_STOP
             SemOp( SEM_GLOBAL, -curr_lock);
             volnum = old_volnum;
 	  }
@@ -1142,36 +1136,36 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((strncasecmp( (char *) subs[2]->buf, "journal_file\0", 13) == 0))
 	{ int old_volnum = volnum;
           if (data->len > JNL_FILENAME_MAX)
-	  { return -ERRM56;			        // too long
+	  { return -ERRM56;			// too long
 	  }
-          volnum = i + 1;                               // set volnum
-          while (SemOp( SEM_GLOBAL, WRITE))             // lock GLOBAL
+          volnum = i + 1;                       // set volnum
+          while (SemOp( SEM_GLOBAL, WRITE))     // lock GLOBAL
             ;
-          DB_StopJournal(i + 1, 2);                     // write JRN_STOP
-          if (partab.jnl_fds[i])                        // close old jrn file
+          DB_StopJournal(i + 1, 2);             // write JRN_STOP
+          if (partab.jnl_fds[i])                // close old jrn file
           { close( partab.jnl_fds[i]);
             partab.jnl_fds[i] = 0;
           }
 	  (void) strcpy(systab->vol[i]->vollab->journal_file, 
-                          (char *)data->buf);           // write new name
+                          (char *)data->buf);   // write new name
 	  systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;// tell to write it
-	  systab->vol[i]->jnl_seq++;		        // increment jrn seq.
+	  systab->vol[i]->jnl_seq++;		// increment jrn sequence
           if (0 == systab->vol[i]->jnl_seq)
             systab->vol[i]->jnl_seq = 1;
           s = 0;
-          OpenJournal(i, 0);                            // open new jrn file
+          OpenJournal(i, 0);                    // open new jrn file
           if (systab->vol[i]->vollab->journal_available)
-          { partab.jnl_fds[i] =                         // open if available
+          { partab.jnl_fds[i] =                 // open if available
                     open(systab->vol[i]->vollab->journal_file, O_RDWR);
-            if (partab.jnl_fds[i] < 0)                  // failed ?
-            { partab.jnl_fds[i] = 0;		        //   clear fd
-              s = -(errno+ERRMLAST+ERRZLAST);           //   complain
+            if (partab.jnl_fds[i] < 0)          // failed ?
+            { partab.jnl_fds[i] = 0;		//   clear fd
+              s = -(errno+ERRMLAST+ERRZLAST);   //   complain
             }
             else
               partab.jnl_seq[i] = systab->vol[i]->jnl_seq;
           }
-          else                                          // open jrn file failed
-              s = -(ERRZ72+ERRMLAST);                   //   complain
+          else                                  // open jrn file failed
+              s = -(ERRZ72+ERRMLAST);           //   complain
           SemOp( SEM_GLOBAL, -curr_lock);
           volnum = old_volnum;
 	  return s;
@@ -1207,7 +1201,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 		    SIZEOF_LABEL_BLOCK) * 8) | 7))
 	  { return (-ERRM38);
 	  }
-	  return DB_Expand(i, vsiz);		        // do it
+	  return DB_Expand(i, vsiz);		// do it
 	}
 	if (strncasecmp( (char *) subs[2]->buf, 
                 "backup_revision_number\0", 23) == 0)
@@ -1217,8 +1211,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           { return -(ERRM38);
           }
 	  volnum = i + 1;
-	  while (SemOp( SEM_GLOBAL, -systab->maxjob))   // lock GLOBAL
-                ;
+	  while (SemOp( SEM_GLOBAL, -systab->maxjob));
           systab->vol[i]->vollab->bkprevno = j;
           systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;
 	  SemOp( SEM_GLOBAL, systab->maxjob);
@@ -1397,11 +1390,11 @@ short SS_Kill(mvar *var)                        // remove sub-tree
       s = UTIL_mvartolock(vp, subs[0]->buf);	// cvt to locktab style
       if (s < 0) return s;			// quit on error
       subs[0]->len = s;				// save the length
-      while (SemOp( SEM_LOCK, -systab->maxjob))	// until success, get semaphore
+      while (SemOp(SEM_LOCK, -systab->maxjob))	// until success, get semaphore
       { sleep(1);
       }
       s = LCK_Kill(subs[0]);			// doit
-      i = SemOp( SEM_LOCK, systab->maxjob);	// drop semaphore
+      i = SemOp(SEM_LOCK, systab->maxjob);	// drop semaphore
       return s;					// doit and exit
 
     case 'R':					// $ROUTINE
@@ -1423,13 +1416,13 @@ short SS_Kill(mvar *var)                        // remove sub-tree
       for (i = 0; i < MAX_NAME_BYTES; i++)
         if ((rou.var_cu[i] = subs[0]->buf[i]) == '\0')
           break;
-      s = SemOp( SEM_ROU, -systab->maxjob);	// lock it
+      s = SemOp(SEM_ROU, -systab->maxjob);	// lock it
       if (s < 0) return s;			// quit if no go
       s = DB_Kill(var);				// give it to the database
       if (s >= 0)				// if OK
         //Routine_Delete(rou.var_qu, var->uci);	// mark as deleted
         Routine_Delete(rou.var_xu, var->uci,var->volset); // mark as deleted
-      i = SemOp( SEM_ROU, systab->maxjob);	// release the lock
+      i = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return s;					// exit
 
     case 'S':					// $SYSTEM

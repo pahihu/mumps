@@ -115,6 +115,7 @@ void BAD_MVAR()
   return;
 }
 
+
 // NB. ha rtn eleje ":", akkor nem kell meghivni, mint rutint
 short Copy2local(mvar *var, char *rtn)
 { int i;						// a handy int
@@ -654,7 +655,8 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 #ifdef MV1_CCC
   keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY);	// point at the chunk
+  keyptr = Build_KeyBuf(Index, &keybuf[0], dat ? KEY_COPY : KEY_NOCOPY);
+                                                        // point at the chunk
 #endif
 
   if (curr_lock)					// if locked
@@ -801,7 +803,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
 #ifdef MV1_CCC
   keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_COPY);	// rebuild key
 #else
-  keyptr = Build_KeyBuf(Index, &keybuf[0], KEY_NOCOPY); // point at the chunk
+  keyptr = Build_KeyBuf(Index, &keybuf[0], dat ? KEY_COPY : KEY_NOCOPY);
+                                                        // point at the chunk
 #endif
   if (curr_lock)					// if locked
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -1057,7 +1060,7 @@ int DB_Dismount(int volume)	                       	// dismount a volume
 { // if (volume > 1)
   { int old_volnum = volnum;
     volnum = volume;                                    // set volnum
-    while (SemOp( SEM_GLOBAL, WRITE))			// lock GLOBAL
+    while (SemOp( SEM_GLOBAL, WRITE))
       ;
     DB_StopJournal(volume, JRN_ESTOP);
     SemOp( SEM_GLOBAL, -curr_lock);

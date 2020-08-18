@@ -156,18 +156,15 @@ short SemOpEx(int sem_num, int numb,
     }
     curr_sem_init = 0;
   }
-
   if (numb == 0)				// check for junk
   { return 0;					// just return
   }
-
   if ((SEM_GLOBAL == sem_num) &&
-      (curr_lock  != curr_sem[sem_num][volnum]))
+      (curr_lock != curr_sem[sem_num][volnum]))
   { sprintf(msg,"SemOp(): curr_lock unsynchronized curr_lock=%d curr_sem=%d @ %s:%d",
                  curr_lock, curr_sem[sem_num][volnum], file, line);
     panic(msg);
   }
-
   if ((SEM_GLOBAL == sem_num) &&                // global lock ?
       (abs(curr_lock) >= systab->maxjob) &&     //   AND already have WRITE lock
       (numb < 0))                               //   AND acquire
@@ -191,23 +188,15 @@ short SemOpEx(int sem_num, int numb,
 
   for (i = 0; i < 5; i++)                       // try this many times
   { if (0 == i)                                 // first iteration ?
-    { if ((SEM_GLOBAL == sem_num) &&            // GLOBAL ?
+    { if ((SEM_GLOBAL == sem_num) &&            // GLOBAL lock ?
           writing &&                            //   writing ?
           (0 < numb))                           //   unlock ?
-      /* NB. cannot use (1 < numb), because of single user mode, where
-       * numb will be always 1!
-       */
         DB_WillUnlock();                        //     call back
     }
     s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
     if (s == 0)					// if that worked
-    { if (SEM_GLOBAL == sem_num) 
-      { curr_lock += numb;                      // adjust curr_lock
-#if 0
-        if (numb < -1)                          // WRITE locked ?
-          DB_Locked();                          //   callback
-#endif
-      }
+    { if (SEM_GLOBAL == sem_num)                // adjust curr_lock
+        curr_lock += numb;
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
@@ -227,3 +216,17 @@ short SemOpEx(int sem_num, int numb,
   return 0;                                     // shouldn't get here
 }
 
+u_int semslot(int pass)
+{
+  u_int slot;
+  db_stat *stats;
+
+  slot  = (u_int) MTIME(0);
+  if (partab.jobtab)
+    slot += partab.jobtab->pid + partab.jobtab->commands +
+            partab.jobtab->grefs;
+  stats = &systab->vol[0]->stats;
+  slot += stats->dbget + stats->dbset + stats->dbkil + 
+          stats->dbdat + stats->dbord + stats->dbqry;
+  return slot ^ (u_int) pass;
+}

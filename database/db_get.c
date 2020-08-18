@@ -71,7 +71,7 @@ short logit(int where,short ret)
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or writing
 
-short Get_data_ex(int dir, int indexTip)
+short Get_data_ex(int dir, int TipIndex)		// locate a record
 { int i, j;						// a handy int
   short s;						// for function returns
   u_char tmp[2*MAX_NAME_BYTES-1];			// spare string
@@ -91,7 +91,7 @@ short Get_data_ex(int dir, int indexTip)
       (dir != 0) ||					// or level or backward
       /* NB. we CAN write without journaling */
       (// (systab->vol[volnum - 1]->vollab->journal_available) && // or journaling
-       (writing + wanna_writing)))			// and (wanna) writing 
+       (writing + wanna_writing)))		        // and writing
   { systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0; // zot this
   }
   else
@@ -100,6 +100,17 @@ short Get_data_ex(int dir, int indexTip)
         ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lasttry); // count a try
+/*
+      if (TipIndex)	// TIPIDX_OFFS + -1,0,1
+      { j = systab->vol[volnum - 1]->last_idx_used[MV1_PID];
+	if (j)
+        { TipIndex = TipIndex + j - TIPIDX_OFFS;
+        }
+	else
+        { TipIndex = 0;
+        }
+      }
+*/
       if (LB_ENABLED == gbd_local_state)
       { ptr = LB_GetBlock(i);
         if (NULL == ptr)
@@ -121,7 +132,7 @@ Found:    if ((X_NE(ptr->mem->global,
           }
 	  level = LAST_USED_LEVEL;			// use this level
 	  blk[level] = ptr;				// point at it
-	  s = LocateEx(&db_var.slen,0,indexTip);	// check for the key
+	  s = LocateEx(&db_var.slen,0,TipIndex);	// check for the key
 	  if ((s >= 0) ||				// if found or
 	      ((s = -ERRM7) &&				// not found and
 	       (Index <= blk[level]->mem->last_idx) &&	// still in block
@@ -130,7 +141,9 @@ Found:    if ((X_NE(ptr->mem->global,
                                                         // count success
             if (LB_DISABLED == gbd_local_state)
 	      blk[level]->last_accessed = MTIME(0);	// accessed
+#ifdef MV1_REFD
             REFD_MARK(blk[level]);
+#endif
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok
 	    { s = record->len;				// get the dbc

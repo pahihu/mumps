@@ -199,47 +199,6 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 }
 
 //-----------------------------------------------------------------------------
-// Function: QueGBD
-// Descript: Que the gbd p_gbd
-// Input(s): the gbd to queue
-// Return:   None
-// Note:     Must hold a write lock before calling this function
-//
-
-void QueGBD(gbd *p_gbd)                                 // que a gbd for write
-{ int i;                                                // a handy int
-#ifdef MV1_CKIT
-  bool result;
-#endif
-
-  if (curr_lock != WRITE)
-  { char msg[32];
-    sprintf(msg, "QueGBD(): curr_lock = %d", curr_lock);
-    panic(msg);
-  }
-
-#ifdef MV1_CKIT
-  result = ck_ring_enqueue_spmc(
-                &systab->vol[0]->dirtyQ,
-    &systab->vol[0]->dirtyQBuffer[0],
-    p_gbd);
-  if (false == result)
-  { panic("QueGBD(): dirtyQ overflow");
-  }
-#else
-  // we have the WRITE lock, at least NUM_DIRTY/2 is free
-  i = systab->vol[0]->dirtyQw;                          // where to put it
-  if (systab->vol[0]->dirtyQ[i] != NULL)
-  { panic("QueGBD(): dirtyQ overflow");
-  }
-  systab->vol[0]->dirtyQ[i] = p_gbd;                    // stuff it in
-  systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
-#endif
-
-  return;                                               // and exit
-}
-
-//-----------------------------------------------------------------------------
 // Function: Queit
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
@@ -249,10 +208,20 @@ void QueGBD(gbd *p_gbd)                                 // que a gbd for write
 
 void Queit(void)  					// que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
+#ifdef MV1_WRITER
+  gbd *nxt;
+#endif
+#ifdef MV1_CKIT
+  bool result;
+#else
+  int i;                                                // a handy int
+#endif
 
   ASSERT(0 < volnum);                                   // valid volnum
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
+  ASSERT(blk[level]->dirty != NULL);
+  ASSERT(blk[level]->dirty > (gbd *)4);
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];                                     // point at the block
@@ -265,19 +234,49 @@ void Queit(void)  					// que a gbd for write
   LocateAllP(ptr,level,__FILE__,__LINE__);
 #endif
   while (ptr->dirty != ptr)                             // check it
-  { ptr = ptr->dirty;                                   // point at next
-    // fprintf(stderr," %d",ptr->block);
+  { nxt = ptr->dirty;                                   // point at next
+#ifdef MV1_WRITER
+    ptr->dirty = ptr;
+#endif
+    // fprintf(stderr," %d",nxt->block);
     systab->vol[volnum-1]->stats.logwt++;               // incr logical
     if (systab->vol[volnum-1]->track_changes)		// track changes ?
-    { Mark_changes(volnum-1, ptr->block);		//   mark blk as changed
+    { Mark_changes(volnum-1, nxt->block);		//   mark blk as changed
     }
 #ifdef MV1_LOCATE_DEBUG
-    LocateAllP(ptr,-1,__FILE__,__LINE__);
+    LocateAllP(nxt,-1,__FILE__,__LINE__);
 #endif
+    ptr = nxt;
   }
   // fprintf(stderr,"\r\n");
 
-  QueGBD(blk[level]);                                   // queue it
+  if (curr_lock != WRITE)
+  { char msg[32];
+    sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
+    panic(msg);
+  }
+#ifdef MV1_WRITER
+  return;
+#endif
+
+#ifdef MV1_CKIT
+  result = ck_ring_enqueue_spmc(
+                &systab->vol[0]->dirtyQ,
+    &systab->vol[0]->dirtyQBuffer[0],
+    blk[level]);
+  if (false == result)
+  { panic("Queit(): dirtyQ overflow");
+  }
+#else
+  // we have the WRITE lock, at least NUM_DIRTY/2 is free
+  i = systab->vol[0]->dirtyQw;                          // where to put it
+  if (systab->vol[0]->dirtyQ[i] != NULL)
+  { panic("Queit(): dirtyQ overflow");
+  }
+  systab->vol[0]->dirtyQ[i] = blk[level];               // stuff it in
+  systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
+#endif
+
   return;                                               // and exit
 }
 
@@ -677,7 +676,9 @@ short Compress1()
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
       blk[1]->last_accessed = MTIME(0);                 // clear last access
+#ifdef MV1_REFD
       REFD_MARK(blk[1]);
+#endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
@@ -711,7 +712,9 @@ short Compress1()
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
     blk[level]->last_accessed = MTIME(0);               // clear last access
+#ifdef MV1_REFD
     REFD_MARK(blk[level]);
+#endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
@@ -811,7 +814,7 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     { return (-errno+ERRMLAST+ERRZLAST);
     }
 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
     j = fcntl(jfd, F_NOCACHE, 1);
 #endif
     lseek(jfd, 0, SEEK_SET);
@@ -996,7 +999,7 @@ void OpenJournal(int vol, int printlog)
     else                                                // if open OK
     { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-#ifdef MV1_JRN_NOCACHE
+#ifdef MV1_F_NOCACHE
       i = fcntl(jfd, F_NOCACHE, 1);
 #endif
       lseek(jfd, 0, SEEK_SET);
@@ -1141,7 +1144,7 @@ void Ensure_GBDs(int haslock)
 {
   int j;
 #if !defined(MV1_CKIT)
-  int wpos, rpos, qlen;
+  int qpos, wpos, rpos, qlen;
 #endif
   int qfree;
   int MinSlots;
@@ -1149,6 +1152,9 @@ void Ensure_GBDs(int haslock)
 
 start:
   Get_GBDsEx(MAXTREEDEPTH * 2, haslock);                // ensure this many
+#ifdef MV1_WRITER
+  return;
+#endif
   haslock = 0;                                          // clear for next turns
 
   j = 0;                                                // clear counter
@@ -1245,15 +1251,13 @@ u_int DB_GetDirty(int vol)
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   curr_vol = systab->vol[vol];
-  if (systab->vol[vol]->local_name[0])		        // remote VOL ?
-    return 0;
   ASSERT(NULL != curr_vol->vollab);                     // mounted
 
   num_gbd = curr_vol->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-    if ((curr_vol->gbd_head[i].dirty) &&                // dirty
-        (curr_vol->gbd_head[i].block))                  //   AND has block
+    if (curr_vol->gbd_head[i].dirty &&                  // dirty
+        curr_vol->gbd_head[i].block)                    //   AND has block
       cnt++;
 
   return cnt;
@@ -1458,7 +1462,7 @@ short DB_Backup(const char *path, u_int volmask, int typ)
   for (j = 0; j < nvols; j++)
   { vol    = vols[j];
     volnum = vol + 1;
-    while (SemOp( SEM_GLOBAL, WRITE));		// lock GLOBAL
+    while (SemOp( SEM_GLOBAL, WRITE));
     if (systab->vol[vol]->bkprunning)		// check BACKUP state
     { fprintf(stderr,"-E-BACKUP: backup is running on VOL%d\r\n", j+1);
       fflush(stderr);
@@ -2054,13 +2058,14 @@ void TX_Next(void)
   MEM_BARRIER;
 }
 
+
 int SyncFD(int fd)
 { int rc;
 
 #ifdef __APPLE__
-   rc = fcntl(fd, F_FULLFSYNC);
+  rc = fcntl(fd, F_FULLFSYNC);
 #else
-   rc = fsync(fd);
+  rc = fsync(fd);
 #endif
 
   return rc;
