@@ -201,6 +201,7 @@ typedef struct __ALIGNED__ GBD		                // global buf desciptor
   short  curr_lock;                                     // current block lock
 #endif
   u_char vol;                                           // vol[] index
+  u_char rsvd;
 } gbd;							// end gbd struct
 
 #define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))

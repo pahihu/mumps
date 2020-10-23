@@ -149,7 +149,7 @@ Found:    if ((X_NE(ptr->mem->global,
 	    { s = record->len;				// get the dbc
 	    }
 	    if ((writing) && (blk[level]->dirty == NULL)) // if writing
-	    { blk[level]->dirty = (gbd *) 1;		// reserve it
+	    { Reserve_GBD(blk[level]);                  //  reserve it
 	    }
 	    if ((!db_var.slen) && (!s) &&
 	        ((partab.jobtab->last_block_flags[volnum - 1] &

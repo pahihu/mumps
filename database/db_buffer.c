@@ -280,20 +280,50 @@ void Block_Unlock(void)
 #endif
 
 
+//-----------------------------------------------------------------------------
+// Function: Reserve_GBD
+// Descript: Called with WRITE lock, reserve GBD buffer, remember
+//           that it was reserved.
+// Input(s): p - GBD buffer to reserve.
+// Return:   None.
+//
 #define MAX_RESERVED_GBDS       (2*MAXTREEDEPTH)
 static int numReservedGBDs = 0;                         // no. of reserved GBDs
 static gbd *reservedGBDs[MAX_RESERVED_GBDS];            // reserved GBDs
 
+void Reserve_GBD(gbd *p)
+{
+  ASSERT(writing);                                      // check writing
+
+  p->dirty = (gbd *) 1;                                 // reserve it
+  if (0 == p->rsvd)                                     // not marked?
+  { if (MAX_RESERVED_GBDS == numReservedGBDs)           //   rsvd buffer full?
+    { panic("reserved GBD buffer overflow");            //     do panic
+    }
+    p->rsvd = 1;                                        //   mark it
+    reservedGBDs[numReservedGBDs++] = p;                //   save GBD
+  }
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_WillUnlock
+// Descript: Called when WRITE lock will be released on the DB file.
+//           releases all reserved GBD buffers in the global buffer cache.
+// Input(s): None.
+// Return:   None.
+//
 void DB_WillUnlock(void)
 { int i;                                                // a handy int
   gbd *ptr;                                             // a GBD ptr
 
-  if (writing)                                          // writing ?
-    for (i = 0; i < numReservedGBDs; i++)               // check each rsvd GBD
-    { ptr = reservedGBDs[i];
-      if (ptr->dirty && (ptr->dirty < (gbd *)5))        // if reserved
-        ptr->dirty = 0;                                 //   release it
-    }
+  ASSERT(writing);                                      // check writing
+
+  for (i = 0; i < numReservedGBDs; i++)                 // check each rsvd GBD
+  { ptr = reservedGBDs[i];
+    if (ptr->dirty && (ptr->dirty < (gbd *)5))          // if reserved
+      ptr->dirty = 0;                                   //   release it
+    ptr->rsvd = 0;
+  }
   numReservedGBDs = 0;
   return;
 }
@@ -509,8 +539,7 @@ exit:
   { LB_AddBlock(blk[level]);				//   add to local buffer
   }
   if ((writing) && (blk[level]->dirty < (gbd *) 5))	// if writing
-  // if ((writing) && (blk[level]->dirty == NULL))	// if writing
-  { blk[level]->dirty = (gbd *) 1;			// reserve it
+  { Reserve_GBD(blk[level]);                            // reserve it
   }
   if (!writing)                                         // if reading
   { while (BLOCK_TRYREADLOCK(blk[level]) < 0)           //   wait for read lock
@@ -588,7 +617,7 @@ short New_block()					// get new block
       { *c |= (1 << i);					// mark block as used
 	Mark_map_dirty(volnum-1, blknum);		// mark map dirty
         blk[level]->block = blknum;			// save in structure
-	blk[level]->dirty = (gbd *) 1;			// reserve it
+        Reserve_GBD(blk[level]);                        // reserve it
 	blk[level]->last_accessed = MTIME(0);		// accessed
 #ifdef MV1_REFD
         REFD_NEW_INIT(blk[level]);                      // mark referenced
@@ -696,6 +725,7 @@ void Get_GBDsEx(int greqd, int haslock)			// get n free GBDs
   time_t now;						// current time
   int pass = 0;						// pass number
   int num_gbd = systab->vol[volnum-1]->num_gbd;         // local var
+  // int locked[5], clean, freelst;
 
 start:
   if (!haslock)
@@ -715,9 +745,12 @@ start:
 
   // fprintf(stderr,"Get_GBDs(): search begin\r\n"); fflush(stderr);
 
+  // clean = 0; freelst = 0; for (i = 0; i < 5; i++) locked[i] = 0;
   i = (systab->vol[volnum-1]->hash_start + 1) % num_gbd;// where to start
   for (j = 0; j < num_gbd; j++, i = (i + 1) % num_gbd)
   { ptr = &systab->vol[volnum-1]->gbd_head[i];
+    // if (GBD_HASH == ptr->hash) freelst++;
+    // if (ptr->dirty && (ptr->dirty < (gbd *)5)) locked[(int) ptr->dirty]++;
     if ((GBD_HASH == ptr->hash)                       	// skip GBDs on free lst
         || (ptr->dirty && (ptr->dirty < (gbd *)5)))	//   or reserved
       continue;
@@ -738,6 +771,7 @@ start:
         return;					        // just exit
       continue;					        // next ptr
     }							// end - no block
+    // if (ptr->dirty == NULL) clean++;
     if ((ptr->dirty == NULL) &&				// if free
         (now > ptr->last_accessed) &&                   //   and not viewed
         (0   < ptr->last_accessed))			//   and there is a time
@@ -759,7 +793,10 @@ start:
   if (pass > GBD_TRIES)					// this is crazy!
   { panic("Get_GBDs: Can't get enough GBDs after 60 seconds");
   }
-  // fprintf(stderr,"Get_GBDs(): goto start\r\n"); fflush(stderr);
+  // fprintf(stderr,"Get_GBDs(): greqd = %d, curr = %d, clean = %d, freelst = %d [", greqd, curr, clean, freelst);
+  // for (i = 1; i < 5; i++) fprintf(stderr, " %d", locked[i]);
+  // fprintf(stderr, "]\r\n");
+  // fflush(stderr);
   goto start;						// try again
 }
 
@@ -897,7 +934,12 @@ exit:
   oldptr->block = 0;			                // no block attached
   // fprintf(stderr,"Get_GBD(): exit\r\n"); fflush(stderr);
   oldptr->next = NULL;				        // clear link
-  oldptr->dirty = writing ? (gbd *) 1 : NULL;           // reserve when writing
+  if (writing)                                          // writing?
+  { Reserve_GBD(oldptr);                                //   reserve it
+  }
+  else
+  { oldptr->dirty = NULL;                               // clear dirty
+  }
   oldptr->last_accessed = (time_t) 0;		        // and time
   REFD_READ_INIT(oldptr);                               // mark refd
   oldptr->prev = NULL;                                  // clear prev link
@@ -910,12 +952,6 @@ exit:
 
 void Get_GBD(void)                                      // get a GBD
 { blk[level] = GetGBDEx(0);				// store where reqd
-  if (writing)                                          // writing?
-  { if (MAX_RESERVED_GBDS == numReservedGBDs)           //   rsvd buffer full?
-    { panic("reserved GBD buffer overflow");            //     do panic
-    }
-    reservedGBDs[numReservedGBDs++] = blk[level];       // save GBD
-  }
 #ifdef MV1_CACHE_DEBUG
   fprintf(stderr,"EXIT GBD\r\n"); fflush(stderr);
 #endif

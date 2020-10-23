@@ -233,8 +233,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	     if (rc < 0) return rc;			// return if failed
              DoJournal(&jj, data);			// and do it
           }
-          if (blk[level]->dirty == NULL)                // reserve it
-          { blk[level]->dirty = (gbd *) 1;
+          if (blk[level]->dirty == NULL)                // not dirty?
+          { Reserve_GBD(blk[level]);                    //   reserve it
           }
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
