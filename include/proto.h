@@ -140,6 +140,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
 int SyncFD(int fd);                              // sync file descriptor
 void DB_WillUnlock(void);                        // DB unlock
+void Reserve_GBD(struct GBD* p);                 // reserve a GBD
 
 // Local buffer prototypes
 short LDB_Get(mvar *var, u_char *buf);            // get global data

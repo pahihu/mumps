@@ -201,6 +201,7 @@ typedef struct __ALIGNED__ GBD		                // global buf desciptor
   short  curr_lock;                                     // current block lock
 #endif
   u_char vol;                                           // vol[] index
+  u_char rsvd;
 } gbd;							// end gbd struct
 
 #define MIN_JRNREC_SIZE (sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t))
@@ -298,10 +299,7 @@ void  Block_Unlock(void);
 
 #endif
 // File: database/db_get.c
-#define TIPIDX_OFFS	10
-#define TIPIDX(x)	(TIPIDX_OFFS + (x))
 short Get_data(int dir);				// get db_var node
-short Get_data_ex(int dir, int indexTip);		// get db_var node
 
 // File: database/db_kill.c
 short Kill_data();					// remove tree
@@ -316,7 +314,6 @@ void LB_AddBlock(gbd *ptr);				// add GBD to local buf.
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
-short LocateEx(u_char *key, int frominsert, int indexTip);//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
 u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy);
 							// pKeyBuf for pIndex
@@ -352,6 +349,7 @@ short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
            char *where,const char *file,int lno,int dopanic);
 #define CBN_INRANGE     1
 #define CBN_ALLOCATED   2
+short Check_BlockMapped(int vol, u_int blkno);          // check block mapped
 int  DirtyQ_Len();                                      // length of dirtyQ
 
 void TX_Set(gbd *ptr);

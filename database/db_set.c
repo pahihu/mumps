@@ -205,7 +205,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         }
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
-	s = LocateEx(&db_var.slen, 1, 0);	        // check for the key
+	s = Locate(&db_var.slen);	                // check for the key
 	if (((s == 0) &&                                // found it
              (Index == LOW_INDEX) &&                    //   at the beginning
              (partab.jobtab->last_written_flags[volnum - 1]//   and top defined
@@ -233,8 +233,8 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 	     if (rc < 0) return rc;			// return if failed
              DoJournal(&jj, data);			// and do it
           }
-          if (blk[level]->dirty == NULL)                // reserve it
-          { blk[level]->dirty = (gbd *) 1;
+          if (blk[level]->dirty == NULL)                // not dirty?
+          { Reserve_GBD(blk[level]);                    //   reserve it
           }
           s = TrySimpleSet(s, data);                    // try a simple set
           if (s > 0)                                    // success ?
@@ -323,6 +323,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     ptr->len = 4;					// one int
     ui = (u_int *) ptr->buf;				// point the int here
     *ui = blk[level + 1]->block;			// get the block#
+    ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
     s = Insert(tmp, ptr);				// insert a node
     if (s < 0)						// if that failed
     { level++;						// point at new blk
@@ -540,6 +541,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     { return s;
     }
     cblk[3] = blk[level];				// remember RL here
+    ASSERT(X_EQ(cblk[0]->mem->global, cblk[3]->mem->global));
     if (blk[level]->mem->flags & BLOCK_DIRTY)		// check state
     { Tidy_block();					// ensure tidy
     }
@@ -614,6 +616,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
+    ASSERT(X_EQ(cblk[0]->mem->global, blk[level]->mem->global));
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
     s = Insert(&db_var.slen, data);			// insert it
     if (s < 0)						// failed ?
@@ -650,6 +653,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
+  ASSERT(X_EQ(cblk[0]->mem->global, blk[level]->mem->global));
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
   Copy_data(cblk[0], trailings);			// copy trailings
   cblk[2] = blk[level];					// save this one
@@ -695,6 +699,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
+  ASSERT(X_EQ(cblk[0]->mem->global, blk[level]->mem->global));
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
   cblk[1] = blk[level];					// remember it
   s = Insert(&db_var.slen, data);			// insert it

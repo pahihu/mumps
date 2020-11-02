@@ -166,6 +166,7 @@ void do_rest(void)
   else if (rest > MAX_REST_TIME)
      rest = MAX_REST_TIME;
   systab->ZRestTime = rest;                             // set in systab
+  // systab->ZRestTime = 1000;                             // set in systab
   MEM_BARRIER;
 
   old_stalls = stalls;                                  // save current stalls
@@ -938,8 +939,8 @@ void do_write()						// write GBDs
       vol   = gbdptr->vol;                              //   and volume
       do_mount(vol);                                    // mount db file
       Check_BlockNo(vol, blkno,				// because of ^IC
-		    CBN_INRANGE,			// check only range
-                    "Write_Chain", 0, 0, 1);     	// validity
+		    CBN_INRANGE,			//   check only range
+                    "Write_Chain", 0, 0, 1);     	//   validity
 #ifdef MV1_BLKSEM
       while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
       { ATOMIC_INCREMENT(systab->vol[vol]->stats.brdwait);// count a wait
@@ -1057,6 +1058,9 @@ int do_zot(int vol,u_int gb)				// zot block
   ASSERT(vol < MAX_VOL);
   ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  if (Check_BlockMapped(vol, gb) < 0)                   // block not mapped ?
+    return -1;                                          //   return fail
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
@@ -1184,12 +1188,18 @@ void do_free(int vol, u_int gb)				// free from map et al
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   volnum = vol + 1;                                     // set volnum
+start:
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
     { break;						// it worked
     }
     MSLEEP(1000);					// wait a bit
+  }
+  if (systab->r_to_w)                                   // changing rd to wr ?
+  { SemOp( SEM_GLOBAL, -curr_lock);                     //   release lock
+    do_log("do_free: r_to_w retry");
+    goto start;                                         //   retry
   }
   
   Free_block(vol, gb);					// free the block

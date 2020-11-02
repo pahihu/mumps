@@ -154,7 +154,7 @@
 #define SHMAT_SEED      (void *)0x10000000
 #elif defined(__APPLE__) 			// OS X 10.11 El Capitan
 #if defined(__LP64__)   
-#define SHMAT_SEED      (void *)0x200000000
+#define SHMAT_SEED      (void *)0x280000000
 #else
 #define SHMAT_SEED      (void *)0x1800000
 #endif
@@ -497,11 +497,6 @@ typedef struct __ALIGNED__ VOL_DEF
   u_char local_name[MAX_NAME_BYTES];		// local VOL name for remote VOL
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label
   db_stat stats;                                // database statistics
-#ifdef MV1_WRITER
-  VOLATILE time_t lastgbdwrite;                 // last GBD write
-  VOLATILE int dirty_start;                     // dirty block scan starts here
-  VOLATILE int dowriteback;                     // write-back dirty blocks
-#endif
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
@@ -681,6 +676,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
   char rstfile[VOL_FILENAME_MAX];		// file to restore
   u_int locbufTO;				// local buffer timeout
+  u_int r_to_w;                                 // reader to writer
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

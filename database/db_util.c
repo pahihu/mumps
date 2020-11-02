@@ -208,9 +208,6 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 
 void Queit(void)  					// que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
-#ifdef MV1_WRITER
-  gbd *nxt;
-#endif
 #ifdef MV1_CKIT
   bool result;
 #else
@@ -220,8 +217,6 @@ void Queit(void)  					// que a gbd for write
   ASSERT(0 < volnum);                                   // valid volnum
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
-  ASSERT(blk[level]->dirty != NULL);
-  ASSERT(blk[level]->dirty > (gbd *)4);
 
   // LastBlock = 0;                                     // zot Locate() cache
   ptr = blk[level];                                     // point at the block
@@ -234,19 +229,15 @@ void Queit(void)  					// que a gbd for write
   LocateAllP(ptr,level,__FILE__,__LINE__);
 #endif
   while (ptr->dirty != ptr)                             // check it
-  { nxt = ptr->dirty;                                   // point at next
-#ifdef MV1_WRITER
-    ptr->dirty = ptr;
-#endif
-    // fprintf(stderr," %d",nxt->block);
+  { ptr = ptr->dirty;                                   // point at next
+    // fprintf(stderr," %d",ptr->block);
     systab->vol[volnum-1]->stats.logwt++;               // incr logical
     if (systab->vol[volnum-1]->track_changes)		// track changes ?
-    { Mark_changes(volnum-1, nxt->block);		//   mark blk as changed
+    { Mark_changes(volnum-1, ptr->block);		//   mark blk as changed
     }
 #ifdef MV1_LOCATE_DEBUG
-    LocateAllP(nxt,-1,__FILE__,__LINE__);
+    LocateAllP(ptr,-1,__FILE__,__LINE__);
 #endif
-    ptr = nxt;
   }
   // fprintf(stderr,"\r\n");
 
@@ -255,9 +246,6 @@ void Queit(void)  					// que a gbd for write
     sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
-#ifdef MV1_WRITER
-  return;
-#endif
 
 #ifdef MV1_CKIT
   result = ck_ring_enqueue_spmc(
@@ -347,6 +335,7 @@ void Free_block(int vol, int blknum)                    // free blk in map
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
+  MEM_BARRIER;
   map = ((u_char *) systab->vol[vol]->map);             // point at it
   i = blknum >> 3;                                      // map byte
   off = blknum & 7;                                     // bit number
@@ -359,6 +348,7 @@ void Free_block(int vol, int blknum)                    // free blk in map
   if (systab->vol[vol]->first_free > (void *) &map[i])  // if earlier
   { systab->vol[vol]->first_free = &map[i];             // reset first free
   }
+  MEM_BARRIER;
   Mark_map_dirty(vol, blknum);
   return;                                               // and exit
 }
@@ -383,6 +373,7 @@ void Used_block(int vol, int blknum)                    // set blk in map
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             //  mounted
 
+  MEM_BARRIER;
   map = ((u_char *) systab->vol[vol]->map);             // point at it
   i = blknum >> 3;                                      // map byte
   off = blknum & 7;                                     // bit number
@@ -392,6 +383,7 @@ void Used_block(int vol, int blknum)                    // set blk in map
   }
   ATOMIC_INCREMENT(systab->vol[vol]->stats.blkalloc);   // update stats
   map[i] |= off;                                        // set the bit
+  MEM_BARRIER;
   Mark_map_dirty(vol, blknum);
   return;                                               // and exit
 }
@@ -578,6 +570,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     else                                                // for a pointer
     { Allign_record();                                  // ensure alligned
       *(u_int *) record = *(u_int *) c;                 // copy ptr
+      ASSERT(0 == Check_BlockMapped(volnum - 1, *(u_int *) c));
       if (fidx == -1)
       { *(int *) c = PTR_UNDEFINED;
       }
@@ -668,6 +661,7 @@ short Compress1()
       }
       Allign_record();                                  // if not alligned
       *( (u_int *) record) = blk[2]->block;             // new top level blk
+      ASSERT(0 == Check_BlockMapped(volnum - 1, blk[2]->block));
       if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
 	TXSET(blk[level]);
@@ -715,6 +709,7 @@ short Compress1()
 #ifdef MV1_REFD
     REFD_MARK(blk[level]);
 #endif
+    ASSERT(X_EQ(blk[level + 1]->mem->global, blk[level]->mem->global));
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
@@ -1152,9 +1147,6 @@ void Ensure_GBDs(int haslock)
 
 start:
   Get_GBDsEx(MAXTREEDEPTH * 2, haslock);                // ensure this many
-#ifdef MV1_WRITER
-  return;
-#endif
   haslock = 0;                                          // clear for next turns
 
   j = 0;                                                // clear counter
@@ -1188,37 +1180,45 @@ cont:
   return;
 }
 
-
-short Check_BlockNo(int vol, u_int blkno, int checks,
-                        char *where, const char *file, int lno, int dopanic)
-{
-  char msg[128];
-  u_char *bitmap = (u_char *) systab->vol[vol]->map;
-  int failed = 0;
+short Check_BlockMapped(int vol, u_int blkno)
+{ u_char *bitmap;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  if (checks & CBN_INRANGE)                             // out of range ?       
-    failed = failed || (blkno > systab->vol[vol]->vollab->max_block);
-  if (checks & CBN_ALLOCATED)                           // unallocated ?
-    failed = failed || (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
+  MEM_BARRIER;
+  bitmap = (u_char *) systab->vol[vol]->map;
+
+  return bitmap[blkno >> 3] & (1 << (blkno & 7)) ? 0 : -1;
+}
+
+
+short Check_BlockNo(int vol, u_int blkno, int checks,
+                        char *where, const char *file, int lno, int dopanic)
+{
+  char msg[128];
+  int inrange_failed = 0, map_failed = 0;
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  if (checks & CBN_INRANGE)                             // out-of-range ?
+    inrange_failed = (blkno > systab->vol[vol]->vollab->max_block);
+  if (checks & CBN_ALLOCATED)                           // unmapped ?
+    map_failed = (Check_BlockMapped(vol, blkno) < 0);
 
   if (!dopanic)                                         // just check ?
-  { return failed ? -1 : 0;                             //   return condition
+  { return (inrange_failed || map_failed) ? -1 : 0;     //   return condition
   }
 
-  if (failed)                                           // panic when failed
-  { if (file)
-      sprintf((char *) msg, "%s(%s:%d): invalid block (%d:%u) in file %s!!",
-                                where, file, lno,
-                                vol, blkno, 
-                                systab->vol[vol]->file_name);
-    else
-      sprintf((char *) msg, "%s(): invalid block (%d:%u) in file %s!!",
-                                where, vol, blkno, 
-                                systab->vol[vol]->file_name);
+  if (inrange_failed || map_failed)                     // panic when failed
+  { sprintf((char *) msg, "%s(%s:%d): %s block (%d:%u) in file %s!!",
+                              where, file ? file : "unknown", lno,
+                              inrange_failed ? "out-of-range" : "unmapped",
+                              vol, blkno,
+                              systab->vol[vol]->file_name);
     panic((char *) msg);
   }
   return 0;

@@ -125,17 +125,14 @@ int INIT_Run( char *file,                       // database file
 
 start:
 #if defined(__APPLE__) || defined(__FreeBSD__)
-  srandomdev();					// randomize
+  srandom(MUMPS_MAGIC);		                // randomize
 #endif
 
   bzero(semtab, sizeof(semtab));
 
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-#ifdef MV1_WRITER
-  dbfd = open(file, O_RDWR);                    // open the database for R/W
-#else
   dbfd = open(file, O_RDONLY);                  // open the database for read
-#endif
+  // dbfd = open(file, O_RDWR);                  // open the database for read/write XXX
   if (dbfd < 0) return (errno);                 // if that failed
 #ifdef MV1_F_NOCACHE
   i = fcntl(dbfd, F_NOCACHE, 1);

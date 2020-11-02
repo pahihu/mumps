@@ -282,7 +282,7 @@ short DB_GetEx(mvar *var, 				// get global data
     Ensure_GBDs(0);
   }
 
-  s = Get_data_ex(0, TIPIDX(0));			// attempt to get it
+  s = Get_data(0);			                // attempt to get it
   if (s >= 0)						// if worked
   { if (bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) // if ^$G
     { s = itocstring(buf, *(u_int *) record);		// block number
@@ -605,7 +605,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   last_key = UTIL_Key_Last(&db_var);			// get start of last
   buf[0] = '\0';					// null terminate ret
   if (dir < 0)						// if it's backward
-  { s = Get_data_ex(-1,TIPIDX(0));			// get the previous
+  { s = Get_data(-1);			                // get the previous
     if ((s < 0) && (s != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -628,7 +628,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   }							// end backwards
   else							// it's forward
   { db_var.key[db_var.slen++] = 255;			// force next key
-    s = Get_data_ex(0,TIPIDX(0));			// try to find that
+    s = Get_data(0);			                // try to find that
     if (s != -ERRM7)					// MUST be undefined
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
@@ -724,7 +724,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
       }
       return 0;                                         // and return
     }
-    s = Get_data_ex(-1,TIPIDX(0));			// get the previous
+    s = Get_data(-1);			                // get the previous
     // fprintf(stderr, "DB_Query: Get_data(-1)=%d\r\n", s);
     // fflush(stderr);
     if ((s < 0) && (s != -ERRM7))			// check for errors
@@ -768,7 +768,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     // fflush(stderr);
   }							// end backwards
   else							// it's forward
-  { s = Get_data_ex(0,TIPIDX(0));			// try to find that
+  { s = Get_data(0);			                // try to find that
     if ((s < 0) && (s != -ERRM7))			// check for errors
     { if (curr_lock)					// if locked
       { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock

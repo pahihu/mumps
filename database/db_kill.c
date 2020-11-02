@@ -160,6 +160,7 @@ FullGlobalKill:
     }
     Allign_record();					// align
     blknum = *(u_int *) record;				// remember the block
+    ASSERT(0 == Check_BlockMapped(volnum - 1, blknum));
     if (KILL_ALL == what)
     { *(u_int *) record = PTR_UNDEFINED;		// mark as junk
       Tidy_block();					// and tidy it
@@ -192,7 +193,7 @@ FullGlobalKill:
     }
     netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
     bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
-                netjobs * sizeof(u_int)); 
+                netjobs * sizeof(u_int));
     bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
                 netjobs * sizeof(u_int));
     level--;						// backup a level
@@ -280,6 +281,11 @@ FullGlobalKill:
       { blk[level]->dirty = NULL;			// yes, clear it
       }
     }
+    netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
+    bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
+                netjobs * sizeof(u_int));
+    bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
+                netjobs * sizeof(u_int));
     return 0;					        // and exit
   }							// end all in 1
 
@@ -340,7 +346,8 @@ FullGlobalKill:
     { Tidy_block();					// tidy it
     }
     if (level > top)					// not at top
-    { blk[level]->mem->right_ptr = rblk[level]->block;	// hook to right edge
+    { ASSERT(X_EQ(blk[level]->mem->global, rblk[level]->mem->global));
+      blk[level]->mem->right_ptr = rblk[level]->block;	// hook to right edge
     }
   }							// end left edge scan
 
@@ -409,6 +416,7 @@ FullGlobalKill:
 	c->len = 4;					// the size
         ui = (u_int *) c->buf;				// point the int here
         *ui = rblk[level + 1]->block;			// get the block#
+        ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
         s = Insert(p, c);				// insert the node
 	if (s == -(ERRMLAST+ERRZ62))
 	{ s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
@@ -431,6 +439,7 @@ FullGlobalKill:
       if (ptr->mem->last_idx > LOW_INDEX-1)		// if any data
       { Copy_data(ptr, LOW_INDEX);			// copy to left edge
       }
+      ASSERT(X_EQ(blk[level]->mem->global, ptr->mem->global));
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
       ptr->last_accessed = MTIME(0);			// clear last access
@@ -455,6 +464,7 @@ FullGlobalKill:
       c->len = 4;					// the size
       ui = (u_int *) c->buf;				// point the int here
       *ui = rblk[level + 1]->block;			// get the block#
+      ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
       s = Insert(p, c);					// insert the node
       if (s == -(ERRMLAST+ERRZ62))
       { s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
