@@ -172,7 +172,7 @@
 
 #define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
 
-#define MIN_REST_TIME	  10			// min. daemon rest time
+#define MIN_REST_TIME	 100			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
 
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
@@ -676,7 +676,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
   char rstfile[VOL_FILENAME_MAX];		// file to restore
   u_int locbufTO;				// local buffer timeout
-  u_int r_to_w;                                 // reader to writer
+  u_int R_TO_WR;                                // reader to writer change
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

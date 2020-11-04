@@ -340,7 +340,7 @@ int INIT_Start( char *file,                     // database
   for (i = 0; i < 256; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
   systab->locbufTO = 0;				// disable local buffers
-  systab->r_to_w = 0;                           // changing reader to writer
+  systab->R_TO_WR = 0;                          // reader to writer change
 
   systab->lockstart =				// locktab
     (void *)((void *)systab->jobtab + (sizeof(jobtab_t)*netjobs));

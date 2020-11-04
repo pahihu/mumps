@@ -78,9 +78,11 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
   volnum = volume;					// set this
   writing = 1;						// writing
   level = 0;						// clear this
-  s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
-  if (s < 0)						// on error
-  { return s;						// return it
+  while (SemOp( SEM_GLOBAL, WRITE))                     // get write lock
+  { (void)Sleep(1);
+    if (partab.jobtab->attention)
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
+    }
   }
   if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);
@@ -151,9 +153,11 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   volnum = volume;					// set this
   writing = 1;						// writing
   level = 0;						// clear this
-  s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
-  if (s < 0)						// on error
-  { return s;						// return it
+  while (SemOp( SEM_GLOBAL, WRITE))			// get write lock
+  { (void)Sleep(1);
+    if (partab.jobtab->attention)
+    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
+    }
   }
   if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);

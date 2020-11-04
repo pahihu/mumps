@@ -132,12 +132,36 @@ u_int MSLEEP(u_int mseconds)
 }
 
 static int old_stalls;
+static u_int old_writes[MAX_VOL];
+static u_int old_sum_writes;
 static time_t last_do_rest;
+
+static
+void stat_phywt(u_int *writes)
+{ int i;
+
+  for (i = 0; i < MAX_VOL; i++)
+  { if (systab->vol[i]->local_name[0] ||                // remote VOL ?
+        (NULL == systab->vol[i]->vollab))		// stop at first
+    { writes[i] = 0;
+    }
+    else
+    { writes[i] = systab->vol[i]->stats.dbget
+                + systab->vol[i]->stats.dbset
+                + systab->vol[i]->stats.dbkil
+                + systab->vol[i]->stats.dbdat
+                + systab->vol[i]->stats.dbord
+                + systab->vol[i]->stats.dbqry;
+    }
+  }
+}
 
 static
 void do_rest(void)
 { int stalls, i;
   int rest;
+  u_int sum_writes;
+  u_int new_writes[MAX_VOL];
 
   if (myslot)                                           // return if not
     return;                                             //   daemon 0
@@ -145,6 +169,7 @@ void do_rest(void)
   if (MTIME(0) == last_do_rest)                         // just recalculated ?
     return;                                             //  return
 
+/*
   stalls = 0; 					        //   rest time
   for (i = 0; i < MAX_VOL; i++)
   { if (systab->vol[i]->local_name[0])		        // remote VOL ?
@@ -152,29 +177,50 @@ void do_rest(void)
     if (NULL == systab->vol[i]->vollab)		        // stop at first
       break;					        //   unallocated vol.
     stalls += systab->vol[i]->stats.dqstall +	        // check dirtyQ stalls
-              systab->vol[i]->stats.gbswait;	        //   and GBDs waits
+               systab->vol[i]->stats.gbswait;	        //   and GBDs waits
   }
+*/
 
   MEM_BARRIER;
   rest = systab->ZRestTime;
+/*
   if (stalls <= old_stalls)                             // same or less stalls ?
     rest *= 1.1;                                        //   wait more
   else
     rest /= 2;                                          // more stalls,rest less
+*/
+  sum_writes = 0;
+  stat_phywt(new_writes);
+  for (i = 0; i < MAX_VOL; i++)
+  { u_int num_writes = new_writes[i] - old_writes[i];
+    sum_writes += num_writes;
+    old_writes[i] = new_writes[i];
+  }
+  if (sum_writes)
+  { if (sum_writes < old_sum_writes)
+      rest /= 1.5;
+    else
+      rest *= 1.5;
+  } else
+  { rest = MAX_REST_TIME;
+  }
+
   if (rest < MIN_REST_TIME)                             // clip rest time to
     rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
   else if (rest > MAX_REST_TIME)
      rest = MAX_REST_TIME;
+
   systab->ZRestTime = rest;                             // set in systab
-  // systab->ZRestTime = 1000;                             // set in systab
   MEM_BARRIER;
 
-  old_stalls = stalls;                                  // save current stalls
+  // old_stalls = stalls;                               // save current stalls
+  old_sum_writes = sum_writes;
   last_do_rest = MTIME(0);
 }
 
 extern int   curr_sem_init;
 extern pid_t mypid;
+extern int   R_TO_WR;
 
 //-----------------------------------------------------------------------------
 // Function: do_netdaemon
@@ -466,6 +512,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
     jnl_fds[i] = 0;					// jrn file desc.
   }
   mypid = 0;
+  R_TO_WR = 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -563,6 +610,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
   mypid = 0;
+  R_TO_WR = 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -577,6 +625,10 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   if (!myslot)                                          // clear #stalls
   { old_stalls = 0;
     last_do_rest = (time_t) 0;
+    stat_phywt(old_writes);
+    old_sum_writes = 0;
+    for (i = 0; i < MAX_VOL; i++)
+      old_sum_writes += old_writes[i];
   }
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
@@ -1188,18 +1240,12 @@ void do_free(int vol, u_int gb)				// free from map et al
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   volnum = vol + 1;                                     // set volnum
-start:
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
     if (!SemOp( SEM_GLOBAL, WRITE))			// gain write lock
     { break;						// it worked
     }
     MSLEEP(1000);					// wait a bit
-  }
-  if (systab->r_to_w)                                   // changing rd to wr ?
-  { SemOp( SEM_GLOBAL, -curr_lock);                     //   release lock
-    do_log("do_free: r_to_w retry");
-    goto start;                                         //   retry
   }
   
   Free_block(vol, gb);					// free the block

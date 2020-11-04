@@ -365,6 +365,7 @@ void Release_GBDs(int stopat)
 #define BLK_WAIT        50
 
 extern pid_t mypid;
+extern int   R_TO_WR;
 
 static
 short GetBlockEx(u_int blknum,char *file,int line)      // Get block
@@ -459,13 +460,13 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
     }
 #endif
 writelock:
-    ATOMIC_INCREMENT(systab->r_to_w); 
+    R_TO_WR = 1;                                        // reader to writer
+    ATOMIC_INCREMENT(systab->R_TO_WR);                  //   signal change
     SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
-    s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
-    if (s < 0)                                          // on error
-    { return s;                                         // return it
-    }
-    systab->r_to_w--;
+    while (SemOp( SEM_GLOBAL, WRITE));		        // get write lock
+    systab->R_TO_WR--;
+    R_TO_WR = 0;
+
     ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(blknum)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?

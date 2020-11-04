@@ -231,6 +231,7 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
 }
 
 int dopanic = 0;                                        // flag doing panic()
+extern int R_TO_WR;                                     // reader to writer chg
 
 void panic(char *msg)					// print msg and exit
 { FILE *a;						// for freopen
@@ -245,7 +246,11 @@ void panic(char *msg)					// print msg and exit
 
   dopanic = 1;
 
-  if (curr_lock)
+  if (R_TO_WR)                                          // reader to writer chg?
+  { inter_add(&systab->R_TO_WR, -1);                    //   release signal
+    R_TO_WR = 0;
+  }
+  if (curr_lock)                                        // release lock
   { SemOp( SEM_GLOBAL, -curr_lock);
   }
   errsv = errno;

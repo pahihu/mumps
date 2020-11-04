@@ -130,6 +130,7 @@ const  char *sem_file;
 
 pid_t mypid = 0;
 extern void mv1_log_init();
+int R_TO_WR = 0;
 
 short SemOpEx(int sem_num, int numb,
               const char *file, int line)        // Add/Remove semaphore
@@ -189,14 +190,23 @@ short SemOpEx(int sem_num, int numb,
   for (i = 0; i < 5; i++)                       // try this many times
   { if (0 == i)                                 // first iteration ?
     { if ((SEM_GLOBAL == sem_num) &&            // GLOBAL lock ?
-          writing &&                            //   writing ?
-          (0 < numb))                           //   unlock ?
+          writing &&                            //  AND writing
+          (0 < numb))                           //  AND release
         DB_WillUnlock();                        //     call back
     }
     s = (numb < 0) ? SemLock(sem_num, numb) : SemUnlock(sem_num, numb);
     if (s == 0)					// if that worked
     { if (SEM_GLOBAL == sem_num)                // adjust curr_lock
+      { if (numb == WRITE)                      //    get WR ?
+        { if (systab->R_TO_WR && (0 == R_TO_WR))//    R_TO_WR change ?
+          { SemUnlock(sem_num, -numb);          //    release lock
+            curr_sem[sem_num][volnum] -= numb;  //    adjust tracking info
+            SchedYield();                       //    time-slice
+            return 1;                           //    return an error
+          }
+        }
         curr_lock += numb;
+      }
       return 0;					// exit success
     }
     if (numb < 1)                               // if it was an add
