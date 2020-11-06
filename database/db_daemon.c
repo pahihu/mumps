@@ -279,7 +279,6 @@ void do_netdaemon(void)
     if (systab->vol[0]->dismount_flag)		        // dismounting?
     { t = time(0);					// for ctime()
       do_log("Network Daemon %d shutting down\n", myslot);// log success
-      SemStats();                                     	// print sem stats
       systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
       exit (0);						// and exit
     }
@@ -787,7 +786,6 @@ start:
       { systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
         t = time(0);					// for ctime()
 	do_log("Daemon %d shutting down\n", myslot);	// log success
-        SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
       do_dismount();				        // dismount it
@@ -922,7 +920,6 @@ void do_dismount()					// dismount volnum
     { MSLEEP(1000);					// wait a second...
     }
   }							// end wait for daemons
-  SemStats();                                           // print sem stats
   do_log("Writing out clean flag as clean\n");          // operation
   for (vol = 0; vol < MAX_VOL; vol++)
   { if (systab->vol[vol]->local_name[0])		// remote VOL ?
@@ -984,14 +981,15 @@ void do_write()						// write GBDs
   }
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
-    { gbdptr->block = 0;				// just zot the block
+    { MV1DBG(do_log("do_write: zotted %d\r\n",gbdptr->block));
+      gbdptr->block = 0;				// just zot the block
     }
     else						// do a write
     { blkno = gbdptr->block;                            // get blkno
       vol   = gbdptr->vol;                              //   and volume
       do_mount(vol);                                    // mount db file
       Check_BlockNo(vol, blkno,				// because of ^IC
-		    CBN_INRANGE,			//   check only range
+		    CBN_INRANGE,	                //   check only range
                     "Write_Chain", 0, 0, 1);     	//   validity
 #ifdef MV1_BLKSEM
       while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
@@ -1112,7 +1110,10 @@ int do_zot(int vol,u_int gb)				// zot block
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (Check_BlockMapped(vol, gb) < 0)                   // block not mapped ?
-    return -1;                                          //   return fail
+  { return -1;
+  }
+
+  MV1DBG(do_log("do_zot: zot %d\r\n",gb));
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
@@ -1131,7 +1132,8 @@ int do_zot(int vol,u_int gb)				// zot block
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[vol]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
-      ptr->block = 0;
+      // ptr->block = 0;                                //   do_write will erase
+      MV1DBG(do_log("do_zot: cached\r\n"));
       MEM_BARRIER;
       break;						// exit
     }
@@ -1153,6 +1155,7 @@ int do_zot(int vol,u_int gb)				// zot block
       mv1free(bptr);					// free memory
       return -1;					// return error
     }
+    MV1DBG(do_log("do_zot: disk read\r\n"));
   }							// end read from disk
 
   typ = bptr->type;					// save type
@@ -1249,16 +1252,19 @@ void do_free(int vol, u_int gb)				// free from map et al
   }
   
   Free_block(vol, gb);					// free the block
+  MV1DBG(do_log("do_free: blk %d\r\n",gb));
 
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
     { if (ptr->dirty < (gbd *) 5)			// not in use
       { Free_GBD(vol, ptr);				// free it
+        MV1DBG(do_log("do_free: Free_GBD\r\n"));
       }
       else						// in use or not locked
       { ptr->last_accessed = (time_t) 0;		// mark as zotted
-        ptr->block = 0;
+        MV1DBG(do_log("do_free: zot\r\n"));
+        // ptr->block = 0;                              // do_write() clears
       }
       break;						// and exit the loop
     }

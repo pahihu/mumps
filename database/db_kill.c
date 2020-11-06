@@ -442,7 +442,7 @@ FullGlobalKill:
       ASSERT(X_EQ(blk[level]->mem->global, ptr->mem->global));
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
-      ptr->last_accessed = MTIME(0);			// clear last access
+      ptr->last_accessed = MTIME(0);		        // clear last access
 #ifdef MV1_REFD
       REFD_MARK(ptr);
 #endif

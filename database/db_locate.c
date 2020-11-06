@@ -266,7 +266,7 @@ void LocateAllP(gbd *ptr,int level,const char *path,int line)// find key
       if (((int*) record)[0] != PTR_UNDEFINED)		// if not undefined
       { blknum = ((u_int*) record)[0];			// get blkno
         s = Check_BlockNo(volnum-1, blknum,             // check blknum, die
-                CBN_ALLOCATED | CBN_INRANGE,    
+                CBN_MAPPED | CBN_INRANGE,
                 "LocateAllP", path, line, 1);
       }
     }

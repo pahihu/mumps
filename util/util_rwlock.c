@@ -29,23 +29,6 @@ extern     pid_t   mypid;
 #define ATOMIC_SYNC     __sync_synchronize()
 #endif
 
-static
-int Semop(int semid, struct sembuf *sops, size_t nsops)
-{
-  int s;
-#ifdef MV1_PROFILE
-  struct timeval st, et;
-
-  gettimeofday(&st, NULL);
-#endif
-  s = semop(semid, sops, nsops);           // doit
-#ifdef MV1_PROFILE
-  gettimeofday(&et, NULL);
-  semop_time = 1000000 * (et.tv_sec  - st.tv_sec) +
-                         (et.tv_usec - st.tv_usec);
-#endif
-  return s;
-}
 
 
 #define MAX_NTRCBUF     1024
@@ -148,20 +131,14 @@ void SpinLockReader(RWLOCK_T *lok)
 }
 #endif
 
+
+#ifdef MV1_SHSEM
+
 short TrySemLock(int sem_num, int numb)
 {
   short s;
-#ifndef MV1_SHSEM
-  struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
-#endif
-#ifdef MV1_PROFILE
-  struct timeval st, et;
-
-  gettimeofday(&st, NULL);
-#endif
 
   s = 0;
-#ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == WRITE)
     { SpinLockWriter(&systab->glorw[0]);
@@ -176,98 +153,26 @@ short TrySemLock(int sem_num, int numb)
     }
   }
   else {
-    // s = LatchLock(&systab->shsem[sem_num]);
     LatchLock(&systab->shsem[sem_num]);
     s = 0;
     if (s < 0)
     { panic("TrySemLock: failed");
     }
   }
-#else
-  if (SEM_GLOBAL == sem_num)                    // adjust sem_num
-  { sem_num += volnum - 1;                      //   take volume into account
-  }
-  buf.sem_num = (u_short) sem_num;              // get the one we want
-  buf.sem_op = (short) numb;                    // and the number of them
-  s = Semop(systab->sem_id, &buf, 1);           // doit
-#endif
 
-#ifdef MV1_PROFILE
-  gettimeofday(&et, NULL);
-  semop_time = 1000000 * (et.tv_sec  - st.tv_sec) +
-                         (et.tv_usec - st.tv_usec);
-#endif
   return s;
 }
 
 short SemLock(int sem_num, int numb)
 {
-  short s;
-  u_int semop_time_sav;
-#ifndef MV1_SHSEM
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
-#endif
-#ifdef MV1_PROFILE
-  int stx;                                      // semtab[] index
-#endif
-
-#ifdef MV1_PROFILE
-  stx = sem_num;                                // calc. semtab[] index
-  if (SEM_GLOBAL == sem_num) stx += volnum - 1;
-  stx <<= 1;
-  if (-1 == numb)       // READ lock
-    stx++;
-#endif
-
-  semop_time = 0;
-  s = TrySemLock(sem_num, numb);
-  semop_time_sav = semop_time; 
-#ifdef MV1_SHSEM
-  if (s < 0)
-  { panic("TrySemLock: failed");
-  }
-#else
-  if (s != 0)
-  { if (SEM_GLOBAL == sem_num)                  // adjust sem_num
-    { sem_num += volnum - 1;                    //   take volume into account
-    }
-    buf.sem_num = (u_short) sem_num;            // get the one we want
-    buf.sem_op = (short) numb;                  // and the number of them
-    s = Semop(systab->sem_id, &buf, 1);         // doit
-  }
-#endif
-
-#ifdef MV1_PROFILE
-  if (s == 0)
-  { semtab[stx].semop_time += semop_time_sav;
-    gettimeofday(&sem_start[sem_num], NULL);
-  }
-#endif
-  return s;
+  return TrySemLock(sem_num, numb);
 }
- 
+
 short SemUnlock(int sem_num, int numb)
 {
   short s;
-#ifndef MV1_SHSEM
-  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
-#endif
-#ifdef MV1_PROFILE
-  int stx;                                      // semtab[] index
-  struct timeval tv;
-  u_int curr_held_time;
-#endif
-
-#ifdef MV1_PROFILE
-  stx = sem_num;                                // calc. semtab[] index
-  if (SEM_GLOBAL == sem_num) stx += volnum - 1;
-  stx <<= 1;
-  if (-1 == numb)                               // READ lock
-    stx++;
-#endif
 
   s = 0;
-#ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
   { if (numb == -WRITE)
       UnlockWriter(&systab->glorw[0]);
@@ -284,26 +189,51 @@ short SemUnlock(int sem_num, int numb)
   else {
     LatchUnlock(&systab->shsem[sem_num]);
   }
+
+  return s;
+}
+
 #else
+
+short TrySemLock(int sem_num, int numb)
+{
+  struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
+
   if (SEM_GLOBAL == sem_num)                    // adjust sem_num
   { sem_num += volnum - 1;                      //   take volume into account
   }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  s = Semop(systab->sem_id, &buf, 1);
-#endif
 
-#ifdef MV1_PROFILE
-  gettimeofday(&tv, NULL);
-  curr_held_time = 1000000 * (tv.tv_sec  - sem_start[sem_num].tv_sec) +
-                             (tv.tv_usec - sem_start[sem_num].tv_usec);
-  semtab[stx].held_time += curr_held_time;
-  sem_start[sem_num] = tv;
-  semtab[stx].semop_time += semop_time;
-  semtab[stx].held_count++;
-#endif
-
-  return s;
+  return semop(systab->sem_id, &buf, 1);        // doit
 }
+
+short SemLock(int sem_num, int numb)
+{
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+
+  if (SEM_GLOBAL == sem_num)                    // adjust sem_num
+  { sem_num += volnum - 1;                      //   take volume into account
+  }
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+
+  return semop(systab->sem_id, &buf, 1);        // doit
+}
+
+short SemUnlock(int sem_num, int numb)
+{
+  struct sembuf buf={0, 0, SEM_UNDO};           // for semop()
+
+  if (SEM_GLOBAL == sem_num)                    // adjust sem_num
+  { sem_num += volnum - 1;                      //   take volume into account
+  }
+  buf.sem_num = (u_short) sem_num;              // get the one we want
+  buf.sem_op = (short) numb;                    // and the number of them
+
+  return semop(systab->sem_id, &buf, 1);
+}
+
+#endif
 
 // vim:ts=8:sw=8:et

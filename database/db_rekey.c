@@ -541,7 +541,7 @@ void Un_key()
 	  s = Insert(lptr, xptr);			// insert that
 	  if (s == -(ERRMLAST+ERRZ62))
 	  { s = Add_rekey(blk[level + 1]->block, level + 1); // do it later
-fprintf(stderr,"Un_key: do it later\r\n");
+            MV1DBG(fprintf(stderr,"Un_key: do it later\r\n"));
 	  }
 	  else if (s < 0)
 	  { panic("Un_Key: Insert returned fatal value");
@@ -606,6 +606,7 @@ fprintf(stderr,"Un_key: do it later\r\n");
 	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
 	  { blk[level]->dirty = (gbd *) 2;		// mark for write
 	  }
+          ASSERT(blk[xxx_level]->mem->last_idx == LOW_INDEX-1);
 	  Garbit(blk[xxx_level]->block);		// dump mt blk
 	  level = save_level;				// restore level
 	}						// end empty block proc

@@ -39,6 +39,10 @@
 #define _MUMPS_MUMPS_H_
 
 #if defined(__linux__) && defined(__PPC__)
+#define MV1_OSSEM       1
+#endif
+
+#ifdef MV1_OSSEM
 #undef MV1_SHSEM
 #define MEM_BARRIER     __sync_synchronize()
 #else
@@ -49,8 +53,6 @@
 #ifdef MV1_CKIT
 #include <ck_ring.h>
 #endif
-
-// #define MV1_PROFILE     1
 
 #include <stdint.h>
 #ifdef MV1_SHSEM

@@ -40,6 +40,8 @@
 #define VOLATILE
 #endif
 
+#define MV1DBG(x)
+
 // **** Defines ***************************************************************
 
 #define READ		(-1)				// Locking defines makes
@@ -348,7 +350,7 @@ void Ensure_GBDs(int haslock);                          // wait for GBDs
 short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
            char *where,const char *file,int lno,int dopanic);
 #define CBN_INRANGE     1
-#define CBN_ALLOCATED   2
+#define CBN_MAPPED      2
 short Check_BlockMapped(int vol, u_int blkno);          // check block mapped
 int  DirtyQ_Len();                                      // length of dirtyQ
 

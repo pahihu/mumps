@@ -288,6 +288,9 @@ void Garbit(int blknum)                                 // que a blk for garb
   ASSERT(0 < volnum);                                   // valid vol[] index
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
+  ASSERT(0 == Check_BlockMapped(volnum-1, blknum));     // mapped
+
+  // MV1DBG(fprintf(stderr,"\r\nGarbit: %d\r\n",blknum));
 
   blknum = VOLBLK(volnum-1,blknum);                     // reformat (vol,blkno)
 
@@ -570,7 +573,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     else                                                // for a pointer
     { Allign_record();                                  // ensure alligned
       *(u_int *) record = *(u_int *) c;                 // copy ptr
-      ASSERT(0 == Check_BlockMapped(volnum - 1, *(u_int *) c));
+      // === ASSERT(0 == Check_BlockMapped(volnum - 1, *(u_int *) c)); ===
       if (fidx == -1)
       { *(int *) c = PTR_UNDEFINED;
       }
@@ -1104,17 +1107,6 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
-#ifdef MV1_PROFILE
-  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
-           file, line, curr_lock, seconds,
-#ifdef MV1_CKIT
-           NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1
-#else
-           abs(systab->vol[0]->dirtyQw - systab->vol[0]->dirtyQr)
-#endif
-  );
-  fflush(stderr);
-#endif
   return MSleep(1000 * seconds);
 }
 
@@ -1206,7 +1198,7 @@ short Check_BlockNo(int vol, u_int blkno, int checks,
 
   if (checks & CBN_INRANGE)                             // out-of-range ?
     inrange_failed = (blkno > systab->vol[vol]->vollab->max_block);
-  if (checks & CBN_ALLOCATED)                           // unmapped ?
+  if (checks & CBN_MAPPED)                              // unmapped ?
     map_failed = (Check_BlockMapped(vol, blkno) < 0);
 
   if (!dopanic)                                         // just check ?
