@@ -197,9 +197,6 @@ typedef struct __ALIGNED__ GBD		                // global buf desciptor
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
 #endif
-#ifdef MV1_BLKSEM
-  short  curr_lock;                                     // current block lock
-#endif
   u_char vol;                                           // vol[] index
   u_char rsvd;
 } gbd;							// end gbd struct
@@ -281,28 +278,8 @@ void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(int vol, gbd *free);			// Free a GBD
 void Release_GBDs(int stopat);                          // release rsvd blk[]
 
-#ifdef MV1_BLKSEM
-
-short Block_TryReadLock(gbd *blk);
-short Block_TryWriteLock(gbd *blk);
-void  Block_Unlock(void);
-
-#define BLOCK_UNLOCK(x)         Block_Unlock()
-#define BLOCK_TRYREADLOCK(x)    Block_TryReadLock(x)
-#define BLOCK_TRYWRITELOCK(x)   Block_TryWriteLock(x)
-
-#else
-
-#define BLOCK_UNLOCK(x)
-#define BLOCK_TRYREADLOCK(x)    0
-#define BLOCK_TRYWRITELOCK(x)   0
-
-#endif
 // File: database/db_get.c
-#define TIPIDX_OFFS	10
-#define TIPIDX(x)	(TIPIDX_OFFS + (x))
 short Get_data(int dir);				// get db_var node
-short Get_data_ex(int dir, int indexTip);		// get db_var node
 
 // File: database/db_kill.c
 short Kill_data();					// remove tree
@@ -317,7 +294,6 @@ void LB_AddBlock(gbd *ptr);				// add GBD to local buf.
 
 // File: database/db_locate.c
 short Locate(u_char *key);				// find key
-short LocateEx(u_char *key, int frominsert, int indexTip);//   used in Insert()
 short Locate_next(u_char *out);				// point at next key
 u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy);
 							// pKeyBuf for pIndex

@@ -205,7 +205,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         }
 	level = LAST_USED_LEVEL;			// use this level
 	blk[level] = gptr;				// point at it
-	s = LocateEx(&db_var.slen, 1, 0);	        // check for the key
+	s = Locate(&db_var.slen);	                // check for the key
 	if (((s == 0) &&                                // found it
              (Index == LOW_INDEX) &&                    //   at the beginning
              (partab.jobtab->last_written_flags[volnum - 1]//   and top defined

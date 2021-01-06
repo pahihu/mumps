@@ -82,10 +82,6 @@ u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy)
   return &pKeyBuf[0];					// return ptr to buf
 }
 
-short LocateEx(u_char *key, int frominsert, int indexTip)
-{
-  return Locate(key);
-}
 
 //-----------------------------------------------------------------------------
 // Function: Locate
@@ -202,7 +198,7 @@ short Locate_next(u_char *out)				// point at next key
     { return -ERRM7;					// no, just exit
     }
     i = blk[level]->mem->right_ptr;			// get right block#
-    s = Get_block(i);					// attempt to get it
+    s = Get_block(i);			                // attempt to get it
     if (s < 0)                                        	// if we got an error
     { return s;                                       	// return it
     }

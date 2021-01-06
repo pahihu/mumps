@@ -545,7 +545,7 @@ void Un_key()
 
 	  while (TRUE)
 	  { s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)				// if not - die
+	    if (s != -ERRM7)                            // if not - die
 	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
 	    if (Index > LOW_INDEX)			// if not first node

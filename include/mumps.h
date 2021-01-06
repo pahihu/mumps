@@ -38,7 +38,11 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#if defined(__linux__) && defined(__PPC__)
+#if defined(__linux) && defined(__PPC__)
+#define MV1_OSSEM
+#endif
+
+#ifdef MV1_OSSEM
 #undef MV1_SHSEM
 #define MEM_BARRIER     __sync_synchronize()
 #else
@@ -164,13 +168,7 @@
 #define SHMAT_SEED      (void *)0
 #endif
 
-#ifdef MV1_GBDRO
-#define NUM_GBDRO       32                      // no. of R/O GBDs
-#else
-#define NUM_GBDRO        0                      // no. of R/O GBDs
-#endif
-
-#define MIN_GBD		(40 + NUM_GBDRO)        // minumum number GBDs
+#define MIN_GBD		(40)                    // minumum number GBDs
 
 #define MIN_REST_TIME	  10			// min. daemon rest time
 #define MAX_REST_TIME	1000			// max. daemon rest time
@@ -261,15 +259,7 @@
 #define SEM_WD          3                       // write daemons
 #define SEM_GLOBAL      4                       // global database module
 
-// #define SEM_GBDRO       5                       // read-only GBDs
-// #define SEM_GBDGET      6                       // get GBDs
-
 #define SEM_MAX         (SEM_GLOBAL + MAX_VOL) // total number of these
-
-#ifdef MV1_BLKSEM
-#define BLK_WRITE       ((short) 0x7FFF)        // block WRITE lock
-#define BLKSEM_MAX      16                      // total no. of block semaphores
-#endif
 
 #define KILL_VAL        1                       // kill only value
 #define KILL_SUBS       2                       // kill only subscripts
@@ -468,9 +458,6 @@ typedef struct __ALIGNED__ VOL_DEF
   ck_ring_t garbQ;
   ck_ring_buffer_t garbQBuffer[NUM_GARB];       // garbage queue (for daemons)
   ck_ring_t rogbdQ;
-#ifdef MV1_GBDRO
-  ck_ring_buffer_t rogbdQBuffer[NUM_GBDRO];     // R/O GBD queue (for readers)
-#endif
 #else
   struct GBD *dirtyQ[NUM_DIRTY];                // dirty que (for daemons)
   VOLATILE int dirtyQw;                         // write ptr for dirty que
@@ -662,9 +649,6 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
-#ifdef MV1_BLKSEM
-  LATCH_T blksem[BLKSEM_MAX];                   // block semaphores
-#endif
 #endif
   vol_def *vol[MAX_VOL];                        // array of vol ptrs
   VOLATILE u_int delaywt;                       // delay WRITEs
