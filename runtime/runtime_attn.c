@@ -44,6 +44,7 @@
 #include <sched.h>                              // for sched_yield()
 #include <sysexits.h> 				// for exit() condition
 #include <errno.h>                              // error stuf
+#include <time.h>                               // for time
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors

@@ -487,7 +487,9 @@ void Un_key()
   u_char *uptr;						// a handy ptr
   u_char *lptr;						// a handy ptr
   u_int blkno;						// a block number
+  int garbed;                                           // did a Garbit()?
 
+  garbed = 0;
   this_level = level;					// save for ron
 
   idx = (u_short *) blk[level]->mem;			// point at the block
@@ -545,7 +547,8 @@ void Un_key()
 
 	  while (TRUE)
 	  { s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)                            // if not - die
+            // 210109AP TESTING
+	    if ((save_level == level) && (s != -ERRM7)) // if not - die
 	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
 	    if (Index > LOW_INDEX)			// if not first node
@@ -593,7 +596,13 @@ void Un_key()
 	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
 	  { blk[level]->dirty = (gbd *) 2;		// mark for write
 	  }
+          blk[xxx_level]->mem->type = 65;               // 210109AP TESTING
+          blk[xxx_level]->last_accessed = MTIME(0) + 86400;
+#ifdef MV1_REFD
+          REFD_MARK(blk[xxx_level]);
+#endif
 	  Garbit(blk[xxx_level]->block);		// dump mt blk
+          garbed = 1;
 	  level = save_level;				// restore level
 	}						// end empty block proc
 
@@ -607,6 +616,10 @@ void Un_key()
     }
   }
   level = this_level;					// restore level
+
+  if (garbed)                                           // did a Garbit()?
+  { ClearLastBlk();                                     // zot last_blk[]
+  }
 
   return;
 }

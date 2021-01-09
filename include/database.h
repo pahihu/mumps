@@ -46,6 +46,11 @@
 #define WRITE		(-systab->maxjob)		// easy reading code
 #define WR_TO_R		(systab->maxjob-1)		// from write to read
 
+#define GBD_RESERVED    ((gbd *)1)
+#define GBD_MARKWRITE   ((gbd *)2)
+#define GBD_IC          ((gbd *)3)
+#define GBD_LOCKED      ((gbd *)5)
+
 #define NODE_UNDEFINED	-1				// junk record
 #define PTR_UNDEFINED	0				// junk pointer
 
@@ -235,7 +240,6 @@ typedef struct __PACKED__ JRNREC			// journal record
 // **** External declarations ************************************************
 // Defined in database/db_main.c
 
-extern u_int64 txid;
 extern int curr_locks[MAX_VOL+1];		        // GLOBAL locks
 #define curr_lock       (curr_locks[volnum])
 extern int gbd_expired;
@@ -317,9 +321,10 @@ void Copy_data(gbd *fptr, int fidx);			// copy records
 void DoJournal(jrnrec *jj, cstring *data); 		// Write journal
 void Free_block(int vol, int blknum);			// free blk in map
 void Mark_map_dirty(int vol, int blknum);		// mark map dirty
-void Garbit(int blknum);				// que a blk for garb
+void GarbitEx(int blknum,char *path,int lno);		// que a blk for garb
+#define Garbit(blknum) GarbitEx(blknum,__FILE__,__LINE__)
 short Insert(u_char *key, cstring *data);		// insert a node
-int Queit2(gbd *p_gbd);				        // que a gbd for write
+void Queit2(gbd *p_gbd);				// que a gbd for write
 void Queit(void);				// que blk[level] for write
 void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
@@ -330,6 +335,7 @@ short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
 #define CBN_INRANGE     1
 #define CBN_ALLOCATED   2
 int  DirtyQ_Len();                                      // length of dirtyQ
+void ClearLastBlk(void);                                // clear last_blk_xxx[]
 
 void TX_Set(gbd *ptr);
 void TX_Next(void);

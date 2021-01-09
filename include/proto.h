@@ -233,6 +233,9 @@ short ltoa(char *buf, long n);                  // long to string
 short ultoa(char *buf, unsigned long n);        // u_long to string
 
 // Runtime Functions
+int mv1log(int depth,const char *fmt,...);
+#define LOG(x)
+#define DBG(x)
 short Dascii1(u_char *ret_buffer, cstring *expr);
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);

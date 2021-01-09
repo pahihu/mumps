@@ -206,7 +206,7 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 // Note:     Must hold a write lock before calling this function
 //
 
-void Queit(void)  					// que a gbd for write
+void Queit2(gbd *p_gbd)                                 // que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
@@ -219,7 +219,7 @@ void Queit(void)  					// que a gbd for write
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
 
   // LastBlock = 0;                                     // zot Locate() cache
-  ptr = blk[level];                                     // point at the block
+  ptr = p_gbd;                                          // point at the block
   // fprintf(stderr,"Queit: %d",ptr->block);
   systab->vol[volnum-1]->stats.logwt++;                 // incr logical
   if (systab->vol[volnum-1]->track_changes)		// track changes ?
@@ -251,7 +251,7 @@ void Queit(void)  					// que a gbd for write
   result = ck_ring_enqueue_spmc(
                 &systab->vol[0]->dirtyQ,
     &systab->vol[0]->dirtyQBuffer[0],
-    blk[level]);
+    p_gbd);
   if (false == result)
   { panic("Queit(): dirtyQ overflow");
   }
@@ -261,11 +261,52 @@ void Queit(void)  					// que a gbd for write
   if (systab->vol[0]->dirtyQ[i] != NULL)
   { panic("Queit(): dirtyQ overflow");
   }
-  systab->vol[0]->dirtyQ[i] = blk[level];               // stuff it in
+  systab->vol[0]->dirtyQ[i] = p_gbd;                    // stuff it in
   systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
 #endif
 
   return;                                               // and exit
+}
+
+void Queit(void)
+{ Queit2(blk[level]);
+}
+
+u_int garbedBlocks[NUM_GARB];
+int initGarbed = 1;
+
+int CheckGarbed(int blknum)
+{ int i, x;
+
+  if (initGarbed)
+  { for (i = 0; i < NUM_GARB; i++)
+      garbedBlocks[i] = 0;
+    initGarbed = 0;
+    return 0;
+  }
+
+  x = blknum & (NUM_GARB - 1);
+  for (i = 0; i < NUM_GARB; i++)
+  { if (!garbedBlocks[x])
+      return 0;
+    if (blknum == garbedBlocks[x])
+      return 1;
+    x = (x + 1) & (NUM_GARB - 1);
+  }
+  return 0;
+}
+
+void AddGarbed(int blknum)
+{ int i, x;
+
+  x = blknum & (NUM_GARB - 1);
+  for (i = 0; i < NUM_GARB; i++)
+  { if (!garbedBlocks[x])
+    { garbedBlocks[x] = blknum;
+      return;
+    }
+    x = (x + 1) & (NUM_GARB - 1);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -276,7 +317,7 @@ void Queit(void)  					// que a gbd for write
 // Note:     Must hold a write lock before calling this function
 //
 
-void Garbit(int blknum)                                 // que a blk for garb
+void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
 { 
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
@@ -289,6 +330,10 @@ void Garbit(int blknum)                                 // que a blk for garb
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
 
+  if (CheckGarbed(blknum))
+    return;
+  AddGarbed(blknum);
+
   blknum = VOLBLK(volnum-1,blknum);                     // reformat (vol,blkno)
 
   if (curr_lock != WRITE)
@@ -296,6 +341,8 @@ void Garbit(int blknum)                                 // que a blk for garb
     sprintf(msg, "Garbit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+
+  DBG(mv1log(0,"Garbit: blk=%d (%s:%d)",blknum,path,lno));
 
 #ifdef MV1_CKIT
   qentry = (void*) blknum;
@@ -663,13 +710,14 @@ short Compress1()
       }
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
-      blk[1]->last_accessed = MTIME(0);                 // clear last access
+      blk[1]->last_accessed = MTIME(0) + 86400;         // clear last access
 #ifdef MV1_REFD
       REFD_MARK(blk[1]);
 #endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
+      ClearLastBlk();                                   // zot last_blk[]
       return 0;                                         // and exit
     }
     Release_GBDs(0);
@@ -699,13 +747,14 @@ short Compress1()
   Tidy_block();                                         // ensure it's tidy
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
-    blk[level]->last_accessed = MTIME(0);               // clear last access
+    blk[level]->last_accessed = MTIME(0) + 86400;       // clear last access
 #ifdef MV1_REFD
     REFD_MARK(blk[level]);
 #endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
+    ClearLastBlk();                                     // zot last_blk[]
 
     if (blk[level + 1]->mem->right_ptr)                 // if we have a RL
     { s = Get_block(blk[level + 1]->mem->right_ptr);    // get it
@@ -1177,33 +1226,43 @@ cont:
 short Check_BlockNo(int vol, u_int blkno, int checks,
                         char *where, const char *file, int lno, int dopanic)
 {
-  char msg[128];
+  char msg[256];
   u_char *bitmap = (u_char *) systab->vol[vol]->map;
-  int failed = 0;
+  int failed, oorange, unallocd;
+  char blkmsg[256];;
+  int i;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  if (checks & CBN_INRANGE)                             // out of range ?       
-    failed = failed || (blkno > systab->vol[vol]->vollab->max_block);
-  if (checks & CBN_ALLOCATED)                           // unallocated ?
-    failed = failed || (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
+  oorange = unallocd = failed = 0;
 
+  if (checks & CBN_INRANGE)                             // out of range ?       
+    oorange = (blkno > systab->vol[vol]->vollab->max_block);
+  if (checks & CBN_ALLOCATED)                           // unallocated ?
+    unallocd = (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
+
+  failed = oorange || unallocd;
   if (!dopanic)                                         // just check ?
   { return failed ? -1 : 0;                             //   return condition
   }
 
   if (failed)                                           // panic when failed
-  { if (file)
-      sprintf((char *) msg, "%s(%s:%d): invalid block (%d:%u) in file %s!!",
-                                where, file, lno,
-                                vol, blkno, 
-                                systab->vol[vol]->file_name);
+  { sprintf(blkmsg,"%s block (%d:%u) at level %d in file %s!! (writing = %d, TX=#%08llX)",
+                                oorange? "out-of-range" : "unallocated",
+                                vol, blkno, level,
+                                systab->vol[vol]->file_name,
+                                writing,
+                                0xFFFFFFFF & systab->vol[vol]->vollab->txid);
+    if (file)
+      sprintf((char *) msg, "%s(%s:%d): %s", where, file, lno, blkmsg);
     else
-      sprintf((char *) msg, "%s(): invalid block (%d:%u) in file %s!!",
-                                where, vol, blkno, 
-                                systab->vol[vol]->file_name);
+      sprintf((char *) msg, "%s(): %s", where, blkmsg);
+    for (i = 0; i < level; i++) {
+      if (!blk[i]) continue;
+      DBG(mv1log(0,"blk[%02d] = %d",i,blk[i]->block));
+    }
     panic((char *) msg);
   }
   return 0;
@@ -2054,4 +2113,15 @@ int SyncFD(int fd)
 #endif
 
   return rc;
+}
+
+
+void ClearLastBlk(void)
+{ int netjobs;          // #jobs + #net daemons
+
+  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
+  bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
+                netjobs * sizeof(u_int));
+  bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
+                netjobs * sizeof(u_int));
 }

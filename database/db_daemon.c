@@ -1033,11 +1033,14 @@ int do_zot(int vol,u_int gb)				// zot block
   int typ;						// block type
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
+  int fromdisk;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
+
+  fromdisk = 0;
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
@@ -1056,7 +1059,7 @@ int do_zot(int vol,u_int gb)				// zot block
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[vol]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
-      ptr->block = 0;
+      // ptr->block = 0;
       MEM_BARRIER;
       break;						// exit
     }
@@ -1065,7 +1068,8 @@ int do_zot(int vol,u_int gb)				// zot block
   SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
-  { file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
+  { fromdisk = 1;
+    file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
     if (file_ret < 1)
     { do_log("do_zot: seek to block %d:%d failed\n", vol, gb);
       mv1free(bptr);					// free memory
@@ -1079,6 +1083,8 @@ int do_zot(int vol,u_int gb)				// zot block
       return -1;					// return error
     }
   }							// end read from disk
+
+  DBG(do_log(" do_zot: begin %d fromdisk=%d type=%d\n",gb,fromdisk,bptr->type));
 
   typ = bptr->type;					// save type
   if (typ > 64)						// data type?
@@ -1164,6 +1170,8 @@ void do_free(int vol, u_int gb)				// free from map et al
   ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
+  DBG(do_log("do_free: blk = %d\n",gb));
+
   volnum = vol + 1;                                     // set volnum
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
@@ -1183,7 +1191,7 @@ void do_free(int vol, u_int gb)				// free from map et al
       }
       else						// in use or not locked
       { ptr->last_accessed = (time_t) 0;		// mark as zotted
-        ptr->block = 0;
+        // ptr->block = 0;
       }
       break;						// and exit the loop
     }

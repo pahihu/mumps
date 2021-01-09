@@ -164,6 +164,8 @@ void Reserve_GBD(gbd *p)
 // Input(s): None.
 // Return:   None.
 //
+extern int initGarbed;
+
 void DB_WillUnlock(void)
 { int i;                                                // a handy int
   gbd *ptr;                                             // a GBD ptr
@@ -177,6 +179,7 @@ void DB_WillUnlock(void)
     ptr->rsvd = 0;
   }
   numReservedGBDs = 0;
+  initGarbed = 1;
   return;
 }
 
@@ -442,6 +445,7 @@ short New_block()					// get new block
         MEM_BARRIER;
 	systab->vol[volnum-1]->first_free = c;		// save this
         systab->vol[volnum-1]->stats.blkalloc++;        // update stats
+        DBG(mv1log(0,"New_block: blk=%d",blknum));
 #ifdef MV1_CACHE_IO
         fprintf(stderr,"%d %20lld A %d\r\n",mypid,monotonic_time(),blk[level]->block);
         fflush(stderr);
