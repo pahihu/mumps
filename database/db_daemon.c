@@ -131,6 +131,78 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
+#ifdef MV1_MAXDBOPS
+
+static int old_stalls;
+static u_int old_dbops[MAX_VOL];
+static u_int old_sum_dbops;
+static time_t last_do_rest;
+
+static
+void stat_dbops(u_int *writes)
+{ int i;
+
+  for (i = 0; i < MAX_VOL; i++)
+  { if (systab->vol[i]->local_name[0] ||                // remote VOL ?
+        (NULL == systab->vol[i]->vollab))		// stop at first
+    { writes[i] = 0;
+    }
+    else
+    { writes[i] = systab->vol[i]->stats.dbget
+                + systab->vol[i]->stats.dbset
+                + systab->vol[i]->stats.dbkil
+                + systab->vol[i]->stats.dbdat
+                + systab->vol[i]->stats.dbord
+                + systab->vol[i]->stats.dbqry;
+    }
+  }
+}
+
+static
+void do_rest(void)
+{ int i, rest;
+  u_int sum_dbops;
+  u_int new_dbops[MAX_VOL];
+
+  if (myslot)                                           // return if not
+    return;                                             //   daemon 0
+
+  if (MTIME(0) == last_do_rest)                         // just recalculated ?
+    return;                                             //  return
+
+  MEM_BARRIER;
+  rest = systab->ZRestTime;
+
+  sum_dbops = 0;
+  stat_dbops(new_dbops);
+  for (i = 0; i < MAX_VOL; i++)
+  { u_int num_dbops = new_dbops[i] - old_dbops[i];
+    sum_dbops += num_dbops;
+    old_dbops[i] = new_dbops[i];
+  }
+  if (sum_dbops)
+  { if (sum_dbops < old_sum_dbops)
+      rest /= 1.5;
+    else
+      rest *= 1.5;
+  } else
+  { rest = MAX_REST_TIME;
+  }
+
+  if (rest < MIN_REST_TIME)                             // clip rest time to
+    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
+  else if (rest > MAX_REST_TIME)
+     rest = MAX_REST_TIME;
+
+  systab->ZRestTime = rest;                             // set in systab
+  MEM_BARRIER;
+
+  old_sum_dbops = sum_dbops;
+  last_do_rest = MTIME(0);
+}
+
+#else
+
 static int old_stalls;
 static time_t last_do_rest;
 
@@ -171,6 +243,8 @@ void do_rest(void)
   old_stalls = stalls;                                  // save current stalls
   last_do_rest = MTIME(0);
 }
+
+#endif
 
 extern int   curr_sem_init;
 extern pid_t mypid;
@@ -576,6 +650,12 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   if (!myslot)                                          // clear #stalls
   { old_stalls = 0;
     last_do_rest = (time_t) 0;
+#ifdef MV1_MAXDBOPS
+    stat_dbops(old_dbops);
+    old_sum_dbops = 0;
+    for (i = 0; i < MAX_VOL; i++)
+      old_sum_dbops += old_dbops[i];
+#endif
   }
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---

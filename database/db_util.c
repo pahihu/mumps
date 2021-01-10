@@ -272,40 +272,44 @@ void Queit(void)
 { Queit2(blk[level]);
 }
 
-u_int garbedBlocks[NUM_GARB];
+#define MAX_GARB  (NUM_GARB/2)
+u_int garbedBlocks[MAX_GARB];
 int initGarbed = 1;
 
-int CheckGarbed(int blknum)
+int CheckGarbed(int blknum, int *pos)
 { int i, x;
 
   if (initGarbed)
-  { for (i = 0; i < NUM_GARB; i++)
-      garbedBlocks[i] = 0;
+  { bzero(garbedBlocks, sizeof(garbedBlocks));
     initGarbed = 0;
+    *pos = blknum & (MAX_GARB - 1);
     return 0;
   }
 
-  x = blknum & (NUM_GARB - 1);
-  for (i = 0; i < NUM_GARB; i++)
+  x = blknum & (MAX_GARB - 1);
+  for (i = 0; i < MAX_GARB; i++)
   { if (!garbedBlocks[x])
+    { *pos = x;
       return 0;
+    }
     if (blknum == garbedBlocks[x])
       return 1;
-    x = (x + 1) & (NUM_GARB - 1);
+    x = (x + 1) & (MAX_GARB - 1);
   }
+  *pos = 0;
   return 0;
 }
 
-void AddGarbed(int blknum)
+void AddGarbed(int pos, int blknum)
 { int i, x;
 
-  x = blknum & (NUM_GARB - 1);
-  for (i = 0; i < NUM_GARB; i++)
+  x = pos;
+  for (i = 0; i < MAX_GARB; i++)
   { if (!garbedBlocks[x])
     { garbedBlocks[x] = blknum;
       return;
     }
-    x = (x + 1) & (NUM_GARB - 1);
+    x = (x + 1) & (MAX_GARB - 1);
   }
 }
 
@@ -325,14 +329,15 @@ void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
 #else
   int i;                                                // a handy int
 #endif
+  int garbPos;                                          // garbedBlocks[] pos
 
   ASSERT(0 < volnum);                                   // valid vol[] index
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
 
-  if (CheckGarbed(blknum))
+  if (CheckGarbed(blknum, &garbPos))
     return;
-  AddGarbed(blknum);
+  AddGarbed(garbPos, blknum);
 
   blknum = VOLBLK(volnum-1,blknum);                     // reformat (vol,blkno)
 
