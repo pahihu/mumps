@@ -122,10 +122,12 @@ int INIT_Run( char *file,                       // database file
   short start_type = TYPE_RUN;			// how we started
   gid_t gidset[MAX_GROUPS];			// for getgroups()
   struct termios tty_settings;			// man 4 termios
+  char stderr_file[128];
 
 start:
 #if defined(__APPLE__) || defined(__FreeBSD__)
-  srandom(MUMPS_MAGIC);		                // randomize
+  //srandomdev();					// randomize
+  srandom(MUMPS_MAGIC);
 #endif
 
   bzero(semtab, sizeof(semtab));
@@ -282,6 +284,11 @@ start:
       partab.jnl_seq[0] = systab->vol[0]->jnl_seq;
     }
   }
+
+  DBG(
+  sprintf(stderr_file, "%d.stderr", getpid());
+  (void)freopen(stderr_file, "w", stderr);	// redirect stderr
+  );
 
   if (cmd != NULL)				// command specified ?
   {

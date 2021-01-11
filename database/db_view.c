@@ -105,11 +105,9 @@ short DB_ViewPut(int volume, struct GBD *ptr)		// que block for write
 #endif
   volnum = volume;					// for ron
   writing = 0;						// clear this
-  while (SemOp( SEM_GLOBAL, WRITE))			// write lock
-  { (void)Sleep(1);
-    if (partab.jobtab->attention)
-    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
-    }
+  s = SemOp(SEM_GLOBAL, WRITE);				// write lock
+  if (s < 0)						// check error
+  { return s;						// quit if so
   }
   ptr->last_accessed = MTIME(0);			// reset access
   if (ptr->mem->type)					// if used
@@ -153,11 +151,9 @@ short DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
   writing = 0;						// clear this
   ptr->last_accessed = MTIME(0);			// reset access
   if (ptr->dirty && (ptr->dirty < (gbd *) 5))		// not owned elsewhere
-  { while (SemOp( SEM_GLOBAL, WRITE))			// get write lock
-    { (void)Sleep(1);
-      if (partab.jobtab->attention)
-      { return -(ERRMLAST+ERRZ51);			// for <Control><C>
-      }
+  { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
+    if (s < 0)						// check error
+    { return s;						// quit if so
     }
 #ifdef MV1_CACHE_DEBUG
     fprintf(stderr,"--- DB_ViewRel: !!! free !!!\r\n");fflush(stderr);

@@ -119,7 +119,9 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   // struct termios tty_settings;		// man 4 termios
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
-  srandomdev();					// randomize
+  //srandomdev();					// randomize
+  srandom(MUMPS_MAGIC);
+
 #endif
 
   hnd->file = strdup(file);                     // cpy database file name

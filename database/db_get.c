@@ -109,7 +109,7 @@ short Get_data(int dir)		                        // locate a record
       ptr = systab->vol[volnum-1]->gbd_hash[GBD_BUCKET(i)]; // get listhead
       while (ptr != NULL)				// for each in list
       { if (ptr->block == i)				// found it
-        { 
+        { //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
 Found:    if ((X_NE(ptr->mem->global, 
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or

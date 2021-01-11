@@ -131,13 +131,15 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
+#ifdef MV1_MAXDBOPS
+
 static int old_stalls;
-static u_int old_writes[MAX_VOL];
-static u_int old_sum_writes;
+static u_int old_dbops[MAX_VOL];
+static u_int old_sum_dbops;
 static time_t last_do_rest;
 
 static
-void stat_phywt(u_int *writes)
+void stat_dbops(u_int *writes)
 { int i;
 
   for (i = 0; i < MAX_VOL; i++)
@@ -158,10 +160,9 @@ void stat_phywt(u_int *writes)
 
 static
 void do_rest(void)
-{ int stalls, i;
-  int rest;
-  u_int sum_writes;
-  u_int new_writes[MAX_VOL];
+{ int i, rest;
+  u_int sum_dbops;
+  u_int new_dbops[MAX_VOL];
 
   if (myslot)                                           // return if not
     return;                                             //   daemon 0
@@ -169,35 +170,18 @@ void do_rest(void)
   if (MTIME(0) == last_do_rest)                         // just recalculated ?
     return;                                             //  return
 
-/*
-  stalls = 0; 					        //   rest time
-  for (i = 0; i < MAX_VOL; i++)
-  { if (systab->vol[i]->local_name[0])		        // remote VOL ?
-      continue;					        //   skip it
-    if (NULL == systab->vol[i]->vollab)		        // stop at first
-      break;					        //   unallocated vol.
-    stalls += systab->vol[i]->stats.dqstall +	        // check dirtyQ stalls
-               systab->vol[i]->stats.gbswait;	        //   and GBDs waits
-  }
-*/
-
   MEM_BARRIER;
   rest = systab->ZRestTime;
-/*
-  if (stalls <= old_stalls)                             // same or less stalls ?
-    rest *= 1.1;                                        //   wait more
-  else
-    rest /= 2;                                          // more stalls,rest less
-*/
-  sum_writes = 0;
-  stat_phywt(new_writes);
+
+  sum_dbops = 0;
+  stat_dbops(new_dbops);
   for (i = 0; i < MAX_VOL; i++)
-  { u_int num_writes = new_writes[i] - old_writes[i];
-    sum_writes += num_writes;
-    old_writes[i] = new_writes[i];
+  { u_int num_dbops = new_dbops[i] - old_dbops[i];
+    sum_dbops += num_dbops;
+    old_dbops[i] = new_dbops[i];
   }
-  if (sum_writes)
-  { if (sum_writes < old_sum_writes)
+  if (sum_dbops)
+  { if (sum_dbops < old_sum_dbops)
       rest /= 1.5;
     else
       rest *= 1.5;
@@ -213,14 +197,57 @@ void do_rest(void)
   systab->ZRestTime = rest;                             // set in systab
   MEM_BARRIER;
 
-  // old_stalls = stalls;                               // save current stalls
-  old_sum_writes = sum_writes;
+  old_sum_dbops = sum_dbops;
   last_do_rest = MTIME(0);
 }
 
+#else
+
+static int old_stalls;
+static time_t last_do_rest;
+
+static
+void do_rest(void)
+{ int stalls, i;
+  int rest;
+
+  if (myslot)                                           // return if not
+    return;                                             //   daemon 0
+
+  if (MTIME(0) == last_do_rest)                         // just recalculated ?
+    return;                                             //  return
+
+  stalls = 0; 					        //   rest time
+  for (i = 0; i < MAX_VOL; i++)
+  { if (systab->vol[i]->local_name[0])		        // remote VOL ?
+      continue;					        //   skip it
+    if (NULL == systab->vol[i]->vollab)		        // stop at first
+      break;					        //   unallocated vol.
+    stalls += systab->vol[i]->stats.dqstall +	        // check dirtyQ stalls
+              systab->vol[i]->stats.gbswait;	        //   and GBDs waits
+  }
+
+  MEM_BARRIER;
+  rest = systab->ZRestTime;
+  if (stalls <= old_stalls)                             // same or less stalls ?
+    rest *= 1.1;                                        //   wait more
+  else
+    rest /= 2;                                          // more stalls,rest less
+  if (rest < MIN_REST_TIME)                             // clip rest time to
+    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
+  else if (rest > MAX_REST_TIME)
+     rest = MAX_REST_TIME;
+  systab->ZRestTime = rest;                             // set in systab
+  MEM_BARRIER;
+
+  old_stalls = stalls;                                  // save current stalls
+  last_do_rest = MTIME(0);
+}
+
+#endif
+
 extern int   curr_sem_init;
 extern pid_t mypid;
-extern int   R_TO_WR;
 
 //-----------------------------------------------------------------------------
 // Function: do_netdaemon
@@ -279,6 +306,7 @@ void do_netdaemon(void)
     if (systab->vol[0]->dismount_flag)		        // dismounting?
     { t = time(0);					// for ctime()
       do_log("Network Daemon %d shutting down\n", myslot);// log success
+      SemStats();                                     	// print sem stats
       systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
       exit (0);						// and exit
     }
@@ -511,7 +539,6 @@ int Net_Daemon(int slot, int vol)			// start a daemon
     jnl_fds[i] = 0;					// jrn file desc.
   }
   mypid = 0;
-  R_TO_WR = 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -609,7 +636,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
     last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
   }
   mypid = 0;
-  R_TO_WR = 0;
 
   // -- Create log file name --
   k = strlen(systab->vol[0]->file_name);		// get len of filename
@@ -624,10 +650,12 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   if (!myslot)                                          // clear #stalls
   { old_stalls = 0;
     last_do_rest = (time_t) 0;
-    stat_phywt(old_writes);
-    old_sum_writes = 0;
+#ifdef MV1_MAXDBOPS
+    stat_dbops(old_dbops);
+    old_sum_dbops = 0;
     for (i = 0; i < MAX_VOL; i++)
-      old_sum_writes += old_writes[i];
+      old_sum_dbops += old_dbops[i];
+#endif
   }
 
   // --- Reopen stdin, stdout, and stderr ( logfile ) ---
@@ -635,15 +663,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen("/dev/null","w",stdout);			// stdout to bitbucket
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
-
-#ifdef MV1_BLKSEM
-  wrbuf = (u_char *) mv1malloc(                         // alloc a write buffer
-   		 systab->vol[volnum-1]->vollab->block_size);
-  if (0 == wrbuf)
-  { do_log("Cannot alloc write buffer\n");
-    return(ENOMEM);					// check for error
-  }
-#endif
 
   dbfds[0] = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
   if (dbfds[0] < 0)
@@ -786,6 +805,7 @@ start:
       { systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
         t = time(0);					// for ctime()
 	do_log("Daemon %d shutting down\n", myslot);	// log success
+        SemStats();                                     // print sem stats
         exit (0);					// and exit
       }
       do_dismount();				        // dismount it
@@ -920,6 +940,7 @@ void do_dismount()					// dismount volnum
     { MSLEEP(1000);					// wait a second...
     }
   }							// end wait for daemons
+  SemStats();                                           // print sem stats
   do_log("Writing out clean flag as clean\n");          // operation
   for (vol = 0; vol < MAX_VOL; vol++)
   { if (systab->vol[vol]->local_name[0])		// remote VOL ?
@@ -981,27 +1002,16 @@ void do_write()						// write GBDs
   }
   while (TRUE)						// until we break
   { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
-    { MV1DBG(do_log("do_write: zotted %d\r\n",gbdptr->block));
-      gbdptr->block = 0;				// just zot the block
+    { gbdptr->block = 0;				// just zot the block
     }
     else						// do a write
     { blkno = gbdptr->block;                            // get blkno
       vol   = gbdptr->vol;                              //   and volume
       do_mount(vol);                                    // mount db file
       Check_BlockNo(vol, blkno,				// because of ^IC
-		    CBN_INRANGE,	                //   check only range
-                    "Write_Chain", 0, 0, 1);     	//   validity
-#ifdef MV1_BLKSEM
-      while (BLOCK_TRYREADLOCK(gbdptr) < 0)             // wait for read lock
-      { ATOMIC_INCREMENT(systab->vol[vol]->stats.brdwait);// count a wait
-        SchedYield();                                   //   release quant
-      }                                                 //   if failed
-      bcopy(gbdptr->mem, wrbuf,                         // copy block
-		 systab->vol[vol]->vollab->block_size);
-      BLOCK_UNLOCK(gpdptr);
-#else
+		    CBN_INRANGE,			// check only range
+                    "Write_Chain", 0, 0, 1);     	// validity
       wrbuf = gbdptr->mem;
-#endif
       file_off = (off_t) blkno - 1;	                // block#
       file_off = (file_off * (off_t)
     			systab->vol[vol]->vollab->block_size)
@@ -1103,17 +1113,14 @@ int do_zot(int vol,u_int gb)				// zot block
   int typ;						// block type
   int zot_data = 0;					// bottom level flag
   gbd *ptr;						// a handy pointer
+  int fromdisk;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  if (Check_BlockMapped(vol, gb) < 0)                   // block not mapped ?
-  { return -1;
-  }
-
-  MV1DBG(do_log("do_zot: zot %d\r\n",gb));
+  fromdisk = 0;
 
   bptr = mv1malloc(systab->vol[vol]->vollab->block_size);// get some memory
   if (bptr == NULL)					// if failed
@@ -1132,8 +1139,7 @@ int do_zot(int vol,u_int gb)				// zot block
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[vol]->vollab->block_size);
       ptr->last_accessed = (time_t) 0;			// mark as zotted
-      // ptr->block = 0;                                //   do_write will erase
-      MV1DBG(do_log("do_zot: cached\r\n"));
+      // ptr->block = 0;
       MEM_BARRIER;
       break;						// exit
     }
@@ -1142,7 +1148,8 @@ int do_zot(int vol,u_int gb)				// zot block
   SemOp( SEM_GLOBAL, -curr_lock);			// release the lock
 
   if (ptr == NULL)					// if not found
-  { file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
+  { fromdisk = 1;
+    file_ret = lseek( dbfds[vol], file_off, SEEK_SET);	// seek to block
     if (file_ret < 1)
     { do_log("do_zot: seek to block %d:%d failed\n", vol, gb);
       mv1free(bptr);					// free memory
@@ -1155,8 +1162,9 @@ int do_zot(int vol,u_int gb)				// zot block
       mv1free(bptr);					// free memory
       return -1;					// return error
     }
-    MV1DBG(do_log("do_zot: disk read\r\n"));
   }							// end read from disk
+
+  DBG(do_log(" do_zot: begin %d fromdisk=%d type=%d\n",gb,fromdisk,bptr->type));
 
   typ = bptr->type;					// save type
   if (typ > 64)						// data type?
@@ -1242,6 +1250,8 @@ void do_free(int vol, u_int gb)				// free from map et al
   ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
+  DBG(do_log("do_free: blk = %d\n",gb));
+
   volnum = vol + 1;                                     // set volnum
   while (TRUE)						// a few times
   { daemon_check();					// ensure all running
@@ -1252,19 +1262,16 @@ void do_free(int vol, u_int gb)				// free from map et al
   }
   
   Free_block(vol, gb);					// free the block
-  MV1DBG(do_log("do_free: blk %d\r\n",gb));
 
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
     { if (ptr->dirty < (gbd *) 5)			// not in use
       { Free_GBD(vol, ptr);				// free it
-        MV1DBG(do_log("do_free: Free_GBD\r\n"));
       }
       else						// in use or not locked
       { ptr->last_accessed = (time_t) 0;		// mark as zotted
-        MV1DBG(do_log("do_free: zot\r\n"));
-        // ptr->block = 0;                              // do_write() clears
+        // ptr->block = 0;
       }
       break;						// and exit the loop
     }

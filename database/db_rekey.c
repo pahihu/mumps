@@ -75,8 +75,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   ptr->len = 4;						// always
   ui = (u_int *) ptr->buf;				// for pointers
   *ui = ptr_blk;					// copy this here
-  ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
- 
+  
   level = this_level;					// set current level
   if (!this_level)					// top level split
   { gtmp[1] = 128;					// start string key
@@ -99,7 +98,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     }
     Allign_record();					// if not alligned
     tgb = *(u_int *) record;				// get block#
-    ASSERT(0 == Check_BlockMapped(volnum - 1, tgb));
 
     level = 1;						// at top level
     s = New_block();					// get a new block
@@ -121,7 +119,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
     Allign_record();
     *( (u_int *) record) = tgb;				// first entry
-    ASSERT(0 == Check_BlockMapped(volnum - 1, tgb));
     s = Insert(&db_var.slen, ptr);			// insert this one
     if (s < 0)						// failed?
     { return s;						// return error
@@ -133,7 +130,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     }
     Allign_record();					// if not alligned
     *( (u_int *) record) = blk[1]->block;		// new top level blk
-    ASSERT(0 == Check_BlockMapped(volnum - 1, blk[1]->block));
     level = 1;
     blk[level]->dirty = blk[level];			// hook to self
     TXSET(blk[level]);
@@ -201,7 +197,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   if (blk[level]->mem->right_ptr)			// if there is one
   { s = Get_block(blk[level]->mem->right_ptr);		// get it
     cblk[2] = blk[level];				// remember address
-    ASSERT(X_EQ(cblk[0]->mem->global, cblk[2]->mem->global));
     if (blk[level]->mem->flags & BLOCK_DIRTY)		// check state
     { Tidy_block();					// ensure tidy
     }
@@ -270,7 +265,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
     keybuf[0] = 0;					// clear this
 
-    ASSERT(X_EQ(cblk[0]->mem->global, blk[level]->mem->global));
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
     s = Insert(&db_var.slen, ptr);			// insert it
     if (s < 0)						// failed ?
@@ -312,7 +306,6 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     = (systab->vol[volnum-1]->vollab->block_size >> 2) - 1; // set this up
   keybuf[0] = 0;					// clear this
 
-  ASSERT(X_EQ(cblk[0]->mem->global, blk[level]->mem->global));
   cblk[0]->mem->right_ptr = blk[level]->block;		// point at it
   cblk[1] = blk[level];					// save this one
 
@@ -487,14 +480,16 @@ void Un_key()
   u_int save_level;
   u_int xxx_level;
   short s;						// for returns
-  u_char cstr[MAX_NAME_BYTES];				// and another
+  u_char cstr[8];					// and another
   u_int *xui;						// an int ptr
   cstring *xptr;					// spare ptr
   gbd *save;						// save a block
   u_char *uptr;						// a handy ptr
   u_char *lptr;						// a handy ptr
   u_int blkno;						// a block number
+  int garbed;                                           // did a Garbit()?
 
+  garbed = 0;
   this_level = level;					// save for ron
 
   idx = (u_short *) blk[level]->mem;			// point at the block
@@ -537,11 +532,9 @@ void Un_key()
 	  xptr->len = 4;				// one int
 	  xui = (u_int *) xptr->buf;			// point the int here
 	  *xui = blk[level + 1]->block;			// get the block#
-          ASSERT(0 == Check_BlockMapped(volnum - 1, *xui));
 	  s = Insert(lptr, xptr);			// insert that
 	  if (s == -(ERRMLAST+ERRZ62))
 	  { s = Add_rekey(blk[level + 1]->block, level + 1); // do it later
-            MV1DBG(fprintf(stderr,"Un_key: do it later\r\n"));
 	  }
 	  else if (s < 0)
 	  { panic("Un_Key: Insert returned fatal value");
@@ -554,7 +547,8 @@ void Un_key()
 
 	  while (TRUE)
 	  { s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)				// if not - die
+            // 210109AP TESTING
+	    if ((save_level == level) && (s != -ERRM7)) // if not - die
 	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
 	    if (Index > LOW_INDEX)			// if not first node
@@ -562,7 +556,6 @@ void Un_key()
 	      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
 	      Allign_record();				// align
 	      blkno = *(u_int *) record;		// get the number
-              ASSERT(0 == Check_BlockMapped(volnum - 1, blkno));
 	      break;					// and exit loop
 	    }
 	    level--;					// up a level
@@ -586,7 +579,6 @@ void Un_key()
 	    record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
 	    Allign_record();				// align
 	    blkno = *(u_int *) record;			// get the number
-            ASSERT(0 == Check_BlockMapped(volnum - 1, blkno));
 	    if (blk[level]->dirty == (gbd *) 1)
 	    { blk[level]->dirty = NULL;			// free gbd
 	    }
@@ -600,14 +592,17 @@ void Un_key()
 	  if (s < 0)
 	  { panic("Un_key(): Get_block() failed for left block");
 	  }
-          ASSERT(X_EQ(blk[level]->mem->global, blk[xxx_level]->mem->global));
-          ASSERT(blk[level]->mem->right_ptr == blk[xxx_level]->block);
 	  blk[level]->mem->right_ptr = blk[xxx_level]->mem->right_ptr;
 	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
 	  { blk[level]->dirty = (gbd *) 2;		// mark for write
 	  }
-          ASSERT(blk[xxx_level]->mem->last_idx == LOW_INDEX-1);
+          blk[xxx_level]->mem->type = 65;               // 210109AP TESTING
+          blk[xxx_level]->last_accessed = MTIME(0) + 86400;
+#ifdef MV1_REFD
+          REFD_MARK(blk[xxx_level]);
+#endif
 	  Garbit(blk[xxx_level]->block);		// dump mt blk
+          garbed = 1;
 	  level = save_level;				// restore level
 	}						// end empty block proc
 
@@ -621,6 +616,10 @@ void Un_key()
     }
   }
   level = this_level;					// restore level
+
+  if (garbed)                                           // did a Garbit()?
+  { ClearLastBlk();                                     // zot last_blk[]
+  }
 
   return;
 }

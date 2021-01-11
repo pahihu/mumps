@@ -40,13 +40,16 @@
 #define VOLATILE
 #endif
 
-#define MV1DBG(x)
-
 // **** Defines ***************************************************************
 
 #define READ		(-1)				// Locking defines makes
 #define WRITE		(-systab->maxjob)		// easy reading code
 #define WR_TO_R		(systab->maxjob-1)		// from write to read
+
+#define GBD_RESERVED    ((gbd *)1)
+#define GBD_MARKWRITE   ((gbd *)2)
+#define GBD_IC          ((gbd *)3)
+#define GBD_LOCKED      ((gbd *)5)
 
 #define NODE_UNDEFINED	-1				// junk record
 #define PTR_UNDEFINED	0				// junk pointer
@@ -199,9 +202,6 @@ typedef struct __ALIGNED__ GBD		                // global buf desciptor
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
 #endif
-#ifdef MV1_BLKSEM
-  short  curr_lock;                                     // current block lock
-#endif
   u_char vol;                                           // vol[] index
   u_char rsvd;
 } gbd;							// end gbd struct
@@ -240,7 +240,6 @@ typedef struct __PACKED__ JRNREC			// journal record
 // **** External declarations ************************************************
 // Defined in database/db_main.c
 
-extern u_int64 txid;
 extern int curr_locks[MAX_VOL+1];		        // GLOBAL locks
 #define curr_lock       (curr_locks[volnum])
 extern int gbd_expired;
@@ -283,23 +282,6 @@ void Get_GBDsEx(int greqd, int haslock);		// get n free GBDs
 void Free_GBD(int vol, gbd *free);			// Free a GBD
 void Release_GBDs(int stopat);                          // release rsvd blk[]
 
-#ifdef MV1_BLKSEM
-
-short Block_TryReadLock(gbd *blk);
-short Block_TryWriteLock(gbd *blk);
-void  Block_Unlock(void);
-
-#define BLOCK_UNLOCK(x)         Block_Unlock()
-#define BLOCK_TRYREADLOCK(x)    Block_TryReadLock(x)
-#define BLOCK_TRYWRITELOCK(x)   Block_TryWriteLock(x)
-
-#else
-
-#define BLOCK_UNLOCK(x)
-#define BLOCK_TRYREADLOCK(x)    0
-#define BLOCK_TRYWRITELOCK(x)   0
-
-#endif
 // File: database/db_get.c
 short Get_data(int dir);				// get db_var node
 
@@ -339,9 +321,10 @@ void Copy_data(gbd *fptr, int fidx);			// copy records
 void DoJournal(jrnrec *jj, cstring *data); 		// Write journal
 void Free_block(int vol, int blknum);			// free blk in map
 void Mark_map_dirty(int vol, int blknum);		// mark map dirty
-void Garbit(int blknum);				// que a blk for garb
+void GarbitEx(int blknum,char *path,int lno);		// que a blk for garb
+#define Garbit(blknum) GarbitEx(blknum,__FILE__,__LINE__)
 short Insert(u_char *key, cstring *data);		// insert a node
-int Queit2(gbd *p_gbd);				        // que a gbd for write
+void Queit2(gbd *p_gbd);				// que a gbd for write
 void Queit(void);				// que blk[level] for write
 void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
@@ -350,9 +333,9 @@ void Ensure_GBDs(int haslock);                          // wait for GBDs
 short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
            char *where,const char *file,int lno,int dopanic);
 #define CBN_INRANGE     1
-#define CBN_MAPPED      2
-short Check_BlockMapped(int vol, u_int blkno);          // check block mapped
+#define CBN_ALLOCATED   2
 int  DirtyQ_Len();                                      // length of dirtyQ
+void ClearLastBlk(void);                                // clear last_blk_xxx[]
 
 void TX_Set(gbd *ptr);
 void TX_Next(void);

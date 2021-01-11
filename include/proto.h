@@ -233,6 +233,9 @@ short ltoa(char *buf, long n);                  // long to string
 short ultoa(char *buf, unsigned long n);        // u_long to string
 
 // Runtime Functions
+int mv1log(int depth,const char *fmt,...);
+#define LOG(x)
+#define DBG(x)
 short Dascii1(u_char *ret_buffer, cstring *expr);
 short Dascii2(u_char *ret_buffer, cstring *expr, int posn);
 short Dchar(u_char *ret_buffer, int i);
@@ -399,6 +402,7 @@ short mcopy(u_char *src, u_char *dst, int bytes); // bcopy with checking etc
 short ncopy(u_char **src, u_char *dst);         // copy as number
 short CleanJob(int job);			// tidy up a job
 uint32_t FNV1aHash(int n, u_char *buf);         // calc. FNV-1a hash
+void SemStats(void);                            // semaphore statistics
 void panic(char *msg); 				// die on error
 struct RBD *Routine_Attach(chr_x routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine

@@ -81,7 +81,6 @@ short Kill_data_ex(int what)				// remove tree
   u_int *ui;						// and another
   int qpos, wpos, rpos, qlen, qfree;
   int save_level;                                       // save level 
-  int netjobs;						// #jobs + #net daemons
   short rc;						// replication status
 
   bzero(rekey_blk, MAXREKEY * sizeof(u_int));		// clear that table
@@ -160,7 +159,6 @@ FullGlobalKill:
     }
     Allign_record();					// align
     blknum = *(u_int *) record;				// remember the block
-    ASSERT(0 == Check_BlockMapped(volnum - 1, blknum));
     if (KILL_ALL == what)
     { *(u_int *) record = PTR_UNDEFINED;		// mark as junk
       Tidy_block();					// and tidy it
@@ -191,11 +189,7 @@ FullGlobalKill:
       }
       level = save_level;
     }
-    netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
-    bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
-                netjobs * sizeof(u_int));
-    bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
-                netjobs * sizeof(u_int));
+    ClearLastBlk();                                     // zot last_blk[]
     level--;						// backup a level
 
     return 0;						// and exit
@@ -281,11 +275,6 @@ FullGlobalKill:
       { blk[level]->dirty = NULL;			// yes, clear it
       }
     }
-    netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
-    bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
-                netjobs * sizeof(u_int));
-    bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
-                netjobs * sizeof(u_int));
     return 0;					        // and exit
   }							// end all in 1
 
@@ -346,8 +335,7 @@ FullGlobalKill:
     { Tidy_block();					// tidy it
     }
     if (level > top)					// not at top
-    { ASSERT(X_EQ(blk[level]->mem->global, rblk[level]->mem->global));
-      blk[level]->mem->right_ptr = rblk[level]->block;	// hook to right edge
+    { blk[level]->mem->right_ptr = rblk[level]->block;	// hook to right edge
     }
   }							// end left edge scan
 
@@ -416,8 +404,8 @@ FullGlobalKill:
 	c->len = 4;					// the size
         ui = (u_int *) c->buf;				// point the int here
         *ui = rblk[level + 1]->block;			// get the block#
-        ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
         s = Insert(p, c);				// insert the node
+	DBG(mv1log(0,"Kill_data: rekey1 blk=%d at %d into %d",rblk[level+1]->block,level+1,blk[level]->block));
 	if (s == -(ERRMLAST+ERRZ62))
 	{ s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
 	}
@@ -437,12 +425,14 @@ FullGlobalKill:
       idx = (u_short *) blk[level]->mem;		// point at the block
       iidx = (int *) blk[level]->mem;			// point at the block
       if (ptr->mem->last_idx > LOW_INDEX-1)		// if any data
-      { Copy_data(ptr, LOW_INDEX);			// copy to left edge
+      { DBG(mv1log(0,"Kill_data: will fit in 1, blk=%d\n",blk[level]->block));
+        Copy_data(ptr, LOW_INDEX);			// copy to left edge
       }
-      ASSERT(X_EQ(blk[level]->mem->global, ptr->mem->global));
+      else
+        DBG(mv1log(0,"Kill_data: ptr was empty\n"));
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
-      ptr->last_accessed = MTIME(0);		        // clear last access
+      ptr->last_accessed = MTIME(0) + 86400;	        // clear last access
 #ifdef MV1_REFD
       REFD_MARK(ptr);
 #endif
@@ -464,8 +454,8 @@ FullGlobalKill:
       c->len = 4;					// the size
       ui = (u_int *) c->buf;				// point the int here
       *ui = rblk[level + 1]->block;			// get the block#
-      ASSERT(0 == Check_BlockMapped(volnum - 1, *ui));
       s = Insert(p, c);					// insert the node
+      DBG(mv1log(0,"Kill_data: rekey2 blk=%d at %d into %d",rblk[level+1]->block,level+1,blk[level]->block));
       if (s == -(ERRMLAST+ERRZ62))
       { s = Add_rekey(rblk[level + 1]->block, level + 1); // do it later
       }
@@ -511,11 +501,7 @@ FullGlobalKill:
   { Queit();						// yes - do so
   }							// end right edge stuff
 
-  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
-  bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
-                netjobs * sizeof(u_int)); 
-  bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
-                netjobs * sizeof(u_int)); 
+  ClearLastBlk();                                       // zot last_blk[]
 
   return Re_key();					// re-key and return
 }

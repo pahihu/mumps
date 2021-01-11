@@ -233,6 +233,29 @@ exit:
 extern u_int locqry;
 extern u_int lochit;
 
+// SemStats is called to print semaphore statistics.
+void SemStats(void)
+{
+#ifdef MV1_PROFILE
+  int i;
+
+  fprintf(stderr,"sem type #tryfail bkoff-us #held    held-us semop-us\r\n");
+  fprintf(stderr,"----------------------------------------------------\r\n");
+  for (i = 0; i < 2*SEM_MAX; i++)
+  { if (0 == semtab[i].held_count)
+      continue;
+    fprintf(stderr,"%3d %4d %8u %8u %8u %8u %8u\r\n",
+            i>>1, i&1, semtab[i].tryfailed_count, semtab[i].backoff_time,
+            semtab[i].held_count, semtab[i].held_time, semtab[i].semop_time);
+  }
+  fprintf(stderr,"\r\n");
+  fprintf(stderr,"locqry = %u\r\n", locqry);
+  fprintf(stderr,"lochit = %u\r\n", lochit);
+  fflush(stderr);
+#endif
+  return;
+}
+
 
 // CleanJob is called to release all locks and unwind any routine attaches
 // It is called with zero (current job) or the job# (ie. internal job+1)
@@ -245,6 +268,14 @@ short CleanJob(int job)				// tidy up a job
 { int j;					// the job number
   int i;					// a handy int
   
+#ifdef MV1_PROFILE
+  fprintf(stderr,"--- CleanJob ---\r\n");
+  fflush(stderr);
+
+  SemStats();                                   // print sem stats
+  mv1_log_flush();
+#endif
+
   j = job - 1;					// copy argument to int job form
   if (job)
   { while (SemOp( SEM_SYS, -systab->maxjob));   // lock SYS

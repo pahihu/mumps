@@ -206,7 +206,7 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 // Note:     Must hold a write lock before calling this function
 //
 
-void Queit(void)  					// que a gbd for write
+void Queit2(gbd *p_gbd)                                 // que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
@@ -219,7 +219,7 @@ void Queit(void)  					// que a gbd for write
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
 
   // LastBlock = 0;                                     // zot Locate() cache
-  ptr = blk[level];                                     // point at the block
+  ptr = p_gbd;                                          // point at the block
   // fprintf(stderr,"Queit: %d",ptr->block);
   systab->vol[volnum-1]->stats.logwt++;                 // incr logical
   if (systab->vol[volnum-1]->track_changes)		// track changes ?
@@ -251,7 +251,7 @@ void Queit(void)  					// que a gbd for write
   result = ck_ring_enqueue_spmc(
                 &systab->vol[0]->dirtyQ,
     &systab->vol[0]->dirtyQBuffer[0],
-    blk[level]);
+    p_gbd);
   if (false == result)
   { panic("Queit(): dirtyQ overflow");
   }
@@ -261,11 +261,56 @@ void Queit(void)  					// que a gbd for write
   if (systab->vol[0]->dirtyQ[i] != NULL)
   { panic("Queit(): dirtyQ overflow");
   }
-  systab->vol[0]->dirtyQ[i] = blk[level];               // stuff it in
+  systab->vol[0]->dirtyQ[i] = p_gbd;                    // stuff it in
   systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
 #endif
 
   return;                                               // and exit
+}
+
+void Queit(void)
+{ Queit2(blk[level]);
+}
+
+#define MAX_GARB  (NUM_GARB/2)
+u_int garbedBlocks[MAX_GARB];
+int initGarbed = 1;
+
+int CheckGarbed(int blknum, int *pos)
+{ int i, x;
+
+  if (initGarbed)
+  { bzero(garbedBlocks, sizeof(garbedBlocks));
+    initGarbed = 0;
+    *pos = blknum & (MAX_GARB - 1);
+    return 0;
+  }
+
+  x = blknum & (MAX_GARB - 1);
+  for (i = 0; i < MAX_GARB; i++)
+  { if (!garbedBlocks[x])
+    { *pos = x;
+      return 0;
+    }
+    if (blknum == garbedBlocks[x])
+      return 1;
+    x = (x + 1) & (MAX_GARB - 1);
+  }
+  *pos = 0;
+  return 0;
+}
+
+void AddGarbed(int pos, int blknum)
+{ int i, x;
+
+  x = pos;
+  for (i = 0; i < MAX_GARB; i++)
+  { if (!garbedBlocks[x])
+    { garbedBlocks[x] = blknum;
+      return;
+    }
+    x = (x + 1) & (MAX_GARB - 1);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -276,7 +321,7 @@ void Queit(void)  					// que a gbd for write
 // Note:     Must hold a write lock before calling this function
 //
 
-void Garbit(int blknum)                                 // que a blk for garb
+void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
 { 
 #ifdef MV1_CKIT
   void *qentry;                                         // queue entry
@@ -284,13 +329,15 @@ void Garbit(int blknum)                                 // que a blk for garb
 #else
   int i;                                                // a handy int
 #endif
+  int garbPos;                                          // garbedBlocks[] pos
 
   ASSERT(0 < volnum);                                   // valid vol[] index
   ASSERT(volnum <= MAX_VOL);
   ASSERT(NULL != systab->vol[volnum-1]->vollab);        // mounted
-  ASSERT(0 == Check_BlockMapped(volnum-1, blknum));     // mapped
 
-  // MV1DBG(fprintf(stderr,"\r\nGarbit: %d\r\n",blknum));
+  if (CheckGarbed(blknum, &garbPos))
+    return;
+  AddGarbed(garbPos, blknum);
 
   blknum = VOLBLK(volnum-1,blknum);                     // reformat (vol,blkno)
 
@@ -299,6 +346,8 @@ void Garbit(int blknum)                                 // que a blk for garb
     sprintf(msg, "Garbit(): curr_lock = %d", curr_lock);
     panic(msg);
   }
+
+  DBG(mv1log(0,"Garbit: blk=%d (%s:%d)",blknum,path,lno));
 
 #ifdef MV1_CKIT
   qentry = (void*) blknum;
@@ -338,7 +387,6 @@ void Free_block(int vol, int blknum)                    // free blk in map
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  MEM_BARRIER;
   map = ((u_char *) systab->vol[vol]->map);             // point at it
   i = blknum >> 3;                                      // map byte
   off = blknum & 7;                                     // bit number
@@ -351,7 +399,6 @@ void Free_block(int vol, int blknum)                    // free blk in map
   if (systab->vol[vol]->first_free > (void *) &map[i])  // if earlier
   { systab->vol[vol]->first_free = &map[i];             // reset first free
   }
-  MEM_BARRIER;
   Mark_map_dirty(vol, blknum);
   return;                                               // and exit
 }
@@ -376,7 +423,6 @@ void Used_block(int vol, int blknum)                    // set blk in map
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             //  mounted
 
-  MEM_BARRIER;
   map = ((u_char *) systab->vol[vol]->map);             // point at it
   i = blknum >> 3;                                      // map byte
   off = blknum & 7;                                     // bit number
@@ -386,7 +432,6 @@ void Used_block(int vol, int blknum)                    // set blk in map
   }
   ATOMIC_INCREMENT(systab->vol[vol]->stats.blkalloc);   // update stats
   map[i] |= off;                                        // set the bit
-  MEM_BARRIER;
   Mark_map_dirty(vol, blknum);
   return;                                               // and exit
 }
@@ -573,7 +618,6 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     else                                                // for a pointer
     { Allign_record();                                  // ensure alligned
       *(u_int *) record = *(u_int *) c;                 // copy ptr
-      // === ASSERT(0 == Check_BlockMapped(volnum - 1, *(u_int *) c)); ===
       if (fidx == -1)
       { *(int *) c = PTR_UNDEFINED;
       }
@@ -664,7 +708,6 @@ short Compress1()
       }
       Allign_record();                                  // if not alligned
       *( (u_int *) record) = blk[2]->block;             // new top level blk
-      ASSERT(0 == Check_BlockMapped(volnum - 1, blk[2]->block));
       if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
 	TXSET(blk[level]);
@@ -672,13 +715,14 @@ short Compress1()
       }
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
-      blk[1]->last_accessed = MTIME(0);                 // clear last access
+      blk[1]->last_accessed = MTIME(0) + 86400;         // clear last access
 #ifdef MV1_REFD
       REFD_MARK(blk[1]);
 #endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
+      ClearLastBlk();                                   // zot last_blk[]
       return 0;                                         // and exit
     }
     Release_GBDs(0);
@@ -708,14 +752,14 @@ short Compress1()
   Tidy_block();                                         // ensure it's tidy
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
-    blk[level]->last_accessed = MTIME(0);               // clear last access
+    blk[level]->last_accessed = MTIME(0) + 86400;       // clear last access
 #ifdef MV1_REFD
     REFD_MARK(blk[level]);
 #endif
-    ASSERT(X_EQ(blk[level + 1]->mem->global, blk[level]->mem->global));
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
+    ClearLastBlk();                                     // zot last_blk[]
 
     if (blk[level + 1]->mem->right_ptr)                 // if we have a RL
     { s = Get_block(blk[level + 1]->mem->right_ptr);    // get it
@@ -1107,6 +1151,17 @@ fail:
 
 u_int SleepEx(u_int seconds, const char* file, int line)
 {
+#ifdef MV1_PROFILE
+  fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
+           file, line, curr_lock, seconds,
+#ifdef MV1_CKIT
+           NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1
+#else
+           abs(systab->vol[0]->dirtyQw - systab->vol[0]->dirtyQr)
+#endif
+  );
+  fflush(stderr);
+#endif
   return MSleep(1000 * seconds);
 }
 
@@ -1172,45 +1227,47 @@ cont:
   return;
 }
 
-short Check_BlockMapped(int vol, u_int blkno)
-{ u_char *bitmap;
-
-  ASSERT(0 <= vol);                                     // valid vol[] index
-  ASSERT(vol < MAX_VOL);
-  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
-
-  MEM_BARRIER;
-  bitmap = (u_char *) systab->vol[vol]->map;
-
-  return bitmap[blkno >> 3] & (1 << (blkno & 7)) ? 0 : -1;
-}
-
 
 short Check_BlockNo(int vol, u_int blkno, int checks,
                         char *where, const char *file, int lno, int dopanic)
 {
-  char msg[128];
-  int inrange_failed = 0, map_failed = 0;
+  char msg[256];
+  u_char *bitmap = (u_char *) systab->vol[vol]->map;
+  int failed, oorange, unallocd;
+  char blkmsg[256];;
+  int i;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
-  if (checks & CBN_INRANGE)                             // out-of-range ?
-    inrange_failed = (blkno > systab->vol[vol]->vollab->max_block);
-  if (checks & CBN_MAPPED)                              // unmapped ?
-    map_failed = (Check_BlockMapped(vol, blkno) < 0);
+  oorange = unallocd = failed = 0;
 
+  if (checks & CBN_INRANGE)                             // out of range ?       
+    oorange = (blkno > systab->vol[vol]->vollab->max_block);
+  if (checks & CBN_ALLOCATED)                           // unallocated ?
+    unallocd = (0 == (bitmap[blkno >> 3] & (1 << (blkno & 7))));
+
+  failed = oorange || unallocd;
   if (!dopanic)                                         // just check ?
-  { return (inrange_failed || map_failed) ? -1 : 0;     //   return condition
+  { return failed ? -1 : 0;                             //   return condition
   }
 
-  if (inrange_failed || map_failed)                     // panic when failed
-  { sprintf((char *) msg, "%s(%s:%d): %s block (%d:%u) in file %s!!",
-                              where, file ? file : "unknown", lno,
-                              inrange_failed ? "out-of-range" : "unmapped",
-                              vol, blkno,
-                              systab->vol[vol]->file_name);
+  if (failed)                                           // panic when failed
+  { sprintf(blkmsg,"%s block (%d:%u) at level %d in file %s!! (writing = %d, TX=#%08llX)",
+                                oorange? "out-of-range" : "unallocated",
+                                vol, blkno, level,
+                                systab->vol[vol]->file_name,
+                                writing,
+                                0xFFFFFFFF & systab->vol[vol]->vollab->txid);
+    if (file)
+      sprintf((char *) msg, "%s(%s:%d): %s", where, file, lno, blkmsg);
+    else
+      sprintf((char *) msg, "%s(): %s", where, blkmsg);
+    for (i = 0; i < level; i++) {
+      if (!blk[i]) continue;
+      DBG(mv1log(0,"blk[%02d] = %d",i,blk[i]->block));
+    }
     panic((char *) msg);
   }
   return 0;
@@ -2061,4 +2118,15 @@ int SyncFD(int fd)
 #endif
 
   return rc;
+}
+
+
+void ClearLastBlk(void)
+{ int netjobs;          // #jobs + #net daemons
+
+  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
+  bzero(&systab->vol[volnum - 1]->last_blk_used[0],   // zot all
+                netjobs * sizeof(u_int));
+  bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
+                netjobs * sizeof(u_int));
 }

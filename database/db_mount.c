@@ -71,11 +71,7 @@ union semun {
 
 
 extern int rwlock_init();
-
 int DB_Daemon( int slot, int vol); 		// proto DB_Daemon
-#ifdef MV1_GBDRO
-void Free_GBDRO(gbd *ptr);                      // proto for R/O GBD release
-#endif
 
 //****************************************************************************
 // Init an environment
@@ -157,7 +153,6 @@ short DB_Mount( char *file,                     // database
   { gmb++;					// increase it
     n_gbd = (gmb * MBYTE) / hbuf[3];		// number of gbd
   }
-  n_gbd -= NUM_GBDRO;                           // remove the R/O GBDs
 
   syncjrn = 1;                                  // buffer flush w/ sync
   if (jkb < 0)                                  // if negative
@@ -174,7 +169,7 @@ short DB_Mount( char *file,                     // database
 
   volset_size = hbuf[2]				// size of head and map block
 	      + (hbuf[2] - SIZEOF_LABEL_BLOCK)	// change map
-	      + ((n_gbd + NUM_GBDRO) * sizeof(struct GBD))	// the gbd
+	      + (n_gbd * sizeof(struct GBD))	// the gbd
               + (gmb * MBYTE)		  	// mb of global buffers
               + hbuf[3]			       	// size of block (zero block)
               + jkb * KBYTE                     // size of JRN buf
@@ -226,7 +221,7 @@ short DB_Mount( char *file,                     // database
   systab->vol[vol]->num_gbd = n_gbd;		// number of gbds
 
   systab->vol[vol]->global_buf =
-    (void *) &systab->vol[vol]->gbd_head[n_gbd + NUM_GBDRO];//glob buffs
+    (void *) &systab->vol[vol]->gbd_head[n_gbd];//glob buffs
   systab->vol[vol]->zero_block =
     (void *) &(((u_char *)systab->vol[vol]->global_buf)[gmb*MBYTE]);
 						// pointer to zero blk
@@ -313,18 +308,8 @@ short DB_Mount( char *file,                     // database
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
 #endif
-#ifdef MV1_BLKSEM
-    gptr[i].curr_lock = 0;                      // block lock flag
-#endif
     gptr[i].vol = vol;                          // vol[] index
   }						// end setup gbds
-#ifdef MV1_GBDRO
-  for (j = 0; j < NUM_GBDRO - 1; j++, i++)      // setup R/O GBDs at the tail
-  { gptr[i].mem = (struct DB_BLOCK *) ptr;
-    ptr += vollab->block_size;			// point at next
-    Free_GBDRO(&gptr[i]);
-  }
-#endif
 
   i = close(dbfd);                              // close the database
 

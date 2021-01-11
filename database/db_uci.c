@@ -78,11 +78,9 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
   volnum = volume;					// set this
   writing = 1;						// writing
   level = 0;						// clear this
-  while (SemOp( SEM_GLOBAL, WRITE))                     // get write lock
-  { (void)Sleep(1);
-    if (partab.jobtab->attention)
-    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
-    }
+  s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
+  if (s < 0)						// on error
+  { return s;						// return it
   }
   if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);
@@ -153,11 +151,9 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   volnum = volume;					// set this
   writing = 1;						// writing
   level = 0;						// clear this
-  while (SemOp( SEM_GLOBAL, WRITE))			// get write lock
-  { (void)Sleep(1);
-    if (partab.jobtab->attention)
-    { return -(ERRMLAST+ERRZ51);			// for <Control><C>
-    }
+  s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
+  if (s < 0)						// on error
+  { return s;						// return it
   }
   if (systab->vol[volnum-1]->vollab == NULL)		// is it mounted?
   { SemOp( SEM_GLOBAL, -curr_lock);
@@ -187,11 +183,7 @@ short DB_UCIKill(int volume, int uci)			// kill uci entry
   systab->vol[volnum-1]->map_dirty_flag |= VOLLAB_DIRTY;// mark map dirty
   blk[level]->mem->last_idx = LOW_INDEX - 1;		// say no index
   Garbit(gb);						// garbage it
-  netjobs = systab->maxjob + systab->vol[0]->num_of_net_daemons;
-  bzero(&systab->vol[volnum - 1]->last_blk_used[0],     // zot all
-                        netjobs * sizeof(u_int)); 
-  bzero(&systab->vol[volnum - 1]->last_blk_written[0],  // zot all
-                        netjobs * sizeof(u_int));
+  ClearLastBlk();                                       // zot last_blk[]
   SemOp( SEM_GLOBAL, -curr_lock);
   return 0;						// exit
 }

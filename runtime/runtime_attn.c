@@ -44,6 +44,7 @@
 #include <sched.h>                              // for sched_yield()
 #include <sysexits.h> 				// for exit() condition
 #include <errno.h>                              // error stuf
+#include <time.h>                               // for time
 #include "mumps.h"                              // standard includes
 #include "proto.h"                              // standard prototypes
 #include "error.h"				// standard errors
@@ -255,6 +256,8 @@ int ForkIt(int cft)				// Copy File Table True/False
   (void)freopen(stderr_out, "w", stderr);	// redirect stderr
 #else
   (void)freopen("/dev/null", "w", stderr);	// redirect stderr
+  // sprintf(stderr_out, "%d.stderr", partab.jobtab->pid);
+  // (void)freopen(stderr_out, "w", stderr);	// redirect stderr
 #endif
 
   return ret;					// return -parent job#
@@ -266,6 +269,7 @@ int ForkIt(int cft)				// Copy File Table True/False
 
 void SchedYield()				// do a sched_yield()
 { 
+  systab->Mtime = time(0);                      // update M time
   (void)sched_yield();				// do it
   return;					// and exit
 }

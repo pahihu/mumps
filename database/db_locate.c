@@ -198,7 +198,7 @@ short Locate_next(u_char *out)				// point at next key
     { return -ERRM7;					// no, just exit
     }
     i = blk[level]->mem->right_ptr;			// get right block#
-    s = Get_block(i);					// attempt to get it
+    s = Get_block(i);			                // attempt to get it
     if (s < 0)                                        	// if we got an error
     { return s;                                       	// return it
     }
@@ -266,7 +266,7 @@ void LocateAllP(gbd *ptr,int level,const char *path,int line)// find key
       if (((int*) record)[0] != PTR_UNDEFINED)		// if not undefined
       { blknum = ((u_int*) record)[0];			// get blkno
         s = Check_BlockNo(volnum-1, blknum,             // check blknum, die
-                CBN_MAPPED | CBN_INRANGE,
+                CBN_ALLOCATED | CBN_INRANGE,    
                 "LocateAllP", path, line, 1);
       }
     }
