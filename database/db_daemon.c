@@ -994,7 +994,7 @@ void do_write()						// write GBDs
     panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
-  // NB. egy lancban egy volume-hoz tartoznak!
+  // NB. same volnums in a chain
   volnum = gbdptr->vol + 1;                             // set volnum
 
   if (!curr_lock)					// if we need a lock
@@ -1133,13 +1133,19 @@ int do_zot(int vol,u_int gb)				// zot block
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
   volnum = vol + 1;                                     // set volnum
-  while (SemOp( SEM_GLOBAL, WRITE));			// take a global lock
+  while (SemOp( SEM_GLOBAL, READ));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[vol]->vollab->block_size);
+      // NB. Setting last_accessed to zero could cause
+      //     indefinite waiting in Get_buffer(), when a READER
+      //     wants to read a block which is not cached, and
+      //     the global is modified by another job without a
+      //     LOCK.
+      //     WRITE lock does NOT help here either.
       ptr->last_accessed = (time_t) 0;			// mark as zotted
-      // ptr->block = 0;
+      /* NB. ptr->block will be cleared in do_write() or in do_free() */
       MEM_BARRIER;
       break;						// exit
     }
@@ -1271,7 +1277,7 @@ void do_free(int vol, u_int gb)				// free from map et al
       }
       else						// in use or not locked
       { ptr->last_accessed = (time_t) 0;		// mark as zotted
-        // ptr->block = 0;
+        /* NB. ptr->block will be cleared in do_write() */
       }
       break;						// and exit the loop
     }

@@ -1296,6 +1296,7 @@ u_int DB_GetDirty(int vol)
 { int i, num_gbd;
   u_int cnt;
   vol_def *curr_vol;
+  gbd *ptr;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -1305,9 +1306,12 @@ u_int DB_GetDirty(int vol)
   num_gbd = curr_vol->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-    if (curr_vol->gbd_head[i].dirty &&                  // dirty
-        curr_vol->gbd_head[i].block)                    //   AND has block
+  { ptr = &curr_vol->gbd_head[i];
+    if (ptr->block &&                                   // has a block
+        (ptr->dirty ||                                  //   AND dirty
+        (0 == ptr->last_accessed)))                     //    OR zotted
       cnt++;
+  }
 
   return cnt;
 }
