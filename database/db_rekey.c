@@ -485,10 +485,7 @@ void Un_key()
   u_char *uptr;						// a handy ptr
   u_char *lptr;						// a handy ptr
   u_int blkno;						// a block number
-  int mt_lvl[MAXTREEDEPTH];
-  int mtno, i;
 
-  mtno = 0;
   this_level = level;					// save for ron
 
   idx = (u_short *) blk[level]->mem;			// point at the block
@@ -541,15 +538,12 @@ void Un_key()
 	}
 	else						// lower level is empty
 
-	{ 
-          // mt_lvl[mtno++] = level;			// remember mt block
-#if 1
-          save_level = level;				// remember where we at
+	{ save_level = level;				// remember where we at
 	  blkno = 0;					// clear block#
 
 	  while (TRUE)
 	  { s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)				// if not - die
+	    if ((save_level == level) && (s != -ERRM7)) // if not - die
 	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
 	    if (Index > LOW_INDEX)			// if not first node
@@ -597,9 +591,10 @@ void Un_key()
 	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
 	  { blk[level]->dirty = (gbd *) 2;		// mark for write
 	  }
+          blk[xxx_level]->mem->type = 65;               // say its data
+          blk[xxx_level]->last_accessed = MTIME(0) + 86400; // clear last access
 	  Garbit(blk[xxx_level]->block);		// dump mt blk
 	  level = save_level;				// restore level
-#endif
 	}						// end empty block proc
 
       }
@@ -610,65 +605,6 @@ void Un_key()
     else
     {  break;						// no more to find
     }
-  }
-
-  for (i = 0; i < mtno; i++)
-  { level = mt_lvl[i];
-          save_level = level;				// remember where we at
-	  blkno = 0;					// clear block#
-
-	  while (TRUE)
-	  { s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)				// if not - die
-	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
-	    }
-	    if (Index > LOW_INDEX)			// if not first node
-	    { chunk = (cstring *) &iidx[idx[Index - 1]]; // point at prev
-	      record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
-	      Allign_record();				// align
-	      blkno = *(u_int *) record;		// get the number
-	      break;					// and exit loop
-	    }
-	    level--;					// up a level
-	    if (!level)					// if not found
-	    { panic("Un_key: failed to determine left edge");
-	    }
-	  }						// end while (TRUE)
-
-	  while (level < save_level)
-	  { xxx_level = level;				// remember this
-	    level = MAXTREEDEPTH - 1;			// use this one
-	    s = Get_block(blkno);
-	    if (s < 0)
-	    { panic("Un_key(): Get_block() failed in left block tree");
-	    }
-	    s = Locate(uptr);				// find key - must fail
-	    if (s != -ERRM7)				// if not - die
-	    { panic("Un_key: key locate in left edge didn't return -ERRM7");
-	    }
-	    chunk = (cstring *) &iidx[idx[Index - 1]]; // point at prev
-	    record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
-	    Allign_record();				// align
-	    blkno = *(u_int *) record;			// get the number
-	    if (blk[level]->dirty == (gbd *) 1)
-	    { blk[level]->dirty = NULL;			// free gbd
-	    }
-	    level = xxx_level;				// restore level
-	    level++;					// and increment it
-	  }
-	  xxx_level = MAXTREEDEPTH - 1;			// use this one
-	  level++;					// point at mt blk
-	  blk[xxx_level] = blk[level];			// remember that there
-	  s = Get_block(blkno);
-	  if (s < 0)
-	  { panic("Un_key(): Get_block() failed for left block");
-	  }
-	  blk[level]->mem->right_ptr = blk[xxx_level]->mem->right_ptr;
-	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
-	  { blk[level]->dirty = (gbd *) 2;		// mark for write
-	  }
-	  Garbit(blk[xxx_level]->block);		// dump mt blk
-	  level = save_level;				// restore level
   }
 
   level = this_level;					// restore level

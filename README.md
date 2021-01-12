@@ -20,6 +20,8 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * db_rekey fixes (level > 3)
+  * prevent changed Garbit() blocks to leave the global buffer
   * fixes from MUMPS V1 1.66 and 1.70
   * recursive indirection
   * $BP handling

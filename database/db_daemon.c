@@ -573,16 +573,12 @@ int do_zot(u_int gb)					// zot block
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[volnum-1]->vollab->block_size);
-      // NB. Since we have only a READ lock here, setting
-      //     last_accessed to zero could cause indefinite 
-      //     waiting in Get_buffer(), when a READER want to 
-      //     read a block which is not cached.  
-      //     It releases the READ lock and grabs a WRITE lock.
-      //     In between another process could delete the global
-      //     and the daemon here zeroes last_accessed.
-      //     The READER grabs the WRITE lock, it founds the block
-      //     in the cache, drops to READ lock, but last_accessed 
-      //     is zero and waits indefinitely.
+      // NB. Setting last_accessed to zero could cause
+      //     indefinite waiting in Get_buffer(), when a READER
+      //     wants to read a block which is not cached, and
+      //     the global is modified by another job without a
+      //     LOCK.
+      //     WRITE lock does NOT help here either.
       ptr->last_accessed = (time_t) 0;			// mark as zotted
       break;						// exit
     }

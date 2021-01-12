@@ -523,7 +523,7 @@ short Compress1()
       }
 	// Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;				// pretend it's data
-      blk[1]->last_accessed = MTIME(0);			// clear last access
+      blk[1]->last_accessed = MTIME(0) + 86400;		// clear last access
       Garbit(blk[1]->block);				// que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));	// clear last ref
@@ -571,7 +571,7 @@ short Compress1()
   Tidy_block();						// ensure it's tidy
   if (blk[level]->mem->last_idx < LOW_INDEX)		// if it's empty
   { blk[level]->mem->type = 65;				// pretend it's data
-    blk[level]->last_accessed = MTIME(0);		// clear last access
+    blk[level]->last_accessed = MTIME(0) + 86400;	// clear last access
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);				// que for freeing
     blk[level] = NULL;					// ignore

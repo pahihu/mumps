@@ -347,7 +347,7 @@ cont:
       }
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
-      ptr->last_accessed = MTIME(0);			// clear last access
+      ptr->last_accessed = MTIME(0) + 86400;	        // clear last access
       Garbit(ptr->block);				// dump the block
       rblk[level] = NULL;				// mark gone
     }							// end move to one
