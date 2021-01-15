@@ -479,7 +479,7 @@ Returns the number of elements in list *lst*.
 
 It is similar to `SET $PIECE(...)`. Set the list *lst* to the value
 given. *From* defaults to 1, *to* defaults to -1. If the 2 argument form
-is used it replaces the single element at *from* with the value of
+is used it insert the single element at *from* with the value of
 *expr*. If the value of *expr* is a list, it is stored as a single
 element. If the 3 argument form is used, it replaces the sublist from
 position *from* to position *to* with the value of *expr*. If the
