@@ -101,12 +101,19 @@ short Insert(u_char *key, cstring *data)                // insert a node
 
   ccc = 0;						// start here
   if ((key[0]) && (keybuf[0]))				// if any there
-  { while (key[ccc + 1] == keybuf[ccc + 1])		// while the same
+  { u_char keylen = key[0] < keybuf[0]? key[0] : keybuf[0];
+    for (ccc = 1; ccc <= keylen; ccc++)
+      if (key[ccc] != keybuf[ccc])
+        break;
+    ccc--;
+    /*
+    while (key[ccc + 1] == keybuf[ccc + 1])		// while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))	// at end of either
       { break;						// done
       }
       ccc++;						// increment ptr
     }
+    */
   }
   ucc = key[0] - ccc;					// and this
   rs = sizeof(short) + 2				// chunksiz + ccc + ucc
@@ -392,12 +399,19 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     }
     ccc = 0;						// start here
     if ((fk[0]) && (keybuf[0]))				// if any there
-    { while (fk[ccc + 1] == keybuf[ccc + 1])		// while the same
+    { u_char keylen = fk[0] < keybuf[0]? fk[0] : keybuf[0];
+      for (ccc = 1; ccc <= keylen; ccc++)
+        if (fk[ccc] != keybuf[ccc])
+          break;
+      ccc--;
+      /*
+      while (fk[ccc + 1] == keybuf[ccc + 1])		// while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))	// at end of either
         { break;					// done
         }
         ccc++;						// increment ptr
       }
+      */
     }
     ucc = fk[0] - ccc;					// get the ucc
     cs = 4 + ucc + (isdata ? (c->len + 2) : 4);		// chunk size = this
