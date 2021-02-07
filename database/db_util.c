@@ -102,12 +102,20 @@ short Insert(u_char *key, cstring *data)		// insert a node
   ccc = 0;            // start here
 #ifdef MV1_CCC_DOCOMP
   if ((key[0]) && (keybuf[0]))                          //   and any there
-  { while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
+  { 
+    u_char keylen = key[0] < keybuf[0] ? key[0] : keybuf[0];
+    for (ccc = 1; ccc <= keylen; ccc++)
+      if (key[ccc] != keybuf[ccc])
+        break;
+    ccc--;
+    /*
+    while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))        // at end of either
       { break;                                          // done
       }
       ccc++;                                            // increment ptr
     }
+    */
   }
 #endif
   ucc = key[0] - ccc;                                   // and this
@@ -576,12 +584,20 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     ccc = 0;                                            // start here
 #ifdef MV1_CCC_DOCOMP
     if ((fk[0]) && (keybuf[0]))                         // and if any there
-    { while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
+    { 
+      u_char keylen = fk[0] < keybuf[0] ? fk[0] : keybuf[0];
+      for (ccc = 1; ccc <= keylen; ccc++)
+        if (fk[ccc] != keybuf[ccc])
+          break;
+      ccc--;
+/*
+      while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))       // at end of either
         { break;                                        // done
         }
         ccc++;                                          // increment ptr
       }
+*/
     }
 #endif
     ucc = fk[0] - ccc;                                  // get the ucc

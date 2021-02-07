@@ -60,14 +60,24 @@
 
 u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy)
 { int i;                                                // handy int
+  u_char *pchunk;
+  int ccc, pccc, ucc;
 
   pKeyBuf[0] = 0;
 #ifdef MV1_CCC
+  pchunk = NULL; pccc = 0;
   for (i = LOW_INDEX; i <= pIndex; i++)			// incrementally build
   { chunk = (cstring *) &iidx[idx[i]];			// point at chunk
-    bcopy(&chunk->buf[2], &pKeyBuf[chunk->buf[0]+1],    // update the keybuf
-	  chunk->buf[1]);				// always copy
-    pKeyBuf[0] = chunk->buf[0] + chunk->buf[1];
+    ccc = chunk->buf[0];
+    ucc = chunk->buf[1];
+    if (ccc > pccc)
+    { bcopy(pchunk, &pKeyBuf[pccc+1], ccc-pccc);
+    }
+    pchunk = &chunk->buf[2]; pccc = ccc;
+  }
+  if (pchunk)
+  { bcopy(&chunk->buf[2], &pKeyBuf[ccc+1], ucc);          // update the keybuf
+    pKeyBuf[0] = ccc + ucc;
   }
 #else
   if (pIndex >= LOW_INDEX)				// valid index ?
@@ -101,7 +111,101 @@ u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy)
 
 #ifdef MV1_CCC
 
-short Locate(u_char *key)				// find key
+static int KeyCmp(u_char *k1, u_char *k2, int klen1, int klen2, int *match)
+{ int i, d;
+  int klen;
+
+  klen = klen1 < klen2 ? klen1 : klen2;
+  d = 0;
+  for (i = 0; i < klen; i++)
+  { if ((d = k1[i] - k2[i]))
+      break;
+  }
+  *match = i;
+  return d ? d : (klen1 - klen2);
+}
+
+short Locate(u_char *key)			        // find key
+{ int i, j;						// a handy int
+  int ccc, ucc;                                         // ccc, ucc parts
+  int match, newmatch;                                  // keybuf[] part matched
+  short s;
+  int pccc;                                             // prev. ccc
+  u_char *pchunk;                                       // prev. chunk
+  int upd;                                              // ucc updated?
+
+  idx = (u_short *) blk[level]->mem;			// point at the block
+  iidx = (int *) blk[level]->mem;			// point at the block
+  Index = LOW_INDEX;					// start at the start
+  match = 0; newmatch = 0;                              // keybuf[] part matched
+  pchunk = NULL; pccc = 0;                              // prev. keybuf data
+  while (TRUE)						// loop
+  { chunk = (cstring *) &iidx[idx[Index]];		// point at the chunk
+    ccc = chunk->buf[0];                                // get ccc, ucc
+    ucc = chunk->buf[1];
+
+    /* NB. We do not rebuild the differentially compressed key
+     * entirely, and match only those part of it, which is not
+     * already matched.
+     */
+    if (match && (ccc > pccc) && !upd)                  // update ccc key part
+    { bcopy(pchunk, &keybuf[pccc+1], ccc - pccc);       //   only
+    }
+    upd = 0;
+
+    if (!ccc)
+    { i = KeyCmp(&chunk->buf[2], &key[1], ucc, key[0], &match);
+    }
+    else if (match)
+    { if (ccc <= match)
+      { i = KeyCmp(&chunk->buf[2], &key[1+ccc], ucc, key[0]-ccc, &newmatch);
+        match = ccc + newmatch;
+      }
+      else // ccc > match
+      { if (ccc > key[0])
+        { i = KeyCmp(&keybuf[1+match], &key[1+match],   // compare until key[0]
+                ccc-match, key[0]-match, &newmatch);
+        }
+        else
+        { i = KeyCmp(&keybuf[1+match], &key[1+match],   // compare until ccc
+                ccc-match, ccc-match, &newmatch);
+          if (0 == i)                                   // KEQUAL?
+          { match = ccc;                                //   compare tail
+            i = KeyCmp(&chunk->buf[2], &key[1+ccc],
+                ucc, key[0]-ccc, &newmatch);
+          }
+        }
+        match = match + newmatch;
+      }
+    }
+
+    pccc = ccc; pchunk = &chunk->buf[2];                // save as previous
+
+    if (i == 0 /*KEQUAL*/)                              // same?
+    { s =  0;						// done
+      goto Return;
+    }
+
+    if (i > 0 /*K2_LESSER*/)			        // passed it?
+    { s = -ERRM7;					// no such
+      goto Return;
+    }
+    Index++;						// point at next
+    if (Index > blk[level]->mem->last_idx)		// passed the end
+    { s = -ERRM7;					// no such
+      goto Return;
+    }
+  }							// end locate loop
+Return:
+  if (!upd)                                             // ucc not updated?
+  { bcopy(&chunk->buf[2], &keybuf[ccc+1], ucc);         //  update it!
+  }
+  keybuf[0] = ccc + ucc;		                // and the size
+  record = (cstring *) &chunk->buf[ucc + 2];	        // point at the dbc
+  return s;
+}
+
+short LocateOld(u_char *key)				// find key
 { int i;						// a handy int
 
   idx = (u_short *) blk[level]->mem;			// point at the block
