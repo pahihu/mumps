@@ -652,7 +652,7 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET,WEB S ZR="INT^STA",$ET="D ERR^STA",EX=0
  S WEB=$P($D,",",2)=2
  S VOL=^$J($J,"GLOBAL_VOL")
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait,dirty"
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W:'WEB $&V(1,1),$C(27)_"[J" S:'INT INT=1
  I WEB D  I 1
  . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D MAX,PRT M O=N D SAVE I 1
@@ -673,7 +673,7 @@ PRT W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
  W ^$S("VOL",VOL,"SIZE")," x ",^$S("VOL",VOL,"BLOCK")/1024,"kb blocks - "
  W ^$S("VOL",VOL,"FREE")," available ("
  W $J(^$S("VOL",VOL,"FREE")/^$S("VOL",VOL,"SIZE")*100,0,2),"%)",!
- W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),?30,$J("RestT:",10),$J(^$S("resttime"),4),!
+ W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),?30,$J("RestT:",10),$J(^$S("resttime"),4),?45,$J("#dirty:",10),$J(^$S("VOL",VOL,"dirty"),5),!
  W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Max",10),!
  F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(M(%),10),!
  W "cache",?15,$J(N("logrd")-N("phyrd")/N("logrd")*100,10,2),"%",?30
@@ -3891,10 +3891,10 @@ SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
  d show("M-compiler version",$$compver("SYSINF"))
  d show("User/Process limit",$$cj_"/"_^$J)
  s W=25,D=";",COL=": " w !
- f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),^$S($P(r,D,3)))
+ f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),$G(^$S($P(r,D,3))))
  w ! s B=^$S("VOL",1,"BLOCK")
  f i=0:1 s r=$T(VOL+i),NF=$L(r,D) q:2=NF  d
- . s V=^$S("VOL",1,$P(r,D,3))
+ . X "S V="_$P(r,D,3)
  . s:3<NF X=$P(r,D,4),V=V_" ==> "_$$bytes(@X)
  . d show($P(r,D,2),V)
  d show("Journal New Global",^$G("$GLOBAL","JOURNAL"))
@@ -3912,25 +3912,28 @@ cj() ;current job no
  n x,cnt
  s cnt=0,x="" f  s x=$O(^$J(x)) q:x=""  s cnt=cnt+1
  Q cnt
-VOL ;System Volume Name;NAME
- ;Volume Database File;FILE
- ;Volume Block Size;BLOCK
- ;Volume Size;SIZE;V*B
- ;Volume Header Block Size;HEADER;(V-$$LBLKSIZE^%MV1)*8*B
- ;Volume Free Size;FREE;V*B
- ;Volume Writelock Flag;WRITELOCK
- ;Volume Readonly Flag;READONLY
- ;Volume Protected Flag;PROTECTED
- ;Volume Backup Revision;BACKUP_REVISION_NUMBER
- ;Volume Journaling;JOURNAL_AVAILABLE
- ;Volume Journal File;JOURNAL_FILE
- ;Volume Journal File Size;JOURNAL_SIZE;V
+volstat() ;volume status
+ n i,ff
+ f i="WRITELOCK","READONLY","PROTECTED","DUMMY" s ff=$G(^$S("VOL",1,i),0) Q:ff
+ Q:ff i Q ""
+ ;
+VOL ;System Volume Name;^$S("VOL",1,"NAME")
+ ;Volume Database File;^$S("VOL",1,"FILE")
+ ;Volume Block Size;$J(^$S("VOL",1,"BLOCK"),6)
+ ;Volume Size;$J(^$S("VOL",1,"SIZE"),8);$TR(V," ","0")*B
+ ;Volume Map Block Size;$J(^$S("VOL",1,"HEADER"),8);($TR(V," ","0")-$$LBLKSIZE^%MV1)*8*B
+ ;Volume Free Size;$J(^$S("VOL",1,"FREE"),8);$TR(V," ","0")*B
+ ;Volume Status;$$volstat
+ ;Volume Journaling;^$S("VOL",1,"JOURNAL_AVAILABLE")
+ ;Volume Journal File;^$S("VOL",1,"JOURNAL_FILE")
+ ;Volume Journal File Size;^$S("VOL",1,"JOURNAL_SIZE");V
  ;
 SYS ;$NEXT enabled;$NEXTOK
  ;Exponent junk;EOK
  ;DO/GO offset;OFFOK
  ;Arithmetic precision;PRECISION
  ;
+
 
 
 
