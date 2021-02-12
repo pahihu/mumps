@@ -183,7 +183,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   else
   { i = systab->vol[volnum - 1]->last_blk_written[MV1_PID];
                                                         // get last written
-    if ((i) &&                                          // used ?
+    if ((0) &&                                          // used ?
         ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwttry); // count a try
