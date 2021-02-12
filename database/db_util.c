@@ -867,14 +867,11 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     if (j < 0)		                                // if that's junk
     { return -(errno+ERRMLAST+ERRZLAST);
     }
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)				        // on fail
     { return (-errno+ERRMLAST+ERRZLAST);
     }
 
-#ifdef MV1_F_NOCACHE
-    j = fcntl(jfd, F_NOCACHE, 1);
-#endif
     lseek(jfd, 0, SEEK_SET);
     errno = 0;
     j = read(jfd, tmp, sizeof(u_int));	        	// read the magic
@@ -1048,7 +1045,7 @@ void OpenJournal(int vol, int printlog)
   { if (i < 0)                                          // if doesn't exist
     { ClearJournal(0, vol);                             // create it
     }                                                   // end create code
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)                                        // on fail
     { if (printlog)
         fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
@@ -1057,9 +1054,6 @@ void OpenJournal(int vol, int printlog)
     else                                                // if open OK
     { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-#ifdef MV1_F_NOCACHE
-      i = fcntl(jfd, F_NOCACHE, 1);
-#endif
       lseek(jfd, 0, SEEK_SET);
       errno = 0;
       i = read(jfd, tmp, sizeof(u_int));                // read the magic
@@ -2149,4 +2143,23 @@ void ClearLastBlk(void)
                 netjobs * sizeof(u_int));
   bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
                 netjobs * sizeof(u_int));
+}
+
+
+int OpenFile(const char *path, int mode)
+{ int fd, i;
+
+#if defined(MV1_F_NOCACHE)
+# if defined(__linux__)
+  fd = open(path, O_DIRECT | mode);
+# endif
+# if defined(__APPLE__)
+  fd = open(path, mode);
+  if (-1 != fd)
+    i = fcntl(fd, F_NOCACHE, 1);
+# endif
+#else
+  fd = open(path, mode);
+#endif
+  return fd;
 }

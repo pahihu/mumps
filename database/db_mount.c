@@ -115,7 +115,7 @@ short DB_Mount( char *file,                     // database
   if (gmb == 0) gmb = jobs/2;                   // default global buffers
   if (gmb < 1) gmb = 1;                         // but at least 1mb
 
-  dbfd = open(file, O_RDWR);                    // open the database read/write
+  dbfd = OpenFile(file, O_RDWR);                // open the database read/write
   if (dbfd < 1)                                 // if that failed
   { fprintf( stderr,
              "Open of database %s failed\n - %s\n", // complain
@@ -123,9 +123,6 @@ short DB_Mount( char *file,                     // database
              strerror(errno));                  // what was returned
     return -(errno+ERRMLAST+ERRZLAST);          // exit with error
   }                                             // end file create test
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfd, F_NOCACHE, 1);
-#endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of lable block failed\n - %s\n", // complain

@@ -664,16 +664,13 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
 
-  dbfds[0] = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
+  dbfds[0] = OpenFile(systab->vol[0]->file_name, O_RDWR);// open database r/wr
   if (dbfds[0] < 0)
   { do_log("Cannot open database file %s\n",
                   systab->vol[0]->file_name);
     return(errno);					// check for error
   }
 
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfds[0], F_NOCACHE, 1);
-#endif
   t = time(0);						// for ctime()
   do_log("Daemon %d started successfully\n", myslot);   // log success
 
@@ -1351,7 +1348,7 @@ void do_mount(int vol)                                  // mount volume
   if (dbfds[vol])
     return;
 
-  dbfds[vol] = open(systab->vol[vol]->file_name, O_RDWR);// open database r/wr
+  dbfds[vol] = OpenFile(systab->vol[vol]->file_name, O_RDWR);// open database r/wr
   if (dbfds[vol] < 0)
   { do_log("Cannot open database file %s - %s\n",
                   systab->vol[vol]->file_name,
@@ -1360,10 +1357,6 @@ void do_mount(int vol)                                  // mount volume
                     systab->vol[vol]->file_name);
     panic(msg);                                         // die on error
   }
-
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfds[vol], F_NOCACHE, 1);
-#endif
 
   if ((systab->vol[vol]->upto) && (!myslot))		// if map needs check
   { ic_map(-3, vol, dbfds[vol]);			// doit
@@ -1413,16 +1406,13 @@ int attach_jrn(int vol)
   		  systab->vol[vol]->vollab->journal_file);
       return 0;
     }
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)				        // on fail
     { do_log("Failed to open journal file %s\nerrno = %d\n",
 		  systab->vol[vol]->vollab->journal_file, errno);
       return 0;
     }
 
-#ifdef MV1_F_NOCACHE
-    j = fcntl(jfd, F_NOCACHE, 1);
-#endif
     lseek(jfd, 0, SEEK_SET);
     errno = 0;
     j = read(jfd, tmp, sizeof(u_int));	        	// read the magic

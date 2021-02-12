@@ -163,7 +163,7 @@ int INIT_Start( char *file,                     // database
   locksize = netjobs * LOCKTAB_SIZE;		// what we need for locktab
   locksize = (((locksize - 1) / pagesize) + 1) * pagesize; // round up
 
-  dbfd = open(file, O_RDWR);                    // open the database read/write
+  dbfd = OpenFile(file, O_RDWR);                // open the database read/write
   if (dbfd < 1)                                 // if that failed
   { fprintf( stderr,
              "Open of database %s failed\n - %s\n", // complain
@@ -171,9 +171,6 @@ int INIT_Start( char *file,                     // database
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfd, F_NOCACHE, 1);
-#endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of label block failed\n - %s\n", // complain
