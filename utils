@@ -649,33 +649,38 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
-INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET,WEB S ZR="INT^STA",$ET="D ERR^STA",EX=0
+INT(INT,%,VOL,O,N,EX,I,LS,D,T,ZR) N $ET,WEB,SVOL S ZR="INT^STA",$ET="D ERR^STA",EX=0
  S WEB=$P($D,",",2)=2
- S VOL=^$J($J,"GLOBAL_VOL")
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
+ S VOL=^$J($J,"GLOBAL_VOL"),SVOL=$NA(^$S("VOL",VOL))
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W:'WEB $&V(1,1),$C(27)_"[J" S:'INT INT=1
  I WEB D  I 1
- . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D MAX,PRT M O=N D SAVE I 1
- . E  D LOAD,GET Q:EX  D MAX,PRT M O=N D SAVE Q
- E  D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
+ . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D AVG,PRT M O=N D SAVE I 1
+ . E  D LOAD,GET Q:EX  D AVG,PRT M O=N D SAVE Q
+ E  D LOAD,GET Q:EX  M O=N F  D GET Q:EX  D AVG,PRT M O=N D SAVE Q:EX  R *%:INT
  W:'WEB $&V(23,1),! Q
-LOAD M O=^%STA("O") M M=^%STA("M") Q
-SAVE K ^%STA M ^%STA("O")=O M ^%STA("M")=M Q
+LOAD M O=^%STA("O") M T=^%STA("T") Q
+SAVE K ^%STA M ^%STA("O")=O M ^%STA("T")=T Q
 ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
-GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",VOL,$P(LS,",",I))
+GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=@SVOL@($P(LS,",",I))
  S N=$H Q
-MAX F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>$G(M(%),-1) M(%)=D
+AVG F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>0 T(%)=$G(T(%),0)+INT
  Q
-PRT W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
+PRT N DBOPS,IOPS
+ W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
- W "Volume: ",^$S("VOL",VOL,"NAME")
- W " in file: ",^$S("VOL",VOL,"FILE"),!
- W ^$S("VOL",VOL,"SIZE")," x ",^$S("VOL",VOL,"BLOCK")/1024,"kb blocks - "
- W ^$S("VOL",VOL,"FREE")," available ("
- W $J(^$S("VOL",VOL,"FREE")/^$S("VOL",VOL,"SIZE")*100,0,2),"%)",!
- W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),?30,$J("RestT:",10),$J(^$S("resttime"),4),?45,$J("#dirty:",10),$J(^$S("VOL",VOL,"dirty"),5),!
- W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Max",10),!
- F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(M(%),10),!
+ W "Volume: ",@SVOL@("NAME")
+ W " in file: ",@SVOL@("FILE"),!
+ W @SVOL@("SIZE")," x ",@SVOL@("BLOCK")/1024,"kb blocks - "
+ W @SVOL@("FREE")," available ("
+ W $J(@SVOL@("FREE")/@SVOL@("SIZE")*100,0,2),"%)",!
+ W ?15,$J("dQLen:",10),$J(^$S("dqlen"),7),?27,$J("RestT:",10),$J(^$S("resttime"),5),?44,$J("#dirty:",10),$J(@SVOL@("dirty"),5),!
+ S DBOPS=0 F %="dbget","dbset","dbkil","dbdat","dbord","dbqry" S DBOPS=DBOPS+N(%)-O(%)
+ S IOPS=0 F %="phyrd","phywt" S IOPS=IOPS+N(%)-O(%)
+ S DBOPS=DBOPS\INT,IOPS=IOPS\INT
+ W ?15,$J("DBOPS:",10),$J(DBOPS,7),?30,$J("IOPS:",10),$J(IOPS,5),!
+ W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Avg",10),!
+ F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(N(%)\$G(T(%),1),10),!
  W "cache",?15,$J(N("logrd")-N("phyrd")/N("logrd")*100,10,2),"%",?30
  S %=N("logrd")-O("logrd") I '% W $J("",11),!
  E  W $J(%-(N("phyrd")-O("phyrd"))/%*100,10,2),"%",!
