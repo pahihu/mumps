@@ -176,7 +176,7 @@
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#define GBD_HASH        4096                    // hash size for global buffers
+#define GBD_HASH        8192                    // hash size for global buffers
 #define NUM_DIRTY       8192                    // max queued dirty chains
 #define NUM_GARB        8192                    // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
