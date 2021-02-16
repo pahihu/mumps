@@ -255,7 +255,8 @@ FullGlobalKill:
     }							// end removing recs
 
     Tidy_block();					// tidy the block
-    if (!db_var.slen)                                   // KVALUE on global
+    if ((!db_var.slen) &&                               // KVALUE on global
+        (KILL_VAL & what))
     { s = Locate_next(0);                               // subscripted nodes ?
       if ((0 > s) && (s != -ERRM7))                     // got an error
         return s;                                       //   return
