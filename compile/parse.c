@@ -122,6 +122,7 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
   }
   while (TRUE)					// loop thru the arguments
   { ptr = comp_ptr;				// save compile pointer
+    sav_source_ptr = source_ptr;                // save position
     if (*source_ptr == '$')                     // $ZSEND in DO command
     { source_ptr++;
       if ((source_ptr[3] == '(') &&             // check 'ZSE('
@@ -132,12 +133,15 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
                (strncasecmp((char *) source_ptr, "zsend", 5) == 0))
       { source_ptr += 5;                        // position to '('
       }
-      else                                      // else complain
-        SYNTX
+      else
+      { source_ptr = sav_source_ptr;            // restore position
+        goto CheckChaining;
+      }
       *comp_ptr++ = FUNZSE;                     // compile opcode
       args = 0;
       goto CompileArgs;
     }
+CheckChaining:
     // if ((isalpha(*source_ptr) ||             // check chaining
     //     ('%' == *source_ptr)))
     { sav_source_ptr = source_ptr;              // save position
