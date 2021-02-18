@@ -217,14 +217,14 @@ EndTTLookup:
   { return -(ERRZ92 + ERRMLAST);			//   exit on error
   }
 
-#ifndef NDEBUG
+#ifdef MV1_CHKSUBS
   if (db_var.nsubs != 255)
   { int actsubs;
     UTIL_Key_Chars_In_Subs((char *)db_var.key, (int)db_var.slen,
                            255, &actsubs, NULL);
     if (db_var.nsubs != actsubs)
       BAD_MVAR();
-    // ASSERT(db_var.nsubs == actsubs); XXX
+    ASSERT(db_var.nsubs == actsubs);
   }
 #endif
   return 0;						// else return ok
