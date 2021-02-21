@@ -1,0 +1,117 @@
+Saved by %RS from [MGR,TEST] on 21 Feb 2021 at 15:45:20 PM
+%Object class.
+%Object
+%Object ;New class
+%ClassName(SELF) ;
+  quit $Piece(SELF,"@",2)
+%New(CLS) ; NB. CLS has the form "@CLS"
+  new id
+  set id=$ZIncrement(%zobj)
+  quit id_CLS
+  ;
+%Unknown(SELF,msg,a1,a2,a3) ;
+  ; dynamic object
+  if $Extract(msg,1,3)="Set" Set %zobj(SELF,$Extract(msg,4,99))=$Get(a1) quit:$QUIT SELF quit
+  if $Data(%zobj(SELF,msg)) quit:$QUIT %zobj(SELF,msg) quit
+  write !,"%Unknown^%Object SELF=",SELF," msg=",msg
+  write " a1=",$Get(a1,"undef")," a2=",$Get(a2,"undef")," a3=",$Get(a3,"undef")
+  quit:$QUIT "" quit
+  ;
+%Load(CLS,id) ;load object from global
+  new glo,SELF
+  set glo=CLS.%Storage
+  set SELF=CLS.%New
+  merge %zobj(SELF)=@glo@(id)
+  set %zobj(SELF,"%ID")=id
+  quit SELF
+  ;
+%Save(SELF) ;save object to global
+  new glo,id
+  set glo=SELF.%Storage
+  set id=$Get(%zobj(SELF,"%ID")) kill %zobj(SELF,"%ID")
+  if id="" set id=$ZIncrement(@glo)
+  merge @glo@(id)=%zobj(SELF)
+  set %zobj(SELF,"%ID")=id
+  quit:$QUIT SELF quit
+  ;
+%Storage(SELF) ;
+  quit "^"_$Piece(SELF,"@",2)_"D"
+  ;
+
+Animal
+Animal ;New class
+Speak(SELF) ;
+  write "Dunno what to do...",!
+  quit:$QUIT SELF quit
+  ;
+Name(SELF) ;
+  quit $Get(%zobj(SELF,"Name"))
+  ;
+SetName(SELF,pName) ;
+  set %zobj(SELF,"Name")=pName
+  quit:$QUIT SELF quit
+  ;
+Introduce(SELF) ;
+  write "My name is ",SELF.Name,!
+  write "I am ",SELF.Age,!
+  do SELF.Speak
+  write !!
+  quit
+  ;
+Example ;
+  new a,i,o1
+  kill %zobj,^DogD,^DuckD,^ToadD,^ValamiD
+  set a(1)="@Duck".%New
+  set a(2)="@Dog".%New
+  set a(3)="@Toad".%New
+  do a(1).SetName("Donald Duck").SetAge(87)
+  do a(2).SetName("Scooby Doo")
+  do a(3).SetName("Ed Bighead")
+  ;dinamikusan
+  do a(2).SetAge(51)
+  do a(3).SetAge(28)
+  ;bemutatkozas
+  for i=1:1:3 do a(i).Introduce
+  w "meg dinamikusabban",!
+  set o1="@Valami".%New
+  do o1.SetName("Dynamix").SetDOB($HOROLOG)
+  w "o1=",o1,!
+  w "o1.Name=",o1.Name,!
+  w "o1.DOB=",o1.DOB,!
+  ;
+  w "most mentsuk el oket",!
+  for i=1:1:3 do a(i).%Save kill %zobj(a(i))
+  w "aztan toltsuk be ujra",!
+  s a(1)="@Duck".%Load(1)
+  s a(2)="@Dog".%Load(1)
+  s a(3)="@Toad".%Load(1)
+  w "mutatkozzanak be megint",!
+  for i=1:1:3 do a(i).Introduce
+  quit
+  ;
+
+Dog
+Dog ;New class
+%Parents ;;Animal
+Speak(SELF) ;
+   write "Woof, woof!",!
+   quit:$QUIT SELF quit
+   ;
+
+Duck
+Duck ;New class
+%Parents ;;Animal
+Speak(SELF) ;
+   write "Quack, quack!",!
+   quit:$QUIT SELF quit
+   ;
+
+Toad
+Toad ;New class
+%Parents ;;Animal
+Speak(SELF) ;
+   write "Croak, croak!",!
+   quit:$QUIT SELF quit
+   ;
+
+
