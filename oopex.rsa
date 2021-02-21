@@ -60,32 +60,34 @@ Introduce(SELF) ;
   ;
 Example ;
   new a,i,o1
-  kill %zobj,^DogD,^DuckD,^ToadD,^ValamiD
+  kill %zobj,^DogD,^DuckD,^ToadD
   set a(1)="@Duck".%New
   set a(2)="@Dog".%New
   set a(3)="@Toad".%New
   do a(1).SetName("Donald Duck").SetAge(87)
   do a(2).SetName("Scooby Doo")
   do a(3).SetName("Ed Bighead")
-  ;dinamikusan
+  ;dynamic properties
   do a(2).SetAge(51)
   do a(3).SetAge(28)
-  ;bemutatkozas
+  ;let's introduce them
   for i=1:1:3 do a(i).Introduce
-  w "meg dinamikusabban",!
-  set o1="@Valami".%New
+  ;
+  w "more dynamic instance (class is NOT known)",!
+  set o1="@Something".%New
   do o1.SetName("Dynamix").SetDOB($HOROLOG)
   w "o1=",o1,!
   w "o1.Name=",o1.Name,!
   w "o1.DOB=",o1.DOB,!
   ;
-  w "most mentsuk el oket",!
+  w "now save them to globals...",!
   for i=1:1:3 do a(i).%Save kill %zobj(a(i))
-  w "aztan toltsuk be ujra",!
+  ;
+  w "let's load them...",!
   s a(1)="@Duck".%Load(1)
   s a(2)="@Dog".%Load(1)
   s a(3)="@Toad".%Load(1)
-  w "mutatkozzanak be megint",!
+  w "introduce them again...",!
   for i=1:1:3 do a(i).Introduce
   quit
   ;

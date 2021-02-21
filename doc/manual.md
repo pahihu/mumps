@@ -406,8 +406,8 @@ Calls dynamically `tag^class(obj,arg1,arg2...)`.
 *obj* should be in the form *value[@class]*. Note the class part
 is optional. When it is empty it will use `%Object` as routine
 name. For more information see README.OOP and see the example
-classes in oopex.rsa. In 20 lines the animals in the example
-can save and load themselves.
+classes in oopex.rsa (run `Example^Animal`). In 20 lines the 
+animals in the example can save and load themselves.
 
 ---
 
