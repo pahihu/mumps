@@ -280,7 +280,7 @@ void Queit(void)
 { Queit2(blk[level]);
 }
 
-#define MAX_GARB  (NUM_GARB/2)
+#define MAX_GARB  (2*NUM_GARB)
 u_int garbedBlocks[MAX_GARB];
 int initGarbed = 1;
 
