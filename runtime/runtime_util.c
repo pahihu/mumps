@@ -295,7 +295,7 @@ int mumps_version(u_char *ret_buffer)           // return version string
   struct utsname uts;                           // struct for uname
   i = uname(&uts);                              // get system info
   if (i == -1) return (-1);                      // exit on error
-  bcopy("MUMPS V", ret_buffer, 7);		// copy in MUMPS V
+  bcopy("MUMPS V", ret_buffer, 7);		// copy in "MUMPS V"
   i = 7;					// point past it
   if (VERSION_TEST)				// if an internal version
   { i += sprintf((char *)&ret_buffer[i], "%d.%02d T%d for ",
