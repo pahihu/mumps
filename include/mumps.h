@@ -85,16 +85,15 @@
 #define MAP_CHUNK	(4*1024)		// map is written in 4K chunks
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
-#define VERSION_MAJOR   1                       // Major version number
-#define VERSION_MINOR   70                      // Minor version number
-#define VERSION_TEST	3                       // Test version number
+#define VERSION_MAJOR   2                       // Major version number
+#define VERSION_MINOR   0                       // Minor version number
+#define VERSION_TEST	0                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
 #define MAX_NET_DAEMONS	10			// maximum of these
-// #define STORAGE         1024                    // what $STORAGE returns
 #ifdef  __APPLE__
 #define PRVGRP          80                      // admin in OSX
 #else

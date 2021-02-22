@@ -406,7 +406,7 @@ Calls dynamically `tag^class(obj,arg1,arg2...)`.
 *obj* should be in the form *value[@class]*. Note the class part
 is optional. When it is empty it will use `%Object` as routine
 name. For more information see README.OOP and see the example
-classes in oopex.rsa (run `Example^Animal`).
+classes in oopex.rsa.
 
 The root of the example hierarchy is the `Animal` class. There
 are three subclasses: `Dog`, `Duck` and `Toad`.
@@ -431,7 +431,7 @@ If the method is not found in the class hierarchy, the `%Unknown`
 method is called with the object instace, the message name and
 the message parameters. For example `%Unknown(SELF,msg,a1,a2,a3)`
 if you want to support 3 parameters only. The `msg` parameter
-is the called method name. See in the example hierarchy the `SetAge`
+is the method name called. See in the example hierarchy the `SetAge`
 call, which is not defined, the `%Unknown` method handles it.
 
 The method call is dynamic, it is actually a message send.
@@ -450,8 +450,8 @@ only, there are a few predefined things only. The predefined identifiers
 are:
 
 * the name `%Object` which is the root class
-* the label `%Parents`, which specify the super classes
-* the `%Unknown` method name which handles the unknown messages
+* the label `%Parents` which specify the superclasses
+* the `%Unknown` method which handles the unknown messages
 * the `%ZSEND` local array which is used by `$ZSEND`
 
 ---

@@ -1,7 +1,7 @@
-MV1R2 OOP FAQ
+MV2 OOP FAQ
 =============
 
-Q: How does MV1R2 supports OOP ?
+Q: How does MV2 supports OOP ?
 A: It uses a simple mapping: classes are implemented in routines,
    methods are tags within routines.
 

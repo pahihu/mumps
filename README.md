@@ -1,5 +1,5 @@
-MUMPS V1R2DEV
-=============
+MUMPS V2
+========
 
 **NOTE**: This is the **stable** branch. It contains fixes and changes considered stable from the [**development**](https://github.com/pahihu/mumps/tree/development) branch.
 
