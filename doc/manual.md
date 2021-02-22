@@ -1,6 +1,6 @@
-# A Terse Guide to MV1R2DEV
+# A Terse Guide to MUMPS V2
 
-Copyright 2018, 2019 Andras Pahi. All rights reserved.
+Copyright 2018-2021 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
@@ -20,13 +20,13 @@ Copyright 2018, 2019 Andras Pahi. All rights reserved.
 
 ## Foreword
 
-MV1 and its derivative MV1R2DEV is small and efficient like a Swiss 
-army knife. I do not repeat the MUMPS V1 manual of Ray Newman which 
-can be found at `doc/MUMPS.epub`. Beware it is not a pure 
+MUMPS V1 and its derivative MUMPS V2 is small and efficient like a 
+Swiss army knife. I do not repeat the MUMPS V1 manual of Ray Newman 
+which can be found at `doc/MUMPS.epub`. Beware it is not a pure 
 MUMPS-1995 implementation. If you want a MUMPS which does not contain 
-implementation specific commands and functions use MV1. In this text
-MUMPS refers to the MV1R2DEV implementation of the language which is
-based on MUMPS V1.
+implementation specific commands and functions use MV1 or MV1R2. 
+In this text MUMPS refers to the MUMPS V2 implementation of the 
+language which is based on MUMPS V1.
 
 
 
@@ -398,7 +398,7 @@ Atomically increments *glvn* by 1, or with the value of
 allocates a sequence of numbers to the MUMPS process and
 gives back one at a time.
 
----
+### Object support
 
 `$ZSEND(obj,"tag"[,arg1,arg2...])`
 
@@ -406,8 +406,53 @@ Calls dynamically `tag^class(obj,arg1,arg2...)`.
 *obj* should be in the form *value[@class]*. Note the class part
 is optional. When it is empty it will use `%Object` as routine
 name. For more information see README.OOP and see the example
-classes in oopex.rsa (run `Example^Animal`). In 20 lines the 
-animals in the example can save and load themselves.
+classes in oopex.rsa (run `Example^Animal`).
+
+The root of the example hierarchy is the `Animal` class. There
+are three subclasses: `Dog`, `Duck` and `Toad`.
+
+Run the `Example^Animal` routine. The subclasses can save and 
+load themselves from globals in about 20 lines.
+
+Every class resides in the an M routine which has the same name
+as the class. The methods are labels/tags in the routine.
+The first parameter of every method is the object instance, which
+receives the message (you can call it whatever you want: this, self etc.)
+The methods parameters follow the instance parameter.
+
+The object instance contains a simple string in the form of *value@class*.
+Every class inherits from the `%Object` class. If you want to specify
+more superclasses, put a `%Parents` label in your routine, and after a `;;`
+separator, list the superclasses separated by commas.
+The inheritance order is from right to left: the rightmost superclass
+is searched first, then we are going to the left.
+
+If the method is not found in the class hierarchy, the `%Unknown`
+method is called with the object instace, the message name and
+the message parameters. For example `%Unknown(SELF,msg,a1,a2,a3)`
+if you want to support 3 parameters only. The `msg` parameter
+is the called method name. See in the example hierarchy the `SetAge`
+call, which is not defined, the `%Unknown` method handles it.
+
+The method call is dynamic, it is actually a message send.
+We search for the specified label/tag in the routines according 
+to the specified class hierarchy.
+The method call is performed by `$ZSEND(instance,"message",param1,param2,...)`.
+The result of the method search is cached in the local array `%ZSEND`,
+to avoid the search when the same method is called on an instance of
+the same class.
+
+There are no instance variables, in the example the `%zobj` local array
+contains them, indexed by the instance identifiers.
+
+This object-oriented extension is fully dynamic, uses message sends
+only, there are a few predefined things only. The predefined identifiers
+are:
+
+* the name `%Object` which is the root class
+* the label `%Parents`, which specify the super classes
+* the `%Unknown` method name which handles the unknown messages
+* the `%ZSEND` local array which is used by `$ZSEND`
 
 ---
 
