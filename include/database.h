@@ -330,6 +330,7 @@ void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
 short Compress1();					// compress 1 block
 void Ensure_GBDs(int haslock);                          // wait for GBDs
+void Ensure_GarbQ(void);                                // wait for garbQ space
 short Check_BlockNo(int vol,u_int blkno,int checks,     // check blkno
            char *where,const char *file,int lno,int dopanic);
 #define CBN_INRANGE     1

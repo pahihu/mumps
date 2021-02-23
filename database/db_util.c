@@ -691,7 +691,7 @@ short Compress1()
   u_char gtmp[2*MAX_NAME_BYTES];                        // to find glob
 
   writing = 1;                                          // flag writing
-  Ensure_GBDs(0);                                       // ensure this many
+  Ensure_GarbQ();                                       // ensure this many
 
   curlevel = level;
   s = Get_data(curlevel);                               // get the data
@@ -1235,6 +1235,31 @@ start:
 
 cont:
   return;
+}
+
+void Ensure_GarbQ(void)
+{ int qpos, wpos, rpos, qlen, qfree;
+
+  while (1)
+  { Ensure_GBDs(0);                                     // get GBDs, has no lock
+#ifdef MV1_CKIT
+    qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
+                                                        // calc. free space
+#else
+    wpos = systab->vol[volnum - 1]->garbQw;
+    rpos = systab->vol[volnum - 1]->garbQr;
+    if (rpos <= wpos) qlen = wpos - rpos;
+    else
+      qlen = NUM_GARB + wpos - rpos;
+    qfree = NUM_GARB - qlen;
+#endif
+    if (qfree >= NUM_GARB/2)                            // more than half space
+      return;                                           //   empty? done
+
+    systab->vol[volnum - 1]->stats.gqstall++;           // count garbQ stall
+    SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+    Sleep(1);
+  }
 }
 
 
