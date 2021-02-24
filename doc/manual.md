@@ -244,6 +244,14 @@ notified and the client environments remove all local LOCKs related to
 the server MUMPS environment and the corresponding local MUMPS jobs get 
 lost remote LOCKs errors.
 
+The default timeout for sending replies from the server environment
+to the client environments is 30 seconds. If the server environment
+cannot deliver the reply the message is dropped.
+
+The default receive timeout in the client environment is 30 seconds.
+If the client environment cannot get a reply from the server environment
+an error is returned.
+
 
 ### MUMPS environment replicas
 

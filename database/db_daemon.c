@@ -284,6 +284,7 @@ void do_netdaemon(void)
   int client;						// client system ID
   int restart_phase = 1;
   int flags;                                            // $Query() flags
+  int to;                                               // timeout
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -296,7 +297,16 @@ void do_netdaemon(void)
 
   rv = nn_bind(sock, url);
   if (rv < 0)
-  { sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
+  { nn_close(sock);
+    sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
+    panic(msg);
+  }
+
+  to = 1000 * DGP_SNDTO;                                // set send timeout
+  rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_SNDTIMEO, &to, sizeof(to));
+  if (rv < 0)
+  { nn_close(sock);
+    sprintf(msg, "nn_setsockopt(%s): %s\n", url, nn_strerror(nn_errno()));
     panic(msg);
   }
 
