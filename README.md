@@ -13,7 +13,7 @@ Changes:
   * 31 character label/routine/local/global names
   * numbers in keys stored as packed decimals
   * multiple volume sets
-  * remote volume sets
+  * remote volume sets, local execution of remote routines
   * online backup and restore
   * HANG supports fractional seconds
   * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
