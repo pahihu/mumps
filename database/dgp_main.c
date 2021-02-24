@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include "error.h"
 #include "mumps.h"
+#include "proto.h"
 #include "dgp_database.h"
 #include "dgp.h"
 
@@ -28,7 +29,9 @@ short DGP_Get(int vol, mvar *var, u_char *buf)
   DGP_MkRequest(&req, DGP_GETV, 0, var, 0, NULL);
   s = DGP_Dialog(vol, &req, &rep);
   if (s < 0) return s;
-  bcopy(&rep.data.buf[0], buf, rep.data.len);
+  if (buf)
+  { bcopy(&rep.data.buf[0], buf, rep.data.len);
+  }
   return rep.data.len;
 }
 
@@ -81,14 +84,16 @@ short DGP_Order(int vol, mvar *var, u_char *buf, int dir, cstring *dat)
 }
 
 
-short DGP_Query(int vol, mvar *var, u_char *buf, int dir, cstring *dat)
+short DGP_Query(int vol, mvar *var, u_char *buf, int flags, cstring *dat)
 { DGPRequest req;
   DGPReply rep;
   short s;
   u_char flag;
 
   flag = 0;
-  if (  -1 == dir) flag += DGP_F_PREV;
+  if (flags & GLO_PREV)  flag += DGP_F_PREV;
+  if (flags & GLO_NOUCI) flag += DGP_F_NOUCI;
+  if (flags & GLO_NOVOL) flag += DGP_F_NOVOL;
   if (NULL != dat) flag += DGP_F_RDAT;
   DGP_MkRequest(&req, DGP_QRYV, flag, var, 0, NULL);
   s = DGP_Dialog(vol, &req, &rep);

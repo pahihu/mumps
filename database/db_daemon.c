@@ -283,6 +283,7 @@ void do_netdaemon(void)
   u_short msg_len;					// message length
   int client;						// client system ID
   int restart_phase = 1;
+  int flags;                                            // $Query() flags
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -453,10 +454,13 @@ void do_netdaemon(void)
         }
         break;
       case DGP_QRYV:
+        flags = GLO_DOCVT;
+        if (DGP_F_NOUCI & req.header.msgflag) flags += GLO_NOUCI;
+        if (DGP_F_NOVOL & req.header.msgflag) flags += GLO_NOVOL;
         s = DB_QueryEx(varptr, 
                        &rep.data.buf[0],
-                       DGP_F_PREV & req.header.msgflag ? -1 : 1,
-		       1, /* docvt */
+                       (DGP_F_PREV & req.header.msgflag) ? -1 : 1,
+                       flags,
 		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
         if (s < 0) goto Error;
         DGP_MkValue(&rep, s, &rep.data.buf[0]);

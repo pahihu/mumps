@@ -1171,7 +1171,7 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-    ret = LDB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
+    ret = LDB_QueryEx(var, ret_buffer, dir, GLO_DOCVT, dat);// else it's global
   }
   if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)

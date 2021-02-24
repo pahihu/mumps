@@ -35,6 +35,8 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_F_RDAT	128	/* request data for ORDV/QRYV/DATV */
 #define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
+#define DGP_F_NOUCI      32     /* original var didn't had UCI */
+#define DGP_F_NOVOL      16     /* original var didn't had VOL */
 
 /* NB. vvv--- same encoding as in mumps.h ---vvv */ 
 #define DGP_F_KSUBS	  2	/* KSUBSCRIPTS ^GLB */

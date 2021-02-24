@@ -110,11 +110,16 @@ short DB_KillEx(mvar *var, int what);            // remove sub-tree
 short DB_Mount( char *file, int volume, int gmb, int jkb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
-                                                 // get next subscript and value
-short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
-short DB_QueryEx(mvar *var, u_char *buf, int dir,// get next key
-                        int docvt, cstring *dat);//   and value
+short DB_Query(mvar *var, u_char *buf, int dir, int flags); // get next key
+
+#define GLO_NOVOL       1
+#define GLO_NOUCI       2
+#define GLO_PREV        4
+#define GLO_DOCVT       8
+                                                 // get next key and value
+short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat);
 short DB_QueryD(mvar *var, u_char *buf);	 // get next key and data
+
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
 short DB_Compress(mvar *var, int flags);	 // on line compressor
 int DB_Free(int vol);                            // return total free blocks

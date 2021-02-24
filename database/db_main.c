@@ -691,12 +691,11 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
-{ return DB_QueryEx(var, buf, dir, docvt, 0);
+short DB_Query(mvar *var, u_char *buf, int dir, int flags) // get next key
+{ return DB_QueryEx(var, buf, dir, flags, 0);
 }
 
-short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
-                        int docvt, cstring *dat)
+short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat)
 { short s;						// for returns
   int i;						// a handy int
   u_char *keyptr;					// ptr to key[]
@@ -712,11 +711,29 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
-  { if (!docvt)						// dont' convert ?
+  { if (!(flags & GLO_DOCVT))		                // dont' convert ?
       return -(ERRM7);					//   not supported
-    return DGP_Query(volnum-1, var, buf, dir, dat);
+    if (var->volset == 0)                               // default vol
+    { var->volset = partab.jobtab->vol;                 //   is current vol
+      flags += GLO_NOVOL;                               // no VOL specified
+    }
+    if (var->uci == 0)                                  // default uci
+    { if (var->name.var_cu[0] == '%')                   //   if percent var
+      { var->volset = 1;                                //     MGR on VOL1
+        var->uci = 1;
+      }
+      else
+      { var->uci = partab.jobtab->uci;                  //   else current uci
+      }
+      flags += GLO_NOUCI;                               // no UCI specified
+    }
+    db_var.volset = var->volset;                        // update db_var
+    db_var.uci    = var->uci;
+    db_var.name.var_xu = var->name.var_xu;
+    if (dir < 0) flags += GLO_PREV;
+    return DGP_Query(volnum-1, var, buf, flags, dat);
   }
-  if (dir < 0)						// if it's backward
+  if (dir < 0)				                // if it's backward
   { if (!db_var.slen)                                   // if not subscripted
     { buf[0] = '\0';                                    // null terminate ret
       if (curr_lock)                                    // if locked
@@ -821,13 +838,12 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     bcopy(&record->buf[0], &dat->buf[0], record->len);  //     copy it
     dat->len = record->len;
   }
-  db_var.uci = var->uci;				// copy
-  db_var.volset = var->volset;				//   original & new
-  //db_var.name.var_qu = var->name.var_qu;		//      data
+  db_var.uci = flags & GLO_NOUCI ? 0 : var->uci;	// copy
+  db_var.volset = flags & GLO_NOVOL ? 0 : var->volset;	//   original & new
   db_var.name.var_xu = var->name.var_xu;		//      data
   db_var.slen = keyptr[0];				//         to
   bcopy(&keyptr[1], &db_var.key[0], keyptr[0]);		//           db_var
-  if (!docvt)                                           // if no conversion
+  if (!(flags & GLO_DOCVT))                             // if no conversion
     return db_var.slen;                                 //   return slen
   return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return
 }
@@ -845,6 +861,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
 short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
 //  int i;						// a handy int
+  cstring dat;                                          // to hold GDP result
+  cstring nextvar;
 
   s = Copy2local(var,"QUERYD");			        // get local copy
   if (s < 0)
@@ -858,7 +876,21 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
     return s;
   }
   if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
-  { return -(ERRM7);					//   return error
+  { buf[0] = '\0';                                      // clear buf
+    s = DB_QueryEx(var, &nextvar.buf[0], 1, GLO_DOCVT, &dat);// get next w/ data
+    if (s < 0)                                          // check error
+    { return s;
+    }
+    // NB. DB_QueryEx() returns the buf length!
+    nextvar.buf[s] = '\0';                              // zero terminate
+    if (0 == s)
+      return -(ERRMLAST+ERRZ55);
+    s = UTIL_MvarFromCStr(&nextvar, var);               // convert nextvar str
+    if (s < 0)                                          //   to mvar
+    { return s;                                         // return if error
+    }
+    // NB. DB_QueryD() returns the length of the data!
+    return mcopy(&dat.buf[0], buf, dat.len);            // copy data, return len
   }
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
@@ -926,6 +958,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
 { short s;						// for returns
   int sav;						// save curr_lock
+  int remvol;                                           // flag remote volume
 
   if ((lock == -1) && (buf == NULL))			// just unlock?
   { if (curr_lock)					// if locked
@@ -943,7 +976,16 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     }
     return s;						// and return
   }
-  s = Get_data(0);					// attempt to get it
+
+  remvol = 0;                                           // assume not remote
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
+  if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
+  { remvol = 1;                                         // set remote
+    s = DGP_Get(volnum - 1, &db_var, buf);              // get data
+  }
+  else
+  { s = Get_data(0);					// attempt to get it
+  }
   // fprintf(stderr, "Get_data(): s=%d\r\n", s);
 
   if (s < 0)						// check for error
@@ -952,7 +994,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     }
     return s;						// and return
   }
-  if (buf != NULL)					// want data?
+  if (!remvol && (buf != NULL))				// want data?
   { s = mcopy(record->buf, buf, record->len);		// copy the data
   }
   if ((lock != 1) && (curr_lock))			// preserve lock?
