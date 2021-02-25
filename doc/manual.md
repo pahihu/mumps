@@ -178,6 +178,8 @@ parameter:
     SET ^$SYSTEM("VOL",2,"JOURNAL_BUFFER_SIZE")=-256 ;256KB jnl buffer, async flush
     SET ^$SYSTEM("VOL",2,"FILE")="/home/user/MUMPS/db/app.dat"
 
+Note: the uniqueness of the volume names is not checked.
+
 
 ### Remote volume sets
 
@@ -226,13 +228,24 @@ A simple solution is to keep the mountable remote volume names distinct
 and mount them on the clients with the same name as the remote volume
 name.
 
-Each MUMPS environment participating in a remote environment (either as a 
-server or client) should have a unique system ID, which should be specified
-on the command line, when you start the environment. The unique system ID
-is necessary to support remote locking, because each JOB will get a unique
-job number which is constructed from the system ID and the local JOB number.
+The remote volume label is transferred to the clients, so the clients
+can access the same UCIs as on the remote volume. On the clients you can
+execute the routines stored on the remote volume. Since the tokenized
+routine code is transferred to the client, the server and the client
+should have the same word length (32-32bits or 64-64bits) and the same
+byte order (eg. you cannot execute routines compiled on an IBM POWER
+server on x86_64 clients). In the client environment you should not
+compile routines on remote volumes.
 
-The maximum number of connected client and server MUMPS environments is 254.
+Each MUMPS environment participating in a remote environment (either
+as a server or client) should have a unique system ID, which should be
+specified on the command line, when you start the environment. The
+unique system ID is necessary to support remote locking, because each
+JOB will get a unique job number which is constructed from the system
+ID and the local JOB number.
+
+The maximum number of connected client and server MUMPS environments
+is 254.
 
 Timeouts specified on remote LOCKs are not used. Instead the system
 parameter `DGP_LOCK_TIMEOUT` is used on the server system to specify a
