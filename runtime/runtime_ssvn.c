@@ -369,6 +369,14 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->dgpPORT);// return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_send_timeout\0", 17) == 0))
+      { return itocstring(buf, systab->dgpSNDTO);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_recv_timeout\0", 17) == 0))
+      { return itocstring(buf, systab->dgpRCVTO);// return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_id\0", 7) == 0))
       { return itocstring(buf, systab->dgpID);	// return the value
       }
@@ -740,6 +748,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > DGP_MAX_LOCKTO)) return -ERRM28;
         systab->dgpLOCKTO = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_recv_timeout\0", 17) == 0))
+      { j = cstringtoi(data);
+	if (j < -1) return -ERRM28;
+        systab->dgpRCVTO = j;
 	return 0;				// and exit
       }
 

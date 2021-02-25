@@ -133,7 +133,8 @@ short DGP_Connect(int vol)
   { nn_close(sock);
     return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
-  to = 1000 * DGP_RCVTO;                                // set recv timeout
+  to = systab->dgpRCVTO;                                // set recv timeout
+  if (-1 != to) to *= 1000;                             //   in milliseconds
   rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_RCVTIMEO, &to, sizeof(to));
   if (rv < 0)
   { nn_close(sock);

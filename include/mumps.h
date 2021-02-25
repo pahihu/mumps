@@ -640,6 +640,8 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   VOLATILE int ZRestTime;			// Current daemon rest time
   u_char dgpURL[64];				// DGP URL base
   int dgpPORT;					// DGP port base
+  int dgpSNDTO;                                 // DGP send timeout
+  int dgpRCVTO;                                 // DGP receive timeout
   u_short dgpID;				// DGP system ID
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress

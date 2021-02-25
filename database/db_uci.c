@@ -133,7 +133,6 @@ short DB_UCISet(int volume, int uci, var_u name)	// set uci name
 short DB_UCIKill(int volume, int uci)			// kill uci entry
 { short s;						// for functions
   u_int gb;						// block number
-  int netjobs;						// #jobs + #netdaemons
 
   if ((volume > MAX_VOL) || (volume < 1))		// within limits?
   { return (-ERRM26);					// no - error

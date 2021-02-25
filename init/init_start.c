@@ -86,7 +86,8 @@ int INIT_Start( char *file,                     // database
 		int netdaemons,			// no of network daemons
 		int sysid,			// system ID
 		char *srvurl,			// server URL
-		int srvport)			// server port
+		int srvport,			// server port
+                int srvsndto)                   // server send timeout
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i;                                        // usefull int
@@ -327,6 +328,8 @@ int INIT_Start( char *file,                     // database
   systab->dgpID = sysid;			// system ID
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
+  systab->dgpSNDTO = srvsndto;                  // server send timeout
+  systab->dgpRCVTO = -1;                        // client recv timeout
   systab->dgpLOCKTO = 0;			// default LOCK timeout
   systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
   for (i = 0; i < 256; i++)			// clear DGP table

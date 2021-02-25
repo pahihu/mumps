@@ -302,7 +302,8 @@ void do_netdaemon(void)
     panic(msg);
   }
 
-  to = 1000 * DGP_SNDTO;                                // set send timeout
+  to = systab->dgpSNDTO;                                // set send timeout
+  if (-1 != to) to *= 1000;                             //   in milliseconds
   rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_SNDTIMEO, &to, sizeof(to));
   if (rv < 0)
   { nn_close(sock);

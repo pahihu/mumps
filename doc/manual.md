@@ -244,13 +244,19 @@ notified and the client environments remove all local LOCKs related to
 the server MUMPS environment and the corresponding local MUMPS jobs get 
 lost remote LOCKs errors.
 
-The default timeout for sending replies from the server environment
-to the client environments is 30 seconds. If the server environment
-cannot deliver the reply the message is dropped.
+There is no timeout for sending replies from the server environment
+to the client environments. You can set the timeout with the start
+parameter `-t`. The timeout parameter is in seconds, -1 means no
+timeout. You can query the send timeout value from the system parameter
+`DGP_SEND_TIMEOUT`. If the server cannot send a reply to a client, 
+the event is logged in the netdaemon log file.
 
-The default receive timeout in the client environment is 30 seconds.
-If the client environment cannot get a reply from the server environment
-an error is returned.
+There is no timeout for receiving server replies in the client 
+environment. You can set the timeout with the system parameter
+`DGP_RECV_TIMEOUT`.  The timeout parameter is in seconds, -1 means
+no timeout. If the client does not receive a reply from a server
+and the timeout parameter is set, it results in an error on the
+client side.
 
 
 ### MUMPS environment replicas
@@ -667,6 +673,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
+| DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |
+| DGP_SEND_TIMEOUT   | Server-side send timeout in seconds  | no |
 | DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |

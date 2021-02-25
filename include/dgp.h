@@ -47,8 +47,6 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_SYSID(x)	(((x)-1)/256)
 #define DGP_MAX_LOCKTO	60
 #define DGP_RESTARTTO	 5
-#define DGP_SNDTO       30
-#define DGP_RCVTO       30
 
 #define DGP_REPL_REQ	 1
 #define DGP_REPL_OPT	 0
