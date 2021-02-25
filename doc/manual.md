@@ -220,6 +220,12 @@ protocol to the IP address 192.168.1.23 on port 2002. The remote volume
 Using the volume "AAA" on the client system will transfer each database
 command to the remote system and the results are coming from there.
 
+Although you can specify a different local name for the remote volume,
+the supplied M utilities cannot handle this (like ^%RD, ^%GD etc.)
+A simple solution is to keep the mountable remote volume names distinct
+and mount them on the clients with the same name as the remote volume
+name.
+
 Each MUMPS environment participating in a remote environment (either as a 
 server or client) should have a unique system ID, which should be specified
 on the command line, when you start the environment. The unique system ID
