@@ -2131,6 +2131,12 @@ short run(long savasp, long savssp)		// run compiled code
 	if (var->name.var_cu[0] == '$') 	// dest is ssvn
 	{ if (toupper(var->name.var_cu[1]) != 'R')
 	    ERROR(-ERRM29)			// must be ^$R()
+          i = var2->volset;                     // check volume
+          if (0 == i)                           // no VOL?
+          { i = partab.jobtab->rvol;            //   use ROUTINE_VOL
+          }
+          if (systab->vol[i - 1]->local_name[0])// cannot compile
+            ERROR(-(ERRMLAST+ERRZ84))           //  on remote volume
 	  s = Compile_Routine(var,		// compile this routine
 			      var2,		// from here
 			      &sstk[ssp]);	// use this temp space
