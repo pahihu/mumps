@@ -143,6 +143,10 @@ int INIT_Start( char *file,                     // database
     { fprintf(stderr, "Invalid server port %d - must be 0 to 65535\n", srvport);
       return(EINVAL);                           // exit with error
     }
+    if (srvsndto < -1)
+    { fprintf(stderr,"Invalid server send timeout %d - must be -1 to ...\n", srvsndto);
+      return(EINVAL);
+    }
   } else {					// no net daemons
     strcpy(srvurl, "");				//   clear params
     srvport = -1;
