@@ -1,3 +1,5 @@
+
+
 MUMPS V1R2
 ==========
 
@@ -43,4 +45,4 @@ Fixes:
   * fixed Control-C handling
   * close database and journal file on dismount
 
-**NOTE**: Use the code! Good luck!
+**NOTE**: Don't forget you can use [RSM](https://gitlab.com/Reference-Standard-M/rsm). Good luck!
