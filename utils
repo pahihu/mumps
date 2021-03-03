@@ -521,7 +521,7 @@ JKILL(A,%) ;
 %RD ;Do a routine directory for current uci or MGR %
  D INT(0,".E") Q
 LIB D INT(0,"1""%"".E",1,"%","%") Q
-INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
+INT(FL,PAT,UCI,ST,END,G,%,VOL,F,LF,R,ZR) S ZR="INT^%RD"
  S WEB=$P($D,",",2)=2
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"ROUTINE"))
  S VOL=^$J($J,"ROUTINE_VOL")
@@ -533,12 +533,14 @@ INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
  I FL=2 W "Routine",?10," Size",?20,"Owner",?30,"Compiled",!!
  F  S R=$O(^[UCI,VOL]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
  .I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
- .I FL=1 W R,?10,^[UCI,VOL]$R(R,1),! Q
+ .I FL=1 W R,?10,$G(^[UCI,VOL]$R(R,1)),! Q
  .I FL=2 S F=^[UCI,VOL]$R(R,0),%=R D  Q
+ ..S LF=$L(F)
+ ..I $L(F)<27 S F=^[UCI,VOL]$R(R,0,1),LF=$G(^[UCI,VOL]$R(R,0,0),0)
  ..I $E(R)="%" S %="%25"_$E(R,2,9)
  ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
  ..E  W R
- ..W ?10,$J($L(F),5),?20,$$CVT^%JOURNLST($E(F,3,4)),?30
+ ..W ?10,$J(LF,5),?20,$$CVT^%JOURNLST($E(F,3,4)),?30
  ..S %=$$CVT^%JOURNLST($E(F,5,8)) W $$D^%D(%)," at "
  ..S %=$$CVT^%JOURNLST($E(F,9,12)) W $$T^%T(%),!
  .I FL=3 S @G@(R)=""
@@ -1860,7 +1862,8 @@ DECOMP
 DECOMP ;Decompile a MUMPS routine;AP-MV1R2 port. 11/20/18
  N  S GLOSIZE=$$GLOSIZE^%MV1,BE=$$BIGEND^%MV1
  R !,"Rou: ",ROU,! Q:ROU=""
- S C=$G(^$R(ROU,0)) I C="" W "?No such rou as ",ROU,! Q
+ S C=$G(^$R(ROU,0)) I $L(C)<27 S C=$G(^$R(ROU,0,1))
+ I C="" W "?No such rou as ",ROU,! Q
  W "Decompile of ",ROU,! D INT(C) Q
 INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
  S V=$$S(1) ;The compiler version
@@ -3908,8 +3911,11 @@ SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
 show(msg,val) ;show msg and val
  w !,$E(msg_DOTZ,1,W),COL,val
  Q
+rtnhead(rn) ;routine header
+ n r s r=$G(^$R(rn,0))
+ Q $S($L(r)<27:$G(^$R(rn,0,1)),1:r)
 compver(rn) ;return compiler version
- Q $$CVT^%JOURNLST($E($G(^$R(rn,0)),1,2))
+ Q $$CVT^%JOURNLST($E($$rtnhead(rn),1,2))
 bytes(n) ;convert to bytes
  n GB,MB,KB s KB=1024,MB=1024*KB,GB=1024*MB
  Q $S(GB-1<n:$J(n/GB,0,2)_"GB",MB-1<n:$J(n/MB,0,2)_"MB",KB-1<n:$J(n/KB,0,0)_"KB",1:n_"B")

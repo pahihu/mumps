@@ -288,7 +288,8 @@ short DB_GetEx(mvar *var, 				// get global data
     { s = itocstring(buf, *(u_int *) record);		// block number
     }
     else
-    { s = mcopy(record->buf, buf, record->len);		// copy the data
+    {                                                   // copy the data
+      s = buf ? mcopy(record->buf, buf, record->len) : record->len;
     }
   }
   if (curr_lock)		                        // if locked
@@ -297,6 +298,171 @@ short DB_GetEx(mvar *var, 				// get global data
     SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_SetLong
+// Descript: Set long data (>32K) in mvar
+// Input(s): Pointer to mvar to set
+//           Length of data
+//	     Pointer to buffer for data
+// Return:   String length -> Ok, negative MUMPS error
+//
+// Data is stored as
+//    ^G=N (number of chunks)
+//    ^G(0)=length of data
+//    ^G(1)=data chunk 1
+//    ...
+//    ^G(N)=data chunk N
+
+int DB_SetLong(mvar *var, int len, u_char *data)
+{ u_char var_nsubs, var_slen;                           // var #subs, subs len
+  int chunk_size;                                       // chunk size
+  cstring cptr;                                         // temporary storage
+  int i, n, nchunks;                                    // handy ints
+  short s;                                              // status
+
+  var_nsubs = var->nsubs;                               // save nsubs, slen
+  var_slen  = var->slen;
+  chunk_size = (systab->vol[volnum-1]->vollab->block_size * 9) / 10;
+                                                        // 90% of block size
+
+  if (len < chunk_size)                                 // if data fits
+  { bcopy(data, &cptr.buf[0], len);                     // copy to local
+    cptr.len = len;                                     //   buffer
+    return DB_Set(var, &cptr);                          // set as short
+  }
+
+  cptr.len = itocstring(&cptr.buf[0], 0);               // store length at 0
+  s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);// append "0" to key
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  var->slen = var_slen + s;                             // adjust key length
+  cptr.len = itocstring(&cptr.buf[0], len);             // cvt len to string
+  s = DB_Set(var, &cptr);                               // set in DB
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+
+  i = len; nchunks = 0;
+  while (0 < i)
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    cptr.len = itocstring(&cptr.buf[0], ++nchunks);     // add chunk to key
+    s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    var->slen = var_slen + s;                           // adjust key length
+    n = chunk_size;                                     // cpy chunk_size bytes
+    if (i < n)                                          //   OR i
+    { n = i;                                            //   whatever is less
+    }
+    bcopy(data, &cptr.buf[0], n);                       // copy n bytes
+    cptr.len = n;
+    s = DB_Set(var, &cptr);                             // set chunk
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    i -= n; data += n;                                  // advance input ptr
+  }
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  cptr.len = itocstring(&cptr.buf[0], nchunks);         // cvt #chunks to string
+  s = DB_Set(var, &cptr);                               // store #chunks at var
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  return len;
+ErrOut:
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  DB_Kill(var);                                         // clean-up data
+  return s;
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_GetLong
+// Descript: Get long data (>32K) in mvar (see DB_SetLong)
+// Input(s): Pointer to mvar to get
+//	     Pointer to buffer for data
+// Return:   String length -> Ok, negative MUMPS error
+
+int DB_GetLong(mvar *var, u_char *buf)
+{ u_char var_nsubs, var_slen;                           // var #subs,subs len
+  int i, nchunks, len;                                  // handy ints
+  cstring cptr;                                         // temporary storage
+  short s;                                              // status
+
+  var_nsubs = var->nsubs;                               // save nsubs, slen
+  var_slen  = var->slen;
+
+  s = Ddata(&cptr.buf[0], var);                         // any subscripts?
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  i = atoi((char *)&cptr.buf[0]);
+  if (i < 10)                                           // no subscripts
+  { // fprintf(stderr,"DB_GetLong: no subscripts\r\n");
+    return DB_Get(var, buf);                            // get short
+  }
+
+  cptr.len = itocstring(&cptr.buf[0], 0);               // get length at 0
+  s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);// append "0" to key
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  var->slen = var_slen + s;                             // adjust key length
+  s = DB_Get(var, &cptr.buf[0]);                        // get length
+  if (s < 0)
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  len = atoi((char *)&cptr.buf[0]);                     // cvt length
+  // fprintf(stderr,"DB_GetLong: len = %d\r\n",len);
+  if (NULL == buf)                                      // no buf?
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    return len;                                         //   just return len
+  }
+
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  s = DB_Get(var, &cptr.buf[0]);                        // get #chunks
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  nchunks = atoi((char *)&cptr.buf[0]);                 // cvt nchunks
+  // fprintf(stderr,"DB_GetLong: nchunks = %d\r\n",nchunks);
+
+  i = 1; len = 0;
+  while (i <= nchunks)                                  // read all chunks
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    cptr.len = itocstring(&cptr.buf[0], i);             // add chunk to key
+    s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    var->slen = var_slen + s;                           // adjust key length
+    s = DB_Get(var, buf);                               // get chunk data
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    buf += s; len += s;                                 // advance out buffer
+    i++;
+  }
+  // fprintf(stderr,"DB_GetLong: returned %d\r\n",len);
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  return len;
+ErrOut:
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  return s;                                             // return status
 }
 
 //-----------------------------------------------------------------------------
@@ -939,6 +1105,15 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
   { SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count
+}
+
+short Lock_GBD(void)                                    // read lock SEM_GLOBAL
+{ return SemOp(SEM_GLOBAL, READ);
+}
+
+void Unlock_GBD(void)                                   // unlock SEM_GLOBAL
+{ if (curr_lock)
+    SemOp(SEM_GLOBAL, -curr_lock);
 }
 
 //-----------------------------------------------------------------------------

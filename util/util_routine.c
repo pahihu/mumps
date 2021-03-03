@@ -355,8 +355,9 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   s = UTIL_Key_BuildEx(&rouglob, cptr, &rouglob.key[s]); // second subs
   if (s < 0) return NULL;
   rouglob.slen = rouglob.slen + s;		// save count so far
-  s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
-  if (s < 1) return NULL;			// no such
+  // s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
+  i = DB_GetLong(&rouglob, NULL);
+  if (i < 1) return NULL;			// no such
   s = SemOp(SEM_ROU, -systab->maxjob);		// write lock & try again
   if (s < 0) return NULL;			// no such
 
@@ -375,18 +376,19 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
     ptr = ptr->fwd_link;			// point at the next one
   }						// end while loop
 
-  s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
-  if (s < 1)					// if it's gone
-  { s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+  // s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
+  i = DB_GetLong(&rouglob, NULL);
+  if (i < 1)					// if it's gone
+  { // s = DB_GetLen(&rouglob, -1, NULL);       // un-lock the GBD
     s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
     return NULL;				// say no such
   }
-  size = s + RBD_OVERHEAD + 1;			// space required
+  size = i + RBD_OVERHEAD + 1;			// space required
   if (size & 7) size = (size & ~7) + 8;		// rount up to 8 byte boundary
   ptr = Routine_Find(size);			// find location
   if (ptr == NULL)				// no space mate!!
   { s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
-    s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+    // s = DB_GetLen(&rouglob, -1, NULL);	// un-lock the GBD
     return (rbd *)(-1);				// say no space
   }
   if (p == NULL)				// listhead for this hash
@@ -400,10 +402,12 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   ptr->rnam.var_xu = routine;			// the routine name
   ptr->uci = uci;				// the uci
   ptr->vol = vol;				// current volume
-  ptr->rou_size = s;				// save the size
-  s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
+  ptr->rou_size = i /*s*/;			// save the size
+  // s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
+  i = DB_GetLong(&rouglob, (u_char *) &ptr->comp_ver); // get the routine
+  // fprintf(stderr,"get the routine=%d\r\n",i);
 
-  if (s != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
+  if (i != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
 
   ptr->tag_tbl += RBD_OVERHEAD;			// adjust for rbd junk
   ptr->var_tbl += RBD_OVERHEAD;			// adjust for rbd junk

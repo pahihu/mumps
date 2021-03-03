@@ -367,7 +367,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
   line = (cstring *) stack;			// for source lines
-  code = stack + sizeof(cstring);		// where the code goes
+  code = stack + 2*sizeof(cstring);		// where the code goes
   cptr = (cstring *) temp;			// point at temp space
 
   //for (i = 0; i < 256; var_tbl[i++].var_qu = 0); // clear var table
@@ -687,7 +687,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   bcopy(&s, p, sizeof(short));
   p += sizeof(short);
   i = p - line->buf + (comp_ptr - code) + i + j; // total size
-  if (i > MAX_STR_LEN) 
+  if (i > MAXROUSIZ)
   { comperror(-(ERRZ54+ERRMLAST));		// complain
     if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
     return -ERRM75;				// ignore the rest
@@ -702,7 +702,7 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   rou->slen  = rou_slen;
   s = UTIL_Key_BuildEx(rou, cptr, &rou->key[rou_slen]); // build the key
   rou->slen = rou_slen + s;			// store the new length
-  s = DB_Set(rou, line);			// set it
+  s = DB_SetLong(rou, i, line->buf);	        // set it
   if (same)
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
     Routine_Delete(rounam.var_xu, rou->uci, rou->volset); // delete the routine

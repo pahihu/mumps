@@ -120,6 +120,10 @@ short DB_Query(mvar *var, u_char *buf, int dir, int flags); // get next key
 short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat);
 short DB_QueryD(mvar *var, u_char *buf);	 // get next key and data
 
+short Lock_GBD(void);                            // lock SEM_GLOBAL
+void Unlock_GBD(void);                           // unlock SEM_GLOBAL
+int DB_SetLong(mvar *var, int len, u_char *data);// set long data to global
+int DB_GetLong(mvar *var, u_char *buf);          // get long data from global
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
 short DB_Compress(mvar *var, int flags);	 // on line compressor
 int DB_Free(int vol);                            // return total free blocks

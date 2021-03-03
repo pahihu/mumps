@@ -317,7 +317,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       return LCK_Get(subs[0], buf);		// doit and exit
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       if (nsubs == 2)
         if (strncasecmp( (char *) subs[1]->buf, "character\0", 10) == 0)
 	  return mcopy((u_char *)"M", buf, 1);	// just an M
@@ -1325,7 +1325,7 @@ short SS_Data(mvar *var, u_char *buf)           // get $DATA()
       return 1;					// and return
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       return DB_Data(var, buf);			// let the database module doit
     case 'S':					// $SYSTEM
       return (-ERRM38);				// junk
@@ -1537,7 +1537,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
       return LCK_Order(subs[0], buf, dir);	// doit and exit
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       return DB_Order(var, buf, dir);		// let the database module doit
     case 'S':					// $SYSTEM
       if ((nsubs == 2) &&

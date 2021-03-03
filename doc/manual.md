@@ -752,7 +752,7 @@ MUMPS with commands/functions written in MUMPS
 | --------------------------------- | ------------------------ |
 | Language			    | M-1995 with extensions   |
 | Maximum identifier length	    | 31 chars		       |
-| Maximum routine object size	    | min(block size, 32KB)    |
+| Maximum routine object size	    | 64KB                     |
 | Maximum local variable length	    | 32KB		       |
 | Maximum number of volumes	    | 16		       |
 | Volume block size		    | 4KB - 256KB	       |
