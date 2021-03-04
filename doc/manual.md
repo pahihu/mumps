@@ -340,7 +340,22 @@ same file. When `RESTORE_FILE` does not exists it is created.
 	SET ^$S("RESTORE_FILE")="/path/to/volume" ;output volume file
 	SET ^$S("BACKUP_VOLUMES")=2               ;restore 2nd volume from backup
 	SET ^$S("BACKUP_FILE")="/path/to/backup"  ;input backup file
-	
+
+
+### Routine object size
+
+The maximum routine object size is 64KB. This is independent of the database
+block size. The tokenized object code is stored in multiple nodes, if it does
+not fit in 90% of the database block size.
+
+The general layout for the multiple node object code storage is:
+
+        ^$ROUTINE("RTN",0)=number of chunks
+        ^$ROUTINE("RTN",0,0)=routine object code size
+        ^$ROUTINE("RTN",0,1)=object code chunk 1
+        ...
+        ^$ROUTINE("RTN",0,N)=object code chunk N
+
 
 ### MV1API
 
@@ -753,6 +768,7 @@ MUMPS with commands/functions written in MUMPS
 | Language			    | M-1995 with extensions   |
 | Maximum identifier length	    | 31 chars		       |
 | Maximum routine object size	    | 64KB                     |
+| Maximum lines in a routine        | 32767                    |
 | Maximum local variable length	    | 32KB		       |
 | Maximum number of volumes	    | 16		       |
 | Volume block size		    | 4KB - 256KB	       |
