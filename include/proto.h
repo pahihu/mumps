@@ -196,7 +196,7 @@ short SQ_Force(cstring *device,
 //****************************************************************************
 // Compiler
 //
-short Compile_Routine(mvar *rou, mvar *src, u_char *stack); // whole routine
+int Compile_Routine(mvar *rou, mvar *src, u_char *stack); // whole routine
 void eval();					// compiler
 void evalx(int chain);				// compiler, chaining
 void parse();					// ditto

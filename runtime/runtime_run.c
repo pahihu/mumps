@@ -2137,10 +2137,10 @@ short run(long savasp, long savssp)		// run compiled code
           }
           if (systab->vol[i - 1]->local_name[0])// cannot compile
             ERROR(-(ERRMLAST+ERRZ84))           //  on remote volume
-	  s = Compile_Routine(var,		// compile this routine
+	  j = Compile_Routine(var,		// compile this routine
 			      var2,		// from here
 			      &sstk[ssp]);	// use this temp space
-	  if (s < 0) ERROR(s)			// give up on error
+	  if (j < 0) ERROR(j)			// give up on error
 	  break;
 	}
 
@@ -3688,10 +3688,10 @@ short run(long savasp, long savssp)		// run compiled code
 	s = UTIL_Key_BuildEx(var2, ptr1, &var2->key[0]); // build the key
 	if (s < 0) ERROR(s)			// give up on error
 	var2->slen = s;				// save the length
-	s = Compile_Routine((mvar *) NULL,	// don't compile a routine
+	i = Compile_Routine((mvar *) NULL,	// don't compile a routine
 			    var2,		// check this one
 			    &sstk[ssp]);	// use this temp space
-	if (s < 0) ERROR(s)			// give up on error
+	if (i < 0) ERROR(i)			// give up on error
 	cptr = (cstring *) var2;		// reuse the space
 	s = itocstring(cptr->buf, s);		// copy in the number
 	cptr->len = s;				// save length
