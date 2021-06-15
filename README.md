@@ -22,6 +22,7 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * DB lock-up with a small global buffer
   * faster Locate()
   * db_rekey fixes (level > 3)
   * prevent changed Garbit() blocks to leave the global buffer

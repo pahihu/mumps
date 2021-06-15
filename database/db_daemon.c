@@ -567,7 +567,7 @@ int do_zot(u_int gb)					// zot block
 		+ (off_t) systab->vol[volnum-1]->vollab->header_bytes;
 
   CHKPT;
-  while(SemOp(SEM_GLOBAL, READ));			// take a global lock
+  while(SemOp(SEM_GLOBAL, WRITE));			// take a global lock
   CHKPT;
   ptr = systab->vol[volnum-1]->gbd_hash[gb & (GBD_HASH - 1)]; // get head
   while (ptr != NULL)					// for entire list

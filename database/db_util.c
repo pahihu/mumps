@@ -317,6 +317,7 @@ void Tidy_block()					// tidy current blk
   assert(curr_lock == WRITE);
   ptr = blk[level];					// remember current
   Get_GBD();						// get another
+  assert(ptr != blk[level]);
   bzero(blk[level]->mem, systab->vol[volnum-1]->vollab->block_size); // zot
   blk[level]->mem->type = ptr->mem->type;		// copy type
 

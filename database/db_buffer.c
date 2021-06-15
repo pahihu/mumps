@@ -378,18 +378,20 @@ void Get_GBD()						// get a GBD
 
   assert(curr_lock == WRITE);
 start:
+  hash_start = systab->vol[volnum-1]->hash_start;       // last hash start
+
   if (systab->vol[volnum-1]->gbd_hash [GBD_HASH])	// any free?
   { blk[level]
       = systab->vol[volnum-1]->gbd_hash [GBD_HASH];	// get one
     systab->vol[volnum-1]->gbd_hash [GBD_HASH]
       = blk[level]->next;				// unlink it
+    hash = hash_start;
     goto exit;						// common exit code
   }
 
   now = MTIME(0);					// get current time
   old = now + 1;					// remember oldest
   exp = now - gbd_expired;				// expired time
-  hash_start = systab->vol[volnum-1]->hash_start;       // last hash start
 
   i = (hash_start + 1) & (GBD_HASH - 1);		// where to start
   while (TRUE)						// loop
@@ -448,6 +450,9 @@ found:
     goto start;						// and try again
   }
 
+  if (-1 == hash)
+  { panic("Get_GBD: internal error 1 (-1 == hash)");      // die
+  }
   ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
   if (ptr == oldptr)					// is this it
   { systab->vol[volnum-1]->gbd_hash[hash] = ptr->next;	// unlink it
@@ -461,6 +466,9 @@ found:
   blk[level] = oldptr;					// store where reqd
 
 exit:
+  if (-1 == hash)
+  { panic("Get_GBD: internal error 2 (-1 == hash)");      // die
+  }
   systab->vol[volnum-1]->hash_start = hash;             // save hash start
   blk[level]->block = 0;				// no block attached
   blk[level]->next = NULL;				// clear link
