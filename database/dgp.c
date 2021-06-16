@@ -23,7 +23,7 @@
 #define NN_RCVTIMEO     0
 int nn_errno() { return EINVAL; }
 int nn_socket(int domain, int protocol) { return EINVAL; }
-int nn_close(int s);
+int nn_close(int s) { return EBADF; }
 int nn_bind(int s, const char *addr) { return EINVAL; }
 int nn_connect(int s, const char *addr) { return EINVAL; }
 int nn_shutdown(int s, int how) { return EINVAL; }
