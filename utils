@@ -571,7 +571,7 @@ INT(FILE,NOSAY,%,A,R,EOF,NR,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%
  I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
  U 1 R R F  S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
  .I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
- .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)),EOF=$A($K)=255 Q:EOF  Q:(""'=A(%))&(" "'=$E(A(%)))&(1=$L(A(%)," "))&(0=$F(A(%),"("))
+ .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)),EOF=$A($K)=255 Q:EOF  Q:(""'=A(%))&(" ;"'[$E(A(%)))&(1=$L(A(%)," "))&(0=$F(A(%),"("))
  .I 'EOF S NR=A(%) K A(%) I 1
  .E  S NR=""
  .D COMP S R=NR
