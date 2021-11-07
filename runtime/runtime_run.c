@@ -2284,7 +2284,7 @@ short run(long savasp, long savssp)		// run compiled code
 	if (((args) || (X_Empty(tag))) && (offset))	// can't do that
 	{ ERROR(-ERRM20)
 	}
-	if ((partab.jobtab->cur_do + 1) == MAX_DO_FRAMES)
+	if ((partab.jobtab->cur_do + 1) >= MAX_DO_FRAMES)
 	  ERROR(-(ERRZ7+ERRMLAST))		// too many
 	//if ((rou == 0) && (opc != CMDON))	// check for nosuch
 	if (X_Empty(rou) && (opc != CMDON))	// check for nosuch
@@ -2797,7 +2797,7 @@ short run(long savasp, long savssp)		// run compiled code
 	*comp_ptr++ = ENDLIN;			// JIC
 	cptr->len = (short) (comp_ptr - cptr->buf); // get the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
-	if (partab.jobtab->cur_do >= MAX_DO_FRAMES)
+	if ((partab.jobtab->cur_do + 1) >= MAX_DO_FRAMES)
 	  ERROR(-(ERRMLAST+ERRZ8))		// too many
 	partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc;
 	partab.jobtab->cur_do++;		// increment do frame
