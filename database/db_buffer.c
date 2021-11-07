@@ -126,10 +126,7 @@ short Get_block(u_int blknum)                           // Get block
 
   if (!writing)						// if read mode
   { SemOp( SEM_GLOBAL, -curr_lock);			// release read lock
-    s = SemOp( SEM_GLOBAL, WRITE);			// get write lock
-    if (s < 0)						// on error
-    { return s;						// return it
-    }
+    while (SemOp( SEM_GLOBAL, WRITE));			// get write lock
     ptr = systab->vol[volnum-1]->gbd_hash[blknum & (GBD_HASH - 1)]; // get head
     while (ptr != NULL)					// for entire list
     { if (ptr->block == blknum)				// found it?
