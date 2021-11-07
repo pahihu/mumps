@@ -22,6 +22,7 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * XECUTE could overwrite process stack
   * DB lock-up with a small global buffer
   * faster Locate()
   * db_rekey fixes (level > 3)
