@@ -58,7 +58,7 @@ partab_struct partab;                           // setup partab
 systab_struct *systab;
 
 u_char *astk[MAX_ASTK];                         // address stack
-u_char sstk[MAX_SSTK];				// string stack
+u_char sstk[MAX_SSTK + MAX_STR_LEN];		// string stack + fence
 u_char istk[MAX_ISTK];				// indirect stack
 long isp;					// indirect stack pointer
 int failed_tty = -1;				// flag for tty reset
