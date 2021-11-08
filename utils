@@ -470,7 +470,7 @@ KEY I KEY=127 Q
  I $L(KEY)=1 S KEY=$A(KEY)+32 Q
  I $L(KEY)=3 S KEY=$A(KEY,3)+16 Q
  S KEY=$E(KEY,3,4)+84 Q
-ERROR U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" Q  ;G %M
+ERROR N $ET S $ET="" U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" Q  ;G %M
  Q:$ST-$ST(-1)  S S=$ST-1 I $EC[",Z51," W:$X ! W "^C",! Q
  S ER=$P($EC,",",2) W:$X ! I $L(ER) W "Error: ",ER," ",$&%ERRMSG(ER),!
  W "$ST=",S,?10,$ST(S),?20,$ST(S,"PLACE"),!
