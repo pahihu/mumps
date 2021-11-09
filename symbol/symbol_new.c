@@ -192,6 +192,7 @@ void ST_Restore(ST_newtab *newtab)
   int chk;						// symtab index
   int kill;						// kill flag
 
+Loop:
   ptr = newtab;						// go to first newtab
   if (ptr == NULL) return;				// nothing to do
   if (ptr->stindex != NULL)				// check for newall
@@ -250,11 +251,13 @@ void ST_Restore(ST_newtab *newtab)
       (void)ST_SymKill(ptr->locdata[i].stindex);	// dong it
   }							// all new'd vars done
   if (ptr->fwd_link != NULL)				// if there are more
-  { ST_Restore(ptr->fwd_link);				// restore next newtab
+  { newtab = ptr->fwd_link;                             // save next
+    if (ptr ==                                          // clear doframe
+        (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
+      partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
+    mv1free(ptr);				        // free the space
+    goto Loop;                                          // restore next newtab
   }							// end if there's more
-  mv1free(ptr);						// free the space
-  if (ptr == (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
-    partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL; // clear doframe
 }							// end function Restore
 
 //****************************************************************************
