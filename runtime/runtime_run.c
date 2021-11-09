@@ -123,15 +123,15 @@ short run(int savasp, int savssp)		// run compiled code
           bcopy(&partab.jobtab->dostk[partab.jobtab->cur_do],
 	        &partab.jobtab->dostk[STM1_FRAME],
 	        sizeof(do_frame));		// save for ron
-	    }
-	    if (s == -(ERRMLAST+ERRZ51))	// if it's a control c
-	    { partab.jobtab->io = 0;            // $IO = 0
-	    }
-	    partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc; // save pc
-            cptr = (cstring *) &sstk[ssp];      // where we will put it
-	    var = &partab.src_var;		// a spare mvar
-	    var->volset = 0;			// local var
-	    var->uci = UCI_IS_LOCALVAR;		// ditto
+	}
+	if (s == -(ERRMLAST+ERRZ51))	        // if it's a control c
+	{ partab.jobtab->io = 0;                // $IO = 0
+	}
+	partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc; // save pc
+        cptr = (cstring *) &sstk[ssp];          // where we will put it
+	var = &partab.src_var;		        // a spare mvar
+	var->volset = 0;			// local var
+	var->uci = UCI_IS_LOCALVAR;		// ditto
 
 	flag = 0;				// say no error here
 	if (s)
