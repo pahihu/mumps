@@ -184,13 +184,15 @@ short ST_NewAll(int count, var_u *list)
 //**  Returns :
 void ST_Restore(ST_newtab *newtab)
 {
-  ST_newtab *ptr;					// ptr-> current newtab
+  ST_newtab *ptr, *savnewtab;                           // ptr-> current newtab
   ST_depend *dd;					// depend data ptr
   ST_depend *ddf;					// depend data ptr
   int i;						// generic counter
   int t;						// generic counter
   int chk;						// symtab index
   int kill;						// kill flag
+
+  savnewtab = newtab;                                   // save newtab
 
 Loop:
   ptr = newtab;						// go to first newtab
@@ -250,14 +252,21 @@ Loop:
 	(symtab[ptr->locdata[i].stindex].data == NULL)) // any data?
       (void)ST_SymKill(ptr->locdata[i].stindex);	// dong it
   }							// all new'd vars done
+
   if (ptr->fwd_link != NULL)				// if there are more
-  { newtab = ptr->fwd_link;                             // save next
+  { newtab = ptr->fwd_link;                             // save fwd link
+    goto Loop;                                          // restore next newtab
+  }							// end if there's more
+
+  ptr = savnewtab;                                      // restore newtab
+  while (ptr != NULL)                                   // while there are more
+  { newtab = ptr->fwd_link;                             // save fwd link
     if (ptr ==                                          // clear doframe
         (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
       partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
-    mv1free(ptr);				        // free the space
-    goto Loop;                                          // restore next newtab
-  }							// end if there's more
+    mv1free(ptr);                                       // free the space
+    ptr = newtab;                                       // check next
+  }
 }							// end function Restore
 
 //****************************************************************************
