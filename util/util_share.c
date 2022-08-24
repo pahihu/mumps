@@ -105,7 +105,8 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   sad = shmat(shar_mem_id, SHMAT_SEED, 0);  	// map it
   if (sad == (void *)-1) 	                // die on error
   { i = errno;
-    fprintf(stderr, "Unable to attach to systab correctly\n"); // give error
+    fprintf(stderr, "Unable to attach to systab correctly (%s)\n",// give error
+        strerror(i));
     return(i);                                  // and return with error
   }
   systab = (systab_struct *) sad->address;  	// get required address
@@ -113,7 +114,10 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   { i = shmdt( sad );				// unmap it
     sad = shmat(shar_mem_id, (void *) systab, 0); // try again
     if ( systab != sad)
-    { fprintf(stderr, "Unable to attach to systab at %lX\n", (u_long) systab);
+    { i = errno;                                // save error
+      fprintf(stderr, "Unable to attach to systab at %lX (%s)\n",
+        (u_long) systab,                        // expected systab addr
+        strerror(i));                           // current error
       return(EADDRNOTAVAIL);			// die on error
     }
   }
