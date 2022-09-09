@@ -1344,7 +1344,7 @@ u_int DB_GetDirty(int vol)
   { ptr = &curr_vol->gbd_head[i];
     if (ptr->block &&                                   // has a block
         (ptr->dirty ||                                  //   AND dirty
-        (0 == ptr->last_accessed)))                     //    OR zotted
+        (ptr->last_accessed <= 0)))                     //    OR zotted
       cnt++;
   }
 
@@ -2188,3 +2188,5 @@ int OpenFile(const char *path, int mode)
 #endif
   return fd;
 }
+
+// vim:ts=8:sw=8:et

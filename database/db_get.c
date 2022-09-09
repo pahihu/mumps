@@ -113,7 +113,7 @@ short Get_data(int dir)		                        // locate a record
 Found:    if ((X_NE(ptr->mem->global, 
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
-	      (ptr->last_accessed == (time_t) 0))	// not available
+	      (ptr->last_accessed <= (time_t) 0))	// not available
           { break;					// exit the loop
 	  }
 	  if (LB_FILL == gbd_local_state)
@@ -267,3 +267,5 @@ Found:    if ((X_NE(ptr->mem->global,
   }
   return logit(15,s);					// return result
 }
+
+// vim:ts=8:sw=8:et

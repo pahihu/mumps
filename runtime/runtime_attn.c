@@ -273,3 +273,5 @@ void SchedYield()				// do a sched_yield()
   (void)sched_yield();				// do it
   return;					// and exit
 }
+
+// vim:ts=8:sw=8:et

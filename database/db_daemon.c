@@ -914,7 +914,7 @@ void do_dismount()					// dismount volnum
       break;
     for (i=0; i<systab->vol[vol]->num_gbd; i++)	        // look for unwritten
     { if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
-          (systab->vol[vol]->gbd_head[i].last_accessed != (time_t) 0) &&
+          (0 < systab->vol[vol]->gbd_head[i].last_accessed) &&
 	  (systab->vol[vol]->gbd_head[i].dirty))
       { systab->vol[vol]->gbd_head[i].dirty
           = &systab->vol[vol]->gbd_head[i]; 	        // point at self
@@ -988,6 +988,8 @@ void do_dismount()					// dismount volnum
 // Return:   none
 //
 
+#define ZOTTED  ((time_t)-1)
+
 void do_write()						// write GBDs
 { off_t file_off;                               	// for lseek() et al
   int i;						// a handy int
@@ -1013,8 +1015,9 @@ void do_write()						// write GBDs
   { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   while (TRUE)						// until we break
-  { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
+  { if (gbdptr->last_accessed == ZOTTED)		// if garbaged
     { gbdptr->block = 0;				// just zot the block
+      // systab->vol[vol]->stats.eventcnt++;
     }
     else						// do a write
     { blkno = gbdptr->block;                            // get blkno
@@ -1156,7 +1159,7 @@ int do_zot(int vol,u_int gb)				// zot block
       //     the global is modified by another job without a
       //     LOCK.
       //     WRITE lock does NOT help here either.
-      ptr->last_accessed = (time_t) 0;			// mark as zotted
+      ptr->last_accessed = ZOTTED;			// mark as zotted
       /* NB. ptr->block will be cleared in do_write() or in do_free() */
       MEM_BARRIER;
       break;						// exit
@@ -1288,7 +1291,7 @@ void do_free(int vol, u_int gb)				// free from map et al
       { Free_GBD(vol, ptr);				// free it
       }
       else						// in use or not locked
-      { ptr->last_accessed = (time_t) 0;		// mark as zotted
+      { ptr->last_accessed = ZOTTED;		        // mark as zotted
         /* NB. ptr->block will be cleared in do_write() */
       }
       break;						// and exit the loop
@@ -1668,4 +1671,4 @@ void do_map_write(int vol)
   last_map_write[vol] = MTIME(0);
 }
 
-
+// vim:ts=8:sw=8:et

@@ -141,7 +141,7 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
  *
  */
 #define MV1_REFD	        1
-#define MV1_REFD_GCLOCK         1
+#define MV1_REFD_GCLOCK   1
 
 #ifdef MV1_REFD_GCLOCK
 

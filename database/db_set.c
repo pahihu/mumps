@@ -193,8 +193,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         { gptr = gptr->next;                            // get next
           continue;                                     //   and continue
         }
-        //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
-        if ((gptr->last_accessed == (time_t) 0) ||  	// not available
+        if ((gptr->last_accessed <= (time_t) 0) ||  	// not available
 	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
             (X_NE(gptr->mem->global, 
                               db_var.name.var_xu)))     // wrong global
@@ -748,3 +747,5 @@ fix_keys:
   }							// end fix key loop
   return Re_key();					// re-key and return
 }
+
+// vim:ts=8:sw=8:et
