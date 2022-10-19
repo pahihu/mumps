@@ -83,8 +83,7 @@ void Dump_rbd()					// dump rbds
   rbd *p;					// a pointer
   char tmp[2+MAX_NAME_BYTES];			// some space
 
-  i = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
-  if (i < 0) return;				// exit on error
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock the rbds
   p = (rbd *) systab->vol[0]->rbd_head;		// get the start
   printf("Dump of all Routine Buffer Descriptors at %ld\r\n", (long) time(0));
   printf("Free at %#10lx\r\n", (u_long)systab->vol[0]->rbd_hash[RBD_HASH]);
@@ -310,8 +309,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   
   test = (var_u *) &routine;			// map as a var_u
   hash = Routine_Hash(routine);			// get the hash
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
-  if (s < 0) return NULL;			// say can't find on error
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock the rbds
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
   uci = partab.jobtab->ruci;			// get current uci
@@ -358,8 +356,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   // s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
   i = DB_GetLong(&rouglob, NULL);
   if (i < 1) return NULL;			// no such
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock & try again
-  if (s < 0) return NULL;			// no such
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock & try again
 
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
@@ -457,3 +454,5 @@ void Routine_Delete(chr_x routine, int uci, int vol) // mark routine deleted
   }						// end while loop
   return;					// done
 }
+
+// vim:ts=8:sw=8:et
