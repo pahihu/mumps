@@ -3727,3 +3727,5 @@ short run(long savasp, long savssp)		// run compiled code
     }						// end of switch(opc)  
   }						// end main while loop
 }
+
+// vim:ts=8:sw=8:et
