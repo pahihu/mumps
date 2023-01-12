@@ -150,7 +150,7 @@ short DB_ViewRel(int volume, struct GBD *ptr)	      	// release block, gbd
 #endif
   writing = 0;						// clear this
   ptr->last_accessed = MTIME(0);			// reset access
-  if (ptr->dirty && (ptr->dirty < (gbd *) 5))		// not owned elsewhere
+  if (DIRTY_RESERVED(ptr))		                // not owned elsewhere
   { s = SemOp(SEM_GLOBAL, WRITE);			// write lock
     if (s < 0)						// check error
     { return s;						// quit if so

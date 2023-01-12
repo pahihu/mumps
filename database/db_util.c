@@ -207,14 +207,15 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 }
 
 //-----------------------------------------------------------------------------
-// Function: Queit
+// Function: Queit2
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
 // Return:   0 - on success, 1 - on failed (queue empty)
 // Note:     Must hold a write lock before calling this function
 //
 
-void Queit2(gbd *p_gbd)                                 // que a gbd for write
+void Queit2(gbd *p_gbd,
+            const char *caller_path, int caller_line)   // que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
@@ -236,8 +237,10 @@ void Queit2(gbd *p_gbd)                                 // que a gbd for write
 #ifdef MV1_LOCATE_DEBUG
   LocateAllP(ptr,level,__FILE__,__LINE__);
 #endif
+  ASSERT2(0 <= ptr->hash);                              // ensure chained
   while (ptr->dirty != ptr)                             // check it
   { ptr = ptr->dirty;                                   // point at next
+    ASSERT2(0 <= ptr->hash);                            // ensure chained
     // fprintf(stderr," %d",ptr->block);
     systab->vol[volnum-1]->stats.logwt++;               // incr logical
     if (systab->vol[volnum-1]->track_changes)		// track changes ?
@@ -274,10 +277,6 @@ void Queit2(gbd *p_gbd)                                 // que a gbd for write
 #endif
 
   return;                                               // and exit
-}
-
-void Queit(void)
-{ Queit2(blk[level]);
 }
 
 #define MAX_GARB  (2*NUM_GARB)
@@ -724,7 +723,7 @@ short Compress1()
       }
       Allign_record();                                  // if not alligned
       *( (u_int *) record) = blk[2]->block;             // new top level blk
-      if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
+      if (RESERVED(blk[level]))                         // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
 	TXSET(blk[level]);
         Queit();                                       	// and queue it
@@ -732,9 +731,7 @@ short Compress1()
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
       blk[1]->last_accessed = MTIME(0) + 86400;         // clear last access
-#ifdef MV1_REFD
       REFD_MARK(blk[1]);
-#endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
@@ -769,9 +766,7 @@ short Compress1()
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
     blk[level]->last_accessed = MTIME(0) + 86400;       // clear last access
-#ifdef MV1_REFD
     REFD_MARK(blk[level]);
-#endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore

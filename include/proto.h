@@ -243,6 +243,7 @@ short ltoa(char *buf, long n);                  // long to string
 short ultoa(char *buf, unsigned long n);        // u_long to string
 
 // Runtime Functions
+int do_log(const char *fmt,...);                // daemon log
 int mv1log(int depth,const char *fmt,...);
 #define LOG(x)
 #define DBG(x)

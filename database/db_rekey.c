@@ -598,9 +598,7 @@ void Un_key()
 	  }
           blk[xxx_level]->mem->type = 65;               // 210109AP TESTING
           blk[xxx_level]->last_accessed = MTIME(0) + 86400;
-#ifdef MV1_REFD
           REFD_MARK(blk[xxx_level]);
-#endif
 	  Garbit(blk[xxx_level]->block);		// dump mt blk
           garbed = 1;
 	  level = save_level;				// restore level

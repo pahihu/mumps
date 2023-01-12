@@ -50,6 +50,8 @@
 #define GBD_MARKWRITE   ((gbd *)2)
 #define GBD_IC          ((gbd *)3)
 #define GBD_LOCKED      ((gbd *)5)
+#define RESERVED(p)     ((p)->dirty < GBD_LOCKED)
+#define DIRTY_RESERVED(p) ((p)->dirty && RESERVED(p))
 
 #define NODE_UNDEFINED	-1				// junk record
 #define PTR_UNDEFINED	0				// junk pointer
@@ -136,11 +138,9 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 #undef MV1_LOCATE_DEBUG
 
 /*
- * MV1_REFD	    - use CLOCK algorithm for block replacement
  * MV1_REFD_GCLOCK  - use generalized CLOCK algorithm for block replacement
  *
  */
-#define MV1_REFD	        1
 #define MV1_REFD_GCLOCK   1
 
 #ifdef MV1_REFD_GCLOCK
@@ -191,17 +191,13 @@ typedef struct __PACKED__ DB_BLOCK	             	// database block layout
 
 typedef struct __ALIGNED__ GBD		                // global buf desciptor
 { u_int block;						// block number
-#ifdef MV1_REFD
   VOLATILE struct GBD *prev;				// prev entry in list
-#endif
   VOLATILE struct GBD *next;				// next entry in list
   struct DB_BLOCK *mem;					// memory address of blk
   VOLATILE struct GBD* dirty;				// to write -> next
   VOLATILE time_t last_accessed;			// last time used
-#ifdef MV1_REFD
   u_int  refd;                                          // block referenced
   int    hash;                                          // which chain?
-#endif
   u_char vol;                                           // vol[] index
   u_char rsvd;
 } gbd;							// end gbd struct
@@ -324,8 +320,8 @@ void Mark_map_dirty(int vol, int blknum);		// mark map dirty
 void GarbitEx(int blknum,char *path,int lno);		// que a blk for garb
 #define Garbit(blknum) GarbitEx(blknum,__FILE__,__LINE__)
 short Insert(u_char *key, cstring *data);		// insert a node
-void Queit2(gbd *p_gbd);				// que a gbd for write
-void Queit(void);				// que blk[level] for write
+void Queit2(gbd *p_gbd, const char* caller_path, int caller_line);// que a gbd for write
+#define Queit()  Queit2(blk[level],__FILE__,__LINE__)// que blk[level] for write
 void Tidy_block(void);					// tidy current blk
 void Used_block(int vol, int blknum);			// set blk in map
 short Compress1();					// compress 1 block
@@ -358,3 +354,5 @@ void LocateCountP(gbd *ptr,u_char *key,const char *path,int line);
 //*****************************************************************************
 
 #endif							// !_MUMPS_DATABASE_H_
+
+// vim:ts=8:sw=8:et

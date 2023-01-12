@@ -1287,7 +1287,7 @@ void do_free(int vol, u_int gb)				// free from map et al
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
-    { if (ptr->dirty < (gbd *) 5)			// not in use
+    { if (RESERVED(ptr))			        // not in use
       { Free_GBD(vol, ptr);				// free it
       }
       else						// in use or not locked

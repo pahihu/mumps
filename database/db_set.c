@@ -239,9 +239,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwtok); // count it
             blk[level]->last_accessed = MTIME(0);       // accessed
-#ifdef MV1_REFD
             REFD_MARK(blk[level]);
-#endif
             return s;                                   //   done
           }
           if (blk[level]->dirty == (gbd *) 1)           // release it
