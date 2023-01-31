@@ -85,8 +85,8 @@
 #define MAP_CHUNK	(4*1024)		// map is written in 4K chunks
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
-#define VERSION_MAJOR   2022                    // Major version number
-#define VERSION_MINOR   9                       // Minor version number
+#define VERSION_MAJOR   2023                    // Major version number
+#define VERSION_MINOR   1                       // Minor version number
 #define VERSION_TEST	0                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
