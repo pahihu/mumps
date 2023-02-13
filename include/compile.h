@@ -164,6 +164,8 @@ short localvar();                               // evaluate local variable
 void eval();                                    // eval a string
 void atom();                                    // evaluate source
 void CompError(short err,const char *file,int lno); // compile error
+void Err_Init(cstring *str);                    // init comperror storage
+short Err_Len(void);                            // return length of error string
 
 // Debug prototypes
 
