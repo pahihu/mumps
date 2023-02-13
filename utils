@@ -552,7 +552,7 @@ DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
  W ! Q
 RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
  D INT(3,CCL) S R=""
- F  S R=$O(SEL(R)) Q:R=""  W:$X ! W R,! S %=$&%ROUCHK(R)
+ F  S R=$O(SEL(R)) Q:R=""  W:$X ! W R,! S %=$&%ROUCHK(R) W:%'="" %,!
  Q
 
 %RECOMP

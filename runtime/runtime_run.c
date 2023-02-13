@@ -3692,9 +3692,8 @@ short run(long savasp, long savssp)		// run compiled code
 			    var2,		// check this one
 			    &sstk[ssp]);	// use this temp space
 	if (i < 0) ERROR(i)			// give up on error
-	cptr = (cstring *) var2;		// reuse the space
-	s = itocstring(cptr->buf, s);		// copy in the number
-	cptr->len = s;				// save length
+	cptr->len = i;				// save the length
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// and exit
 

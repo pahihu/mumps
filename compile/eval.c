@@ -80,7 +80,7 @@ static short Err_Write(cstring *line)
 
 static short Err_WriteFormat(int count)
 {
-  int len = (SQ_LF == count) ? 1 : count;
+  int len = (SQ_LF == count) ? 2 : count;
   int numspaces, i;
 
   if (errstr->len + len + 1 > 32767)
@@ -88,8 +88,9 @@ static short Err_WriteFormat(int count)
 
   switch ( count )
   { case SQ_LF:
-      errstr->buf[errstr->len] = 0x0A;
-      errstr->len++;
+      errstr->buf[errstr->len    ] = 0x0D;
+      errstr->buf[errstr->len + 1] = 0x0A;
+      errstr->len += 2;
       errstr_dx = 0;
       break;
     default:

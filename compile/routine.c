@@ -699,7 +699,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   cptr->buf[1] = '\0';				// null terminated
   cptr->len = 1;				// the size
   if (partab.checkonly)				// just a check
-    return 0;					// exit - NEED an error count
+    return Err_Len();				// exit - NEED an error count
   rou->nsubs = rou_nsubs;
   rou->slen  = rou_slen;
   s = UTIL_Key_BuildEx(rou, cptr, &rou->key[rou_slen]); // build the key
