@@ -38,7 +38,7 @@ By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
 10 write daemons. The MUMPS engine and the daemons are connected by two
 queues: the dirty queue and the garbage queue respectively. Each daemon
 checks the queues for work to be done. By default each daemon polls the
-queues every 1000ms. When you make multiple pages dirty in the global cache
+queues every 5000ms. When you make multiple pages dirty in the global cache
 and the queue gets full you need to wait for the next poll time. Here
 helps the adaptive rest time, which checks the statistics counters in the 
 MUMPS environment and when there are processes waiting for free queue slots
