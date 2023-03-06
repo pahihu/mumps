@@ -112,6 +112,7 @@ int INIT_Start( char *file,                     // database
   int syncjrn;                                  // sync jrn buf
   int minjkb;                                   // min JRN buf size
   int netjobs;					// #jobs inc. network daemons
+  int numcpu;                                   // number of CPUs
 
   if (!sysid)					// system ID not specified ?
   { struct timeval tv;
@@ -226,7 +227,14 @@ int INIT_Start( char *file,                     // database
   jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
   jkb /= 1024;
 
-  if (sysid) printf("Starting system ID=%d\n", sysid);
+  numcpu = 1;                                   // default #cores
+#if defined(__linux) || defined(__APPLE__)
+  numcpu = sysconf(_SC_NPROCESSORS_ONLN);       // detect #cores
+  if (numcpu < 0)
+    numcpu = 1;
+#endif
+
+  if (sysid) printf("Starting system ID=%d (%dcores)\n", sysid, numcpu);
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
@@ -350,6 +358,7 @@ int INIT_Start( char *file,                     // database
   systab->lockfree->job = -1;			// means free
   systab->addoff = addoff;                      // Add buffer offset
   systab->addsize = addmb * MBYTE;              // and size in bytes
+  systab->numcpu2 = 2 * numcpu;                 // number of CPUs x 2
 
   for (i = 0; i < MAX_VOL; i++)                 // foreach vol[]
     systab->vol[i] = (vol_def *) ((void *)systab + sjlt_size

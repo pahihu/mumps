@@ -132,9 +132,13 @@ void SpinLockReader(RWLOCK_T *lok)
 }
 #endif
 
+#define NUMTRY  (16*1024)
+
 short TrySemLock(int sem_num, int numb)
 {
   short s;
+  int i, j;
+  int numcpu2;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
 #endif
@@ -144,6 +148,7 @@ short TrySemLock(int sem_num, int numb)
   gettimeofday(&st, NULL);
 #endif
 
+  numcpu2 = systab->numcpu2;
   s = 0;
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
@@ -173,7 +178,15 @@ short TrySemLock(int sem_num, int numb)
   }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  s = Semop(systab->sem_id, &buf, 1);           // doit
+  for (i = 0; i < numcpu2; i++)
+  { for (j = 0; j < NUMTRY; j++)
+    { s = Semop(systab->sem_id, &buf, 1);       // doit
+      if (0 == s)
+        return 0;
+      if (0 == (i & 3))
+        SchedYield();
+    }
+  }
 #endif
 
 #ifdef MV1_PROFILE

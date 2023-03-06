@@ -38,7 +38,7 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#if defined(__linux) && defined(__PPC__)
+#if defined(__linux)
 #define MV1_OSSEM
 #endif
 
@@ -170,14 +170,14 @@
 #define MIN_GBD		(40)                    // minumum number GBDs
 
 #define MIN_REST_TIME	  10			// min. daemon rest time
-#define MAX_REST_TIME	1000			// max. daemon rest time
+#define MAX_REST_TIME	5000			// max. daemon rest time
 
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#define GBD_HASH        8192                    // hash size for global buffers
-#define NUM_DIRTY       8192                    // max queued dirty chains
-#define NUM_GARB        8192                    // max queued garbage blocks
+#define GBD_HASH        32768                   // hash size for global buffers
+#define NUM_DIRTY       16384                   // max queued dirty chains
+#define NUM_GARB        16384                   // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
 
@@ -649,6 +649,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpULOK;				// DGP local ULOK in progress
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-255)
+  int numcpu2;                                  // number of CPUs x 2
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
