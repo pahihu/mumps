@@ -570,7 +570,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
 
   if (!job) job = MV1_PID + 1; 			// current job
 
-  if ((job <= 256) ||				// local job ?
+  if ((job <= MAX_JOB) ||			// local job ?
       (255 == DGP_SYSID(job)))			//   OR system shutdown
   { for (i = 0; i < MAX_VOL; i++)		// for each VOL
     { if (systab->vol[i]->vollab == NULL)	// break if not mounted
@@ -1075,7 +1075,7 @@ short LCK_Add(int count, cstring *list, int to, int job) // lock plus
   if (s < 0)					// failed ?
     return s;					// return error
 
-  if ((job <= 256) && 
+  if ((job <= MAX_JOB) &&
       LCK_HasRemote(count, list, remote_vols)) // has remote VOLs ?
   { for (i = 0; i < MAX_VOL; i++)
     { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip
@@ -1193,7 +1193,7 @@ short LCK_Sub(int count, cstring *list, int job)// lock minus
   if (!job) job = MV1_PID + 1;			// current job
 
   s = LCK_SubP(count, list, job);		// remove LOCKs
-  if ((job <= 256) && 
+  if ((job <= MAX_JOB) &&
       LCK_HasRemote(count, list, remote_vols))	// has remote VOLs ?
   { for (i = 0; i < MAX_VOL; i++)		// for each remote VOL
     { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip

@@ -778,7 +778,7 @@ MUMPS with commands/functions written in MUMPS
 | Maximum global value size	    | min(block size, 32KB)    |
 | Number of global subscripts	    | 63                       |
 | Global translation table size	    | 255		       |
-| Maximum number of jobs            | 256                      |
+| Maximum number of jobs            | 4096                     |
 | Maximum number of daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |
 | Maximum number of network daemons | 10                       |

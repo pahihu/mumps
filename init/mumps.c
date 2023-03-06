@@ -53,7 +53,7 @@ void help(void)                                 // give some help
   printf( "----------------------------------------------------\n");
   printf( "This is %s\n\n", str);               // print version string
   printf( "Copyright (c) 1999 - 2016 Raymond Douglas Newman.\n");
-  printf( "Copyright (c) 2016 - 2021 Andras Pahi.\n");
+  printf( "Copyright (c) 2016 - 2023 Andras Pahi.\n");
   printf( "All rights reserved.\n\n");
   printf( "To create a database:\n");
   printf( "> mumps -v volnam -b blocksize(kb) -s dbsize(Blocks) filename\n");

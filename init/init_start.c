@@ -152,12 +152,12 @@ int INIT_Start( char *file,                     // database
     srvport = -1;
   }
 
-  if (jobs + netdaemons > 256)
-    jobs = 256 - netdaemons;
+  if (jobs + netdaemons > MAX_JOB)
+    jobs = MAX_JOB - netdaemons;
   netjobs = jobs + netdaemons;			// #jobs incl. network daemons
 
-  if ((jobs < 1)||(jobs > 256))                 // check number of jobs
-  { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
+  if ((jobs < 1)||(jobs > MAX_JOB))            // check number of jobs
+  { fprintf(stderr, "Invalid number of jobs %d - must be 1 to %d\n", jobs, MAX_JOB);
     return(EINVAL);                             // exit with error
   }
   pagesize = getpagesize();                     // get sys pagesize (bytes)
@@ -336,7 +336,7 @@ int INIT_Start( char *file,                     // database
   systab->dgpRCVTO = -1;                        // client recv timeout
   systab->dgpLOCKTO = 0;			// default LOCK timeout
   systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
-  for (i = 0; i < 256; i++)			// clear DGP table
+  for (i = 0; i < MAX_JOB; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
   systab->locbufTO = 0;				// disable local buffers
 

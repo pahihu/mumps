@@ -246,8 +246,8 @@ short DGP_MkRequest(DGPRequest *req,
   int s;						// status
   int remjob;
 
-  remjob = systab->dgpID * 256 + MV1_PID;		// system JOB number
-  ASSERT((255 < remjob) && (remjob < 65280));		// validate
+  remjob = systab->dgpID * MAX_JOB + MV1_PID;		// system JOB number
+  ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF000));   // validate
 
   if (buf && (-1 == len))
     len = strlen((char *) buf);
@@ -293,9 +293,9 @@ short DGP_MkLockRequest(DGPRequest *req,
   ASSERT((0 < systab->dgpID) && (systab->dgpID < 255));// valid DGP system ID
 
   job--;
-  if (255 != job / 256)					// not a system message
-  { ASSERT((0 <= job) && (job < 256));			// valid job no.
-    job += systab->dgpID * 256;				// system JOB number
+  if (255 != job / MAX_JOB)				// not a system message
+  { ASSERT((0 <= job) && (job < MAX_JOB));		// valid job no.
+    job += systab->dgpID * MAX_JOB;			// system JOB number
   }
 
   req->header.code    = code;
@@ -420,7 +420,7 @@ short DGP_Dialog2(int vol, DGPRequest *req, DGPReply *rep, int do_restart)
   }
   
   msg_len = req->header.msglen;				// cvt to network fmt
-  req->header.remjob = htons(req->header.remjob);
+  req->header.remjob = htonl(req->header.remjob);
   req->header.msglen = htons(req->header.msglen);
   req->data.len      = htons(req->data.len);
 
@@ -459,7 +459,7 @@ ReSend:
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
 
-  rep->header.remjob = ntohs(rep->header.remjob);	// cvt to host fmt
+  rep->header.remjob = ntohl(rep->header.remjob);	// cvt to host fmt
   rep->header.msglen = ntohs(rep->header.msglen);
   rep->data.len      = ntohs(rep->data.len);
 
@@ -524,7 +524,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   }
   
   msg_len = req->header.msglen;				// cvt to network fmt
-  req->header.remjob = htons(req->header.remjob);
+  req->header.remjob = htonl(req->header.remjob);
   req->header.msglen = htons(req->header.msglen);
   req->data.len      = htons(req->data.len);
 
@@ -533,7 +533,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
 
-  req->header.remjob = ntohs(req->header.remjob);	// cvt to host fmt
+  req->header.remjob = ntohl(req->header.remjob);	// cvt to host fmt
   req->header.msglen = ntohs(req->header.msglen);
   req->data.len      = ntohs(req->data.len);
 
@@ -543,7 +543,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
 
-  rep->header.remjob = ntohs(rep->header.remjob);	// cvt to host fmt
+  rep->header.remjob = ntohl(rep->header.remjob);	// cvt to host fmt
   rep->header.msglen = ntohs(rep->header.msglen);
   rep->data.len      = ntohs(rep->data.len);
 

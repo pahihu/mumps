@@ -86,8 +86,8 @@
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   2023                    // Major version number
-#define VERSION_MINOR   1                       // Minor version number
-#define VERSION_TEST	0                       // Test version number
+#define VERSION_MINOR   2                       // Minor version number
+#define VERSION_TEST	1                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
@@ -229,6 +229,7 @@
 #define SIG_U2          (1 << 31)               // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
+#define MAX_JOB                 4096            // max number of jobs
 #define MAX_VOL             	16              // max number of vols
 #define VOL_FILENAME_MAX	256             // max chars in stored filename
 //#define JNL_FILENAME_MAX	226             // max chars in journal filenam
@@ -647,7 +648,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
-  u_char dgpSTART[256];				// client: MV1_PIDs (0-255)
+  int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-255)
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];

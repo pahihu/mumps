@@ -327,7 +327,7 @@ void do_netdaemon(void)
       continue;
     }
 
-    req.header.remjob = ntohs(req.header.remjob);	// cvt to host fmt
+    req.header.remjob = ntohl(req.header.remjob);	// cvt to host fmt
     req.header.msglen = ntohs(req.header.msglen);
     req.data.len      = ntohs(req.data.len);
 
@@ -350,7 +350,7 @@ void do_netdaemon(void)
     // NB. when ULOK' system ID is 255, the LO(remjob) contains
     //     the DGP SYSID of the remote system
     if (req.header.code != DGP_ULOK)
-    { ASSERT((256 < remjob) && (remjob < 65281));	// validate
+    { ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF001)); // validate
     }
 
     client = DGP_SYSID(remjob);
@@ -503,7 +503,7 @@ Send:
     { DGP_MsgDump(1, &rep.header, rep.data.len);
     }
     msg_len = rep.header.msglen;
-    rep.header.remjob = htons(rep.header.remjob);	// cvt to network fmt
+    rep.header.remjob = htonl(rep.header.remjob);	// cvt to network fmt
     rep.header.msglen = htons(rep.header.msglen);
     rep.data.len      = htons(rep.data.len);
     bytes = nn_send(sock, &rep, msg_len, 0);
