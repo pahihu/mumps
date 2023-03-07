@@ -98,11 +98,18 @@ void mv1_log_flush(void)
 
 static struct timeval sem_start[SEM_MAX];
 
-#define SPINNUM   4
-#define SPINTRY   (256*1024)
+#ifdef MV1_SHSEM
+
 #define SPINSLEEP 100
 
-#ifdef MV1_SHSEM
+#ifdef MV1_DEVSYS
+#define SPINNUM   systab->numcpu2
+#define SPINTRY   (16*1024)
+#else
+#define SPINNUM   4
+#define SPINTRY   (256*1024)
+#endif
+
 static
 void SpinLockWriter(RWLOCK_T *lok)
 {
@@ -110,9 +117,16 @@ void SpinLockWriter(RWLOCK_T *lok)
 
   for (i = 0; i < SPINNUM; i++)
   { for (j = 0; j < SPINTRY; j++)
-      if (TryLockWriter(lok))
+    { if (TryLockWriter(lok))
         return;
+#ifdef MV1_DEVSYS
+      if (0 == (i & 3))
+        SchedYield();
+#endif
+    }
+#ifndef MV1_DEVSYS
     MSleep(SPINSLEEP);
+#endif
   }
   LockWriter(lok);
 }
@@ -124,9 +138,16 @@ void SpinLockReader(RWLOCK_T *lok)
 
   for (i = 0; i < SPINNUM; i++)
   { for (j = 0; j < SPINTRY; j++)
-      if (TryLockReader(lok))
+    { if (TryLockReader(lok))
         return;
+#ifdef MV1_DEVSYS
+      if (0 == (i & 3))
+        SchedYield();
+#endif
+    }
+#ifndef MV1_DEVSYS
     MSleep(SPINSLEEP);
+#endif
   }
   LockReader(lok);
 }

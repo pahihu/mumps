@@ -269,7 +269,6 @@ int ForkIt(int cft)				// Copy File Table True/False
 
 void SchedYield()				// do a sched_yield()
 { 
-  systab->Mtime = time(0);                      // update M time
   (void)sched_yield();				// do it
   return;					// and exit
 }

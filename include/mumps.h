@@ -169,8 +169,8 @@
 
 #define MIN_GBD		(40)                    // minumum number GBDs
 
-#define MIN_REST_TIME	  10			// min. daemon rest time
-#define MAX_REST_TIME	5000			// max. daemon rest time
+#define MINRESTTIME	          10		// min. daemon rest time
+#define DEFAULT_MAXRESTTIME	1000		// max. daemon rest time
 
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
 
@@ -636,10 +636,10 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   size_t addoff;                                // off from systab to add buff
   size_t addsize;                               // add buff size
   VOLATILE u_int64 TxId;                        // TX id
-  VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
   VOLATILE int ZRestTime;			// Current daemon rest time
+  VOLATILE int ZMaxRestTime;			// Maximum daemon rest time
   u_char dgpURL[64];				// DGP URL base
   int dgpPORT;					// DGP port base
   int dgpSNDTO;                                 // DGP send timeout
@@ -674,7 +674,7 @@ extern int sem_id;                              // global semaphore id
 
 
 // MUMPS time
-#define MTIME(x)        systab->Mtime           // updated by daemon 0
+#define MTIME(x)        time(0)                 // updated by daemon 0
 
 //** process memory structures ***/
 //** PARTAB definitions **

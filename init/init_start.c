@@ -336,7 +336,8 @@ int INIT_Start( char *file,                     // database
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
-  systab->ZRestTime = MAX_REST_TIME;		// Daemon rest time
+  systab->ZMaxRestTime = DEFAULT_MAXRESTTIME;	// Daemon rest time
+  systab->ZRestTime = systab->ZMaxRestTime;
   systab->dgpID = sysid;			// system ID
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
@@ -463,7 +464,6 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->num_of_daemons = jobs;	// initalise this
   systab->vol[0]->num_of_net_daemons = netdaemons;
 
-  systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
 #ifdef MV1_SHSEM
   for (i = 0; i < SEM_GLOBAL; i++)              // init shared IPC

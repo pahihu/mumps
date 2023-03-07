@@ -360,6 +360,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->ZRestTime);   // return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "maxresttime\0", 12) == 0))
+      { return itocstring(buf, systab->ZMaxRestTime);   // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_url\0", 8) == 0))
       { strcpy((char *) buf, (char *) systab->dgpURL);
         return strlen((char *) buf);		// return the value
@@ -740,6 +744,15 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > 31)) return -ERRM28;
         systab->precision = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "maxresttime\0", 12) == 0))
+      { j = cstringtoi(data);
+        if (j < MINRESTTIME) return -ERRM28;
+        systab->ZMaxRestTime = j;
+        systab->ZRestTime = systab->ZRestTime;
 	return 0;				// and exit
       }
 

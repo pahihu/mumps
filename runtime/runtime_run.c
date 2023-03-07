@@ -130,9 +130,7 @@ short run(long savasp, long savssp)		// run compiled code
   ssp = savssp;
 
   while (TRUE)					// keep going till done
-  { if (0 == (partab.jobtab->commands & 1023))  // keep track of time
-      systab->Mtime = time(0);
-    if (ssp >= MAX_SSTK)			// check ssp
+  { if (ssp >= MAX_SSTK)			// check ssp
     panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it

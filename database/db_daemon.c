@@ -126,8 +126,6 @@ int do_log(const char *fmt,...)
 static
 u_int MSLEEP(u_int mseconds)
 {
-  if (!myslot)                                          // update M time
-    systab->Mtime = time(0);
   return usleep(1000 * mseconds);                       // sleep
 }
 
@@ -186,13 +184,13 @@ void do_rest(void)
     else
       rest *= 1.5;
   } else
-  { rest = MAX_REST_TIME;
+  { rest = systab->ZMaxRestTime;
   }
 
-  if (rest < MIN_REST_TIME)                             // clip rest time to
-    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
-  else if (rest > MAX_REST_TIME)
-     rest = MAX_REST_TIME;
+  if (rest < MINRESTTIME)                               // clip rest time to
+    rest = MINRESTTIME;                                 // MIN/MAXRESTTIME
+  else if (rest > systab->ZMaxRestTime)
+     rest = systab->ZMaxRestTime;
 
   systab->ZRestTime = rest;                             // set in systab
   MEM_BARRIER;
@@ -233,10 +231,10 @@ void do_rest(void)
     rest *= 1.1;                                        //   wait more
   else
     rest /= 2;                                          // more stalls,rest less
-  if (rest < MIN_REST_TIME)                             // clip rest time to
-    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
-  else if (rest > MAX_REST_TIME)
-     rest = MAX_REST_TIME;
+  if (rest < MINRESTTIME)                               // clip rest time to
+    rest = MINRESTTIME;                                 // MIN/MAXRESTTIME
+  else if (rest > systab->ZMaxRestTime)
+     rest = systab->ZMaxRestTime;
   systab->ZRestTime = rest;                             // set in systab
   MEM_BARRIER;
 
@@ -689,9 +687,6 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   t = time(0);						// for ctime()
   do_log("Daemon %d started successfully\n", myslot);   // log success
 
-  if (!myslot)
-    systab->Mtime = time(0);                            // update M time
-
   SLOT_JRN       =  0;                                  // default Daemon 0
   SLOT_VOLSYNC   = -1;                                  // default none
   if (systab->vol[0]->num_of_daemons > 1)               // more than 1 daemons ?
@@ -735,9 +730,8 @@ void do_daemon()					// do something
   int dirtyQr, garbQr;                                  // queue read indices
 
 start:
-  if (!myslot)                                          // update M time
-  { systab->Mtime = time(0);
-    do_rest();
+  if (!myslot)                                          // update RESTTIME
+  { do_rest();
   }
 
   daemon_check();					// ensure all running

@@ -38,13 +38,14 @@ By default MUMPS starts up a write daemon per 10 jobs up to a maximum of
 10 write daemons. The MUMPS engine and the daemons are connected by two
 queues: the dirty queue and the garbage queue respectively. Each daemon
 checks the queues for work to be done. By default each daemon polls the
-queues every 5000ms. When you make multiple pages dirty in the global cache
+queues every 1000ms. When you make multiple pages dirty in the global cache
 and the queue gets full you need to wait for the next poll time. Here
 helps the adaptive rest time, which checks the statistics counters in the 
 MUMPS environment and when there are processes waiting for free queue slots
 it reduces the poll time. When the load vanishes it increases the poll time
 again. To query the current rest time between write daemon polls, query
-the *RESTTIME* system parameter.
+the *RESTTIME* system parameter. The *MAXRESTTIME* system parameter
+controls the maximum poll time.
 
 
 ### Buffered files
@@ -711,6 +712,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | DGP_SEND_TIMEOUT   | Server-side send timeout in seconds  | no |
 | DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |
+| MAXRESTTIME        | Maximum daemon rest time   | set with priv |
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
 | REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
 | RESTTIME           | Daemon rest time          | no |

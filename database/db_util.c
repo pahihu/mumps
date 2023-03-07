@@ -1175,12 +1175,10 @@ int MSleep(u_int mseconds)
 
   while (mseconds > 500)                                // while more than 500ms
   { mseconds -= 500;                                    // reduce mseconds
-    systab->Mtime = time(0);                            // keep track of M time
     ret = usleep(1000 * 500);                           // sleep a bit
   }
   if (mseconds)                                         // any remains ?
-  { systab->Mtime = time(0);                            // keep track of M time
-    ret = usleep(1000 * mseconds);                      // sleep a bit
+  { ret = usleep(1000 * mseconds);                      // sleep a bit
   }
   return ret;
 }
