@@ -3719,6 +3719,17 @@ short run(long savasp, long savssp)		// run compiled code
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// done
 
+      case XCLEHMER:				// Xcall $&%LEHMER()
+	ptr2 = (cstring *) astk[--asp];		// get arg 2
+	ptr1 = (cstring *) astk[--asp];		// get arg 1
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Xcall_lehmer((char *)cptr->buf, ptr1, ptr2);  // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// save the length
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
+
       default:					// can't happen
 	ERROR(-(ERRMLAST+ERRZ14))		// i hope
     }						// end of switch(opc)  

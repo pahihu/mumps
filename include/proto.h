@@ -483,5 +483,6 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy);
 short Xcall_getenv(char *ret_buffer, cstring *env, cstring *dummy);
 short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value);
 short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2);
+short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy);
 
 #endif                                          // !_MUMPS_PROTO_H_

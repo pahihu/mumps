@@ -752,7 +752,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
         if (j < MINRESTTIME) return -ERRM28;
         systab->ZMaxRestTime = j;
-        systab->ZRestTime = systab->ZRestTime;
+        systab->ZRestTime = systab->ZMaxRestTime;
 	return 0;				// and exit
       }
 

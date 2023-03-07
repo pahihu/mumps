@@ -213,6 +213,8 @@ ExtrinsicArgs:
       *comp_ptr++ = XCDEBUG;			// save the opcode
     else if (strcmp(name, "%COMPRESS") == 0)	// $&%COMPRESS()
       *comp_ptr++ = XCCOMP;			// save the opcode
+    else if (strcmp(name, "LEHMER") == 0)	// $&LEHMER()
+      *comp_ptr++ = XCLEHMER;			// save the opcode
     else
       comperror(-(ERRZ18+ERRMLAST));		// junk
     return;					// end of xcalls
