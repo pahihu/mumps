@@ -62,6 +62,10 @@
 #include "dgp.h"					// DGP protos
 #endif
 
+#if !defined(min)
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
 static int dbfds[MAX_VOL];				// global db file desc
 static int myslot;					// my slot in WD table
 static int myslot_net;					// my slot in network
@@ -78,6 +82,7 @@ void do_mount(int vol);                                 // mount db file
 void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
+static time_t last_write_garb;                          // last WRITE/GARB
 static time_t last_map_write[MAX_VOL];                  // last map write
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 static u_char jnl_seq[MAX_VOL];				// jrn file sequence
@@ -127,6 +132,13 @@ static
 u_int MSLEEP(u_int mseconds)
 {
   return usleep(1000 * mseconds);                       // sleep
+}
+
+static
+u_int MILLITIME()
+{
+  time_t now = MTIME(0);
+  return 1000 * (now % 86400);
 }
 
 #ifdef MV1_MAXDBOPS
@@ -640,7 +652,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
-  last_daemon_check = (time_t) 0;
+  last_daemon_check = (time_t) 0;                       // last daemon check
+  last_write_garb = (time_t) 0;                         // last WRITE/GARB
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
@@ -708,7 +721,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
       MEM_BARRIER;
     }
 
-    i = MSLEEP(systab->ZRestTime);                      // rest
+    i = MSLEEP(min(systab->ZRestTime, 1000));           // rest
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -728,8 +741,13 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   int dirtyQr, garbQr;                                  // queue read indices
+  int start_cnt;                                        // passes thru start
 
+  start_cnt = 0;
 start:
+  start_cnt++;
+  if (last_write_garb > MILLITIME())                    // check wrap-around
+    last_write_garb = 0;                                // reset last WRITE/GARB
   if (!myslot)                                          // update RESTTIME
   { do_rest();
   }
@@ -766,6 +784,9 @@ start:
       { do_volsync(vol);                                // do volume sync
       }
     }                                                   // end foreach vol
+    if ((1 < start_cnt)                                 // 2nd loop thru start
+        || (last_write_garb + systab->ZRestTime < MILLITIME())) // lapsed
+    {
 #ifdef MV1_CKIT
     if (ck_ring_dequeue_spmc(                           // any writes?
                 &systab->vol[0]->dirtyQ,
@@ -802,6 +823,7 @@ start:
     }
     SemOp( SEM_WD, -WRITE);				// release WD lock
 #endif
+    }
   }							// end looking for work
 
   // XXX most ne lehessen kulon/kulon dismount-olni, csak egyben
@@ -824,10 +846,12 @@ start:
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_WRITE)
   { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
     do_write();						// do it 
+    last_write_garb = MILLITIME();
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
   { do_garb();						// or this 
+    last_write_garb = MILLITIME();
     goto start;						// try again
   }
   return;						// can't get here
