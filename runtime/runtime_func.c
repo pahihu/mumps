@@ -1976,10 +1976,8 @@ short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2)
   }
 
   if (0 == bitlen)                              // special case: bitlen = 0
-  { ret[0] = 0;                                 //   no trailing bits
-    ret[1] = 0;                                 //   count of 1
-    ret[2] = 0;                                 //   0 byte
-    return 3;
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
   }
 
   len = 1;
