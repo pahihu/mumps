@@ -778,6 +778,7 @@ MUMPS with commands/functions written in MUMPS
 | Volume size            	    | 32M blocks (128GB - 8TB) |
 | Namespaces per volume (UCI)	    | 63		       |
 | Maximum global key size	    | 255		       |
+| Maximum subscript length          | 127                      |
 | Maximum global value size	    | min(block size, 32KB)    |
 | Number of global subscripts	    | 63                       |
 | Global translation table size	    | 255		       |
