@@ -587,7 +587,8 @@ value of *expr* is a list, it replaces the sublist [*from*,*to*].
 
 A bit string contains an arbitrary number of bits. For the bitwise 
 operators the bit string arguments are not required to be equal in length. 
-The *missing* tail parts are assumed to be zero.
+The *missing* tail parts are assumed to be zero. The bit string is stored
+in RLE encoded format.
 
 
 `$ZBITAND(bstr1,bstr2)`
