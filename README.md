@@ -19,10 +19,10 @@ Changes:
   * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
   * KVALUE and KSUBSCRIPTS commands
   * $LIST functions
-  * $ZBIT functions
+  * $ZBIT functions, bit strings in RLE format
   * $ZINCREMENT() function
   * $ZSEND() function and method chaining with dot operator (see README.OOP)
   * $ZHOROLOG special variable, returns fractional seconds
-  * ZZ commands and functions (calls tags in ZZCMD and ZZFN)
+  * ZZ commands and functions (calls tags in %ZZCMD and %ZZFN)
 
 **NOTE**: There are excellent M implementations like [InterSystems IRIS](https://www.intersystems.com/products/intersystems-iris), [YottaDB](https://yottadb.com), [FIS GT.M](https://sourceforge.net/projects/fis-gtm) or [MiniM](http://minimdb.com). They have very good support. Otherwise here is the code. Good luck!
