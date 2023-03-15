@@ -1740,6 +1740,10 @@ short BitPack(u_char *src, short len)
 short Dzbitstr2(u_char *ret, int len, int ff)
 { if (len < 0)                                  // invalid arg
     return -(ERRMLAST+ERRZ74);
+  if (0 == len)                                 // special case
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
+  }
   ret[0] = len & 7;                             // trailing bit count
   len = (len + 7) >> 3;                         // round up to byte boundary
   if (1 + len > MAX_STR_LEN)                    // bitstr does not fit
@@ -1753,14 +1757,23 @@ short Dzbitstr(u_char *ret, int len)
 { return Dzbitstr2(ret, len, 0);                // no flag, assume 0
 }
 
+#define ISBITSTR0(x)    ((1 == (x)->len) && (0 == (x)->buf[0]))
+
 //***********************************************************************
 // $ZBITLEN(bstr)
 //
 int DzbitlenP(cstring *zbstr, cstring *bstr)
 { int len;
 
-  if ((0 == bstr->len) || (7 < bstr->buf[0]))   // empty string, or invalid
+  if ((0 == zbstr->len) || (7 < zbstr->buf[0])) // empty string, or invalid
     return -(ERRMLAST+ERRZ75);                  //   trailing bit count
+
+  if (ISBITSTR0(zbstr))                         // special case of all zeros
+  { bstr->len = 1;
+    bstr->buf[0] = 0;
+    return 0;
+  }
+
   bstr->len = RLE_Unpack(&zbstr->buf[1], zbstr->len - 1, &bstr->buf[1]);
   bstr->buf[0] = zbstr->buf[0];                 // copy trailing bit count
   bstr->len++;
@@ -1775,6 +1788,10 @@ int Dzbitlen(cstring *bstr)
 
   if ((0 == bstr->len) || (7 < bstr->buf[0]))   // empty string, or invalid
     return -(ERRMLAST+ERRZ75);                  //   trailing bit count
+
+  if (ISBITSTR0(bstr))                          // special case of all zeros
+    return 0;
+
   len = RLE_Length(&bstr->buf[1], bstr->len - 1);
   if (bstr->buf[0])
     len--;
@@ -1942,6 +1959,10 @@ short Dzbitnot(u_char *ret, cstring *zbstr)
 
   bstr = &tmp;
   len = DzbitlenP(zbstr, bstr);
+  if (0 == len)                                 // special case of length zero
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
+  }
   bcopy(&bstr->buf[0], &ret[0], bstr->len);     // init result with arg
 
   for (i = 1; i < bstr->len; i++)               // negate bits
@@ -2002,12 +2023,22 @@ short Dzbitor(u_char *ret, cstring *zbstr1, cstring *zbstr2)
   cstring tmp1, tmp2, *bstr1, *bstr2;
 
   bstr1 = &tmp1; bstr2 = &tmp2;
+
   bitlen = DzbitlenP(zbstr1, bstr1);            // check bit string 1
   if (0 > bitlen)
     return bitlen;
+  if (0 == bitlen)                              // zbstr1 is empty
+  { memcpy(ret, &zbstr2->buf[0], zbstr2->len);
+    return zbstr2->len;
+  }
+
   bitlen2 = DzbitlenP(zbstr2, bstr2);           // check bit string 2
   if (0 > bitlen2)
     return bitlen2;
+  if (0 == bitlen2)                             // zbstr2 is empty
+  { memcpy(ret, &zbstr1->buf[0], zbstr1->len);
+    return zbstr1->len;
+  }
 
   len    = bstr1->len;
   if (bitlen2 > bitlen)                         // bit string 1 is shorter
@@ -2042,12 +2073,22 @@ short Dzbitxor(u_char *ret, cstring *zbstr1, cstring *zbstr2)
   cstring tmp1, tmp2, *bstr1, *bstr2;
 
   bstr1 = &tmp1; bstr2 = &tmp2;
+
   bitlen = DzbitlenP(zbstr1, bstr1);            // check bit string
   if (0 > bitlen)
     return bitlen;
+  if (0 == bitlen)                              // zbstr1 is empty
+  { memcpy(ret, &zbstr2->buf[0], zbstr2->len);
+    return zbstr2->len;
+  }
+
   bitlen2 = DzbitlenP(zbstr2, bstr2);           // check bit string
   if (0 > bitlen2)
     return bitlen2;
+  if (0 == bitlen2)                             // zbstr2 is empty
+  { memcpy(ret, &zbstr1->buf[0], zbstr1->len);
+    return zbstr1->len;
+  }
 
   len    = bstr1->len;                          // assume bit string 1 is longer
   len2   = bstr2->len;
