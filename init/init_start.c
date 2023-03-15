@@ -315,7 +315,7 @@ int INIT_Start( char *file,                     // database
     return(errno);                              // and return with error
   }
   
-  systab = shmat(shar_mem_id, SHMAT_SEED, 0);	// map it
+  systab = shmat(shar_mem_id, UTIL_ShmAt(), 0); // map it
   if (systab == (void *)-1) 	                // die on error
   { fprintf( stderr, "Unable to attach to systab correctly\n"); // give error
     fprintf( stderr, "error may be: %s\n", strerror(errno)); // give error

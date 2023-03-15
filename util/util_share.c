@@ -102,7 +102,7 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   if (shar_mem_key == -1) return (errno);       // die on error
   shar_mem_id = shmget(shar_mem_key, 0, 0);     // attach to existing share
   if (shar_mem_id == -1) return (errno);        // die on error
-  sad = shmat(shar_mem_id, SHMAT_SEED, 0);  	// map it
+  sad = shmat(shar_mem_id, UTIL_ShmAt(), 0);    // map it
   if (sad == (void *)-1) 	                // die on error
   { i = errno;
     fprintf(stderr, "Unable to attach to systab correctly (%s)\n",// give error
@@ -233,4 +233,19 @@ u_int semslot(int pass)
   slot += stats->dbget + stats->dbset + stats->dbkil + 
           stats->dbdat + stats->dbord + stats->dbqry;
   return slot ^ (u_int) pass;
+}
+
+//****************************************************************************
+//**  Function: UTIL_ShmAt     - returns SHMAT_SEED              ***
+//**  returns pointer (or NULL on error)                         ***
+void* UTIL_ShmAt(void)
+{ char *var;
+  void *ptr;
+
+  var = getenv("MV2_SHMAT");                    // try environment variable
+  if (NULL == var)                              // if not found,
+    return SHMAT_SEED;                          //   return compiled default
+  if (1 == sscanf(var, "%p", &ptr))             // try to conver to ptr
+    return ptr;                                 //   if succeeded, return value
+  return SHMAT_SEED;                            // return compiled default
 }

@@ -357,6 +357,11 @@ The general layout for the multiple node object code storage is:
         ...
         ^$ROUTINE("RTN",0,N)=object code chunk N
 
+### Shared memory address
+
+You can specify the fixed shared memory address, where the shared memory
+segment will be allocated in memory. The environment variable `MV2_SHMAT`
+can contain the memory address in hexadecimal format (0x1234567890abcdef).
 
 ### MV1API
 

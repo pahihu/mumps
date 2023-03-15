@@ -428,6 +428,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 typedef u_int64 usec_t;
 usec_t UTIL_GetMicroSec(void);			// microsec timestamp
 void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
+void* UTIL_ShmAt(void);                         // SHM address to attach to
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time
