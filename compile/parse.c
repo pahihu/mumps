@@ -166,8 +166,8 @@ CheckChaining:
     }
     i = 0;
     if (zzcmd)
-    { *comp_ptr++ = CMDORT;                     // ZZcmd^ZZCMD
-      comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr); // save ZZCMD rou
+    { *comp_ptr++ = CMDORT;                     // ZZcmd^%ZZCMD
+      comp_ptr += X_put((chr_x *) "%ZZCMD", comp_ptr); // save %ZZCMD rou
       comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);   // save ZZcmd tag
       i = -2;                                   // mark as tag^rou
     }
@@ -1903,7 +1903,7 @@ void parse()                                    // MAIN PARSE LOOP
 
 	if ((*source_ptr == ' ') || (*source_ptr == '\0')) // argumentless form?
         { *comp_ptr++ = CMDORT;                 // tag^rou
-          comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr);
+          comp_ptr += X_put((chr_x *) "%ZZCMD", comp_ptr);
           comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);
           *comp_ptr++ = (u_char) 0;             // no args
         }

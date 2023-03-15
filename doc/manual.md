@@ -373,20 +373,20 @@ user defined commands and functions. The only restriction is
 that you should begin your commands and functions with the *ZZ*
 prefix. The bytecode compiler will translate each such command
 and function to a call to the corresponding tag in the routine
-*ZZCMD* or *ZZFN* respectively.
+*%ZZCMD* or *%ZZFN* in the MGR UCI, respectively.
 
 ---
 
 `ZZcmd a1:a2...`
 
-Calls `ZZcmd^ZZCMD(a1,a2...)`. Note the colon in the syntax to
+Calls `ZZcmd^%ZZCMD(a1,a2...)`. Note the colon in the syntax to
 enter multiple parameters for the command.
 
 ---
 
 `$ZZfn(a1,a2...)`
 
-Calls `ZZfn^ZZFN(a1,a2...)`.
+Calls `ZZfn^%ZZFN(a1,a2...)`.
 
 
 ## Commands
