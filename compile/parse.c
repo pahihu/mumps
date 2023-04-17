@@ -452,11 +452,12 @@ void parse_lock()				// LOCK
       if (*source_ptr == '@')			// indirection ?
       { atom();					// eval the string
         if (*(comp_ptr - 1) == INDEVAL)		// if it was indirect
-        { if (!type)				// entire arg?
+        { if (!type && !i)		        // entire arg? (F.Fornazier)
           { *(comp_ptr - 1) = INDLOCK;		// say lock indirect
 	    return;				// and quit
 	  }
-	  *(comp_ptr - 1) = INDMVAR;		// make an mvar of it
+          else
+	    *(comp_ptr - 1) = INDMVAR;		// make an mvar of it
         }
         else if (*(comp_ptr - 3) == OPVAR)
           *(comp_ptr - 3) = OPMVAR;		// change to OPMVAR
