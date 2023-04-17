@@ -22,6 +22,7 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * parser/runtime fix for LOCK (@GLVN1[,...])
   * stack overflow during ST_Restore()
   * XECUTE could overwrite process stack
   * DB lock-up with a small global buffer
