@@ -462,6 +462,7 @@ short LCK_Add(int count, cstring *list, int to, int job);
 short LCK_Sub(int count, cstring *list, int job);
 short LCK_LockToString(int count, const cstring *list, u_char *out);
 short LCK_StringToLock(int count, const cstring *str, cstring *list);
+void dumpCStr(char*,cstring*);
 
 // Xcalls
 //

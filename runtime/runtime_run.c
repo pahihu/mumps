@@ -2919,7 +2919,8 @@ short run(long savasp, long savssp)		// run compiled code
 	{ s = UTIL_mvartolock((mvar *) astk[--asp], p + sizeof(short));
 	  if (s < 0) ERROR(s)			// check for error
 	  *((short *)p) = s;			// save the size
-	  p = p + s + sizeof(short);		// add the length
+          // dumpCStr("mvartolock", (cstring*)p);
+	  p = p + s + sizeof(short) + sizeof(char);// add the length, count null
 	  if ((long) p & 1) p++;		// ensure even
 	}
 	if (opc == CMLCK)

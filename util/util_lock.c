@@ -157,7 +157,7 @@ short LCK_StringToLock(int count, const cstring *list, cstring *out)
     s = UTIL_mvartolock(&var, &out->buf[0]);
     if (s < 0) return s;
     out->len = s;
-    outsize = sizeof(short) + s;
+    outsize = sizeof(short) + s + sizeof(char); // count null
     if (outsize & 1) outsize++;
     outpos += outsize;
 
@@ -619,7 +619,6 @@ void LCK_RemoveVOL(int volume)                  // remove all locks for a volume
 { locktab *lptr;                                // locktab entry we are doing
   locktab *plptr;                               // previous locktab entry
   short x;                                      // for SEM's
-  int i;					// handy int
 
   ASSERT((0 < volume) && (volume <= MAX_VOL));
   if (NULL == systab->vol[volume-1]->vollab)	// not mounted ?
@@ -739,6 +738,27 @@ int failed(lck_add_ctx *pctx)                 	// common code
   return 0;
 }
 
+static unsigned char printable(unsigned char ch)
+{
+  return (31 < ch) && (ch < 128) ? ch : '.';
+}
+
+void dumpCStr(char *msg, cstring *cstr)
+{ int i;
+  fprintf(stderr,"=== %s ===\r\n", msg);
+  fprintf(stderr,"len = %d\r\n", cstr->len);
+  fprintf(stderr,"buf =");
+  for (i = 0; i < cstr->len; i++)
+  {  u_char ch = cstr->buf[i];
+     u_char p  = printable(ch);
+     if (p == '.')
+       fprintf(stderr, " %02X", ch);
+     else
+       fprintf(stderr, "  %c", p);
+  }
+  fprintf(stderr,"\r\n");
+}
+
 static
 short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
 {
@@ -760,6 +780,8 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
   int reqd;                                     // space reqd for lock
   //short x;                                    // for SEM's
   lck_add_ctx ctx,*pctx;
+
+  // dumpCStr("LCK_AddP: list", list);
 
   if (!job) job = MV1_PID + 1;			// current job
 
@@ -785,6 +807,7 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
        
   while ((done < count) && (tryagain == 0))     // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    // dumpCStr("LCK_AddP: arg", current);
     reqd = sizeof(short)*2 + sizeof(int)*2 + sizeof(locktab *) + current->len;
                 
     if (reqd & 7) reqd = (reqd & ~7) + 8;       // round up to 8 byte boundary
