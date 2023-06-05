@@ -131,6 +131,7 @@ int do_log(const char *fmt,...)
 static
 u_int MSLEEP(u_int mseconds)
 {
+  systab->Mtime = time(0);
   return usleep(1000 * mseconds);                       // sleep
 }
 
@@ -745,6 +746,7 @@ void do_daemon()					// do something
 
   start_cnt = 0;
 start:
+  systab->Mtime = time(0);
   start_cnt++;
   if (last_write_garb > MILLITIME())                    // check wrap-around
     last_write_garb = 0;                                // reset last WRITE/GARB

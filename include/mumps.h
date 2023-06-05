@@ -650,6 +650,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-255)
   int numcpu2;                                  // number of CPUs x 2
+  time_t Mtime;
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
@@ -674,7 +675,7 @@ extern int sem_id;                              // global semaphore id
 
 
 // MUMPS time
-#define MTIME(x)        time(0)                 // updated by daemon 0
+#define MTIME(x)        systab->Mtime           // updated by daemon 0
 
 //** process memory structures ***/
 //** PARTAB definitions **
