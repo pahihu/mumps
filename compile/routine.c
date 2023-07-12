@@ -417,9 +417,9 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   else
   { partab.checkonly = 1;			// just a check
     same = 1;					// stop writting
-    partab.sp = &source_ptr;			// where source ptr is
-    partab.lp = &line;				// and where line is
   }
+  partab.sp = &source_ptr;			// where source ptr is
+  partab.lp = &line;				//   and where line is
   if (src->name.var_cu[0] == '$')		// source an ssvn?
   { s = SS_Norm(src);				// normalize mvar
     if (s < 0) return s;			// quit on error

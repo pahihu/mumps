@@ -63,9 +63,10 @@ void comperror(short err)                       // compile error
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
-  if (!partab.checkonly) goto scan;		// done
-  if (partab.checkonly == *partab.ln) return; 	// done this one once
-  partab.checkonly = *partab.ln;		// record done
+  if (partab.checkonly)
+  { if (partab.checkonly == *partab.ln) return; // done this one once
+    partab.checkonly = *partab.ln;		// record done
+  }
   line = *partab.lp;				// get the line address
   src = *partab.sp;				// and the current source
   s = SQ_Write(line);				// write the line

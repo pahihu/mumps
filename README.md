@@ -22,6 +22,7 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * display all compilation messages ("Too many tags" got garbaged)
   * parser/runtime fix for LOCK (@GLVN1[,...])
   * stack overflow during ST_Restore()
   * XECUTE could overwrite process stack
