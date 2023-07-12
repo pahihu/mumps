@@ -259,6 +259,8 @@ start:
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  partab.compmsg = (cstring*)malloc(sizeof(cstring)); // compiler msg
+
   LB_Init();					// init local buffers
 
   ST_Init();					// initialize symbol table

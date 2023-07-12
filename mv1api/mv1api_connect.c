@@ -246,6 +246,8 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  partab.compmsg = (cstring*)malloc(sizeof(cstring)); // compiler msg
+
   LB_Init();					// local buffering
   ST_Init();					// initialize symbol table
 

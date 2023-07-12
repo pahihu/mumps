@@ -711,6 +711,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | BACKUP_FILE        | Backup file name          | set with priv |
 | BACKUP_TYPE        | Type of backup FULL, CUMULATIVE or SERIAL | set with priv |
 | BACKUP_VOLUMES     | Backup VOL masks OR VOL index to restore  | set with priv |
+| COMPMSG            | Last routine compilation message. | no |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |

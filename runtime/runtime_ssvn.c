@@ -356,6 +356,11 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       	       (systab->historic & HISTORIC_DNOK));  // return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "compmsg\0", 8) == 0))
+      { strcpy((char *) buf, &partab.compmsg->buf[0]);
+        return partab.compmsg->len;                     // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "resttime\0", 9) == 0))
       { return itocstring(buf, systab->ZRestTime);   // return the value
       }

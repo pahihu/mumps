@@ -2139,6 +2139,8 @@ short run(long savasp, long savssp)		// run compiled code
 			      var2,		// from here
 			      &sstk[ssp]);	// use this temp space
 	  if (j < 0) ERROR(j)			// give up on error
+	  cptr = (cstring *) &sstk[ssp];	// the errmsg if any
+          memcpy(partab.compmsg, cptr, sizeof(cstring)); // save errmsg
 	  break;
 	}
 

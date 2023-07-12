@@ -213,7 +213,7 @@ CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
  O 1:(FILE:"R") K ^UTILITY(UI) U 1 R F,%,% U 0
  I "Editing "_ROU'=F W "Edit NOT saved!",! G EXIT
  U 1 F %=1:1 R ^UTILITY(UI,%) Q:^UTILITY(UI,%)=""  Q:$A($K)=255
- M ^$R(ROU)=^UTILITY(UI) K ^UTILITY(UI)
+ M ^$R(ROU)=^UTILITY(UI) K ^UTILITY(UI) S %=^$S("COMPMSG") U 0 W:$L(%) %,!
 EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^$R(ROU) Q
 
 %ET

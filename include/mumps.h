@@ -702,6 +702,7 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   u_char **sp;                                  // source ptr for compile
   cstring **lp;                                 // start of the line (ditto)
   int *ln;                                      // line num for $&%ROUCHK()
+  cstring *compmsg;                             // last compiler msg
   mvar src_var;                                 // temp space for src mvar
   u_long lastseq;				// last SEQUENCE time
   int lenseq;					// SEQUENCE length

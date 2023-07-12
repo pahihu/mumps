@@ -111,16 +111,17 @@ void CompError(short err,const char *file,int lno)// compile error
   int i;					// a handy int
   u_char tmp[128];				// some space
 
-  // fprintf(stderr,"comperror() called from %s:%d:\r\n",file,lno);
+  // fprintf(stderr,"comperror() called from %s:%d: checkonly=%d disp_errors=%d ln=%d\r\n",file,lno,partab.checkonly,disp_errors,*partab.ln); // XXX
   *comp_ptr++ = OPERROR;                        // say it's an error
   bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
-  if (!partab.checkonly) goto scan;		// done
   if (!disp_errors) return;			// done if disp.errors disabled
-  if (partab.checkonly == *partab.ln) return; 	// done this one once
-  partab.checkonly = *partab.ln;		// record done
+  if (partab.checkonly)
+  { if (partab.checkonly == *partab.ln) return; // done this one once
+    partab.checkonly = *partab.ln;		// record done
+  }
   line = *partab.lp;				// get the line address
   src = *partab.sp;				// and the current source
   s = Err_Write(line);				// write the line
