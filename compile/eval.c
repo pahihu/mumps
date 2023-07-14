@@ -52,28 +52,29 @@ u_char *source_ptr;                             // pointer to source code
 u_char *comp_ptr;                               // pointer to compiled code
 int     disp_errors;				// flag to display errors
 
-cstring *errstr;                                // error string
+cstring  errstr;                                // error string
 int      errstr_dx;
 
-void Err_Init(cstring *cstr)
-{
-  errstr = cstr;
-  errstr->len = 0;
+void Err_Init(void)                             // init error string
+{ errstr.len = 0;
   errstr_dx = 0;
 }
 
-short Err_Len(void)
-{
-  return errstr->len;
+cstring *Err_CString(void)                      // ptr to error string
+{ return &errstr;
+}
+
+short Err_Len(void)                             // length of error string
+{ return errstr.len;
 }
 
 static short Err_Write(cstring *line)
 {
-  if (errstr->len + line->len + 1 > 32767)
+  if (errstr.len + line->len + 1 > MAX_STR_LEN)
     return (-(ERRM75));
 
-  memcpy(&errstr->buf[errstr->len], &line->buf[0], line->len);
-  errstr->len += line->len;
+  memcpy(&errstr.buf[errstr.len], &line->buf[0], line->len);
+  errstr.len += line->len;
   errstr_dx += line->len;
   return 0;
 }
@@ -83,21 +84,21 @@ static short Err_WriteFormat(int count)
   int len = (SQ_LF == count) ? 2 : count;
   int numspaces, i;
 
-  if (errstr->len + len + 1 > 32767)
+  if (errstr.len + len + 1 > MAX_STR_LEN)
     return (-(ERRM75));
 
   switch ( count )
   { case SQ_LF:
-      errstr->buf[errstr->len    ] = 0x0D;
-      errstr->buf[errstr->len + 1] = 0x0A;
-      errstr->len += 2;
+      errstr.buf[errstr.len    ] = 0x0D;
+      errstr.buf[errstr.len + 1] = 0x0A;
+      errstr.len += 2;
       errstr_dx = 0;
       break;
     default:
       numspaces = count - errstr_dx;
       for (i = 0; i < numspaces; i++)
-      { errstr->buf[errstr->len] = ' ';
-        errstr->len++;
+      { errstr.buf[errstr.len] = ' ';
+        errstr.len++;
       }
       break;
   }
@@ -144,8 +145,8 @@ void CompError(short err,const char *file,int lno)// compile error
   if (s < 0) goto scan;				// exit on error
   line->len = line->len + s + 11;		// the length
   s = Err_Write(line);				// write the line
-  if (s >= 0)					// if no error error
-    s = Err_WriteFormat(SQ_LF);			// return
+  if (s < 0) goto scan;			        // if no error error
+  s = Err_WriteFormat(SQ_LF);			// return
 scan:
   while (*source_ptr) source_ptr++;		// skip rest of line
   return;					// and done

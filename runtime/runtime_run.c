@@ -797,15 +797,16 @@ short run(long savasp, long savssp)		// run compiled code
 	p = &sstk[ssp];				// some workspace
 	j = cstringtoi((cstring *) astk[--asp]); // second numeric arg
 	i = cstringtoi((cstring *) astk[--asp]); // first numeric arg
-	if ((i > 32767) || (j > 32767)) ERROR(-ERRM75) // check for too long
+	if ((i > MAX_STR_LEN) || (j > MAX_STR_LEN))
+                ERROR(-ERRM75) // check for too long
 	ptr1 = NULL;				// SET $EXTRACT
 	if (opc == CMSETP)
 	{ ptr1 = (cstring *) astk[--asp];	// $PIECE delimiter
-          if (((ptr1->len)*i > 32767 ) || ((ptr1->len)*j > 32767))
+          if (((ptr1->len)*i > MAX_STR_LEN ) || ((ptr1->len)*j > MAX_STR_LEN))
             ERROR(-ERRM75)
 	}
         else if (opc == CMSETLI)
-        { if ((2*i > 32767) || (2*j > 32767))
+        { if ((2*i > MAX_STR_LEN) || (2*j > MAX_STR_LEN))
             ERROR(-ERRM75);
         }
 	var = (mvar *) astk[--asp];		// the variable
@@ -2138,9 +2139,11 @@ short run(long savasp, long savssp)		// run compiled code
 	  j = Compile_Routine(var,		// compile this routine
 			      var2,		// from here
 			      &sstk[ssp]);	// use this temp space
+	  cptr = Err_CString();                 // the errmsg if any
+          cptr->buf[cptr->len] = '\0';          // trailing null
+          memcpy(partab.compmsg, cptr,          // save errmsg
+                sizeof(short) + cptr->len + 1);
 	  if (j < 0) ERROR(j)			// give up on error
-	  cptr = (cstring *) &sstk[ssp];	// the errmsg if any
-          memcpy(partab.compmsg, cptr, sizeof(cstring)); // save errmsg
 	  break;
 	}
 
@@ -3685,7 +3688,6 @@ short run(long savasp, long savssp)		// run compiled code
         X_set("$ROUTINE", &var2->name.var_cu, 8); // ^$R
 	var2->volset = partab.jobtab->rvol;	// the volume
 	var2->uci = partab.jobtab->ruci;	// and the uci
-	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	s = UTIL_Key_BuildEx(var2, ptr1, &var2->key[0]); // build the key
 	if (s < 0) ERROR(s)			// give up on error
 	var2->slen = s;				// save the length
@@ -3693,7 +3695,10 @@ short run(long savasp, long savssp)		// run compiled code
 			    var2,		// check this one
 			    &sstk[ssp]);	// use this temp space
 	if (i < 0) ERROR(i)			// give up on error
-	cptr->len = i;				// save the length
+	cptr = Err_CString();                   // compiler msgs
+        cptr->buf[cptr->len] = '\0';            // trailing null
+        memcpy(&sstk[ssp], cptr, sizeof(short) + cptr->len + 1);
+        cptr = &sstk[ssp];
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// and exit

@@ -367,7 +367,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
-  Err_Init((cstring *) stack);                  // for error string
+  Err_Init();                                   // for error string
   line = (cstring *) (stack + sizeof(cstring));	// for source lines
   code = stack + 3*sizeof(cstring);		// where the code goes
   cptr = (cstring *) temp;			// point at temp space
