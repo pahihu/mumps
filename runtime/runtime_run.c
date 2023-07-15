@@ -2439,8 +2439,11 @@ short run(long savasp, long savssp)		// run compiled code
 	  for (i = 0; i < j; i++)		// for each arg
 	  //{ vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
 	  //  list[i].var_qu = vt[mumpspc[i]];    // get the var name
-	  { vt = (chr_x *) (((u_char *) rouadd) + rouadd->var_tbl);
-	    list[i].var_xu = vt[mumpspc[i]];    // get the var name
+	  { u_short idx;
+            bcopy( mumpspc + 2*i, &idx, sizeof(u_short));// get the index
+            vt = (chr_x *) (((u_char *) rouadd) + rouadd->var_tbl);
+	    // list[i].var_xu = vt[mumpspc[i]];    // get the var name
+	    list[i].var_xu = vt[idx];           // get the var name
 	  }
 	  s = ST_New(j, list); 			// new them
 	  if (s < 0)
@@ -2458,9 +2461,12 @@ short run(long savasp, long savssp)		// run compiled code
 	  var->slen = 0;			// no subscripts
 	  s = 0;				// clear error flag
 	  for (i = args-2; i >=0; --i)		// for each supplied arg
-	  { s = i;                              // index is i
+	  { u_short idx;
+            s = i;                              // index is i
             if ((skip2ndarg) && (i > 1)) s--;     // $ZSEND 0->0,1 skip,2->1,...
-            var->volset = mumpspc[s] + 1;	// get the index
+            bcopy( mumpspc + 2*s, &idx, sizeof(u_short));// get the index
+            // var->volset = mumpspc[s] + 1;	// get the index
+            var->volset = idx + 1;	        // get the index
 	    cptr = (cstring *) astk[--asp];	// get data ptr
 	    if (cptr != NULL)			// normal data type?
 	    { if ((skip2ndarg) && (i == 1))     // $ZSEND skip 2nd arg
@@ -2504,7 +2510,7 @@ short run(long savasp, long savssp)		// run compiled code
 	    partab.jobtab->cur_do--;	        // point back
             ERROR(s)			        // exit on error
           }
-	  mumpspc = mumpspc + j;		// skip args
+	  mumpspc = mumpspc + 2*j;		// skip args
 	}
 	if ((curframe->type & TYPE_EXTRINSIC) || // if it's extrinsic
 	    (curframe->level))			// or argless do
@@ -3260,7 +3266,9 @@ short run(long savasp, long savssp)		// run compiled code
 	var = NULL;				// clear var address
 	if (i == TYPVARIDX)			// index type?
 	{ mumpspc++;				// skip type
-	  i = *mumpspc++;			// get var idx
+	  // i = *mumpspc++;			// get var idx
+          i = 0; bcopy( mumpspc, &i, sizeof(u_short));// get var idx
+          mumpspc += sizeof(u_short);
 	  s = partab.jobtab->dostk[partab.jobtab->cur_do].symbol[i];
 	  if (s == -1)				// if not attached
 	  { rouadd =

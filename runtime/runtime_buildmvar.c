@@ -127,8 +127,10 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
   }
   else if ((type & TYPVARIDX) &&		// if it's the index type
 	   (type < TYPVARGBL))			// and it's local
-  { i = *mumpspc++;				// get the index
-    if (i < 255)				// can't do the last one
+  { // i = *mumpspc++;				// get the index
+    i = 0; bcopy( mumpspc, &i, sizeof(u_short));// get the index
+    mumpspc += sizeof(u_short);
+    if (i < (MAX_VAR_TBL-1))			// can't do the last one
     { var->volset = i + 1;			// save the index (+ 1)
       //var->name.var_qu = 0;			// clear the name
       X_Clear(var->name.var_xu);		// clear the name

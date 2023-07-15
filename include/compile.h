@@ -57,6 +57,13 @@
 		+ sizeof(int) + sizeof(time_t) + sizeof(var_u) \
 		+ sizeof(u_char) + sizeof(u_char) + sizeof(short)
 
+#define MAX_VAR_TBL     256                     // max var_tbl[] size
+#define MAX_TAG_TBL     256                     // max tag_tbl[] size
+#define AVROUSIZ        3072                    // average compiled routine size
+#define MAXROUSIZ       (65535-RBD_OVERHEAD)    // max compiled rou size
+#define MAXROULIN       32767                   // max rou lines
+#define COMP_VER        (9+(MAX_NAME_BYTES-8)*256)  // compiler version
+
 #define RESERVE_TIME	17*60			// 17 minutes
 #define SIZE_CLOSE	1024			// routine size match
 

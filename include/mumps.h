@@ -184,11 +184,6 @@
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list
 
-#define AVROUSIZ        3072                    // average compiled routine size
-// #define MAXROUSIZ    32767                   // max compiled rou size
-#define MAXROUSIZ       65535                   // max compiled rou size
-#define MAXROULIN       32767                   // max rou lines
-#define COMP_VER        (8+(MAX_NAME_BYTES-8)*256)  // compiler version
 #define DB_VER          (3+(MAX_NAME_BYTES-8)*256)  // database version
 
 // Global flags (from Global Directory) follow

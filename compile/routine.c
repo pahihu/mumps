@@ -349,8 +349,8 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   u_char src_slen;				// key in source
   u_char rou_slen = 0;				// key in routine
   u_char temp[100];				// temp space
-  tags tag_tbl[256];				// space for the tags
-  var_u var_tbl[256];				// and the variables
+  tags tag_tbl[MAX_TAG_TBL];			// space for the tags
+  var_u var_tbl[MAX_VAR_TBL];			// and the variables
   var_u var;					// for one var
   int num_tags = 0;				// count tags
   int num_vars = 0;				// and variables
@@ -363,7 +363,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   var_u rounam;					// the routine name
   int same = 0;					// same routine flag
   u_char src_nsubs, rou_nsubs = 0;
-  u_short offs;                                 // offset into RBD
+  u_short offs, u, *pu;                         // offset into RBD, handy vars
 
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
@@ -373,7 +373,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   cptr = (cstring *) temp;			// point at temp space
 
   //for (i = 0; i < 256; var_tbl[i++].var_qu = 0); // clear var table
-  for (i = 0; i < 256; X_Clear(var_tbl[i++].var_xu)); // clear var table
+  for (i = 0; i < MAX_VAR_TBL; X_Clear(var_tbl[i++].var_xu)); // clear var table
 
   if ((code + MAXROUSIZ) > partab.sstk_last)	// too big ?
     return -(ERRMLAST+ERRZ8);			// yes - complain
@@ -476,7 +476,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     source_ptr = line->buf;			// where the source is
     if (isalnum(*source_ptr) || (*source_ptr == '%')) // check for a tag
     { j = isdigit(*source_ptr);			// remember if digit
-      if (num_tags == 255)			// check number of tags
+      if (num_tags == (MAX_TAG_TBL-1))	        // check number of tags
       { comperror(-(ERRZ53+ERRMLAST));		// complain
         continue;				// ignore remainder of line
       }
@@ -511,6 +511,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	*comp_ptr++ = LOADARG;			// add the opcode
 	p = comp_ptr;				// remember where the count is
 	comp_ptr++;				// skip the count
+        pu = (u_short *) comp_ptr;              // remember arg index list
 	while (TRUE)				// scan the list
 	{ if (*source_ptr == ')')		// found end yet?
 	  { source_ptr++;			// skip )
@@ -544,7 +545,7 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	  { cnt = -(ERRMLAST+ERRZ13);		// error
 	    break;				// exit
 	  }
-	  for (i = 0; i < 256; i++)		// scan var list
+	  for (i = 0; i < MAX_VAR_TBL; i++)     // scan var list
 	  { //if (var_tbl[i].var_qu == var.var_qu)
             if (X_EQ(var_tbl[i].var_xu, var.var_xu))
 	      break;				// quit on match
@@ -555,14 +556,17 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      break;				// and exit
 	    }
 	  }
-	  if (i == 256)				// too many?
+	  if (i == MAX_VAR_TBL)	                // too many?
 	  { cnt = (-(ERRZ53+ERRMLAST));		// too many
 	    break;				// exit
 	  }
-	  *comp_ptr++ = (u_char) i;		// save index
+	  // *comp_ptr++ = (u_char) i;		// save index
+          u = (u_short) i;                      // save index
+          bcopy(&u, comp_ptr, sizeof(u_short));
+          comp_ptr += sizeof(u_short);
 	  cnt++;				// count it
-	  for (j = 1; j < cnt; j++)		// scan what's already there
-	    if (p[j] == i)			// if already got that one
+	  for (j = 0; j < cnt-1; j++)		// scan what's already there
+	    if (pu[j] == i)			// if already got that one
 	    { cnt = -ERRM21;			// complain
 	      break;				// exit
 	    }
