@@ -122,6 +122,7 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
   }
   while (TRUE)					// loop thru the arguments
   { ptr = comp_ptr;				// save compile pointer
+    sav_source_ptr = source_ptr;                // save position
     if (*source_ptr == '$')                     // $ZSEND in DO command
     { source_ptr++;
       if ((source_ptr[3] == '(') &&             // check 'ZSE('
@@ -132,12 +133,15 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
                (strncasecmp((char *) source_ptr, "zsend", 5) == 0))
       { source_ptr += 5;                        // position to '('
       }
-      else                                      // else complain
-        SYNTX
+      else
+      { source_ptr = sav_source_ptr;            // restore position
+        goto CheckChaining;
+      }
       *comp_ptr++ = FUNZSE;                     // compile opcode
       args = 0;
       goto CompileArgs;
     }
+CheckChaining:
     // if ((isalpha(*source_ptr) ||             // check chaining
     //     ('%' == *source_ptr)))
     { sav_source_ptr = source_ptr;              // save position
@@ -162,8 +166,8 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
     }
     i = 0;
     if (zzcmd)
-    { *comp_ptr++ = CMDORT;                     // ZZcmd^ZZCMD
-      comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr); // save ZZCMD rou
+    { *comp_ptr++ = CMDORT;                     // ZZcmd^%ZZCMD
+      comp_ptr += X_put((chr_x *) "%ZZCMD", comp_ptr); // save %ZZCMD rou
       comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);   // save ZZcmd tag
       i = -2;                                   // mark as tag^rou
     }
@@ -524,11 +528,12 @@ void parse_lock()				// LOCK
       if (*source_ptr == '@')			// indirection ?
       { atom();					// eval the string
         if (*(comp_ptr - 1) == INDEVAL)		// if it was indirect
-        { if (!type)				// entire arg?
+        { if (!type && !i)		        // entire arg? (F.Fornazier)
           { *(comp_ptr - 1) = INDLOCK;		// say lock indirect
 	    return;				// and quit
 	  }
-	  *(comp_ptr - 1) = INDMVAR;		// make an mvar of it
+          else
+	    *(comp_ptr - 1) = INDMVAR;		// make an mvar of it
         }
         else if (*(comp_ptr - 3) == OPVAR)
           *(comp_ptr - 3) = OPMVAR;		// change to OPMVAR
@@ -1899,7 +1904,7 @@ void parse()                                    // MAIN PARSE LOOP
 
 	if ((*source_ptr == ' ') || (*source_ptr == '\0')) // argumentless form?
         { *comp_ptr++ = CMDORT;                 // tag^rou
-          comp_ptr += X_put((chr_x *) "ZZCMD", comp_ptr);
+          comp_ptr += X_put((chr_x *) "%ZZCMD", comp_ptr);
           comp_ptr += X_put((chr_x *) zzcmd, comp_ptr);
           *comp_ptr++ = (u_char) 0;             // no args
         }

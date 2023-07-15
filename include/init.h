@@ -55,7 +55,8 @@ int INIT_Start( char *file,                     // database
 		int netdaemons,			// no of network daemons
 		int srvid,			// server ID
 		char *srvurl,			// server URL
-		int srvport);			// server port
+		int srvport,			// server port
+                int srvsndto);                  // server send timeout
 void ST_Init();					// empty symbol table
 
 #endif                                          // !_MUMPS_INIT_H_

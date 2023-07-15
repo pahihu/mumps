@@ -35,14 +35,16 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_F_RDAT	128	/* request data for ORDV/QRYV/DATV */
 #define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
+#define DGP_F_NOUCI      32     /* original var didn't had UCI */
+#define DGP_F_NOVOL      16     /* original var didn't had VOL */
 
 /* NB. vvv--- same encoding as in mumps.h ---vvv */ 
 #define DGP_F_KSUBS	  2	/* KSUBSCRIPTS ^GLB */
 #define DGP_F_KVAL	  1	/* KVALUE ^GLB */
 #define DGP_F_KALL	(DGP_F_KSUBS+DGP_F_KVAL)	/* K ^GLB */
 
-#define DGP_SYSJOB	(65280 /* 0xFF00 */ + systab->dgpID)
-#define DGP_SYSID(x)	(((x)-1)/256)
+#define DGP_SYSJOB	(0x0FF000 + systab->dgpID)
+#define DGP_SYSID(x)	(((x)-1)/MAX_JOB)
 #define DGP_MAX_LOCKTO	60
 #define DGP_RESTARTTO	 5
 
@@ -59,7 +61,7 @@ typedef struct ATTR_PACKED DGPDATA
 typedef struct ATTR_PACKED DGPHEADER
 { u_char  code;			/* message code */
   u_char  version;		/* DGP version */
-  u_short remjob;		/* client remote JOB number, 
+  u_int   remjob;		/* client remote JOB number,
 				     OR JOB parameter for LOCK commands,
 				     OR server PID */
   u_char  hdrlen;		/* length of the header */

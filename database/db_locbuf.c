@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>				// for malloc()
+#include <strings.h>                            // for bcopy()
 #include <sys/types.h>				// for types
 #include "mumps.h"
 #include "database.h"

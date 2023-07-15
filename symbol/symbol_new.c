@@ -184,7 +184,7 @@ short ST_NewAll(int count, var_u *list)
 //**  Returns :
 void ST_Restore(ST_newtab *newtab)
 {
-  ST_newtab *ptr;					// ptr-> current newtab
+  ST_newtab *ptr, *savnewtab;                           // ptr-> current newtab
   ST_depend *dd;					// depend data ptr
   ST_depend *ddf;					// depend data ptr
   int i;						// generic counter
@@ -192,6 +192,9 @@ void ST_Restore(ST_newtab *newtab)
   int chk;						// symtab index
   int kill;						// kill flag
 
+  savnewtab = newtab;                                   // save newtab
+
+Loop:
   ptr = newtab;						// go to first newtab
   if (ptr == NULL) return;				// nothing to do
   if (ptr->stindex != NULL)				// check for newall
@@ -249,12 +252,21 @@ void ST_Restore(ST_newtab *newtab)
 	(symtab[ptr->locdata[i].stindex].data == NULL)) // any data?
       (void)ST_SymKill(ptr->locdata[i].stindex);	// dong it
   }							// all new'd vars done
+
   if (ptr->fwd_link != NULL)				// if there are more
-  { ST_Restore(ptr->fwd_link);				// restore next newtab
+  { newtab = ptr->fwd_link;                             // save fwd link
+    goto Loop;                                          // restore next newtab
   }							// end if there's more
-  mv1free(ptr);						// free the space
-  if (ptr == (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
-    partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL; // clear doframe
+
+  ptr = savnewtab;                                      // restore newtab
+  while (ptr != NULL)                                   // while there are more
+  { newtab = ptr->fwd_link;                             // save fwd link
+    if (ptr ==                                          // clear doframe
+        (ST_newtab *) partab.jobtab->dostk[partab.jobtab->cur_do].newtab)
+      partab.jobtab->dostk[partab.jobtab->cur_do].newtab = NULL;
+    mv1free(ptr);                                       // free the space
+    ptr = newtab;                                       // check next
+  }
 }							// end function Restore
 
 //****************************************************************************

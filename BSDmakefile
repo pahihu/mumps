@@ -73,6 +73,7 @@ OBJS	= 	compile/dollar.o \
 		util/util_strerror.o \
 		util/util_rwlock.o \
 		util/util_usync.o \
+		util/util_rle.o \
 		xcall/xcall.o
 
 .c.o:

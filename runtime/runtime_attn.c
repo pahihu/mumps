@@ -233,13 +233,13 @@ int ForkIt(int cft)				// Copy File Table True/False
     { if (getpid() == partab.jobtab->pid)	// done yet ?
         break;					// yes - exit
       if (i > 120)				// two minutes is nuff
-	panic("ForkIt: Child job never got setup");
+	mv1_panic("ForkIt: Child job never got setup");
       sleep(1);					// wait for a second
     }
   }
   if (cft)					// fork type?
   { i = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
-    if (i < 0) panic("Can't get SEM_ROU in ForkIt()"); // die on fail
+    if (i < 0) mv1_panic("Can't get SEM_ROU in ForkIt()"); // die on fail
     for (i = partab.jobtab->cur_do; i > 0; i--)	// scan all do frames
     { if (partab.jobtab->dostk[i].flags & DO_FLAG_ATT)
         ((rbd *) partab.jobtab->dostk[i].routine)->attached++; // count attached
@@ -269,7 +269,8 @@ int ForkIt(int cft)				// Copy File Table True/False
 
 void SchedYield()				// do a sched_yield()
 { 
-  systab->Mtime = time(0);                      // update M time
   (void)sched_yield();				// do it
   return;					// and exit
 }
+
+// vim:ts=8:sw=8:et

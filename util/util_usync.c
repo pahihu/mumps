@@ -9,26 +9,9 @@
 #include "mumps.h"
 #include "proto.h"
 
-extern void panic(char*);
+extern void mv1_panic(char*);
 
 #if defined(MV1_SHSEM) && !defined(MV1_CKIT)
-
-#ifdef USE_LIBATOMIC_OPS
-#define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
-#else
-
-AO_t inter_add(volatile AO_t *ptr, AO_t incr)
-{
-  AO_t oldval, newval;
-  do
-  { oldval = *ptr;
-    newval = oldval + incr;
-  } while(!__sync_bool_compare_and_swap(ptr, oldval, newval));
-  return newval;
-}
-
-#endif
-
 
 #ifdef USE_LIBATOMIC_OPS
 #define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
@@ -156,7 +139,7 @@ void MV1SemWait(MV1SEM_T *sem)
     { done = 0;
       s = MV1LatchLock(&sem->g_latch);
       if (s < 0)
-      { panic("SemWait(): failed [g_latch]");
+      { mv1_panic("SemWait(): failed [g_latch]");
       }
       if (sem->ntok)
       { sem->ntok--;
@@ -182,7 +165,7 @@ void MV1SemWait(MV1SEM_T *sem)
   }
   // fprintf(stderr, "SemWait(): timeout\n");
   // fflush(stderr);
-  panic("SemWait(): failed");
+  mv1_panic("SemWait(): failed");
 }
 
 
@@ -191,7 +174,7 @@ void MV1SemSignal(MV1SEM_T *sem, int numb)
 
   s = MV1LatchLock(&sem->g_latch);
   if (s < 0)
-  { panic("SemSignal(): failed [g_latch]");
+  { mv1_panic("SemSignal(): failed [g_latch]");
   }
   sem->ntok += numb;
   MV1LatchUnlock(&sem->g_latch);
@@ -222,7 +205,7 @@ void MV1LockWriter(MV1RWLOCK_T *lok)
   dowait = 0;
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("LockWriter(): failed [g_latch]");
+  { mv1_panic("LockWriter(): failed [g_latch]");
   }
   if (lok->readers || lok->writers)
   { dowait = 1;
@@ -237,7 +220,7 @@ void MV1LockWriter(MV1RWLOCK_T *lok)
     if (s < 0)
     { sprintf(msg,"LockWriter(): failed [wr_latch] %d,%d,%d",
                     lok->readers,lok->wait_to_read,lok->writers);
-      panic(msg);
+      mv1_panic(msg);
     }
   }
 }
@@ -249,7 +232,7 @@ int MV1TryLockWriter(MV1RWLOCK_T *lok)
 
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("TryLockWriter(): failed [g_latch]");
+  { mv1_panic("TryLockWriter(): failed [g_latch]");
   }
   dowait = 0;
   if (lok->readers || lok->writers)
@@ -268,7 +251,7 @@ void MV1UnlockWriter(MV1RWLOCK_T *lok)
 
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("UnlockWriter(): failed [g_latch]");
+  { mv1_panic("UnlockWriter(): failed [g_latch]");
   }
   ASSERT(0 == lok->readers);
   lok->writers--;
@@ -290,7 +273,7 @@ void MV1UnlockWriterToReader(MV1RWLOCK_T *lok)
 
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("UnlockWriterToReader(): failed [g_latch]");
+  { mv1_panic("UnlockWriterToReader(): failed [g_latch]");
   }
   ASSERT(0 == lok->readers);
   lok->writers--;
@@ -309,7 +292,7 @@ void MV1LockReader(MV1RWLOCK_T *lok)
   dowait = 0;
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("LockReader(): failed [g_latch]");
+  { mv1_panic("LockReader(): failed [g_latch]");
   }
   if (lok->writers)
   { dowait = 1;
@@ -333,7 +316,7 @@ int MV1TryLockReader(MV1RWLOCK_T *lok)
 
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("TryLockReader(): failed [g_latch]");
+  { mv1_panic("TryLockReader(): failed [g_latch]");
   }
   dowait = 0;
   if (lok->writers)
@@ -352,7 +335,7 @@ void MV1UnlockReader(MV1RWLOCK_T *lok)
 
   s = MV1LatchLock(&lok->g_latch);
   if (s < 0)
-  { panic("UnlockReader(): failed [g_latch]");
+  { mv1_panic("UnlockReader(): failed [g_latch]");
   }
   ASSERT(0 != lok->readers);
   lok->readers--;

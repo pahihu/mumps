@@ -213,6 +213,8 @@ ExtrinsicArgs:
       *comp_ptr++ = XCDEBUG;			// save the opcode
     else if (strcmp(name, "%COMPRESS") == 0)	// $&%COMPRESS()
       *comp_ptr++ = XCCOMP;			// save the opcode
+    else if (strcmp(name, "LEHMER") == 0)	// $&LEHMER()
+      *comp_ptr++ = XCLEHMER;			// save the opcode
     else
       comperror(-(ERRZ18+ERRMLAST));		// junk
     return;					// end of xcalls
@@ -242,8 +244,8 @@ ExtrinsicArgs:
   { for (i = 0; i < len; i++)                   // always upper case
       name[i] = toupper((int)name[i]);
     ptr = comp_ptr;                             // remember where it goes
-    *comp_ptr++ = CMDORT;                       // ZZfn^ZZFN
-    comp_ptr += X_put((chr_x *) "ZZFN", comp_ptr); // save ZZFN as rou
+    *comp_ptr++ = CMDORT;                       // ZZfn^%ZZFN
+    comp_ptr += X_put((chr_x *) "%ZZFN", comp_ptr); // save ZZFN as rou
     comp_ptr += X_put((chr_x *) name, comp_ptr);// save name as tag
     i = -2;                                     // mark as tag^rou
     goto ExtrinsicFn;                           // compile an extrinsic fn

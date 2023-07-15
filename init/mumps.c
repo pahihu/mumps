@@ -53,7 +53,7 @@ void help(void)                                 // give some help
   printf( "----------------------------------------------------\n");
   printf( "This is %s\n\n", str);               // print version string
   printf( "Copyright (c) 1999 - 2016 Raymond Douglas Newman.\n");
-  printf( "Copyright (c) 2016 - 2018 Andras Pahi.\n");
+  printf( "Copyright (c) 2016 - 2023 Andras Pahi.\n");
   printf( "All rights reserved.\n\n");
   printf( "To create a database:\n");
   printf( "> mumps -v volnam -b blocksize(kb) -s dbsize(Blocks) filename\n");
@@ -62,9 +62,9 @@ void help(void)                                 // give some help
   printf( "To initialize an environment:\n");
   printf( "> mumps -j maxjobs  -r routinemb\n");
   printf( "        -g globalmb -a addmb -l [-]jrnkb -i sysid\n");
-  printf( "        -n #netdaemons -u srvurl -p srvport database\n");
+  printf( "        -n #netdaemons -u srvurl -p srvport -t srvsndto database\n");
   printf( "  routinemb, globalmb, addmb, jrnkb, sysid,\n");
-  printf( "  #netdaemons, srvurl, srvport are optional\n\n");
+  printf( "  #netdaemons, srvurl, srvport, srvsndto are optional\n\n");
   printf( "To attach to an environment:\n");
   printf( "> mumps -x command -e environment(uci) database\n" );
   printf( "               where both switches are optional\n\n");
@@ -93,6 +93,7 @@ int main(int argc,char **argv)                  // main entry point
   int jrnkb = 0;                                // jrn buf KB
   char srvurl[128];				// DGP server URL
   int srvport = -1;				// base DGP server port
+  int srvsndto = -1;                            // DGP server send timeout
   int sysid = 0;				// DGP system ID (random)
   int netdaemons = 0;				// no network daemons
 
@@ -106,7 +107,7 @@ int main(int argc,char **argv)                  // main entry point
     }
   }
   if (argc < 2) help();                         // they need help
-  while ((c = getopt(argc, argv, "a:b:e:g:hi:j:l:m:n:p:r:s:u:v:x:")) != EOF)
+  while ((c = getopt(argc, argv, "a:b:e:g:hi:j:l:m:n:p:r:s:t:u:v:x:")) != EOF)
   { switch(c)
     { case 'a':                                 // switch -a
         addmb = atoi(optarg);                   // additional buffer
@@ -147,6 +148,9 @@ int main(int argc,char **argv)                  // main entry point
       case 's':                                 // switch -s
         blocks = atoi(optarg);                  // number of data blks  (creDB)
         break;
+      case 't':                                 // switch -t
+        srvsndto = atoi(optarg);                // server send timeout  (init)
+        break;
       case 'u':					// switch -u		(init)
         strncpy(srvurl, optarg, 127);		// server URL
 	srvurl[127] = '\0';
@@ -185,7 +189,8 @@ int main(int argc,char **argv)                  // main entry point
                       netdaemons,		// # of network daemons
 		      sysid,			// system ID
                       srvurl,			// server URL
-		      srvport));    		// server port
+		      srvport,                  // server port
+                      srvsndto));    		// server send timeout
 
 runit:
   c = INIT_Run( *argv, env, cmd);               // run a job

@@ -183,7 +183,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   else
   { i = systab->vol[volnum - 1]->last_blk_written[MV1_PID];
                                                         // get last written
-    if ((i) &&                                          // used ?
+    if ((0) &&                                          // used ?
         ((((u_char *)systab->vol[volnum-1]->map)[i>>3]) &(1<<(i&7))))
 							// still allocated ?
     { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwttry); // count a try
@@ -193,8 +193,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
         { gptr = gptr->next;                            // get next
           continue;                                     //   and continue
         }
-        //if ((ptr->mem->global != db_var.name.var_qu) || // wrong global or
-        if ((gptr->last_accessed == (time_t) 0) ||  	// not available
+        if ((gptr->last_accessed <= (time_t) 0) ||  	// not available
 	    (gptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
             (X_NE(gptr->mem->global, 
                               db_var.name.var_xu)))     // wrong global
@@ -240,9 +239,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
           if (s > 0)                                    // success ?
           { ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.lastwtok); // count it
             blk[level]->last_accessed = MTIME(0);       // accessed
-#ifdef MV1_REFD
             REFD_MARK(blk[level]);
-#endif
             return s;                                   //   done
           }
           if (blk[level]->dirty == (gbd *) 1)           // release it
@@ -307,7 +304,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     level = 0;						// clear level
     s = Get_data(0);					// try the get again
     if ((s != -ERRM7) || (level))			// must be this
-    { panic("Set_data: Get_data() on non-ex global wrong!");
+    { mv1_panic("Set_data: Get_data() on non-ex global wrong!");
     }
     tmp[1] = 128;					// start string key
     for (i=0; i<MAX_NAME_BYTES; i++)			// for each char
@@ -378,7 +375,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
       tmp[0] = (u_char) i;				// add the count
       i = Locate(tmp);					// locate GD entry
       if (i < 0)
-      { panic("Set_data: lost the global directory entry");
+      { mv1_panic("Set_data: lost the global directory entry");
       }
       Allign_record();					// allign to 4 byte
       ((u_int *) record)[1] |= GL_TOP_DEFINED;		// mark defined
@@ -562,7 +559,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     if (((ts + rs) < rls) && (trailings != LOW_INDEX))	// if new record fits
     { s = Insert(&db_var.slen, data);			// insert it
       if (s < 0)					// failed ?
-      { panic("Set_data: Insert in new block (RL) failed");
+      { mv1_panic("Set_data: Insert in new block (RL) failed");
       }
       bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);	// save key
     }
@@ -603,7 +600,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 
     s = New_block();					// new blk for insert
     if (s < 0)						// if failed
-    { panic("Set_data: Failed to get new block for insert");
+    { mv1_panic("Set_data: Failed to get new block for insert");
     }
     
     blk[level]->mem->type = cblk[0]->mem->type;		// copy type
@@ -617,7 +614,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
     s = Insert(&db_var.slen, data);			// insert it
     if (s < 0)						// failed ?
-    { panic("Set_data: Insert in new block (insert) failed");
+    { mv1_panic("Set_data: Insert in new block (insert) failed");
     }
     cblk[1] = blk[level];				// remember this
     goto fix_keys;					// exit **3**
@@ -639,7 +636,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 
   s = New_block();					// new blk for trail
   if (s < 0)						// if failed
-  { panic("Set_data: Failed to get new block for trailings");
+  { mv1_panic("Set_data: Failed to get new block for trailings");
   }
     
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
@@ -685,7 +682,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
 
   s = New_block();					// new blk for insert
   if (s < 0)						// if failed
-  { panic("Set_data: Failed to get new block for insert");
+  { mv1_panic("Set_data: Failed to get new block for insert");
   }
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
   blk[level]->mem->right_ptr = cblk[0]->mem->right_ptr; // copy RL
@@ -699,7 +696,7 @@ short Set_data(cstring *data, int has_wrlock)		// set a record
   cblk[1] = blk[level];					// remember it
   s = Insert(&db_var.slen, data);			// insert it
   if (s < 0)						// failed?
-  { panic("Set_data: Insert of new in new failed (opt=6)");
+  { mv1_panic("Set_data: Insert of new in new failed (opt=6)");
   }							// exit **6**
 
 fix_keys:
@@ -748,3 +745,5 @@ fix_keys:
   }							// end fix key loop
   return Re_key();					// re-key and return
 }
+
+// vim:ts=8:sw=8:et

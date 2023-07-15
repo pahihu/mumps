@@ -128,7 +128,7 @@ short Copy2local(mvar *var, char *rtn)
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   if (curr_lock)
   { sprintf(msg,"Copy2local: curr_lock != 0 [%s]", rtn);
-    panic(msg);
+    mv1_panic(msg);
   }
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
@@ -217,14 +217,14 @@ EndTTLookup:
   { return -(ERRZ92 + ERRMLAST);			//   exit on error
   }
 
-#ifndef NDEBUG
+#ifdef MV1_CHKSUBS
   if (db_var.nsubs != 255)
   { int actsubs;
     UTIL_Key_Chars_In_Subs((char *)db_var.key, (int)db_var.slen,
                            255, &actsubs, NULL);
     if (db_var.nsubs != actsubs)
       BAD_MVAR();
-    // ASSERT(db_var.nsubs == actsubs); XXX
+    ASSERT(db_var.nsubs == actsubs);
   }
 #endif
   return 0;						// else return ok
@@ -288,7 +288,8 @@ short DB_GetEx(mvar *var, 				// get global data
     { s = itocstring(buf, *(u_int *) record);		// block number
     }
     else
-    { s = mcopy(record->buf, buf, record->len);		// copy the data
+    {                                                   // copy the data
+      s = buf ? mcopy(record->buf, buf, record->len) : record->len;
     }
   }
   if (curr_lock)		                        // if locked
@@ -297,6 +298,171 @@ short DB_GetEx(mvar *var, 				// get global data
     SemOp( SEM_GLOBAL, -curr_lock);			// release global lock
   }
   return s;						// return the count
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_SetLong
+// Descript: Set long data (>32K) in mvar
+// Input(s): Pointer to mvar to set
+//           Length of data
+//	     Pointer to buffer for data
+// Return:   String length -> Ok, negative MUMPS error
+//
+// Data is stored as
+//    ^G=N (number of chunks)
+//    ^G(0)=length of data
+//    ^G(1)=data chunk 1
+//    ...
+//    ^G(N)=data chunk N
+
+int DB_SetLong(mvar *var, int len, u_char *data)
+{ u_char var_nsubs, var_slen;                           // var #subs, subs len
+  int chunk_size;                                       // chunk size
+  cstring cptr;                                         // temporary storage
+  int i, n, nchunks;                                    // handy ints
+  short s;                                              // status
+
+  var_nsubs = var->nsubs;                               // save nsubs, slen
+  var_slen  = var->slen;
+  chunk_size = (systab->vol[volnum-1]->vollab->block_size * 9) / 10;
+                                                        // 90% of block size
+
+  if (len < chunk_size)                                 // if data fits
+  { bcopy(data, &cptr.buf[0], len);                     // copy to local
+    cptr.len = len;                                     //   buffer
+    return DB_Set(var, &cptr);                          // set as short
+  }
+
+  cptr.len = itocstring(&cptr.buf[0], 0);               // store length at 0
+  s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);// append "0" to key
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  var->slen = var_slen + s;                             // adjust key length
+  cptr.len = itocstring(&cptr.buf[0], len);             // cvt len to string
+  s = DB_Set(var, &cptr);                               // set in DB
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+
+  i = len; nchunks = 0;
+  while (0 < i)
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    cptr.len = itocstring(&cptr.buf[0], ++nchunks);     // add chunk to key
+    s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    var->slen = var_slen + s;                           // adjust key length
+    n = chunk_size;                                     // cpy chunk_size bytes
+    if (i < n)                                          //   OR i
+    { n = i;                                            //   whatever is less
+    }
+    bcopy(data, &cptr.buf[0], n);                       // copy n bytes
+    cptr.len = n;
+    s = DB_Set(var, &cptr);                             // set chunk
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    i -= n; data += n;                                  // advance input ptr
+  }
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  cptr.len = itocstring(&cptr.buf[0], nchunks);         // cvt #chunks to string
+  s = DB_Set(var, &cptr);                               // store #chunks at var
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  return len;
+ErrOut:
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  DB_Kill(var);                                         // clean-up data
+  return s;
+}
+
+//-----------------------------------------------------------------------------
+// Function: DB_GetLong
+// Descript: Get long data (>32K) in mvar (see DB_SetLong)
+// Input(s): Pointer to mvar to get
+//	     Pointer to buffer for data
+// Return:   String length -> Ok, negative MUMPS error
+
+int DB_GetLong(mvar *var, u_char *buf)
+{ u_char var_nsubs, var_slen;                           // var #subs,subs len
+  int i, nchunks, len;                                  // handy ints
+  cstring cptr;                                         // temporary storage
+  short s;                                              // status
+
+  var_nsubs = var->nsubs;                               // save nsubs, slen
+  var_slen  = var->slen;
+
+  s = Ddata(&cptr.buf[0], var);                         // any subscripts?
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  i = atoi((char *)&cptr.buf[0]);
+  if (i < 10)                                           // no subscripts
+  { // fprintf(stderr,"DB_GetLong: no subscripts\r\n");
+    return DB_Get(var, buf);                            // get short
+  }
+
+  cptr.len = itocstring(&cptr.buf[0], 0);               // get length at 0
+  s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);// append "0" to key
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  var->slen = var_slen + s;                             // adjust key length
+  s = DB_Get(var, &cptr.buf[0]);                        // get length
+  if (s < 0)
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  len = atoi((char *)&cptr.buf[0]);                     // cvt length
+  // fprintf(stderr,"DB_GetLong: len = %d\r\n",len);
+  if (NULL == buf)                                      // no buf?
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    return len;                                         //   just return len
+  }
+
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  s = DB_Get(var, &cptr.buf[0]);                        // get #chunks
+  if (s < 0)                                            // check error
+  { goto ErrOut;
+  }
+  cptr.buf[s] = '\0'; cptr.len = s;                     // null terminate
+  nchunks = atoi((char *)&cptr.buf[0]);                 // cvt nchunks
+  // fprintf(stderr,"DB_GetLong: nchunks = %d\r\n",nchunks);
+
+  i = 1; len = 0;
+  while (i <= nchunks)                                  // read all chunks
+  { var->nsubs = var_nsubs;                             // reset var
+    var->slen  = var_slen;
+    cptr.len = itocstring(&cptr.buf[0], i);             // add chunk to key
+    s = UTIL_Key_BuildEx(var, &cptr, &var->key[var_slen]);
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    var->slen = var_slen + s;                           // adjust key length
+    s = DB_Get(var, buf);                               // get chunk data
+    if (s < 0)                                          // check error
+    { goto ErrOut;
+    }
+    buf += s; len += s;                                 // advance out buffer
+    i++;
+  }
+  // fprintf(stderr,"DB_GetLong: returned %d\r\n",len);
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  return len;
+ErrOut:
+  var->nsubs = var_nsubs;                               // reset var
+  var->slen  = var_slen;
+  return s;                                             // return status
 }
 
 //-----------------------------------------------------------------------------
@@ -621,7 +787,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     }
     Index--;                                          	// backup the Index
     if (Index < LOW_INDEX)                            	// can't happen?
-    { panic("DB_Order: Problem with negative direction");
+    { mv1_panic("DB_Order: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
@@ -691,12 +857,11 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
 // Return:   String length -> Ok, negative MUMPS error
 //
 
-short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
-{ return DB_QueryEx(var, buf, dir, docvt, 0);
+short DB_Query(mvar *var, u_char *buf, int dir, int flags) // get next key
+{ return DB_QueryEx(var, buf, dir, flags, 0);
 }
 
-short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
-                        int docvt, cstring *dat)
+short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat)
 { short s;						// for returns
   int i;						// a handy int
   u_char *keyptr;					// ptr to key[]
@@ -712,11 +877,29 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
   }
   ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbqry); // update stats
   if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
-  { if (!docvt)						// dont' convert ?
+  { if (!(flags & GLO_DOCVT))		                // dont' convert ?
       return -(ERRM7);					//   not supported
-    return DGP_Query(volnum-1, var, buf, dir, dat);
+    if (var->volset == 0)                               // default vol
+    { var->volset = partab.jobtab->vol;                 //   is current vol
+      flags += GLO_NOVOL;                               // no VOL specified
+    }
+    if (var->uci == 0)                                  // default uci
+    { if (var->name.var_cu[0] == '%')                   //   if percent var
+      { var->volset = 1;                                //     MGR on VOL1
+        var->uci = 1;
+      }
+      else
+      { var->uci = partab.jobtab->uci;                  //   else current uci
+      }
+      flags += GLO_NOUCI;                               // no UCI specified
+    }
+    db_var.volset = var->volset;                        // update db_var
+    db_var.uci    = var->uci;
+    db_var.name.var_xu = var->name.var_xu;
+    if (dir < 0) flags += GLO_PREV;
+    return DGP_Query(volnum-1, var, buf, flags, dat);
   }
-  if (dir < 0)						// if it's backward
+  if (dir < 0)				                // if it's backward
   { if (!db_var.slen)                                   // if not subscripted
     { buf[0] = '\0';                                    // null terminate ret
       if (curr_lock)                                    // if locked
@@ -751,7 +934,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     }
 #endif
     if (Index < LOW_INDEX)                             	// can't happen?
-    { panic("DB_Query: Problem with negative direction");
+    { mv1_panic("DB_Query: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
@@ -821,13 +1004,12 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
     bcopy(&record->buf[0], &dat->buf[0], record->len);  //     copy it
     dat->len = record->len;
   }
-  db_var.uci = var->uci;				// copy
-  db_var.volset = var->volset;				//   original & new
-  //db_var.name.var_qu = var->name.var_qu;		//      data
+  db_var.uci = flags & GLO_NOUCI ? 0 : var->uci;	// copy
+  db_var.volset = flags & GLO_NOVOL ? 0 : var->volset;	//   original & new
   db_var.name.var_xu = var->name.var_xu;		//      data
   db_var.slen = keyptr[0];				//         to
   bcopy(&keyptr[1], &db_var.key[0], keyptr[0]);		//           db_var
-  if (!docvt)                                           // if no conversion
+  if (!(flags & GLO_DOCVT))                             // if no conversion
     return db_var.slen;                                 //   return slen
   return UTIL_String_Mvar(&db_var, buf, 9999);		// convert and return
 }
@@ -845,6 +1027,8 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir,       // get next key
 short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 { short s;						// for returns
 //  int i;						// a handy int
+  cstring dat;                                          // to hold GDP result
+  cstring nextvar;
 
   s = Copy2local(var,"QUERYD");			        // get local copy
   if (s < 0)
@@ -858,7 +1042,21 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
     return s;
   }
   if (systab->vol[volnum-1]->local_name[0])		// remote VOL ?
-  { return -(ERRM7);					//   return error
+  { buf[0] = '\0';                                      // clear buf
+    s = DB_QueryEx(var, &nextvar.buf[0], 1, GLO_DOCVT, &dat);// get next w/ data
+    if (s < 0)                                          // check error
+    { return s;
+    }
+    // NB. DB_QueryEx() returns the buf length!
+    nextvar.buf[s] = '\0';                              // zero terminate
+    if (0 == s)
+      return -(ERRMLAST+ERRZ55);
+    s = UTIL_MvarFromCStr(&nextvar, var);               // convert nextvar str
+    if (s < 0)                                          //   to mvar
+    { return s;                                         // return if error
+    }
+    // NB. DB_QueryD() returns the length of the data!
+    return mcopy(&dat.buf[0], buf, dat.len);            // copy data, return len
   }
   s = Get_data(0);					// try to find that
   if ((s < 0) && (s != -ERRM7))				// check for errors
@@ -909,6 +1107,15 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
   return s;						// return the count
 }
 
+short Lock_GBD(void)                                    // read lock SEM_GLOBAL
+{ return SemOp(SEM_GLOBAL, READ);
+}
+
+void Unlock_GBD(void)                                   // unlock SEM_GLOBAL
+{ if (curr_lock)
+    SemOp(SEM_GLOBAL, -curr_lock);
+}
+
 //-----------------------------------------------------------------------------
 // Function: DB_GetLen
 // Descript: Locate and return length of data described in passed in mvar
@@ -926,6 +1133,7 @@ short DB_QueryD(mvar *var, u_char *buf) 		// get next key
 short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
 { short s;						// for returns
   int sav;						// save curr_lock
+  int remvol;                                           // flag remote volume
 
   if ((lock == -1) && (buf == NULL))			// just unlock?
   { if (curr_lock)					// if locked
@@ -943,7 +1151,16 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     }
     return s;						// and return
   }
-  s = Get_data(0);					// attempt to get it
+
+  remvol = 0;                                           // assume not remote
+  ATOMIC_INCREMENT(systab->vol[volnum-1]->stats.dbget); // update stats
+  if (systab->vol[volnum - 1]->local_name[0])		// remote VOL ?
+  { remvol = 1;                                         // set remote
+    s = DGP_Get(volnum - 1, &db_var, buf);              // get data
+  }
+  else
+  { s = Get_data(0);					// attempt to get it
+  }
   // fprintf(stderr, "Get_data(): s=%d\r\n", s);
 
   if (s < 0)						// check for error
@@ -952,7 +1169,7 @@ short DB_GetLen( mvar *var, int lock, u_char *buf)	// length of node
     }
     return s;						// and return
   }
-  if (buf != NULL)					// want data?
+  if (!remvol && (buf != NULL))				// want data?
   { s = mcopy(record->buf, buf, record->len);		// copy the data
   }
   if ((lock != 1) && (curr_lock))			// preserve lock?

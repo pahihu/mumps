@@ -83,8 +83,7 @@ void Dump_rbd()					// dump rbds
   rbd *p;					// a pointer
   char tmp[2+MAX_NAME_BYTES];			// some space
 
-  i = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
-  if (i < 0) return;				// exit on error
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock the rbds
   p = (rbd *) systab->vol[0]->rbd_head;		// get the start
   printf("Dump of all Routine Buffer Descriptors at %ld\r\n", (long) time(0));
   printf("Free at %#10lx\r\n", (u_long)systab->vol[0]->rbd_hash[RBD_HASH]);
@@ -310,8 +309,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   
   test = (var_u *) &routine;			// map as a var_u
   hash = Routine_Hash(routine);			// get the hash
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock the rbds
-  if (s < 0) return NULL;			// say can't find on error
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock the rbds
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
   uci = partab.jobtab->ruci;			// get current uci
@@ -355,10 +353,10 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   s = UTIL_Key_BuildEx(&rouglob, cptr, &rouglob.key[s]); // second subs
   if (s < 0) return NULL;
   rouglob.slen = rouglob.slen + s;		// save count so far
-  s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
-  if (s < 1) return NULL;			// no such
-  s = SemOp(SEM_ROU, -systab->maxjob);		// write lock & try again
-  if (s < 0) return NULL;			// no such
+  // s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
+  i = DB_GetLong(&rouglob, NULL);
+  if (i < 1) return NULL;			// no such
+  while (SemOp(SEM_ROU, -systab->maxjob) < 0);	// write lock & try again
 
   p = systab->vol[0]->rbd_hash[hash];		// see where it points
   ptr = p;					// use it in ptr
@@ -375,18 +373,19 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
     ptr = ptr->fwd_link;			// point at the next one
   }						// end while loop
 
-  s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
-  if (s < 1)					// if it's gone
-  { s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+  // s = DB_GetLen(&rouglob, 1, NULL);		// lock the GBD
+  i = DB_GetLong(&rouglob, NULL);
+  if (i < 1)					// if it's gone
+  { // s = DB_GetLen(&rouglob, -1, NULL);       // un-lock the GBD
     s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
     return NULL;				// say no such
   }
-  size = s + RBD_OVERHEAD + 1;			// space required
+  size = i + RBD_OVERHEAD + 1;			// space required
   if (size & 7) size = (size & ~7) + 8;		// rount up to 8 byte boundary
   ptr = Routine_Find(size);			// find location
   if (ptr == NULL)				// no space mate!!
   { s = SemOp(SEM_ROU, systab->maxjob);		// release the lock
-    s = DB_GetLen(&rouglob, -1, NULL);		// un-lock the GBD
+    // s = DB_GetLen(&rouglob, -1, NULL);	// un-lock the GBD
     return (rbd *)(-1);				// say no space
   }
   if (p == NULL)				// listhead for this hash
@@ -400,10 +399,12 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   ptr->rnam.var_xu = routine;			// the routine name
   ptr->uci = uci;				// the uci
   ptr->vol = vol;				// current volume
-  ptr->rou_size = s;				// save the size
-  s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
+  ptr->rou_size = i /*s*/;			// save the size
+  // s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
+  i = DB_GetLong(&rouglob, (u_char *) &ptr->comp_ver); // get the routine
+  // fprintf(stderr,"get the routine=%d\r\n",i);
 
-  if (s != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
+  if (i != ptr->rou_size) mv1_panic("routine load - size wrong"); // DOUBLECHECK
 
   ptr->tag_tbl += RBD_OVERHEAD;			// adjust for rbd junk
   ptr->var_tbl += RBD_OVERHEAD;			// adjust for rbd junk
@@ -453,3 +454,5 @@ void Routine_Delete(chr_x routine, int uci, int vol) // mark routine deleted
   }						// end while loop
   return;					// done
 }
+
+// vim:ts=8:sw=8:et

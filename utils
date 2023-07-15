@@ -213,7 +213,7 @@ CONT I 'RO L +^$R(ROU):1 E  W !,"?Can't lock routine "_ROU,! Q
  O 1:(FILE:"R") K ^UTILITY(UI) U 1 R F,%,% U 0
  I "Editing "_ROU'=F W "Edit NOT saved!",! G EXIT
  U 1 F %=1:1 R ^UTILITY(UI,%) Q:^UTILITY(UI,%)=""  Q:$A($K)=255
- M ^$R(ROU)=^UTILITY(UI) K ^UTILITY(UI)
+ M ^$R(ROU)=^UTILITY(UI) K ^UTILITY(UI) S %=^$S("COMPMSG") U 0 W %,!
 EXIT U 0 C 1 O 1:(FILE:"W") C 1 L -^$R(ROU) Q
 
 %ET
@@ -479,7 +479,7 @@ KEY I KEY=127 Q
  I $L(KEY)=1 S KEY=$A(KEY)+32 Q
  I $L(KEY)=3 S KEY=$A(KEY,3)+16 Q
  S KEY=$E(KEY,3,4)+84 Q
-ERROR U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" G %M
+ERROR N $ET S $ET="" U 0 H:$EC[",Z205,"  I $ES<2 S $EC="" Q  ;G %M
  Q:$ST-$ST(-1)  S S=$ST-1 I $EC[",Z51," W:$X ! W "^C",! Q
  S ER=$P($EC,",",2) W:$X ! I $L(ER) W "Error: ",ER," ",$&%ERRMSG(ER),!
  W "$ST=",S,?10,$ST(S),?20,$ST(S,"PLACE"),!
@@ -521,7 +521,7 @@ JKILL(A,%) ;
 %RD ;Do a routine directory for current uci or MGR %
  D INT(0,".E") Q
 LIB D INT(0,"1""%"".E",1,"%","%") Q
-INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
+INT(FL,PAT,UCI,ST,END,G,%,VOL,F,LF,R,ZR) S ZR="INT^%RD"
  S WEB=$P($D,",",2)=2
  S FL=$G(FL),PAT=$G(PAT,".E"),UCI=$G(UCI,^$J($J,"ROUTINE"))
  S VOL=^$J($J,"ROUTINE_VOL")
@@ -533,12 +533,14 @@ INT(FL,PAT,UCI,ST,END,G,%,VOL,F,R,ZR) S ZR="INT^%RD"
  I FL=2 W "Routine",?10," Size",?20,"Owner",?30,"Compiled",!!
  F  S R=$O(^[UCI,VOL]$R(R)) Q:R=""!($E(R)]END)  I R?@PAT D
  .I 'FL W:$X>70 ! W R,?$X\10+1*10 Q
- .I FL=1 W R,?10,^[UCI,VOL]$R(R,1),! Q
+ .I FL=1 W R,?10,$G(^[UCI,VOL]$R(R,1)),! Q
  .I FL=2 S F=^[UCI,VOL]$R(R,0),%=R D  Q
+ ..S LF=$L(F)
+ ..I $L(F)<27 S F=^[UCI,VOL]$R(R,0,1),LF=$G(^[UCI,VOL]$R(R,0,0),0)
  ..I $E(R)="%" S %="%25"_$E(R,2,9)
  ..I WEB W "<A HREF=""?$$WWW^%25M&CMD=TYP%20"_%_""">"_R_"</A>" S $X=$L(R)
  ..E  W R
- ..W ?10,$J($L(F),5),?20,$$CVT^%JOURNLST($E(F,3,4)),?30
+ ..W ?10,$J(LF,5),?20,$$CVT^%JOURNLST($E(F,3,4)),?30
  ..S %=$$CVT^%JOURNLST($E(F,5,8)) W $$D^%D(%)," at "
  ..S %=$$CVT^%JOURNLST($E(F,9,12)) W $$T^%T(%),!
  .I FL=3 S @G@(R)=""
@@ -550,7 +552,7 @@ DEL(CCL,SW,%,R,SEL,OK,ZR) S ZR="DEL^%RD",SW=$G(SW)["/NOQ"
  W ! Q
 RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
  D INT(3,CCL) S R=""
- F  S R=$O(SEL(R)) Q:R=""  W:$X ! W R,! S %=$&%ROUCHK(R)
+ F  S R=$O(SEL(R)) Q:R=""  W:$X ! W R,! S %=$&%ROUCHK(R) W:%'="" %,!
  Q
 
 %RECOMP
@@ -563,15 +565,19 @@ RC(CCL,%,R,SEL,ZR) S ZR="RC^%RD"
 %RR ;Routine Restore from file
  R "Restore from file: ",FILE,! Q:FILE=""
  D INT(FILE,0) Q
-INT(FILE,NOSAY,%,A,R,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
+INT(FILE,NOSAY,%,A,R,EOF,NR,ZR) N $ET S ZR="INT^%RR",NOSAY=$G(NOSAY),$ET="D EX^%RR"
  O 1:(FILE:"R") U 1 R A,R U 0 S A=$TR(A,$C(13)),R=$TR(R,$C(13))
  I NOSAY<2 W !,A,!,R,!
  I 'NOSAY R "Restore N> ",%,! I $E($&E(%))'="Y" C 1 W "ABORTED",! Q
- U 1 F  R R S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
+ U 1 R R F  S R=$TR(R,$C(13)) Q:R=""  D  Q:$A($K)=255
  .I NOSAY<2 U 0 W:$X>70 ! W R,?$X\10+1*10 U 1
- .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)) Q:A(%)=""  Q:$A($K)=255
- .M ^$R(R)=A
+ .K A F %=1:1 R A(%) S A(%)=$TR(A(%),$C(13)),EOF=$A($K)=255 Q:EOF  Q:(""'=A(%))&(" ;"'[$E(A(%)))&(1=$L(A(%)," "))&(0=$F(A(%),"("))
+ .I 'EOF S NR=A(%) K A(%) I 1
+ .E  S NR=""
+ .D COMP S R=NR
 EX U 0 W:NOSAY<2 ! C 1 Q
+COMP N $ET S $ET="D COMPE^%RR" M ^$R(R)=A Q
+COMPE U 0 W:NOSAY<2 !,"Failed ",R," ",$&%ERRMSG($P($EC,",",2)),! S $EC="" U 1 Q
 
 %RS
 %RS ;Routine Save
@@ -649,33 +655,38 @@ INT(J,%,ZR) S ZR="INT^%SS",J=$&E(J) I $E("LOCKS",1,$L(J))=J D  Q
 %STA
 %STA ;System Statistics ; V 3.0 05 Jan 2000 10:44 AM
  R !,"Interval: ",INT,! Q:INT<1  D INT(INT) Q
-INT(INT,%,VOL,O,N,EX,I,LS,D,M,ZR) N $ET,WEB S ZR="INT^STA",$ET="D ERR^STA",EX=0
+INT(INT,%,VOL,O,N,EX,I,LS,D,T,ZR) N $ET,WEB,SVOL S ZR="INT^STA",$ET="D ERR^STA",EX=0
  S WEB=$P($D,",",2)=2
- S VOL=^$J($J,"GLOBAL_VOL")
- S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,lastwttry,lastwtok,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait,dirty"
+ S VOL=^$J($J,"GLOBAL_VOL"),SVOL=$NA(^$S("VOL",VOL))
+ S LS="dbget,dbset,dbkil,dbdat,dbord,dbqry,lckwait,lasttry,lastok,logrd,phyrd,logwt,phywt,blkalloc,blkdeall,dqstall,gqstall,gbswait,gbwait,rdwait"
  W:'WEB $&V(1,1),$C(27)_"[J" S:'INT INT=1
  I WEB D  I 1
- . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D MAX,PRT M O=N D SAVE I 1
- . E  D LOAD,GET Q:EX  D MAX,PRT M O=N D SAVE Q
- E  D GET Q:EX  M O=N F  D GET Q:EX  D MAX,PRT M O=N Q:EX  R *%:INT
+ . I $G(^CMD)'="STA" D GET Q:EX  M O=N D GET Q:EX  D AVG,PRT M O=N D SAVE I 1
+ . E  D LOAD,GET Q:EX  D AVG,PRT M O=N D SAVE Q
+ E  D LOAD,GET Q:EX  M O=N F  D GET Q:EX  D AVG,PRT M O=N D SAVE Q:EX  R *%:INT
  W:'WEB $&V(23,1),! Q
-LOAD M O=^%STA("O") M M=^%STA("M") Q
-SAVE K ^%STA M ^%STA("O")=O M ^%STA("M")=M Q
+LOAD M O=^%STA("O") M T=^%STA("T") Q
+SAVE K ^%STA M ^%STA("O")=O M ^%STA("T")=T Q
 ERR G ^%ET:$EC'["Z51" S $EC="",EX=1 Q
-GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=^$S("VOL",VOL,$P(LS,",",I))
+GET F I=1:1:$L(LS,",") S N($P(LS,",",I))=@SVOL@($P(LS,",",I))
  S N=$H Q
-MAX F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>$G(M(%),-1) M(%)=D
+AVG F I=1:1:$L(LS,",") S %=$P(LS,",",I),D=N(%)-O(%) S:D>0 T(%)=$G(T(%),0)+INT
  Q
-PRT W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
+PRT N DBOPS,IOPS
+ W:'WEB $&V(1,1) W "System Statistics - ",$$T^%T($P($H,",",2))
  W " (",$P(N,",",2)-$P(O,",",2)," secs)",!
- W "Volume: ",^$S("VOL",VOL,"NAME")
- W " in file: ",^$S("VOL",VOL,"FILE"),!
- W ^$S("VOL",VOL,"SIZE")," x ",^$S("VOL",VOL,"BLOCK")/1024,"kb blocks - "
- W ^$S("VOL",VOL,"FREE")," available ("
- W $J(^$S("VOL",VOL,"FREE")/^$S("VOL",VOL,"SIZE")*100,0,2),"%)",!
- W ?15,$J("dQLen:",10),$J(^$S("dqlen"),4),?30,$J("RestT:",10),$J(^$S("resttime"),4),!
- W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Max",10),!
- F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(M(%),10),!
+ W "Volume: ",@SVOL@("NAME")
+ W " in file: ",@SVOL@("FILE"),!
+ W @SVOL@("SIZE")," x ",@SVOL@("BLOCK")/1024,"kb blocks - "
+ W @SVOL@("FREE")," available ("
+ W $J(@SVOL@("FREE")/@SVOL@("SIZE")*100,0,2),"%)",!
+ W ?15,$J("dQLen:",10),$J(^$S("dqlen"),7),?27,$J("RestT:",10),$J(^$S("resttime"),5),?44,$J("#dirty:",10),$J(@SVOL@("dirty"),5),!
+ S DBOPS=0 F %="dbget","dbset","dbkil","dbdat","dbord","dbqry" S DBOPS=DBOPS+N(%)-O(%)
+ S IOPS=0 F %="phyrd","phywt" S IOPS=IOPS+N(%)-O(%)
+ S DBOPS=DBOPS\INT,IOPS=IOPS\INT
+ W ?15,$J("DBOPS:",10),$J(DBOPS,7),?30,$J("IOPS:",10),$J(IOPS,5),!
+ W ?15,$J("Total",10),?30,$J("Increment",10),?45,$J("Avg",10),!
+ F I=1:1:$L(LS,",") S %=$P(LS,",",I) W %,?15,$J(N(%),10),?30,$J(N(%)-O(%),10),?45,$J(N(%)\$G(T(%),1),10),!
  W "cache",?15,$J(N("logrd")-N("phyrd")/N("logrd")*100,10,2),"%",?30
  S %=N("logrd")-O("logrd") I '% W $J("",11),!
  E  W $J(%-(N("phyrd")-O("phyrd"))/%*100,10,2),"%",!
@@ -1855,7 +1866,8 @@ DECOMP
 DECOMP ;Decompile a MUMPS routine;AP-MV1R2 port. 11/20/18
  N  S GLOSIZE=$$GLOSIZE^%MV1,BE=$$BIGEND^%MV1
  R !,"Rou: ",ROU,! Q:ROU=""
- S C=$G(^$R(ROU,0)) I C="" W "?No such rou as ",ROU,! Q
+ S C=$G(^$R(ROU,0)) I $L(C)<27 S C=$G(^$R(ROU,0,1))
+ I C="" W "?No such rou as ",ROU,! Q
  W "Decompile of ",ROU,! D INT(C) Q
 INT(C,%,V,USR,D,T,H,TAG,VAR,I,S,A) N $ET S $ET="D ^%ET"
  S V=$$S(1) ;The compiler version
@@ -2154,8 +2166,8 @@ UPPER(A,CHARMOD) NEW lo,up,x,y
  ;
  ;
 
-CMATH
-CMATH ;
+%CMATH
+%CMATH ;
 ; Unless otherwise noted, the code below
 ; was approved in document X11/95-11
 ;
@@ -2170,7 +2182,7 @@ CMATH ;
 CABS(Z) ;
  New ZRE,ZIM
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
- Quit $%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM))
+ Quit $$SQRT^%MATH(ZRE*ZRE+(ZIM*ZIM))
 ;===
 ;
 ;
@@ -2190,12 +2202,12 @@ CCOS(Z,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set IA=$%CMUL^CMATH(Z,"0%1")
- Set E1=$%CEXP^CMATH(IA,PREC)
+ Set IA=$$CMUL^%CMATH(Z,"0%1")
+ Set E1=$$CEXP^%CMATH(IA,PREC)
  Set IA=-IA_"%"_(-$Piece(IA,"%",2))
- Set E2=$%CEXP^CMATH(IA,PREC)
- Set IA=$%CADD^CMATH(E1,E2)
- Quit $%CMUL^CMATH(IA,"0.5%0")
+ Set E2=$$CEXP^%CMATH(IA,PREC)
+ Set IA=$$CADD^%CMATH(E1,E2)
+ Quit $$CMUL^%CMATH(IA,"0.5%0")
 ;===
 ;
 ;
@@ -2219,8 +2231,8 @@ CEXP(Z,PREC) ;
 ;;;
 ;
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
- Set R=$%EXP^MATH(ZRE,PREC)
- Quit R*$%COS^MATH(ZIM,PREC)_"%"_(R*$%SIN^MATH(ZIM,PREC))
+ Set R=$$EXP^%MATH(ZRE,PREC)
+ Quit R*$$COS^%MATH(ZIM,PREC)_"%"_(R*$$SIN^%MATH(ZIM,PREC))
 ;===
 ;
 ;
@@ -2232,15 +2244,15 @@ CLOG(Z,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set ABS=$%CABS^CMATH(Z)
+ Set ABS=$$CABS^%CMATH(Z)
  Set ZRE=+Z,ZIM=+$Piece(Z,"%",2)
 ;
-;;; Set ARG=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                             Number ~~
+;;; Set ARG=$$ARCTAN^%MATH(ZIM,ZRE,PREC) ;                             Number ~~
 ; Alan Frank (October 1995)
- Set ARG=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+ Set ARG=$$ARCTAN^%MATH(ZIM/ZRE,PREC)
 ;;;
 ;
- Quit $%LOG^MATH(ABS,PREC)_"%"_ARG
+ Quit $$LOG^%MATH(ABS,PREC)_"%"_ARG
 ;===
 ;
 ;
@@ -2280,18 +2292,18 @@ CPOWER(Z,N,PREC) ;
  If 'ZRE,'ZIM Quit "0%0"
 ;;;
 ;
- Set PI=$%PI^MATH()
+ Set PI=$$PI^%MATH()
 ;
-;;; Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ;                       Number ~~
+;;; Set R=$$SQRT^%MATH(ZRE*ZRE+(ZIM*ZIM,PREC)) ;                       Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
- Set R=$%SQRT^MATH(ZRE*ZRE+(ZIM*ZIM),PREC)
+ Set R=$$SQRT^%MATH(ZRE*ZRE+(ZIM*ZIM),PREC)
 ;;;
 ;
 ;
-;;; If ZRE Set TH=$%ARCTAN^MATH(ZIM,ZRE,PREC) ;                       Number ~~
+;;; If ZRE Set TH=$$ARCTAN^%MATH(ZIM,ZRE,PREC) ;                       Number ~~
 ; Alan Frank (October 1995)
- If ZRE Set TH=$%ARCTAN^MATH(ZIM/ZRE,PREC)
+ If ZRE Set TH=$$ARCTAN^%MATH(ZIM/ZRE,PREC)
 ;;;
 ;
 ;;; Else  Set TH=$SELECT(ZRE>0:PI/2,1:-PI/2) ;                        Number ~~
@@ -2299,10 +2311,10 @@ CPOWER(Z,N,PREC) ;
  Else  Set TH=$SELECT(ZIM>0:PI/2,1:-PI/2)
 ;;;
 ;
- Set RHO=$%LOG^MATH(R,PREC)
- Set AR=$%EXP^MATH(RHO*NRE-(TH*NIM),PREC)
+ Set RHO=$$LOG^%MATH(R,PREC)
+ Set AR=$$EXP^%MATH(RHO*NRE-(TH*NIM),PREC)
  Set PHI=RHO*NIM+(NRE*TH)
- Quit AR*$%COS^MATH(PHI,PREC)_"%"_(AR*$%SIN^MATH(PHI,PREC))
+ Quit AR*$$COS^%MATH(PHI,PREC)_"%"_(AR*$$SIN^%MATH(PHI,PREC))
 ;===
 ;
 ;
@@ -2314,13 +2326,13 @@ CSIN(Z,PREC) ;
  Set PREC=$Get(PREC,11)
  ;;;
  ;
- Set IA=$%CMUL^CMATH(Z,"0%1")
- Set E1=$%CEXP^CMATH(IA,PREC)
+ Set IA=$$CMUL^%CMATH(Z,"0%1")
+ Set E1=$$CEXP^%CMATH(IA,PREC)
  Set IA=-IA_"%"_(-$Piece(IA,"%",2))
- Set E2=$%CEXP^CMATH(IA,PREC)
- Set IA=$%CSUB^CMATH(E1,E2)
- Set IA=$%CMUL^CMATH(IA,"0.5%0")
- Quit $%CMUL^CMATH("0%-1",IA)
+ Set E2=$$CEXP^%CMATH(IA,PREC)
+ Set IA=$$CSUB^%CMATH(E1,E2)
+ Set IA=$$CMUL^%CMATH(IA,"0.5%0")
+ Quit $$CMUL^%CMATH("0%-1",IA)
  ;===
  ;
  ;
@@ -2333,8 +2345,8 @@ CSUB(X,Y) ;
  ;
  ;
 
-MTXMATH
-MTXMATH ;
+%MTXMATH
+%MTXMATH ;
 ; Unless otherwise noted, the code below
 ; was approved in document X11/95-11
 ;
@@ -2373,7 +2385,7 @@ MTXCOF(A,I,K,N) ;
  . SET CC=CC+1,RR=0
  . FOR R=1:1:N SET:R'=I RR=RR+1,T(RR,CC)=$GET(A(R,C))
  . QUIT
- QUIT $$MTXDET^MTXMATH(.T,N-1)
+ QUIT $$MTXDET^%MTXMATH(.T,N-1)
  ;===
  ;
  ;
@@ -2408,7 +2420,7 @@ MTXDET(A,N) ;
  ;
  SET DET=0,SIGN=1
  FOR I=1:1:N DO
- . SET DET=$GET(A(1,I))*$$MTXCOF^MTXMATH(.A,1,I,N)*SIGN+DET
+ . SET DET=$GET(A(1,I))*$$MTXCOF^%MTXMATH(.A,1,I,N)*SIGN+DET
  . SET SIGN=-SIGN
  . QUIT
  QUIT DET
@@ -2419,15 +2431,15 @@ MTXEQU(A,B,R,N,M) ;
  ; Solve matrix equation A [M,M] * R [M,N] = B [M,N]
  IF $GET(M)<1 QUIT ""
  IF $GET(N)<1 QUIT ""
- ;;;IF '$%MTXDET^MATH(.A) QUIT 0
+ ;;;IF '$$MTXDET^%MATH(.A) QUIT 0
  ; Ed de Moel, 29 August 1999
- IF '$$MTXDET^MTXMATH(.A,M) QUIT 0
+ IF '$$MTXDET^%MTXMATH(.A,M) QUIT 0
  ;;;
  ;
  NEW I,I1,J,J1,J2,K,L,T,T1,T2,TEMP,X
  ;
- SET X=$$MTXCOPY^MTXMATH(.A,.T,N,N)
- SET X=$$MTXCOPY^MTXMATH(.B,.R,N,M)
+ SET X=$$MTXCOPY^%MTXMATH(.A,.T,N,N)
+ SET X=$$MTXCOPY^%MTXMATH(.B,.R,N,M)
  ;
  ; Reduction of matrix A
  ; Steps of reduction are counted by index K
@@ -2489,9 +2501,9 @@ MTXEQU(A,B,R,N,M) ;
  . . IF $GET(T(I,I)) SET R(I,J)=$GET(R(I,J))/$GET(T(I,I))
  . . QUIT
  . QUIT
- ;;;QUIT $%MTXDET^MATH(.R)
+ ;;;QUIT $$MTXDET^%MATH(.R)
  ; Ed de Moel, 29 Aug 1999
- QUIT $SELECT(M=N:$$MTXDET^MTXMATH(.R,M),1:1)
+ QUIT $SELECT(M=N:$$MTXDET^%MTXMATH(.R,M),1:1)
  ;;;
  ;===
  ;
@@ -2501,8 +2513,8 @@ MTXINV(A,R,N) ;
  IF $GET(N)<1 QUIT 0
  ;
  NEW T,X
- SET X=$$MTXUNIT^MTXMATH(.T,N)
- QUIT $$MTXEQU^MTXMATH(.A,.T,.R,N,N)
+ SET X=$$MTXUNIT^%MTXMATH(.T,N)
+ QUIT $$MTXEQU^%MTXMATH(.A,.T,.R,N,N)
  ;===
  ;
  ;
@@ -2608,8 +2620,8 @@ MTXUNIT(R,N,SPARSE) ;
  ;
  ;
 
-MATH2
-MATH2 ;
+%MATH2
+%MATH2 ;
 ; Unless otherwise noted, the code below
 ; was approved in document X11/95-11
 ;
@@ -2646,16 +2658,16 @@ REPLACE(IN,SPEC) ;
 SEC(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
  ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ;;; Set:X[":" X=$$DMSDEC^%MATH(X,12) ;                                 Number ~~
  ; Winfried Gerum (8 June 1995)
  ;    Comment: The official description does not mention than
  ;             the function may also be called with the first
  ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
  ;;;
  ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=1,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2669,16 +2681,16 @@ SEC(X,PREC) ;
 SIN(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
  ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ;;; Set:X[":" X=$$DMSDEC^%MATH(X,12) ;                                 Number ~~
  ; Winfried Gerum (8 June 1995)
  ;    Comment: The official description does not mention than
  ;             the function may also be called with the first
  ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
  ;;;
  ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2704,7 +2716,7 @@ SIN(X) ;
  ; This approximation only works for 0 <= x <= pi/2
  ; so reduce angle to correct quadrant.
  ;
- Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
+ Set PI=$$PI^%MATH(),X=X#(PI*2),SIGN=1
  Set:X>PI X=2*PI-X,SIGN=-1
  ;
  ;;; Set:X*2<PI X=PI-X Set X=-PI/2+2 ;                                 Number ~~
@@ -2746,9 +2758,9 @@ SQRT(X,PREC) ;
  ;;;
  ;
  ;
- ;;; If X<1 Quit 1/$%SQRT^MATH(1/X) ;                                  Number ~~
+ ;;; If X<1 Quit 1/$$SQRT^%MATH(1/X) ;                                  Number ~~
  ; Winfried Gerum (8 June 1995)
- If X<1 Quit 1/$$SQRT^MATH(1/X,PREC)
+ If X<1 Quit 1/$$SQRT^%MATH(1/X,PREC)
  ;;;
  ;
  New P,R,E
@@ -2769,23 +2781,23 @@ SQRT(X,PREC) ;
 TAN(X,PREC) ;
  New L,LIM,K,S,SIGN,VALUE
  ;
- ;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+ ;;; Set:X[":" X=$$DMSDEC^%MATH(X,12) ;                                 Number ~~
  ; Winfried Gerum (8 June 1995)
  ;    Comment: The official description does not mention than
  ;             the function may also be called with the first
  ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
  ;;;
  ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
  . Set L=L/(K-1)*X/K*X,VALUE=VALUE+(SIGN*L)
  . Quit
  Set S=VALUE
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=1,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2797,8 +2809,8 @@ TAN(X,PREC) ;
  ;
  ;
 
-MATH1
-MATH1 ;
+%MATH1
+%MATH1 ;
 ; Unless otherwise noted, the code below
 ; was approved in document X11/95-11
 ;
@@ -2829,16 +2841,16 @@ ARCCOS(X,PREC) ;
 ;
  Set SIG=$Select(X<0:-1,1:1),VALUE=1-(X*X)
 ;
-;;; Set X=$%SQRT^MATH(VALUE) ;                                        Number ~~
+;;; Set X=$$SQRT^%MATH(VALUE) ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set X=$$SQRT^MATH(VALUE,PREC)
+ Set X=$$SQRT^%MATH(VALUE,PREC)
 ;;;
 ;
 ;;; If $Translate(X,"-")=1 Do  Quit ;                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If $Translate(X,"-")=1 Do  Quit VALUE
- . Set VALUE=$$PI^MATH()/2*X
+ . Set VALUE=$$PI^%MATH()/2*X
  . Quit
 ;
 ;;; If X>0.9 Do  Quit ;                                               Number ~~
@@ -2847,18 +2859,18 @@ ARCCOS(X,PREC) ;
  If X>0.9 Do  Quit VALUE
  . Set SIGS=$Select(X<0:-1,1:1)
  . Set VALUE=1/(1/X/X-1)
- . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ;;; Set X=$$SQRT^%MATH(VALUE) ;                                      Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set X=$$SQRT^MATH(VALUE,PREC)
- . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . Set X=$$SQRT^%MATH(VALUE,PREC)
+ . ;;; Set VALUE=$$ARCTAN^%MATH(X,10)*SIGS ;                            Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
+ . Set VALUE=$$ARCTAN^%MATH(X,PREC)*SIGS
  Set (VALUE,L)=X
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
  . Set L=L*X*X*(K-2)/(K-1)*(K-2)/K,VALUE=VALUE+L
  . Quit
- Quit $Select(SIG<0:$$PI^MATH()-VALUE,1:VALUE)
+ Quit $Select(SIG<0:$$PI^%MATH()-VALUE,1:VALUE)
  ;===
  ;
  ;
@@ -2875,24 +2887,24 @@ ARCTAN(X,PREC) ;
 ;;;
 ;
  Set X=$Select(FOLD:1/X,1:X)
- Set L=X,VALUE=$$PI^MATH()/2-(1/X),SIGN=1
+ Set L=X,VALUE=$$PI^%MATH()/2-(1/X),SIGN=1
 ;
 ;;; If X<1.3 Do  Quit ;                                               Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If X<1.3 Do  Quit VALUE
  . Set X=$Select(FOLD:1/X,1:X),VALUE=1/((1/X/X)+1)
- . ;;; Set $%SQRT^MATH(VALUE) ;                                        Number ~~
+ . ;;; Set $$SQRT^%MATH(VALUE) ;                                        Number ~~
  . ; Winfried Gerum (8 June 1995)
  . ; Eli Reidler (28 June 1996)
- . Set X=$$SQRT^MATH(VALUE,PREC)
+ . Set X=$$SQRT^%MATH(VALUE,PREC)
  . If $Translate(X,"-")=1 Do  Quit
- . . Set VALUE=$$PI^MATH()/2*X
+ . . Set VALUE=$$PI^%MATH()/2*X
  . . Quit
  . If X>0.9 Do  Quit
  . . Set SIGS=$Select(X<0:-1,1:1)
  . . Set VALUE=1/(1/X/X-1)
- . . Set X=$$SQRT^MATH(VALUE)
+ . . Set X=$$SQRT^%MATH(VALUE)
  . . Set VALUE=$$ARCTAN(X,10)
  . . Set VALUE=VALUE*SIGS
  . . Quit
@@ -2910,7 +2922,7 @@ ARCTAN(X,PREC) ;
  . Set L=L*X*X,VALUE=VALUE+(1/(K*L)*SIGN)
  . Set SIGN=SIGN*-1
  . Quit
- Set VALUE=$Select(FOLD:$$PI^MATH()/2-VALUE,1:VALUE)
+ Set VALUE=$Select(FOLD:$$PI^%MATH()/2-VALUE,1:VALUE)
  Set VALUE=$Select(SIGT<1:-VALUE,1:VALUE)
  Quit VALUE
 ;===
@@ -2919,16 +2931,16 @@ ARCTAN(X,PREC) ;
 COS(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
 ;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+;;; Set:X[":" X=$$DMSDEC^%MATH(X,12) ;                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ;    Comment: The official description does not mention than
 ;             the function may also be called with the first
 ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
 ;;;
 ;
  Set PREC=$Get(PREC,11)
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=1,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=2:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -2954,7 +2966,7 @@ COS(X) ;
 ; This approximation only works for 0 <= x <= pi/2
 ; so reduce angle to correct quadrant.
 ;
- Set PI=$$PI^MATH(),X=X#(PI*2),SIGN=1
+ Set PI=$$PI^%MATH(),X=X#(PI*2),SIGN=1
  Set:X>PI X=2*PI-X
  Set:X*2>PI X=PI-X,SIGN=-1
 ;
@@ -2968,12 +2980,12 @@ COS(X) ;
 COT(X,PREC) ;
  New C,L,LIM,K,SIGN,VALUE
 ;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12) ;                                 Number ~~
+;;; Set:X[":" X=$$DMSDEC^%MATH(X,12) ;                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ;    Comment: The official description does not mention than
 ;             the function may also be called with the first
 ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
 ;;;
 ;
  Set PREC=$Get(PREC,11)
@@ -2983,7 +2995,7 @@ COT(X,PREC) ;
  . Set L=L*X*X/(K-1*K),VALUE=VALUE+(SIGN*L)
  . Quit
  Set C=VALUE
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -3059,8 +3071,8 @@ PRODUCE(IN,SPEC,MAX) ;
  ;
  ;
 
-MATH
-MATH ;
+%MATH
+%MATH ;
 ; Unless otherwise noted, the code below
 ; was approved in document X11/95-11
 ;
@@ -3094,9 +3106,9 @@ ARCCOS(X) ;
  Set A(6)=0.0066700901,A(7)=-0.0012624911
  Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
 ;
-;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+;;; Set R=$$SQRT^%MATH(1-X)*R ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set R=$$SQRT^MATH(1-X,11)*R
+ Set R=$$SQRT^%MATH(1-X,11)*R
 ;;;
 ;
  Quit R*SIGN
@@ -3104,27 +3116,27 @@ ARCCOS(X) ;
 ;
 ;
 ARCCOS(X,PREC) ;
- QUIT $$ARCCOS^MATH1(X,$Get(PREC,11))
+ QUIT $$ARCCOS^%MATH1(X,$Get(PREC,11))
  ;===
  ;
  ;
 ARCCOSH(X,PREC) ;
- QUIT $$ARCCOSH^MATH1(X,$Get(PREC,11))
+ QUIT $$ARCCOSH^%MATH1(X,$Get(PREC,11))
 ;;; ;                                                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Alan Frank (October 1995)
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SQ=$$SQRT^MATH(X*X-1,PREC)
- Quit $$LOG^MATH(X+SQ,PREC)
+ Set SQ=$$SQRT^%MATH(X*X-1,PREC)
+ Quit $$LOG^%MATH(X+SQ,PREC)
 ;===
 ;
 ;
 ARCCOT(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $$ARCTAN^MATH(X,PREC)
+ Quit $$ARCTAN^%MATH(X,PREC)
 ;===
 ;
 ;
@@ -3137,8 +3149,8 @@ ARCCOTH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set L1=$$LOG^MATH(X+1,PREC)
- Set L2=$$LOG^MATH(X-1,PREC)
+ Set L1=$$LOG^%MATH(X+1,PREC)
+ Set L2=$$LOG^%MATH(X-1,PREC)
  Quit L1-L2/2
 ;===
 ;
@@ -3146,14 +3158,14 @@ ARCCOTH(X,PREC) ;
 ARCCSC(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $$ARCSIN^MATH(X,PREC)
+ Quit $$ARCSIN^%MATH(X,PREC)
 ;===
 ;
 ;
 ARCSEC(X,PREC) ;
  Set PREC=$Get(PREC,11)
  Set X=1/X
- Quit $$ARCCOS^MATH(X,PREC)
+ Quit $$ARCCOS^%MATH(X,PREC)
 ;===
 ;
 ;
@@ -3175,12 +3187,12 @@ ARCSIN(X) ;
  Set A(6)=0.0066700901,A(7)=-0.0012624911
  Set R=A(0),XX=1 For N=1:1:7 Set XX=XX*X,R=A(N)*XX+R
 ;
-;;; Set R=$%SQRT^MATH(1-X)*R ;                                        Number ~~
+;;; Set R=$$SQRT^%MATH(1-X)*R ;                                        Number ~~
 ; Winfried Gerum (8 June 1995)
- Set R=$$SQRT^MATH(1-X,11)*R
+ Set R=$$SQRT^%MATH(1-X,11)*R
 ;;;
 ;
- Set R=$$PI^MATH()/2-R
+ Set R=$$PI^%MATH()/2-R
  Quit R*SIGN
 ;===
 ;
@@ -3193,19 +3205,19 @@ ARCSIN(X,PREC) ;
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If $Translate(X,"-")=1 Do  Quit VALUE
- . Set VALUE=$$PI^MATH()/2*X
+ . Set VALUE=$$PI^%MATH()/2*X
 ;;; If X>0.99999 Do  Quit ;                                           Number ~~
 ; Winfried Gerum (8 June 1995)
 ; Eli Reidler (28 June 1996)
  If X>0.99999 Do  Quit VALUE
  . Set SIGS=$Select(X<0:-1,1:1)
  . Set VALUE=1/(1/X/X-1)
- . ;;; Set X=$%SQRT^MATH(VALUE) ;                                      Number ~~
+ . ;;; Set X=$$SQRT^%MATH(VALUE) ;                                      Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set X=$$SQRT^MATH(VALUE,PREC)
- . ;;; Set VALUE=$%ARCTAN^MATH(X,10)*SIGS ;                            Number ~~
+ . Set X=$$SQRT^%MATH(VALUE,PREC)
+ . ;;; Set VALUE=$$ARCTAN^%MATH(X,10)*SIGS ;                            Number ~~
  . ; Winfried Gerum (8 June 1995)
- . Set VALUE=$$ARCTAN^MATH(X,PREC)*SIGS
+ . Set VALUE=$$ARCTAN^%MATH(X,PREC)*SIGS
  Set (VALUE,L)=X
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)
@@ -3225,13 +3237,13 @@ ARCSINH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SQ=$$SQRT^MATH(X*X+1,PREC)
- Quit $$LOG^MATH(X+SQ,PREC)
+ Set SQ=$$SQRT^%MATH(X*X+1,PREC)
+ Quit $$LOG^%MATH(X+SQ,PREC)
 ;===
 ;
 ;
 ARCTAN(X,PREC) ;
- QUIT $$ARCTAN^MATH1(X,$Get(PREC,11))
+ QUIT $$ARCTAN^%MATH1(X,$Get(PREC,11))
 ;===
 ;
 ;
@@ -3245,17 +3257,17 @@ ARCTANH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Quit $$LOG^MATH(1+X/(1-X),PREC)/2
+ Quit $$LOG^%MATH(1+X/(1-X),PREC)/2
 ;===
 ;
 ;
 COS(X,PREC) ;
- QUIT $$COS^MATH(X,$Get(PREC,11))
+ QUIT $$COS^%MATH(X,$Get(PREC,11))
 ;===
 ;
 ;
 COS(X) ;
- QUIT $$COS^MATH1(X)
+ QUIT $$COS^%MATH1(X)
 ;===
 ;
 ;
@@ -3275,7 +3287,7 @@ COSH(X,PREC) ;
 ;
 ;
 COT(X,PREC) ;
- QUIT $$COT^MATH1(X,$Get(PREC,11))
+ QUIT $$COT^%MATH1(X,$Get(PREC,11))
 ;===
 ;
 ;
@@ -3289,21 +3301,21 @@ COTH(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set SINH=$$SINH^MATH(X,PREC)
+ Set SINH=$$SINH^%MATH(X,PREC)
  If 'SINH Quit "INFINITE"
- Quit $$COSH^MATH(X,PREC)/SINH
+ Quit $$COSH^%MATH(X,PREC)/SINH
 ;===
 ;
 ;
 CSC(X,PREC) ;
  New L,LIM,K,SIGN,VALUE
 ;
-;;; Set:X[":" X=$%DMSDEC^MATH(X,12);                                 Number ~~
+;;; Set:X[":" X=$$DMSDEC^%MATH(X,12);                                 Number ~~
 ; Winfried Gerum (8 June 1995)
 ;    Comment: The official description does not mention than
 ;             the function may also be called with the first
 ;             parameter in degrees, minutes and seconds.
- Set:X[":" X=$$DMSDEC^MATH(X)
+ Set:X[":" X=$$DMSDEC^%MATH(X)
 ;;;
 ;
 ;;; Set PREC=$Select($Data(PREC)#2:PREC,1:10) ;                       Number ~~
@@ -3311,7 +3323,7 @@ CSC(X,PREC) ;
  Set PREC=$Get(PREC,11)
 ;;;
 ;
- Set X=X#(2*$$PI^MATH())
+ Set X=X#(2*$$PI^%MATH())
  Set (VALUE,L)=X,SIGN=-1
  Set LIM=$Select((PREC+3)'>11:PREC+3,1:11),@("LIM=1E-"_LIM)
  For K=3:2 Do  Quit:($Translate(L,"-")<LIM)  Set SIGN=SIGN*-1
@@ -3323,10 +3335,10 @@ CSC(X,PREC) ;
 ;
 ;
 ;
-CSCH(X,PREC) ;;;Quit 1/$%SINH^MATH(X,PREC) ;                           Number ~~
+CSCH(X,PREC) ;;;Quit 1/$$SINH^%MATH(X,PREC) ;                           Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Alan Frank (October 1995)
- Quit 1/$$SINH^MATH(X,$Get(PREC,11))
+ Quit 1/$$SINH^%MATH(X,$Get(PREC,11))
  ;;;
  ;
  ;===
@@ -3364,12 +3376,12 @@ EXP(X,PREC) ;
  ;
  ;
 LOG(X,PREC) ;
- QUIT $$LOG^MATH1(X,$Get(PREC,11))
+ QUIT $$LOG^%MATH1(X,$Get(PREC,11))
  ;===
  ;
  ;
 LOG10(X,PREC) ;
- QUIT $$LOG10^MATH1(X,$Get(PREC,11))
+ QUIT $$LOG10^%MATH1(X,$Get(PREC,11))
  ;===
  ;
  ;
@@ -3378,7 +3390,7 @@ PI() Quit 3.14159265358979
  ;
  ;
 PRODUCE(IN,SPEC,MAX) ;
- QUIT PRODUCE^MATH1(IN,SPEC,MAX)
+ QUIT PRODUCE^%MATH1(IN,SPEC,MAX)
  ;===
  ;
  ;
@@ -3387,19 +3399,19 @@ RADDEG(X) Quit X*180/3.14159265358979
  ;
  ;
 REPLACE(IN,SPEC) ;
- QUIT $$REPLACE^MATH2(IN,SPEC)
+ QUIT $$REPLACE^%MATH2(IN,SPEC)
  ;===
  ;
  ;
 SEC(X,PREC) ;
- QUIT $$SEC^MATH2(X,$Get(PREC,11))
+ QUIT $$SEC^%MATH2(X,$Get(PREC,11))
  ;===
  ;
  ;
-SECH(X,PREC) ;;;Quit 1/$%COSH^MATH(X,PREC) ;                           Number ~~
+SECH(X,PREC) ;;;Quit 1/$$COSH^%MATH(X,PREC) ;                           Number ~~
  ; Winfried Gerum (8 June 1995)
  ; Alan Frank (October 1995)
- Quit 1/$$COSH^MATH(X,$Get(PREC,11))
+ Quit 1/$$COSH^%MATH(X,$Get(PREC,11))
  ;;;
  ;===
  ;
@@ -3409,27 +3421,27 @@ SIGN(X) Quit $SELECT(X<0:-1,X>0:1,1:0)
  ;
  ;
 SIN(X,PREC) ;
- QUIT $$SIN^MATH2(X,$Get(PREC,11))
+ QUIT $$SIN^%MATH2(X,$Get(PREC,11))
  ;===
  ;
  ;
 SIN(X) ;
- QUIT $$SIN^MATH2(X)
+ QUIT $$SIN^%MATH2(X)
  ;===
  ;
  ;
 SINH(X,PREC) ;
- QUIT $$SINH^MATH2(X,$Get(PREC,11))
+ QUIT $$SINH^%MATH2(X,$Get(PREC,11))
  ;===
  ;
  ;
 SQRT(X,PREC) ;
- QUIT $$SQRT^MATH2(X,$Get(PREC,11))
+ QUIT $$SQRT^%MATH2(X,$Get(PREC,11))
  ;===
  ;
  ;
 TAN(X,PREC) ;
- QUIT $$TAN^MATH2(X,$Get(PREC,11))
+ QUIT $$TAN^%MATH2(X,$Get(PREC,11))
  ;===
  ;
  ;
@@ -3440,7 +3452,7 @@ TANH(X,PREC) ;
  Set PREC=$Get(PREC,11)
  ;;;
  ;
- Quit $$SINH^MATH(X,PREC)/$$COSH^MATH(X,PREC)
+ Quit $$SINH^%MATH(X,PREC)/$$COSH^%MATH(X,PREC)
  ;===
  ;
  ;
@@ -3505,6 +3517,37 @@ MIS W !!,"***MISCELLANEOUS TESTS***",!! S ^OVR=^FOR
 END Q
 SET H 1 S A=$P($H,",",2) Q
 OUT W $P($H,",",2)-A-^OVR," seconds for: " Q
+
+BENCHGLO
+BENCHGLO ;From the DSM - BENCH;AP;[2016-03-16 09:07]
+ W !!,"Use this utility to provide a benchmark test of Globals"
+ W !,"A is 30 char, B is 5 char, C is 12345",!!
+ S N=100000,O=N\100,M=O\10
+ S A="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123",B="ZYXWV",C=12345
+ K ^TST,^TSW,^TSX,^TSY,^TSA,^TSB,^TSC
+ D SET F I=1:1:6*N S ^TST(I)=A
+ D OUT W "F I=1:1:",6*N," S ^TST(I)=A",!
+ D SET F I=1:1:6*N S D=^TST(I)
+ D OUT W "F I=1:1:",6*N," S D=^TST(I)",!
+ D SET F I=N:-1:1 S ^TSW(I)=A
+ D OUT W "F I=",N,":-1:1 S ^TSW(I)=A",!
+ D SET F I=N:-1:1 S D=^TSW(I)
+ D OUT W "F I=",N,":-1:1 S D=^TSW(I)",!
+ D SET F X=1:1:4*O F Y=1:1:6*M S ^TSX(X,Y,0)=A,^(1)=B,^(2)=C
+ D OUT W "F X=1:1:",4*O," F Y=1:1:",6*M," S ^TSX(X,Y,0)=A,^(1)=B,^(2)=C",!
+ D SET F X=1:1:4*O F Y=1:1:6*M S ^TSY(Y,X,0)=A,^(1)=B,^(2)=C
+ D OUT W "F X=1:1:",4*O," F Y=1:1:",6*M," S ^TSY(Y,X,0)=A,^(1)=B,^(2)=C",!
+ D SET F X=1:1:4*O F Y=1:1:6*M S D=^TSX(X,Y,0),E=^(1),F=^(2)
+ D OUT W "F X=1:1:",4*O," F Y=1:1:",6*M," S D=^TSX(X,Y,0),E=^(1),F=^(2)",!
+ D SET F X=1:1:4*O F Y=1:1:6*M S D=^TSY(Y,X,0),E=^(1),F=^(2)
+ D OUT W "F X=1:1:",4*O," F Y=1:1:",6*M," S D=^TSY(Y,X,0),E=^(1),F=^(2)",!
+ D SET F I=1:1:2*N S ^TSA(I)=A,^TSB(I)=B,^TSC(I)=C
+ D OUT W "F I=1:1:",2*N," S ^TSA(I)=A,^TSB(I)=B,^TSC(I)=C",!
+ D SET F I=1:1:2*N S D=^TSA(I),E=^TSB(I),F=^TSC(I)
+ D OUT W "F I=1:1:",2*N," S D=^TSA(I),E=^TSB(I),F=^TSC(I)",!
+ Q
+SET H 1 S T=$P($H,",",2) Q
+OUT W $J($P($H,",",2)-T,6)," seconds for: " Q
 
 FBENCH
 FBENCH   ;DBB;12-JUN-81 1:25 AM;BENCHMARK STANDARD MUMPS
@@ -3860,10 +3903,10 @@ SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
  d show("M-compiler version",$$compver("SYSINF"))
  d show("User/Process limit",$$cj_"/"_^$J)
  s W=25,D=";",COL=": " w !
- f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),^$S($P(r,D,3)))
+ f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),$G(^$S($P(r,D,3))))
  w ! s B=^$S("VOL",1,"BLOCK")
  f i=0:1 s r=$T(VOL+i),NF=$L(r,D) q:2=NF  d
- . s V=^$S("VOL",1,$P(r,D,3))
+ . X "S V="_$P(r,D,3)
  . s:3<NF X=$P(r,D,4),V=V_" ==> "_$$bytes(@X)
  . d show($P(r,D,2),V)
  d show("Journal New Global",^$G("$GLOBAL","JOURNAL"))
@@ -3872,8 +3915,11 @@ SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
 show(msg,val) ;show msg and val
  w !,$E(msg_DOTZ,1,W),COL,val
  Q
+rtnhead(rn) ;routine header
+ n r s r=$G(^$R(rn,0))
+ Q $S($L(r)<27:$G(^$R(rn,0,1)),1:r)
 compver(rn) ;return compiler version
- Q $$CVT^%JOURNLST($E($G(^$R(rn,0)),1,2))
+ Q $$CVT^%JOURNLST($E($$rtnhead(rn),1,2))
 bytes(n) ;convert to bytes
  n GB,MB,KB s KB=1024,MB=1024*KB,GB=1024*MB
  Q $S(GB-1<n:$J(n/GB,0,2)_"GB",MB-1<n:$J(n/MB,0,2)_"MB",KB-1<n:$J(n/KB,0,0)_"KB",1:n_"B")
@@ -3881,25 +3927,28 @@ cj() ;current job no
  n x,cnt
  s cnt=0,x="" f  s x=$O(^$J(x)) q:x=""  s cnt=cnt+1
  Q cnt
-VOL ;System Volume Name;NAME
- ;Volume Database File;FILE
- ;Volume Block Size;BLOCK
- ;Volume Size;SIZE;V*B
- ;Volume Header Block Size;HEADER;(V-$$LBLKSIZE^%MV1)*8*B
- ;Volume Free Size;FREE;V*B
- ;Volume Writelock Flag;WRITELOCK
- ;Volume Readonly Flag;READONLY
- ;Volume Protected Flag;PROTECTED
- ;Volume Backup Revision;BACKUP_REVISION_NUMBER
- ;Volume Journaling;JOURNAL_AVAILABLE
- ;Volume Journal File;JOURNAL_FILE
- ;Volume Journal File Size;JOURNAL_SIZE;V
+volstat() ;volume status
+ n i,ff
+ f i="WRITELOCK","READONLY","PROTECTED","DUMMY" s ff=$G(^$S("VOL",1,i),0) Q:ff
+ Q:ff i Q ""
+ ;
+VOL ;System Volume Name;^$S("VOL",1,"NAME")
+ ;Volume Database File;^$S("VOL",1,"FILE")
+ ;Volume Block Size;$J(^$S("VOL",1,"BLOCK"),6)
+ ;Volume Size;$J(^$S("VOL",1,"SIZE"),8);$TR(V," ","0")*B
+ ;Volume Map Block Size;$J(^$S("VOL",1,"HEADER"),8);($TR(V," ","0")-$$LBLKSIZE^%MV1)*8*B
+ ;Volume Free Size;$J(^$S("VOL",1,"FREE"),8);$TR(V," ","0")*B
+ ;Volume Status;$$volstat
+ ;Volume Journaling;^$S("VOL",1,"JOURNAL_AVAILABLE")
+ ;Volume Journal File;^$S("VOL",1,"JOURNAL_FILE")
+ ;Volume Journal File Size;^$S("VOL",1,"JOURNAL_SIZE");V
  ;
 SYS ;$NEXT enabled;$NEXTOK
  ;Exponent junk;EOK
  ;DO/GO offset;OFFOK
  ;Arithmetic precision;PRECISION
  ;
+
 
 
 

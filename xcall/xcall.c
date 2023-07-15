@@ -751,7 +751,7 @@ static tDirStatus dsFindDirNodesQ(
     tDataBufferPtr *	inOutDataBufferPtrPtr,
     tDataListPtr		inNodeNamePattern,
     tDirPatternMatch	inPatternMatchType,
-    unsigned long		*outDirNodeCount,
+    unsigned int		*outDirNodeCount,
     tContextData		*inOutContinueData
 )
     // A wrapper for dsFindDirNodes that handles two special cases:
@@ -790,7 +790,7 @@ static tDirStatus dsFindDirNodesQ(
             );
             DoubleTheBufferSizeIfItsTooSmall(&err, inDirReference, inOutDataBufferPtrPtr);
         } while (err == eDSBufferTooSmall);
-    } while ( (err == eDSNoErr) && (*outDirNodeCount == 0) && (*inOutContinueData != NULL) );
+    } while ( (err == eDSNoErr) && (*outDirNodeCount == 0) && (*inOutContinueData != 0) );
     
     return err;
 }
@@ -804,7 +804,7 @@ static tDirStatus dsGetRecordListQ(
     tDataListPtr			inRecordTypeList,
     tDataListPtr			inAttributeTypeList,
     dsBool					inAttributeInfoOnly,
-    unsigned long			*inOutRecordEntryCount,
+    unsigned int			*inOutRecordEntryCount,
     tContextData			*inOutContinueData
 )
     // A wrapper for dsGetRecordList that handles two special cases:
@@ -850,7 +850,7 @@ static tDirStatus dsGetRecordListQ(
             );
             DoubleTheBufferSizeIfItsTooSmall(&err, inDirReference, inOutDataBufferPtr);
         } while (err == eDSBufferTooSmall);
-    } while ( (err == eDSNoErr) && (*inOutRecordEntryCount == 0) && (*inOutContinueData != NULL) );
+    } while ( (err == eDSNoErr) && (*inOutRecordEntryCount == 0) && (*inOutContinueData != 0) );
     
     return err;
 }
@@ -909,7 +909,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     tDirStatus          junk;
     tDataBufferPtr      buf;
     tDirPatternMatch    patternToFind;
-    unsigned long       nodeCount;
+    unsigned int        nodeCount;
     tContextData        context;
     
     ASSERT(dirRef != 0);
@@ -918,7 +918,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
 
     patternToFind = eDSLocalNodeNames;
     
-    context = NULL;
+    context = 0;
     
     // Allocate a buffer for the node find results.  We'll grow 
     // this buffer if it proves to be to small.
@@ -960,14 +960,14 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     
     if (err == eDSNoErr) {
         if (nodeCount > 1) {
-            fprintf(stderr, "GetSearchNodePathList: nodeCount = %lu, weird.\n", nodeCount);
+            fprintf(stderr, "GetSearchNodePathList: nodeCount = %u, weird.\n", nodeCount);
         }
         err = dsGetDirNodeName(dirRef, buf, 1, searchNodePathListPtr);
     }
     
     // Clean up.
     
-    if (context != NULL) {
+    if (context != 0) {
         junk = dsReleaseContinueData(dirRef, context);
         ASSERT(junk == eDSNoErr);
     }
@@ -1012,7 +1012,7 @@ static tDirStatus FindUsersAuthInfo(
     tDataListPtr        recordType;
     tDataListPtr        recordName;
     tDataListPtr        requestedAttributes;
-    unsigned long       recordCount;
+    unsigned int        recordCount;
     tAttributeListRef   foundRecAttrList;
     tContextData        context;
     tRecordEntryPtr     foundRecEntry;
@@ -1031,7 +1031,7 @@ static tDirStatus FindUsersAuthInfo(
     recordName = NULL;
     requestedAttributes = NULL;
     foundRecAttrList = 0;
-    context = NULL;
+    context = 0;
     foundRecEntry = NULL;
     pathListToAuthNode = NULL;
     userNameForAuth = NULL;
@@ -1226,7 +1226,7 @@ static tDirStatus FindUsersAuthInfo(
         junk = dsCloseAttributeList(foundRecAttrList);
         ASSERT(junk == eDSNoErr);
     }
-    if (context != NULL) {
+    if (context != 0) {
         junk = dsReleaseContinueData(dirRef, context);
         ASSERT(junk == eDSNoErr);
     }
@@ -1880,5 +1880,49 @@ short Xcall_wait(char *ret_buffer, cstring *arg1, cstring *arg2)
   }
 
 
+  return s;
+}
+
+//***********************************************************************
+// LEHMER() - Lehmer RNG
+//
+// Arguments:
+// 1st:
+//      none    - reset RNG
+//      0       - current RNG number
+//      arg     - current RNG number modulo arg
+// Returns:
+//      <0     - failed
+//      0      - reset done
+//      num_bytes in ret_buffer which contains the random number
+//
+//
+//
+short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy)
+{
+  static u_int xk = 3141592653U;
+  u_int ret;
+  int n;
+  short s;                      // length of the returned string
+
+  ret_buffer[0] = '\0';
+
+  n = -1;
+  if (arg1->len)                // call with an arguments (number)
+    n = cstringtoi(arg1);	// get number
+
+  if (n < 0)                    // negative or called without arguments
+  { xk = 3141592653U;           // reset RNG
+    ret = xk;
+  }
+  else {
+    if (n > 0)                  // call with positive argument
+      ret = xk % (u_int)n;      // modulo
+    else
+      ret = xk;                 // current RNG
+    xk = (48271 * xk) % 2147483647;
+  }
+
+  s = mv1_uitocstring((u_char *)&ret_buffer[0], ret);
   return s;
 }

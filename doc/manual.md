@@ -1,6 +1,6 @@
-# A Terse Guide to MV1R2DEV
+# A Terse Guide to MUMPS V2
 
-Copyright 2018, 2019 Andras Pahi. All rights reserved.
+Copyright 2018-2021 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
@@ -20,13 +20,13 @@ Copyright 2018, 2019 Andras Pahi. All rights reserved.
 
 ## Foreword
 
-MV1 and its derivative MV1R2DEV is small and efficient like a Swiss 
-army knife. I do not repeat the MUMPS V1 manual of Ray Newman which 
-can be found at `doc/MUMPS.epub`. Beware it is not a pure 
+MUMPS V1 and its derivative MUMPS V2 is small and efficient like a 
+Swiss army knife. I do not repeat the MUMPS V1 manual of Ray Newman 
+which can be found at `doc/MUMPS.epub`. Beware it is not a pure 
 MUMPS-1995 implementation. If you want a MUMPS which does not contain 
-implementation specific commands and functions use MV1. In this text
-MUMPS refers to the MV1R2DEV implementation of the language which is
-based on MUMPS V1.
+implementation specific commands and functions use MV1 or MV1R2. 
+In this text MUMPS refers to the MUMPS V2 implementation of the 
+language which is based on MUMPS V1.
 
 
 
@@ -44,7 +44,8 @@ helps the adaptive rest time, which checks the statistics counters in the
 MUMPS environment and when there are processes waiting for free queue slots
 it reduces the poll time. When the load vanishes it increases the poll time
 again. To query the current rest time between write daemon polls, query
-the *RESTTIME* system parameter.
+the *RESTTIME* system parameter. The *MAXRESTTIME* system parameter
+controls the maximum poll time.
 
 
 ### Buffered files
@@ -178,6 +179,8 @@ parameter:
     SET ^$SYSTEM("VOL",2,"JOURNAL_BUFFER_SIZE")=-256 ;256KB jnl buffer, async flush
     SET ^$SYSTEM("VOL",2,"FILE")="/home/user/MUMPS/db/app.dat"
 
+Note: the uniqueness of the volume names is not checked.
+
 
 ### Remote volume sets
 
@@ -220,13 +223,30 @@ protocol to the IP address 192.168.1.23 on port 2002. The remote volume
 Using the volume "AAA" on the client system will transfer each database
 command to the remote system and the results are coming from there.
 
-Each MUMPS environment participating in a remote environment (either as a 
-server or client) should have a unique system ID, which should be specified
-on the command line, when you start the environment. The unique system ID
-is necessary to support remote locking, because each JOB will get a unique
-job number which is constructed from the system ID and the local JOB number.
+Although you can specify a different local name for the remote volume,
+the supplied M utilities cannot handle this (like ^%RD, ^%GD etc.)
+A simple solution is to keep the mountable remote volume names distinct
+and mount them on the clients with the same name as the remote volume
+name.
 
-The maximum number of connected client and server MUMPS environments is 254.
+The remote volume label is transferred to the clients, so the clients
+can access the same UCIs as on the remote volume. On the clients you can
+execute the routines stored on the remote volume. Since the tokenized
+routine code is transferred to the client, the server and the client
+should have the same word length (32-32bits or 64-64bits) and the same
+byte order (eg. you cannot execute routines compiled on an IBM POWER
+server on x86_64 clients). In the client environment you should not
+compile routines on remote volumes.
+
+Each MUMPS environment participating in a remote environment (either
+as a server or client) should have a unique system ID, which should be
+specified on the command line, when you start the environment. The
+unique system ID is necessary to support remote locking, because each
+JOB will get a unique job number which is constructed from the system
+ID and the local JOB number.
+
+The maximum number of connected client and server MUMPS environments
+is 254.
 
 Timeouts specified on remote LOCKs are not used. Instead the system
 parameter `DGP_LOCK_TIMEOUT` is used on the server system to specify a
@@ -243,6 +263,20 @@ When a server MUMPS environment is restarted, the client environments get
 notified and the client environments remove all local LOCKs related to
 the server MUMPS environment and the corresponding local MUMPS jobs get 
 lost remote LOCKs errors.
+
+There is no timeout for sending replies from the server environment
+to the client environments. You can set the timeout with the start
+parameter `-t`. The timeout parameter is in seconds, -1 means no
+timeout. You can query the send timeout value from the system parameter
+`DGP_SEND_TIMEOUT`. If the server cannot send a reply to a client, 
+the event is logged in the netdaemon log file.
+
+There is no timeout for receiving server replies in the client 
+environment. You can set the timeout with the system parameter
+`DGP_RECV_TIMEOUT`.  The timeout parameter is in seconds, -1 means
+no timeout. If the client does not receive a reply from a server
+and the timeout parameter is set, it results in an error on the
+client side.
 
 
 ### MUMPS environment replicas
@@ -307,7 +341,27 @@ same file. When `RESTORE_FILE` does not exists it is created.
 	SET ^$S("RESTORE_FILE")="/path/to/volume" ;output volume file
 	SET ^$S("BACKUP_VOLUMES")=2               ;restore 2nd volume from backup
 	SET ^$S("BACKUP_FILE")="/path/to/backup"  ;input backup file
-	
+
+
+### Routine object size
+
+The maximum routine object size is 64KB. This is independent of the database
+block size. The tokenized object code is stored in multiple nodes, if it does
+not fit in 90% of the database block size.
+
+The general layout for the multiple node object code storage is:
+
+        ^$ROUTINE("RTN",0)=number of chunks
+        ^$ROUTINE("RTN",0,0)=routine object code size
+        ^$ROUTINE("RTN",0,1)=object code chunk 1
+        ...
+        ^$ROUTINE("RTN",0,N)=object code chunk N
+
+### Shared memory address
+
+You can specify the fixed shared memory address, where the shared memory
+segment will be allocated in memory. The environment variable `MV2_SHMAT`
+can contain the memory address in hexadecimal format (0x1234567890abcdef).
 
 ### MV1API
 
@@ -324,20 +378,20 @@ user defined commands and functions. The only restriction is
 that you should begin your commands and functions with the *ZZ*
 prefix. The bytecode compiler will translate each such command
 and function to a call to the corresponding tag in the routine
-*ZZCMD* or *ZZFN* respectively.
+*%ZZCMD* or *%ZZFN* in the MGR UCI, respectively.
 
 ---
 
 `ZZcmd a1:a2...`
 
-Calls `ZZcmd^ZZCMD(a1,a2...)`. Note the colon in the syntax to
+Calls `ZZcmd^%ZZCMD(a1,a2...)`. Note the colon in the syntax to
 enter multiple parameters for the command.
 
 ---
 
 `$ZZfn(a1,a2...)`
 
-Calls `ZZfn^ZZFN(a1,a2...)`.
+Calls `ZZfn^%ZZFN(a1,a2...)`.
 
 
 ## Commands
@@ -398,14 +452,61 @@ Atomically increments *glvn* by 1, or with the value of
 allocates a sequence of numbers to the MUMPS process and
 gives back one at a time.
 
----
+### Object support
 
 `$ZSEND(obj,"tag"[,arg1,arg2...])`
 
 Calls dynamically `tag^class(obj,arg1,arg2...)`.
 *obj* should be in the form *value[@class]*. Note the class part
 is optional. When it is empty it will use `%Object` as routine
-name. For more information see README.OOP.
+name. For more information see README.OOP and see the example
+classes in oopex.rsa.
+
+The root of the example hierarchy is the `Animal` class. There
+are three subclasses: `Dog`, `Duck` and `Toad`.
+
+Run the `Example^Animal` routine. The subclasses can save and 
+load themselves from globals in about 20 lines.
+
+Every class resides in the an M routine which has the same name
+as the class. The methods are labels/tags in the routine.
+The first parameter of every method is the object instance, which
+receives the message (you can call it whatever you want: this, self etc.)
+The methods parameters follow the instance parameter.
+
+The object instance contains a simple string in the form of *value@class*.
+Every class inherits from the `%Object` class. If you want to specify
+more superclasses, put a `%Parents` label in your routine, and after a `;;`
+separator, list the superclasses separated by commas.
+The inheritance order is from right to left: the rightmost superclass
+is searched first, then we are going to the left.
+
+If the method is not found in the class hierarchy, the `%Unknown`
+method is called with the object instace, the message name and
+the message parameters. For example `%Unknown(SELF,msg,a1,a2,a3)`
+if you want to support 3 parameters only. The `msg` parameter
+is the method name called. See in the example hierarchy the `SetAge`
+call, which is not defined, the `%Unknown` method handles it.
+
+The method call is dynamic, it is actually a message send.
+We search for the specified label/tag in the routines according 
+to the specified class hierarchy.
+The method call is performed by `$ZSEND(instance,"message",param1,param2,...)`.
+The result of the method search is cached in the local array `%ZSEND`,
+to avoid the search when the same method is called on an instance of
+the same class.
+
+There are no instance variables, in the example the `%zobj` local array
+contains them, indexed by the instance identifiers.
+
+This object-oriented extension is fully dynamic, uses message sends
+only, there are a few predefined things only. The predefined identifiers
+are:
+
+* the name `%Object` which is the root class
+* the label `%Parents` which specify the superclasses
+* the `%Unknown` method which handles the unknown messages
+* the `%ZSEND` local array which is used by `$ZSEND`
 
 ---
 
@@ -479,7 +580,7 @@ Returns the number of elements in list *lst*.
 
 It is similar to `SET $PIECE(...)`. Set the list *lst* to the value
 given. *From* defaults to 1, *to* defaults to -1. If the 2 argument form
-is used it replaces the single element at *from* with the value of
+is used it insert the single element at *from* with the value of
 *expr*. If the value of *expr* is a list, it is stored as a single
 element. If the 3 argument form is used, it replaces the sublist from
 position *from* to position *to* with the value of *expr*. If the
@@ -491,7 +592,8 @@ value of *expr* is a list, it replaces the sublist [*from*,*to*].
 
 A bit string contains an arbitrary number of bits. For the bitwise 
 operators the bit string arguments are not required to be equal in length. 
-The *missing* tail parts are assumed to be zero.
+The *missing* tail parts are assumed to be zero. The bit string is stored
+in RLE encoded format.
 
 
 `$ZBITAND(bstr1,bstr2)`
@@ -609,11 +711,15 @@ Additional `^$SYSTEM` variables or changed behavior.
 | BACKUP_FILE        | Backup file name          | set with priv |
 | BACKUP_TYPE        | Type of backup FULL, CUMULATIVE or SERIAL | set with priv |
 | BACKUP_VOLUMES     | Backup VOL masks OR VOL index to restore  | set with priv |
+| COMPMSG            | Last routine compilation message. | no |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
+| DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |
+| DGP_SEND_TIMEOUT   | Server-side send timeout in seconds  | no |
 | DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |
+| MAXRESTTIME        | Maximum daemon rest time   | set with priv |
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
 | REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
 | RESTTIME           | Daemon rest time          | no |
@@ -670,17 +776,19 @@ MUMPS with commands/functions written in MUMPS
 | --------------------------------- | ------------------------ |
 | Language			    | M-1995 with extensions   |
 | Maximum identifier length	    | 31 chars		       |
-| Maximum routine object size	    | min(block size, 32KB)    |
+| Maximum routine object size	    | 64KB                     |
+| Maximum lines in a routine        | 32767                    |
 | Maximum local variable length	    | 32KB		       |
 | Maximum number of volumes	    | 16		       |
 | Volume block size		    | 4KB - 256KB	       |
 | Volume size            	    | 32M blocks (128GB - 8TB) |
 | Namespaces per volume (UCI)	    | 63		       |
 | Maximum global key size	    | 255		       |
+| Maximum subscript length          | 127                      |
 | Maximum global value size	    | min(block size, 32KB)    |
 | Number of global subscripts	    | 63                       |
 | Global translation table size	    | 255		       |
-| Maximum number of jobs            | 256                      |
+| Maximum number of jobs            | 4096                     |
 | Maximum number of daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |
 | Maximum number of network daemons | 10                       |

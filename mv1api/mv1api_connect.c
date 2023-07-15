@@ -126,11 +126,8 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   hnd->file = strdup(file);                     // cpy database file name
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-  hnd->dbfd = open(file, O_RDWR);               // open the database for write
+  hnd->dbfd = OpenFile(file, O_RDWR);           // open the database for write
   if (hnd->dbfd < 0) return (errno);            // if that failed
-#ifdef MV1_F_NOCACHE
-  i = fcntl(hnd->dbfd, F_NOCACHE, 1);
-#endif
   if (hnd->start_type == TYPE_RUN)		// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
@@ -249,23 +246,19 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  partab.compmsg = (cstring*)malloc(sizeof(cstring)); // compiler msg
+
   LB_Init();					// local buffering
   ST_Init();					// initialize symbol table
 
   if ((systab->vol[0]->vollab->journal_available) &&
       (systab->vol[0]->vollab->journal_requested)) // if journaling
-  { partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
+  { partab.jnl_fds[0] = OpenFile(systab->vol[0]->vollab->journal_file, O_RDWR);
     if (partab.jnl_fds[0] < 0)
     { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
 		systab->vol[0]->vollab->journal_file, errno);
       hnd->ret = -1;
       goto exit;
-    }
-    else
-    { 
-#ifdef MV1_F_NOCACHE
-      i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
-#endif
     }
   }
   return 0;

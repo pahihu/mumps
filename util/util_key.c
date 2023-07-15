@@ -521,7 +521,7 @@ short UTIL_MvarFromCStr( const cstring *src,	// the string
   u_char tmp[260];				// temp area for subscripts
 
   kb = (cstring *) tmp;				// make it a cstring
-  var->nsubs  = 255;
+  var->nsubs = 255;
   var->volset = 0;				// clear volset
   var->uci = UCI_IS_LOCALVAR;			// assume local variable
   var->slen = 0;				// and no subscripts

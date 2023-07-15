@@ -98,29 +98,36 @@ void mv1_log_flush(void)
 
 static struct timeval sem_start[SEM_MAX];
 
-#define NUMTRY  (1024*1024)
-
 #ifdef MV1_SHSEM
+
+#define SPINSLEEP 100
+
+#ifdef MV1_DEVSYS
+#define SPINNUM   systab->numcpu2
+#define SPINTRY   (16*1024)
+#else
+#define SPINNUM   4
+#define SPINTRY   (256*1024)
+#endif
+
 static
 void SpinLockWriter(RWLOCK_T *lok)
 {
   int i, j;
 
-#if 0
-  for (i = 0; i < NUMTRY; i++) {
-    if (TryLockWriter(lok))
-      return;
-    SchedYield();
-  }
-#else
-  for (i = 0; i < 16; i++)
-  { for (j = 0; j < NUMTRY; j++)
-      if (TryLockWriter(lok))
+  for (i = 0; i < SPINNUM; i++)
+  { for (j = 0; j < SPINTRY; j++)
+    { if (TryLockWriter(lok))
         return;
-    if (i & 3)
-      SchedYield();
-  }
+#ifdef MV1_DEVSYS
+      if (0 == (i & 3))
+        SchedYield();
 #endif
+    }
+#ifndef MV1_DEVSYS
+    MSleep(SPINSLEEP);
+#endif
+  }
   LockWriter(lok);
 }
 
@@ -129,28 +136,30 @@ void SpinLockReader(RWLOCK_T *lok)
 {
   int i, j;
 
-#if 0
-  for (i = 0; i < NUMTRY; i++) {
-    if (TryLockReader(lok))
-      return;
-    SchedYield();
-  }
-#else
-  for (i = 0; i < 16; i++)
-  { for (j = 0; j < NUMTRY; j++)
-      if (TryLockReader(lok))
+  for (i = 0; i < SPINNUM; i++)
+  { for (j = 0; j < SPINTRY; j++)
+    { if (TryLockReader(lok))
         return;
-    if (i & 3)
-      SchedYield();
-  }
+#ifdef MV1_DEVSYS
+      if (0 == (i & 3))
+        SchedYield();
 #endif
+    }
+#ifndef MV1_DEVSYS
+    MSleep(SPINSLEEP);
+#endif
+  }
   LockReader(lok);
 }
 #endif
 
+#define NUMTRY  (16*1024)
+
 short TrySemLock(int sem_num, int numb)
 {
   short s;
+  int i, j;
+  int numcpu2;
 #ifndef MV1_SHSEM
   struct sembuf buf={0, 0, SEM_UNDO|IPC_NOWAIT};// for semop()
 #endif
@@ -160,6 +169,7 @@ short TrySemLock(int sem_num, int numb)
   gettimeofday(&st, NULL);
 #endif
 
+  numcpu2 = systab->numcpu2;
   s = 0;
 #ifdef MV1_SHSEM
   if (SEM_GLOBAL == sem_num)
@@ -172,7 +182,7 @@ short TrySemLock(int sem_num, int numb)
     else
     { char msg[64];
       sprintf(msg, "TrySemLock(): numb=%d", numb);
-      panic(msg);
+      mv1_panic(msg);
     }
   }
   else {
@@ -180,7 +190,7 @@ short TrySemLock(int sem_num, int numb)
     LatchLock(&systab->shsem[sem_num]);
     s = 0;
     if (s < 0)
-    { panic("TrySemLock: failed");
+    { mv1_panic("TrySemLock: failed");
     }
   }
 #else
@@ -189,7 +199,15 @@ short TrySemLock(int sem_num, int numb)
   }
   buf.sem_num = (u_short) sem_num;              // get the one we want
   buf.sem_op = (short) numb;                    // and the number of them
-  s = Semop(systab->sem_id, &buf, 1);           // doit
+  for (i = 0; i < numcpu2; i++)
+  { for (j = 0; j < NUMTRY; j++)
+    { s = Semop(systab->sem_id, &buf, 1);       // doit
+      if (0 == s)
+        return 0;
+      if (0 == (i & 3))
+        SchedYield();
+    }
+  }
 #endif
 
 #ifdef MV1_PROFILE
@@ -224,7 +242,7 @@ short SemLock(int sem_num, int numb)
   semop_time_sav = semop_time; 
 #ifdef MV1_SHSEM
   if (s < 0)
-  { panic("TrySemLock: failed");
+  { mv1_panic("TrySemLock: failed");
   }
 #else
   if (s != 0)
@@ -278,7 +296,7 @@ short SemUnlock(int sem_num, int numb)
     else
     { char msg[64];
       sprintf(msg, "SemUnLock(): numb=%d", numb);
-      panic(msg);
+      mv1_panic(msg);
     }
   }
   else {

@@ -157,7 +157,7 @@ short LCK_StringToLock(int count, const cstring *list, cstring *out)
     s = UTIL_mvartolock(&var, &out->buf[0]);
     if (s < 0) return s;
     out->len = s;
-    outsize = sizeof(short) + s;
+    outsize = sizeof(short) + s + sizeof(char); // count null
     if (outsize & 1) outsize++;
     outpos += outsize;
 
@@ -366,7 +366,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
 short LCK_Combine(locktab *ptr)
 { locktab *next;                                // a handy pointer
 
-  if (ptr == NULL) panic("Null pointer passed to LCK_Combine()");
+  if (ptr == NULL) mv1_panic("Null pointer passed to LCK_Combine()");
 
   while (TRUE)
   { next = (locktab *) (((u_char *) (ptr)) + ptr->size); // where next
@@ -374,7 +374,8 @@ short LCK_Combine(locktab *ptr)
         (((char *) systab->lockstart) + systab->locksize))
       break;                                    // quit when done
     if (next != ptr->fwd_link) break;           // quit if next not free
-    if (next->job > -1) panic("Attempt to combine non-free in LCK_Combine()");
+    if (next->job > -1)
+      mv1_panic("Attempt to combine non-free in LCK_Combine()");
     ptr->size += ptr->fwd_link->size;           // increment the new free space
     ptr->fwd_link = next->fwd_link;             // new block now points correct
   }                                             // prev block/this block merge
@@ -390,7 +391,7 @@ short LCK_Free(locktab *ptr)
   locktab *prevptr = NULL;                      // handy ptr
 
   if (ptr == NULL)
-    panic("Null pointer passed to LCK_Free()");	// die
+    mv1_panic("Null pointer passed to LCK_Free()");// die
 
   currptr = systab->lockfree;                   // start here
   if (ptr < currptr)                            // freeing at start of mem sect
@@ -570,7 +571,7 @@ void LCK_Remove(int job)                        // remove all locks for a job
 
   if (!job) job = MV1_PID + 1; 			// current job
 
-  if ((job <= 256) ||				// local job ?
+  if ((job <= MAX_JOB) ||			// local job ?
       (255 == DGP_SYSID(job)))			//   OR system shutdown
   { for (i = 0; i < MAX_VOL; i++)		// for each VOL
     { if (systab->vol[i]->vollab == NULL)	// break if not mounted
@@ -619,7 +620,6 @@ void LCK_RemoveVOL(int volume)                  // remove all locks for a volume
 { locktab *lptr;                                // locktab entry we are doing
   locktab *plptr;                               // previous locktab entry
   short x;                                      // for SEM's
-  int i;					// handy int
 
   ASSERT((0 < volume) && (volume <= MAX_VOL));
   if (NULL == systab->vol[volume-1]->vollab)	// not mounted ?
@@ -739,6 +739,27 @@ int failed(lck_add_ctx *pctx)                 	// common code
   return 0;
 }
 
+static unsigned char printable(unsigned char ch)
+{
+  return (31 < ch) && (ch < 128) ? ch : '.';
+}
+
+void dumpCStr(char *msg, cstring *cstr)
+{ int i;
+  fprintf(stderr,"=== %s ===\r\n", msg);
+  fprintf(stderr,"len = %d\r\n", cstr->len);
+  fprintf(stderr,"buf =");
+  for (i = 0; i < cstr->len; i++)
+  {  u_char ch = cstr->buf[i];
+     u_char p  = printable(ch);
+     if (p == '.')
+       fprintf(stderr, " %02X", ch);
+     else
+       fprintf(stderr, "  %c", p);
+  }
+  fprintf(stderr,"\r\n");
+}
+
 static
 short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
 {
@@ -760,6 +781,8 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
   int reqd;                                     // space reqd for lock
   //short x;                                    // for SEM's
   lck_add_ctx ctx,*pctx;
+
+  // dumpCStr("LCK_AddP: list", list);
 
   if (!job) job = MV1_PID + 1;			// current job
 
@@ -785,6 +808,7 @@ short LCK_AddP(int p_count, cstring *list, int p_to, int job) // lock plus
        
   while ((done < count) && (tryagain == 0))     // while more to do
   { current = (cstring *) &((u_char *)list)[pos]; // extract this entry
+    // dumpCStr("LCK_AddP: arg", current);
     reqd = sizeof(short)*2 + sizeof(int)*2 + sizeof(locktab *) + current->len;
                 
     if (reqd & 7) reqd = (reqd & ~7) + 8;       // round up to 8 byte boundary
@@ -1075,7 +1099,7 @@ short LCK_Add(int count, cstring *list, int to, int job) // lock plus
   if (s < 0)					// failed ?
     return s;					// return error
 
-  if ((job <= 256) && 
+  if ((job <= MAX_JOB) &&
       LCK_HasRemote(count, list, remote_vols)) // has remote VOLs ?
   { for (i = 0; i < MAX_VOL; i++)
     { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip
@@ -1193,7 +1217,7 @@ short LCK_Sub(int count, cstring *list, int job)// lock minus
   if (!job) job = MV1_PID + 1;			// current job
 
   s = LCK_SubP(count, list, job);		// remove LOCKs
-  if ((job <= 256) && 
+  if ((job <= MAX_JOB) &&
       LCK_HasRemote(count, list, remote_vols))	// has remote VOLs ?
   { for (i = 0; i < MAX_VOL; i++)		// for each remote VOL
     { if (0 == remote_vols[i]) continue;	// no remote LOCKs, skip

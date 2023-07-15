@@ -317,7 +317,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       return LCK_Get(subs[0], buf);		// doit and exit
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       if (nsubs == 2)
         if (strncasecmp( (char *) subs[1]->buf, "character\0", 10) == 0)
 	  return mcopy((u_char *)"M", buf, 1);	// just an M
@@ -356,8 +356,17 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       	       (systab->historic & HISTORIC_DNOK));  // return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "compmsg\0", 8) == 0))
+      { strcpy((char *) buf, (char *) &partab.compmsg->buf[0]);
+        return partab.compmsg->len;                     // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "resttime\0", 9) == 0))
       { return itocstring(buf, systab->ZRestTime);   // return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "maxresttime\0", 12) == 0))
+      { return itocstring(buf, systab->ZMaxRestTime);   // return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_url\0", 8) == 0))
@@ -367,6 +376,14 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_port\0", 9) == 0))
       { return itocstring(buf, systab->dgpPORT);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_send_timeout\0", 17) == 0))
+      { return itocstring(buf, systab->dgpSNDTO);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_recv_timeout\0", 17) == 0))
+      { return itocstring(buf, systab->dgpRCVTO);// return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_id\0", 7) == 0))
@@ -736,10 +753,26 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "maxresttime\0", 12) == 0))
+      { j = cstringtoi(data);
+        if (j < MINRESTTIME) return -ERRM28;
+        systab->ZMaxRestTime = j;
+        systab->ZRestTime = systab->ZMaxRestTime;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_lock_timeout\0", 17) == 0))
       { j = cstringtoi(data);
 	if ((j < 0) || (j > DGP_MAX_LOCKTO)) return -ERRM28;
         systab->dgpLOCKTO = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_recv_timeout\0", 17) == 0))
+      { j = cstringtoi(data);
+	if (j < -1) return -ERRM28;
+        systab->dgpRCVTO = j;
 	return 0;				// and exit
       }
 
@@ -878,7 +911,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           return -(ERRM38);
         if (i && !systab->replicas[i-1].connection[0])	// out of order?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
+	while (SemOp( SEM_SYS, -systab->maxjob))	// set file_name
+                ;
         strcpy((char *) &systab->replicas[i].connection[0],
 	       (char *) data->buf);
         SemOp( SEM_SYS, systab->maxjob);
@@ -946,7 +980,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob))// lock SYSTEM
+                ;
 	systab->vol[i]->writelock = 
 	  (cstringtob(data))
 	    ? -(MV1_PID + 1)			// set it
@@ -968,7 +1003,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob))// lock SYSTEM
+                ;
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_PROTECT;
 	}
@@ -988,7 +1024,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  return -(ERRZ90 + ERRMLAST);
         if (systab->vol[i]->bkprunning)		// backup running ?
           return -(ERRM38);
-	while (SemOp( SEM_SYS, -systab->maxjob));// lock SYSTEM
+	while (SemOp( SEM_SYS, -systab->maxjob))// lock SYSTEM
+                ;
         if (cstringtob(data))
     	{ systab->vol[i]->flags |= VOL_RDONLY;
 	}
@@ -1006,7 +1043,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((i < 0) || (i >= MAX_VOL)) return (-ERRM60); // out of range
 	if (NULL == systab->vol[i]->vollab)	// not mounted ?
 	  return -(ERRZ90 + ERRMLAST);
-        while (SemOp( SEM_GLOBAL, -systab->maxjob));
+        while (SemOp( SEM_GLOBAL, -systab->maxjob))
+                ;
         systab->vol[i]->bkprunning = cstringtob(data);
         SemOp( SEM_GLOBAL, systab->maxjob);
 	return 0;				// return OK
@@ -1023,7 +1061,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 
 	j = cstringtob(data);
 	volnum = i + 1;
-        while (SemOp( SEM_GLOBAL, -systab->maxjob));
+        while (SemOp( SEM_GLOBAL, -systab->maxjob))
+                ;
 	if (j)
 	{ bzero(systab->vol[i]->chgmap, 
 		systab->vol[i]->vollab->header_bytes - SIZEOF_LABEL_BLOCK);
@@ -1076,7 +1115,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             if (s < 0) return s;			// has remote VOL name?
 	    if (!s) return -(ERRM38);
 #endif
-	    while (SemOp( SEM_SYS, -systab->maxjob));	// set file_name
+	    while (SemOp( SEM_SYS, -systab->maxjob))	// set file_name
+                ;
             strcpy((char *) &systab->vol[i]->file_name[0],
 		   (char *) data->buf);
             SemOp( SEM_SYS, systab->maxjob);
@@ -1095,7 +1135,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 #endif
 	  } else
           { 
-            while (SemOp( SEM_SYS, -systab->maxjob));
+            while (SemOp( SEM_SYS, -systab->maxjob))
+                ;
             s = DB_Mount((char *) &data->buf[0],	// mount volume
                         i + 1,
                         systab->vol[i]->gmb,
@@ -1113,7 +1154,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    (cstringtoi(data) == 0))		// clear journal
 	{ int old_volnum = volnum;              // set volnum
           volnum = i + 1;
-          while (SemOp( SEM_GLOBAL, -systab->maxjob)); // lock GLOBAL
+          while (SemOp( SEM_GLOBAL, -systab->maxjob)) // lock GLOBAL
+                ;
 	  ClearJournal(partab.jnl_fds[i], i);	// do it
 	  SemOp( SEM_GLOBAL, systab->maxjob);	// unlock global
           volnum = old_volnum;
@@ -1211,7 +1253,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
           { return -(ERRM38);
           }
 	  volnum = i + 1;
-	  while (SemOp( SEM_GLOBAL, -systab->maxjob));
+	  while (SemOp( SEM_GLOBAL, -systab->maxjob))
+                ;
           systab->vol[i]->vollab->bkprevno = j;
           systab->vol[i]->map_dirty_flag |= VOLLAB_DIRTY;
 	  SemOp( SEM_GLOBAL, systab->maxjob);
@@ -1310,7 +1353,7 @@ short SS_Data(mvar *var, u_char *buf)           // get $DATA()
       return 1;					// and return
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       return DB_Data(var, buf);			// let the database module doit
     case 'S':					// $SYSTEM
       return (-ERRM38);				// junk
@@ -1491,7 +1534,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
 	i++;					// convert back to job#
       }
       else					// forward
-      { for (i = i; i < systab->maxjob; i++)	// scan the list
+      { for (i = i+0; i < systab->maxjob; i++)	// scan the list
 	{
 	  if (systab->jobtab[i].pid != 0)	// found one
 	  {
@@ -1522,7 +1565,7 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
       return LCK_Order(subs[0], buf, dir);	// doit and exit
 
     case 'R':					// $ROUTINE
-      if (nsubs > 2) return (-ERRM38);		// junk
+      if (nsubs > 3) return (-ERRM38);		// junk
       return DB_Order(var, buf, dir);		// let the database module doit
     case 'S':					// $SYSTEM
       if ((nsubs == 2) &&

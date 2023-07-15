@@ -340,7 +340,7 @@ exit:
 //
 // If rou == NULL, check the routine->src
 
-short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
+int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 { cstring *line;				// the source line
   u_char *code;					// the code
   short s, ss;					// for returns
@@ -363,11 +363,13 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   var_u rounam;					// the routine name
   int same = 0;					// same routine flag
   u_char src_nsubs, rou_nsubs = 0;
+  u_short offs;                                 // offset into RBD
 
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
-  line = (cstring *) stack;			// for source lines
-  code = stack + sizeof(cstring);		// where the code goes
+  Err_Init();                                   // for error string
+  line = (cstring *) (stack + sizeof(cstring));	// for source lines
+  code = stack + 3*sizeof(cstring);		// where the code goes
   cptr = (cstring *) temp;			// point at temp space
 
   //for (i = 0; i < 256; var_tbl[i++].var_qu = 0); // clear var table
@@ -418,9 +420,9 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   else
   { partab.checkonly = 1;			// just a check
     same = 1;					// stop writting
-    partab.sp = &source_ptr;			// where source ptr is
-    partab.lp = &line;				// and where line is
   }
+  partab.sp = &source_ptr;			// where source ptr is
+  partab.lp = &line;				//   and where line is
   if (src->name.var_cu[0] == '$')		// source an ssvn?
   { s = SS_Norm(src);				// normalize mvar
     if (s < 0) return s;			// quit on error
@@ -665,30 +667,30 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   p += sizeof(int);
   i = sizeof(tags) * num_tags;			// space for tags
   j = sizeof(var_u) * num_vars;			// space for vars
-  s = (p - line->buf) + (6 * sizeof(u_short));	// offset for tags
+  s = (p - line->buf) + (6 * sizeof(u_short));  // offset for tags
   bcopy(tag_tbl, &line->buf[s], i);		// copy tag table
   bcopy(&s, p, sizeof(short));                  // where it went
   p += sizeof(short);
   ss = (short)num_tags;                         // copy the count
   bcopy(&ss, p, sizeof(short));
   p += sizeof(short);
-  s = s + i;					// wher vars go
+  s = s + i;			                // wher vars go
   bcopy(var_tbl, &line->buf[s], j);		// copy var table
   bcopy(&s, p, sizeof(short));                  // where it went
   p += sizeof(short);
   ss = (short) num_vars;                        // copy the count
   bcopy(&ss, p, sizeof(short));
   p += sizeof(short);
-  s = s + j;					// where the code goes
-  bcopy(code, &line->buf[s], comp_ptr - code);	// copy the code
+  s = s + j;		                        // where the code goes
+  bcopy(code, &line->buf[s], comp_ptr - code);  // copy the code
   bcopy(&s, p, sizeof(short));                  // where it went
   p += sizeof(short);
-  s = (short) (comp_ptr - code);                // and the size
-  bcopy(&s, p, sizeof(short));
-  p += sizeof(short);
+  offs = (u_short) (comp_ptr - code);           // and the size
+  bcopy(&offs, p, sizeof(u_short));
+  p += sizeof(u_short);
   i = p - line->buf + (comp_ptr - code) + i + j; // total size
-  if (i > MAX_STR_LEN) 
-  { comperror(-(ERRZ54+ERRMLAST));		// complain
+  if (i > MAXROUSIZ)
+  { // comperror(-(ERRZ54+ERRMLAST));		// complain
     if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
     return -ERRM75;				// ignore the rest
   }
@@ -697,15 +699,15 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   cptr->buf[1] = '\0';				// null terminated
   cptr->len = 1;				// the size
   if (partab.checkonly)				// just a check
-    return 0;					// exit - NEED an error count
+    return Err_Len();				// exit - NEED an error count
   rou->nsubs = rou_nsubs;
   rou->slen  = rou_slen;
   s = UTIL_Key_BuildEx(rou, cptr, &rou->key[rou_slen]); // build the key
   rou->slen = rou_slen + s;			// store the new length
-  s = DB_Set(rou, line);			// set it
+  j = DB_SetLong(rou, i, line->buf);	        // set it
   if (same)
     //Routine_Delete(rounam.var_qu, rou->uci);	// delete the routine
     Routine_Delete(rounam.var_xu, rou->uci, rou->volset); // delete the routine
   i = SemOp(SEM_ROU, systab->maxjob);		// release sem
-  return s;					// NEED MORE HERE
+  return j;					// NEED MORE HERE
 }

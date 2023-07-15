@@ -49,6 +49,7 @@
 #include "error.h"                              // standard errors
 #include "database.h"				// for gbd def
 #include "dgp_database.h"			// for remote VOL
+#include "rle.h"                                // for RLE coding
 
 #ifdef linux
 #include <values.h>				// for linux
@@ -1171,7 +1172,7 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
   else
   { bcopy( var, &(partab.jobtab->last_ref), MVAR_SIZE + var->slen);
     if (i != -1) partab.jobtab->last_ref.key[i] = '\0'; // unfix from above
-    ret = LDB_QueryEx(var, ret_buffer, dir, 1, dat);// else it's global
+    ret = LDB_QueryEx(var, ret_buffer, dir, GLO_DOCVT, dat);// else it's global
   }
   if (target && (VAR_UNDEFINED != dat->len))    // target given and has data
   { if (target->uci == UCI_IS_LOCALVAR)
@@ -1722,33 +1723,76 @@ short DSetextract(u_char *tmp, cstring *cptr, mvar *var,
 }
 
 //***********************************************************************
+// BitPack/BitUnpack
+//
+short BitPack(u_char *src, short len)
+{ short elen;
+  u_char buf[32767];
+
+  elen = RLE_Pack(src + 1, len - 1, buf);
+  memcpy(src + 1, buf, elen);
+  return elen + 1;
+}
+
+//***********************************************************************
 // $ZBITSTR(len[,ff])
 //
 short Dzbitstr2(u_char *ret, int len, int ff)
 { if (len < 0)                                  // invalid arg
     return -(ERRMLAST+ERRZ74);
+  if (0 == len)                                 // special case
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
+  }
   ret[0] = len & 7;                             // trailing bit count
   len = (len + 7) >> 3;                         // round up to byte boundary
   if (1 + len > MAX_STR_LEN)                    // bitstr does not fit
     return -ERRM75;                             //   error
   memset(&ret[1], ff ? 255 : 0, len);           // set/clear contents
   ret[len] &= BitMask[ret[0]];          	// mask trailing byte
-  return (short)(1 + len);                      // return length
+  return BitPack(ret, (short)(1 + len));        // return length
 }
 
 short Dzbitstr(u_char *ret, int len)
 { return Dzbitstr2(ret, len, 0);                // no flag, assume 0
 }
 
+#define ISBITSTR0(x)    ((1 == (x)->len) && (0 == (x)->buf[0]))
+
 //***********************************************************************
 // $ZBITLEN(bstr)
 //
+int DzbitlenP(cstring *zbstr, cstring *bstr)
+{ int len;
+
+  if ((0 == zbstr->len) || (7 < zbstr->buf[0])) // empty string, or invalid
+    return -(ERRMLAST+ERRZ75);                  //   trailing bit count
+
+  if (ISBITSTR0(zbstr))                         // special case of all zeros
+  { bstr->len = 1;
+    bstr->buf[0] = 0;
+    return 0;
+  }
+
+  bstr->len = RLE_Unpack(&zbstr->buf[1], zbstr->len - 1, &bstr->buf[1]);
+  bstr->buf[0] = zbstr->buf[0];                 // copy trailing bit count
+  bstr->len++;
+  len = bstr->len - 1;
+  if (bstr->buf[0])
+    len--;
+  return (len << 3) + bstr->buf[0];
+}
+
 int Dzbitlen(cstring *bstr)
 { int len;
 
   if ((0 == bstr->len) || (7 < bstr->buf[0]))   // empty string, or invalid
     return -(ERRMLAST+ERRZ75);                  //   trailing bit count
-  len = bstr->len - 1;
+
+  if (ISBITSTR0(bstr))                          // special case of all zeros
+    return 0;
+
+  len = RLE_Length(&bstr->buf[1], bstr->len - 1);
   if (bstr->buf[0])
     len--;
   return (len << 3) + bstr->buf[0];
@@ -1758,19 +1802,28 @@ int Dzbitlen(cstring *bstr)
 // $ZBITCOUNT(bstr)
 //
 int Dzbitcount(cstring *bstr)
-{ int i, len, count;
-  u_char byt;
+{ int len, count;
+  int byt, lastbyt;
+  RLE rle;
 
   len = Dzbitlen(bstr);                         // check bit string
   if (0 > len)
     return len;
 
-  count = 0;                                    // init counter
-  for (i = 1; i < bstr->len - 1; i++)
-  { byt = bstr->buf[i];
-    count += Bits[byt].bit1count;               // count 1s
+  if (0 == len)                                 // special case
+  { return 0;
   }
-  byt = BitMask[bstr->buf[0]] & bstr->buf[bstr->len - 1]; // handle
+
+  count = 0;                                    // init counter
+  RLE_Init(&rle, &bstr->buf[1], bstr->len - 1);
+  byt = RLE_Next(&rle);
+  while (byt >= 0)
+  { lastbyt = byt;                              // save last byte
+    byt = RLE_Next(&rle);
+    if (byt >= 0)
+      count += Bits[lastbyt].bit1count;         // count 1s
+  }
+  byt = BitMask[bstr->buf[0]] & lastbyt;        // handle
   count += Bits[byt].bit1count;                 //  trailing bits
 
   return count;
@@ -1779,11 +1832,13 @@ int Dzbitcount(cstring *bstr)
 //***********************************************************************
 // $ZBITGET(bstr,pos)
 //
-short Dzbitget(cstring *bstr, int pos)
+short Dzbitget(cstring *zbstr, int pos)
 { int len;
   u_char byt, mask;
+  cstring tmp, *bstr;
 
-  len = Dzbitlen(bstr);                         // check bit string
+  bstr = &tmp;
+  len = DzbitlenP(zbstr, bstr);                 // check bit string
   if (0 > len)
     return len;
   if (1 > pos)
@@ -1798,12 +1853,14 @@ short Dzbitget(cstring *bstr, int pos)
 //***********************************************************************
 // $ZBITSET(bstr,pos,ff)
 //
-short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
+short Dzbitset(u_char *ret, cstring *zbstr, int pos, int ff)
 { int len;
   u_char byt, mask;
   int retlen;
+  cstring tmp, *bstr;
 
-  len = Dzbitlen(bstr);                         // check bit string
+  bstr = &tmp;
+  len = DzbitlenP(zbstr, bstr);                 // check bit string
   if (0 > len)
     return len;
   if (1 > pos)
@@ -1824,18 +1881,20 @@ short Dzbitset(u_char *ret, cstring *bstr, int pos, int ff)
   byt &= ~mask;                                 // clear bit
   if (ff) byt |= mask;                          // if 1, then set
   ret[1 + (pos >> 3)] = byt;                    // write back result
-  return (short) retlen;
+  return BitPack(ret, (short) retlen);
 }
 
 //***********************************************************************
 // $BZITFIND(bstr,ff[,pos])
 //
-int Dzbitfind3(cstring *bstr, int ff, int pos)
+int Dzbitfind3(cstring *zbstr, int ff, int pos)
 { int i;
   int len;
   u_char byt, bit1pos, bit0pos;
+  cstring tmp, *bstr;
 
-  len = Dzbitlen(bstr);                         // check bit string
+  bstr = &tmp;
+  len = DzbitlenP(zbstr, bstr);                 // check bit string
   if (0 > len)
     return len;
   if (pos > len)                                // at end ?
@@ -1894,26 +1953,34 @@ int Dzbitfind2(cstring *bstr, int ff)
 //***********************************************************************
 // $ZBITNOT(bstr)
 //
-short Dzbitnot(u_char *ret, cstring *bstr)
-{ int i;
+short Dzbitnot(u_char *ret, cstring *zbstr)
+{ int i, len;
+  cstring tmp, *bstr;
 
+  bstr = &tmp;
+  len = DzbitlenP(zbstr, bstr);
+  if (0 == len)                                 // special case of length zero
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
+  }
   bcopy(&bstr->buf[0], &ret[0], bstr->len);     // init result with arg
 
   for (i = 1; i < bstr->len; i++)               // negate bits
     ret[i] = ~ret[i];
   ret[bstr->len - 1] &= BitMask[ret[0]];        // mask trailing byte
 
-  return bstr->len;
+  return BitPack(ret, bstr->len);
 }
 
 //***********************************************************************
 // $ZBITAND(bstr1,bstr2)
 //
 short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2)
-{ int i, bitlen, bitlen2;
+{ int bitlen, bitlen2;
   short len;
+  RLE rle1, rle2;
+  int byt1, byt2;
 
-  len = bstr1->len;                             // assume bitstring 1 is shorter
   bitlen = Dzbitlen(bstr1);                     // check bit string 1
   if (0 > bitlen)
     return bitlen;
@@ -1921,35 +1988,59 @@ short Dzbitand(u_char *ret, cstring *bstr1, cstring *bstr2)
   if (0 > bitlen2)
     return bitlen2;
 
+  RLE_Init(&rle1, &bstr1->buf[1], bstr1->len - 1);
+  RLE_Init(&rle2, &bstr2->buf[1], bstr2->len - 1);
   if (bitlen2 < bitlen)                         // result length is smaller of
   { bitlen = bitlen2;                           //   bit string 1 & bit string 2
-    len = bstr2->len;
+    RLE tmp = rle1;                             // swap RLEs
+    rle1 = rle2; rle2 = tmp;
   }
 
-  for (i = 1; i < len; i++)
-    ret[i] = bstr1->buf[i] & bstr2->buf[i];     // result is bitwise AND of args
+  if (0 == bitlen)                              // special case: bitlen = 0
+  { ret[0] = 0;                                 //   single zero byte
+    return 1;
+  }
+
+  len = 1;
+  byt1 = RLE_Next(&rle1); byt2 = RLE_Next(&rle2);
+  while (byt1 >= 0)
+  { ret[len++] = byt1 & byt2;                   // result is bitwise AND of args
+    byt1 = RLE_Next(&rle1); byt2 = RLE_Next(&rle2);
+  }
 
   ret[0]        = bitlen & 7;                   // set result trailing count
   ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
 
-  return len;
+  return BitPack(ret, len);
 }
 
 //***********************************************************************
 // $ZBITOR(bstr1,bstr2)
 //
-short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2)
+short Dzbitor(u_char *ret, cstring *zbstr1, cstring *zbstr2)
 { int i, bitlen, bitlen2;
   short len;
+  cstring tmp1, tmp2, *bstr1, *bstr2;
 
-  len    = bstr1->len;
-  bitlen = Dzbitlen(bstr1);                     // check bit string 1
+  bstr1 = &tmp1; bstr2 = &tmp2;
+
+  bitlen = DzbitlenP(zbstr1, bstr1);            // check bit string 1
   if (0 > bitlen)
     return bitlen;
-  bitlen2 = Dzbitlen(bstr2);                    // check bit string 2
+  if (0 == bitlen)                              // zbstr1 is empty
+  { memcpy(ret, &zbstr2->buf[0], zbstr2->len);
+    return zbstr2->len;
+  }
+
+  bitlen2 = DzbitlenP(zbstr2, bstr2);           // check bit string 2
   if (0 > bitlen2)
     return bitlen2;
+  if (0 == bitlen2)                             // zbstr2 is empty
+  { memcpy(ret, &zbstr1->buf[0], zbstr1->len);
+    return zbstr1->len;
+  }
 
+  len    = bstr1->len;
   if (bitlen2 > bitlen)                         // bit string 1 is shorter
   { for (i = 1; i < len; i++)
     { ret[i] = bstr1->buf[i] | bstr2->buf[i];
@@ -1970,25 +2061,37 @@ short Dzbitor(u_char *ret, cstring *bstr1, cstring *bstr2)
   ret[0]        = bitlen & 7;                   // set length
   ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
 
-  return len;
+  return BitPack(ret, len);
 }
 
 //***********************************************************************
 // $ZBITXOR(bstr1,bstr2)
 //
-short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
+short Dzbitxor(u_char *ret, cstring *zbstr1, cstring *zbstr2)
 { int i, bitlen, bitlen2;
   short len, len2;
+  cstring tmp1, tmp2, *bstr1, *bstr2;
 
-  len    = bstr1->len;                          // assume bit string 1 is longer
-  bitlen = Dzbitlen(bstr1);                     // check bit string
+  bstr1 = &tmp1; bstr2 = &tmp2;
+
+  bitlen = DzbitlenP(zbstr1, bstr1);            // check bit string
   if (0 > bitlen)
     return bitlen;
-  len2   = bstr2->len;
-  bitlen2 = Dzbitlen(bstr2);                    // check bit string
+  if (0 == bitlen)                              // zbstr1 is empty
+  { memcpy(ret, &zbstr2->buf[0], zbstr2->len);
+    return zbstr2->len;
+  }
+
+  bitlen2 = DzbitlenP(zbstr2, bstr2);           // check bit string
   if (0 > bitlen2)
     return bitlen2;
+  if (0 == bitlen2)                             // zbstr2 is empty
+  { memcpy(ret, &zbstr1->buf[0], zbstr1->len);
+    return zbstr1->len;
+  }
 
+  len    = bstr1->len;                          // assume bit string 1 is longer
+  len2   = bstr2->len;
   if (len2 == len)				// same length
   { for (i = 1; i < len; i++)
       ret[i] = bstr1->buf[i] ^ bstr2->buf[i];   // result is bitwise XOR of args
@@ -2014,7 +2117,7 @@ short Dzbitxor(u_char *ret, cstring *bstr1, cstring *bstr2)
   ret[0]        = bitlen & 7;                   // set result length
   ret[len - 1] &= BitMask[ret[0]];              // mask trailing byte
 
-  return len;
+  return BitPack(ret, len);
 }
 
 //***********************************************************************

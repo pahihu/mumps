@@ -86,7 +86,7 @@
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   2023                    // Major version number
-#define VERSION_MINOR   7                       // Minor version number
+#define VERSION_MINOR   2                       // Minor version number
 #define VERSION_TEST	1                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
@@ -184,6 +184,11 @@
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list
 
+#define AVROUSIZ        3072                    // average compiled routine size
+// #define MAXROUSIZ    32767                   // max compiled rou size
+#define MAXROUSIZ       65535                   // max compiled rou size
+#define MAXROULIN       32767                   // max rou lines
+#define COMP_VER        (8+(MAX_NAME_BYTES-8)*256)  // compiler version
 #define DB_VER          (3+(MAX_NAME_BYTES-8)*256)  // database version
 
 // Global flags (from Global Directory) follow
@@ -288,14 +293,14 @@ typedef union __PACKED__ VAR_U 			// get at this two ways
 
 typedef struct __PACKED__ CSTRING 		// our string type
 { short len;                                    // length of it
-  u_char buf[MAX_STR_LEN+1];                    // and the content
+  u_char buf[32768];                            // and the content
 } cstring;                                      // end counted string
 
 #define MV1_SUBSPOS     1
 
 typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 { var_u name;                                   // variable name
-  u_short volset;                               // volset number
+  u_char volset;                                // volset number
   u_char uci;                                   // uci# -> 255 = local var
 #ifdef MV1_SUBSPOS
   u_char nsubs;                                 // no. of subscripts
@@ -307,7 +312,7 @@ typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 
 typedef struct __PACKED__ SIMPLE_MVAR
 { var_u name;                                   // variable name
-  u_short volset;                               // volset number
+  u_char volset;                                // volset number
   u_char uci;                                   // uci# -> 255 = local var
   u_char slen;                                  // subs (key) length
   u_char key[256];                              // the subs (key) - allow for 0
@@ -321,7 +326,7 @@ typedef struct GLOREF_T
   int Index;					// position
 } gloref_t;
 
-#define SIMPLE_MVAR_SIZE (sizeof(var_u) + sizeof(u_short) + 2*sizeof(u_char) + 2*sizeof(u_char))
+#define SIMPLE_MVAR_SIZE (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
 
 #ifdef MV1_SUBSPOS
 #define MVAR_SIZE    	(SIMPLE_MVAR_SIZE + sizeof(u_char)*(MAX_SUBSCRIPTS+1+1))

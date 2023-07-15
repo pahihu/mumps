@@ -83,6 +83,7 @@ short Debug_on(cstring *param)			// turn on/modify debug
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// assume no key - aka :code
+  dvar.nsubs = 255;                             // clear nsubs
   // dvar.key[0] = 128;				// setup for string key
 
   cptr = (cstring *) temp;                      // point to temp buffer
@@ -182,6 +183,7 @@ short Debug(long savasp, long savssp, int dot)	// drop into debug
   dvar.volset = 0;				// clear volume
   dvar.uci = UCI_IS_LOCALVAR;			// local variable
   dvar.slen = 0;				// no key
+  dvar.nsubs = 255;                             // clear nsubs
 
   curframe = &partab.jobtab->dostk[partab.jobtab->cur_do]; // point at it
 

@@ -121,7 +121,7 @@ typedef struct __PACKED__ RBD 			// define routine buf desciptor
   var_u rnam;                                   // routine name
   u_char uci;                                   // uci num for this rou
   u_char vol;					// vol num for this rou
-  short rou_size;				// rou->len of routine node
+  u_short rou_size;				// rou->len of routine node
 
 // what follows is the routine from disk (up to 32767 bytes + a NULL)
 
@@ -164,6 +164,9 @@ short localvar();                               // evaluate local variable
 void eval();                                    // eval a string
 void atom();                                    // evaluate source
 void CompError(short err,const char *file,int lno); // compile error
+void Err_Init(void);                            // init comperror msg
+cstring *Err_CString(void);                     // comperror msg
+short Err_Len(void);                            // length of comperror msg
 
 // Debug prototypes
 

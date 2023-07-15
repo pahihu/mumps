@@ -52,6 +52,59 @@ u_char *source_ptr;                             // pointer to source code
 u_char *comp_ptr;                               // pointer to compiled code
 int     disp_errors;				// flag to display errors
 
+cstring  errstr;                                // error string
+int      errstr_dx;
+
+void Err_Init(void)                             // init error string
+{ errstr.len = 0;
+  errstr_dx = 0;
+}
+
+cstring *Err_CString(void)                      // ptr to error string
+{ return &errstr;
+}
+
+short Err_Len(void)                             // length of error string
+{ return errstr.len;
+}
+
+static short Err_Write(cstring *line)
+{
+  if (errstr.len + line->len + 1 > MAX_STR_LEN)
+    return (-(ERRM75));
+
+  memcpy(&errstr.buf[errstr.len], &line->buf[0], line->len);
+  errstr.len += line->len;
+  errstr_dx += line->len;
+  return 0;
+}
+
+static short Err_WriteFormat(int count)
+{
+  int len = (SQ_LF == count) ? 2 : count;
+  int numspaces, i;
+
+  if (errstr.len + len + 1 > MAX_STR_LEN)
+    return (-(ERRM75));
+
+  switch ( count )
+  { case SQ_LF:
+      errstr.buf[errstr.len    ] = 0x0D;
+      errstr.buf[errstr.len + 1] = 0x0A;
+      errstr.len += 2;
+      errstr_dx = 0;
+      break;
+    default:
+      numspaces = count - errstr_dx;
+      for (i = 0; i < numspaces; i++)
+      { errstr.buf[errstr.len] = ' ';
+        errstr.len++;
+      }
+      break;
+  }
+  return 0;
+}
+
 void CompError(short err,const char *file,int lno)// compile error
 { short s;					// for functions
   cstring *line;				// line of code
@@ -59,25 +112,26 @@ void CompError(short err,const char *file,int lno)// compile error
   int i;					// a handy int
   u_char tmp[128];				// some space
 
-  // fprintf(stderr,"comperror() called from %s:%d:\r\n",file,lno);
+  // fprintf(stderr,"comperror() called from %s:%d: checkonly=%d disp_errors=%d ln=%d\r\n",file,lno,partab.checkonly,disp_errors,*partab.ln); // XXX
   *comp_ptr++ = OPERROR;                        // say it's an error
   bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
-  if (!partab.checkonly) goto scan;		// done
   if (!disp_errors) return;			// done if disp.errors disabled
-  if (partab.checkonly == *partab.ln) return; 	// done this one once
-  partab.checkonly = *partab.ln;		// record done
+  if (partab.checkonly)
+  { if (partab.checkonly == *partab.ln) return; // done this one once
+    partab.checkonly = *partab.ln;		// record done
+  }
   line = *partab.lp;				// get the line address
   src = *partab.sp;				// and the current source
-  s = SQ_Write(line);				// write the line
+  s = Err_Write(line);				// write the line
   if (s < 0) goto scan;				// exit on error
-  s = SQ_WriteFormat(SQ_LF);			// return
+  s = Err_WriteFormat(SQ_LF);			// return
   if (s < 0) goto scan;				// exit on error
   i = (src - line->buf) - 1;			// get the offset
   if (i > 0)
-  { s = SQ_WriteFormat(i);			// tab
+  { s = Err_WriteFormat(i);			// tab
     if (s < 0) goto scan;			// exit on error
   }
   line = (cstring *) tmp;			// some space
@@ -90,9 +144,9 @@ void CompError(short err,const char *file,int lno)// compile error
   s = itocstring(&line->buf[line->len + 11], *partab.ln); // format line number
   if (s < 0) goto scan;				// exit on error
   line->len = line->len + s + 11;		// the length
-  s = SQ_Write(line);				// write the line
-  if (s >= 0)					// if no error error
-    s = SQ_WriteFormat(SQ_LF);			// return
+  s = Err_Write(line);				// write the line
+  if (s < 0) goto scan;			        // if no error error
+  s = Err_WriteFormat(SQ_LF);			// return
 scan:
   while (*source_ptr) source_ptr++;		// skip rest of line
   return;					// and done

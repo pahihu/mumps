@@ -130,10 +130,8 @@ short run(long savasp, long savssp)		// run compiled code
   ssp = savssp;
 
   while (TRUE)					// keep going till done
-  { if (0 == (partab.jobtab->commands & 1023))  // keep track of time
-      systab->Mtime = time(0);
-    if (ssp >= MAX_SSTK)			// check ssp
-    panic("String Stack overflow in runtime!!"); // die
+  { if (ssp >= MAX_SSTK)			// check ssp
+    mv1_panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it
       if (s == BREAK_NOW)			// funnee debug stuf
@@ -158,15 +156,15 @@ short run(long savasp, long savssp)		// run compiled code
           bcopy(&partab.jobtab->dostk[partab.jobtab->cur_do],
 	        &partab.jobtab->dostk[STM1_FRAME],
 	        sizeof(do_frame));		// save for ron
-	    }
-	    if (s == -(ERRMLAST+ERRZ51))	// if it's a control c
-	    { partab.jobtab->io = 0;            // $IO = 0
-	    }
-	    partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc; // save pc
-            cptr = (cstring *) &sstk[ssp];      // where we will put it
-	    var = &partab.src_var;		// a spare mvar
-	    var->volset = 0;			// local var
-	    var->uci = UCI_IS_LOCALVAR;		// ditto
+	}
+	if (s == -(ERRMLAST+ERRZ51))	        // if it's a control c
+	{ partab.jobtab->io = 0;                // $IO = 0
+	}
+	partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc; // save pc
+        cptr = (cstring *) &sstk[ssp];          // where we will put it
+	var = &partab.src_var;		        // a spare mvar
+	var->volset = 0;			// local var
+	var->uci = UCI_IS_LOCALVAR;		// ditto
 
 	flag = 0;				// say no error here
 	if (s)
@@ -799,15 +797,16 @@ short run(long savasp, long savssp)		// run compiled code
 	p = &sstk[ssp];				// some workspace
 	j = cstringtoi((cstring *) astk[--asp]); // second numeric arg
 	i = cstringtoi((cstring *) astk[--asp]); // first numeric arg
-	if ((i > 32767) || (j > 32767)) ERROR(-ERRM75) // check for too long
+	if ((i > MAX_STR_LEN) || (j > MAX_STR_LEN))
+                ERROR(-ERRM75) // check for too long
 	ptr1 = NULL;				// SET $EXTRACT
 	if (opc == CMSETP)
 	{ ptr1 = (cstring *) astk[--asp];	// $PIECE delimiter
-          if (((ptr1->len)*i > 32767 ) || ((ptr1->len)*j > 32767))
+          if (((ptr1->len)*i > MAX_STR_LEN ) || ((ptr1->len)*j > MAX_STR_LEN))
             ERROR(-ERRM75)
 	}
         else if (opc == CMSETLI)
-        { if ((2*i > 32767) || (2*j > 32767))
+        { if ((2*i > MAX_STR_LEN) || (2*j > MAX_STR_LEN))
             ERROR(-ERRM75);
         }
 	var = (mvar *) astk[--asp];		// the variable
@@ -2131,10 +2130,20 @@ short run(long savasp, long savssp)		// run compiled code
 	if (var->name.var_cu[0] == '$') 	// dest is ssvn
 	{ if (toupper(var->name.var_cu[1]) != 'R')
 	    ERROR(-ERRM29)			// must be ^$R()
-	  s = Compile_Routine(var,		// compile this routine
+          i = var2->volset;                     // check volume
+          if (0 == i)                           // no VOL?
+          { i = partab.jobtab->rvol;            //   use ROUTINE_VOL
+          }
+          if (systab->vol[i - 1]->local_name[0])// cannot compile
+            ERROR(-(ERRMLAST+ERRZ84))           //  on remote volume
+	  j = Compile_Routine(var,		// compile this routine
 			      var2,		// from here
 			      &sstk[ssp]);	// use this temp space
-	  if (s < 0) ERROR(s)			// give up on error
+	  cptr = Err_CString();                 // the errmsg if any
+          cptr->buf[cptr->len] = '\0';          // trailing null
+          memcpy(partab.compmsg, cptr,          // save errmsg
+                sizeof(short) + cptr->len + 1);
+	  if (j < 0) ERROR(j)			// give up on error
 	  break;
 	}
 
@@ -2278,7 +2287,7 @@ short run(long savasp, long savssp)		// run compiled code
 	if (((args) || (X_Empty(tag))) && (offset))	// can't do that
 	{ ERROR(-ERRM20)
 	}
-	if ((partab.jobtab->cur_do + 1) == MAX_DO_FRAMES)
+	if ((partab.jobtab->cur_do + 1) >= MAX_DO_FRAMES)
 	  ERROR(-(ERRZ7+ERRMLAST))		// too many
 	//if ((rou == 0) && (opc != CMDON))	// check for nosuch
 	if (X_Empty(rou) && (opc != CMDON))	// check for nosuch
@@ -2791,7 +2800,7 @@ short run(long savasp, long savssp)		// run compiled code
 	*comp_ptr++ = ENDLIN;			// JIC
 	cptr->len = (short) (comp_ptr - cptr->buf); // get the length
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
-	if (partab.jobtab->cur_do >= MAX_DO_FRAMES)
+	if ((partab.jobtab->cur_do + 1) >= MAX_DO_FRAMES)
 	  ERROR(-(ERRMLAST+ERRZ8))		// too many
 	partab.jobtab->dostk[partab.jobtab->cur_do].pc = mumpspc;
 	partab.jobtab->cur_do++;		// increment do frame
@@ -2915,7 +2924,8 @@ short run(long savasp, long savssp)		// run compiled code
 	{ s = UTIL_mvartolock((mvar *) astk[--asp], p + sizeof(short));
 	  if (s < 0) ERROR(s)			// check for error
 	  *((short *)p) = s;			// save the size
-	  p = p + s + sizeof(short);		// add the length
+          // dumpCStr("mvartolock", (cstring*)p);
+	  p = p + s + sizeof(short) + sizeof(char);// add the length, count null
 	  if ((long) p & 1) p++;		// ensure even
 	}
 	if (opc == CMLCK)
@@ -3678,17 +3688,18 @@ short run(long savasp, long savssp)		// run compiled code
         X_set("$ROUTINE", &var2->name.var_cu, 8); // ^$R
 	var2->volset = partab.jobtab->rvol;	// the volume
 	var2->uci = partab.jobtab->ruci;	// and the uci
-	cptr = (cstring *) &sstk[ssp];		// where we will put it
 	s = UTIL_Key_BuildEx(var2, ptr1, &var2->key[0]); // build the key
 	if (s < 0) ERROR(s)			// give up on error
 	var2->slen = s;				// save the length
-	s = Compile_Routine((mvar *) NULL,	// don't compile a routine
+	i = Compile_Routine((mvar *) NULL,	// don't compile a routine
 			    var2,		// check this one
 			    &sstk[ssp]);	// use this temp space
-	if (s < 0) ERROR(s)			// give up on error
-	cptr = (cstring *) var2;		// reuse the space
-	s = itocstring(cptr->buf, s);		// copy in the number
-	cptr->len = s;				// save length
+	if (i < 0) ERROR(i)			// give up on error
+	cptr = Err_CString();                   // compiler msgs
+        cptr->buf[cptr->len] = '\0';            // trailing null
+        memcpy(&sstk[ssp], cptr, sizeof(short) + cptr->len + 1);
+        cptr = (cstring *) &sstk[ssp];
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// and exit
 
@@ -3716,8 +3727,21 @@ short run(long savasp, long savssp)		// run compiled code
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// done
 
+      case XCLEHMER:				// Xcall $&%LEHMER()
+	ptr2 = (cstring *) astk[--asp];		// get arg 2
+	ptr1 = (cstring *) astk[--asp];		// get arg 1
+	cptr = (cstring *) &sstk[ssp];		// where we will put it
+	s = Xcall_lehmer((char *)cptr->buf, ptr1, ptr2);  // doit
+        if (s < 0) ERROR(s)			// complain on error
+	cptr->len = s;				// save the length
+	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
+	astk[asp++] = (u_char *) cptr;		// stack it
+	break;
+
       default:					// can't happen
 	ERROR(-(ERRMLAST+ERRZ14))		// i hope
     }						// end of switch(opc)  
   }						// end main while loop
 }
+
+// vim:ts=8:sw=8:et

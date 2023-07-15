@@ -203,7 +203,7 @@
 #define CHKDOTS	156				// check current level
 #define CMQUIT	157				// QUIT - no arg (not FOR)
 #define CMQUITA	158				// QUIT with argument
-//spare		159
+#define XCLEHMER 159				// Xcall $&LEHMER()
 
 #define	CMLCKU	160				// un LOCK all
 #define CMLCK	161				// LOCK #args()

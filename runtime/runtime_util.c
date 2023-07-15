@@ -56,7 +56,7 @@ int cstringtoi(cstring *str)                    // convert cstring to int
             ((str->buf[i] == '-') ||
              (str->buf[i] == '+')); i++)        // check leading characters
     if (str->buf[i] == '-') minus = !minus;     // count minus signs
-  for (i = i; i < (int)str->len; i++)           // for each character
+  for (i = i+0; i < (int)str->len; i++)         // for each character
   { if ((str->buf[i] > '9')||(str->buf[i] < '0')) break; // check for digit
     if (ret > 214748363) return INT_MAX;	// check for possible overflow
     ret = (ret * 10) + ((int)str->buf[i] - 48); // Cvt to int
@@ -75,7 +75,7 @@ int cstringtoi(cstring *str)                    // convert cstring to int
     else if (str->buf[i] == '+')		// if a plus
     { i++;					// just increment i
     }
-    for (i = i; i < str->len; i++)		// scan remainder
+    for (i = i+0; i < str->len; i++)		// scan remainder
     { if ((str->buf[i] < '0') || (str->buf[i] > '9'))
       { break;					// quit when done
       }
@@ -109,7 +109,7 @@ double cstringtod(cstring *str)                 // convert cstring to double
             ((str->buf[i] == '-') ||
              (str->buf[i] == '+')); i++)        // check leading characters
     if (str->buf[i] == '-') minus = !minus;     // count minus signs
-  for (i = i; i < (int)str->len; i++)           // for each character
+  for (i = i+0; i < (int)str->len; i++)         // for each character
   { if ((str->buf[i] > '9')||(str->buf[i] < '0')) break; // check for digit
     ret = (ret * 10.0) + ((int)str->buf[i] - '0'); // Cvt to int
   }                                             // end convert loop
@@ -117,7 +117,7 @@ double cstringtod(cstring *str)                 // convert cstring to double
       (str->buf[i] == '.') &&
       (isdigit(str->buf[i+1])))
   { i++;
-    for (i = i; i < (int)str->len; i++)         // for each character
+    for (i = i+0; i < (int)str->len; i++)       // for each character
     { if (!isdigit(str->buf[i])) break;         // check for digit
       frac = (frac * 10.0) + ((int)str->buf[i] - '0'); // Cvt to int
       scale *= 10.0;                            // adjust scale
@@ -138,7 +138,7 @@ double cstringtod(cstring *str)                 // convert cstring to double
     else if (str->buf[i] == '+')		// if a plus
     { i++;					// just increment i
     }
-    for (i = i; i < str->len; i++)		// scan remainder
+    for (i = i+0; i < str->len; i++)		// scan remainder
     { if ((str->buf[i] < '0') || (str->buf[i] > '9'))
       { break;					// quit when done
       }
@@ -168,7 +168,7 @@ int cstringtob(cstring *str)                    // convert cstring to boolean
   for (i=0; (i < (int)str->len)&&
             ((str->buf[i] == '-') ||
             (str->buf[i] == '+')); i++);        // check leading characters
-  for (i = i; i < (int)str->len; i++)           // for each character
+  for (i = i+0; i < (int)str->len; i++)         // for each character
   { if (str->buf[i] == '0') continue;		// ignore zeroes
     if (str->buf[i] == '.')			// check for a dot
     { if (dp) break;				// quit if not the first
@@ -295,14 +295,14 @@ int mumps_version(u_char *ret_buffer)           // return version string
   struct utsname uts;                           // struct for uname
   i = uname(&uts);                              // get system info
   if (i == -1) return (-1);                      // exit on error
-  bcopy("MUMPS V", ret_buffer, 7);		// copy in MUMPS V
+  bcopy("MUMPS V", ret_buffer, 7);		// copy in "MUMPS V"
   i = 7;					// point past it
   if (VERSION_TEST)				// if an internal version
-  { i += sprintf((char *)&ret_buffer[i], "%dR2DEV.%02d T%d for ",
+  { i += sprintf((char *)&ret_buffer[i], "%d.%02d T%d for ",
 		 VERSION_MAJOR, VERSION_MINOR, VERSION_TEST);
   }
   else						// else normal release
-  { i += sprintf((char *)&ret_buffer[i], "%dR2DEV.%02d for ",
+  { i += sprintf((char *)&ret_buffer[i], "%d.%02d for ",
 		 VERSION_MAJOR, VERSION_MINOR);
   }
   j = 0;                                        // clear src ptr

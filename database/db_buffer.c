@@ -151,7 +151,7 @@ void Reserve_GBD(gbd *p)
   p->dirty = (gbd *) 1;                                 // reserve it
   if (0 == p->rsvd)                                     // not marked?
   { if (MAX_RESERVED_GBDS == numReservedGBDs)           //   rsvd buffer full?
-    { panic("reserved GBD buffer overflow");            //     do panic
+    { mv1_panic("reserved GBD buffer overflow");        //     do panic
     }
     p->rsvd = 1;                                        //   mark it
     reservedGBDs[numReservedGBDs++] = p;                //   save GBD
@@ -258,7 +258,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
         if ((MTIME(0) - wait_start) > BLK_WAIT)         // wait over ?
         { sprintf(msg,"Get_block: can't get block in stage1 after %d seconds",
                         BLK_WAIT);
-          panic(msg);
+          mv1_panic(msg);
         }
         SchedYield();					// wait for it
         MEM_BARRIER;
@@ -288,7 +288,7 @@ short GetBlockEx(u_int blknum,char *file,int line)      // Get block
           if ((MTIME(0) - wait_start) > BLK_WAIT)       // wait over ?
           { sprintf(msg,"Get_block: can't get block in stage2 after %d seconds",
                           BLK_WAIT);
-            panic(msg);
+            mv1_panic(msg);
           }
           SchedYield();					// wait for it
           MEM_BARRIER;
@@ -338,12 +338,12 @@ unlocked:
   file_off = lseek( partab.vol_fds[volnum - 1],
 		    file_off, SEEK_SET);		// Seek to blk
   if (file_off < 1)					// if that failed
-  { panic("Get_block: lseek() failed!");		// die
+  { mv1_panic("Get_block: lseek() failed!");		// die
   }
   i = read(partab.vol_fds[volnum-1], blk[level]->mem,
 	   systab->vol[volnum-1]->vollab->block_size);
   if (i < 0)						// if read failed
-  { panic("Get_block: read() failed!");			// die
+  { mv1_panic("Get_block: read() failed!");             // die
   }
   REFD_TYPED_INIT(blk[level]);
 exit:
@@ -473,13 +473,13 @@ void WriteBlock(gbd *gbdptr)				// write GBD
   file_off = lseek( dbfd, file_off, SEEK_SET);          // seek to block
   if (file_off < 1)
   { systab->vol[volnum-1]->stats.diskerrors++;	        // count an error
-    panic("lseek failed in WriteBlock()!!");	        // die on error
+    mv1_panic("lseek failed in WriteBlock()!!");        // die on error
   }
   i = write( dbfd, gbdptr->mem,
 	 systab->vol[volnum-1]->vollab->block_size);    // write it
   if (i < 0)
   { systab->vol[volnum-1]->stats.diskerrors++;	        // count an error
-    panic("write failed in WriteBlock()!!");
+    mv1_panic("write failed in WriteBlock()!!");
   }
   systab->vol[volnum-1]->stats.phywt++;                 // count a write
   gbdptr->dirty = NULL;
@@ -585,7 +585,7 @@ start:
   }
   pass++;						// increment a pass
   if (pass > GBD_TRIES)					// this is crazy!
-  { panic("Get_GBDs: Can't get enough GBDs after 60 seconds");
+  { mv1_panic("Get_GBDs: Can't get enough GBDs after 60 seconds");
   }
   // fprintf(stderr,"Get_GBDs(): greqd = %d, curr = %d, clean = %d, freelst = %d [", greqd, curr, clean, freelst);
   // for (i = 1; i < 5; i++) fprintf(stderr, " %d", locked[i]);
@@ -677,7 +677,7 @@ start:
 
   if (NULL == oldptr)
   { if (writing)				        // SET or KILL
-    { panic("Get_GBD: Failed to find an available GBD while writing"); // die
+    { mv1_panic("Get_GBD: Failed to find an available GBD while writing");// die
     }
 
     systab->vol[volnum - 1]->stats.gbwait++;            // incr. GBD wait
@@ -688,7 +688,7 @@ start:
       MSleep(GBD_SLEEP);                                // wait
     pass++;
     if (pass > GBD_TRIES)				// this is crazy!
-    { panic("Get_GBD: Can't get a GDB after 60 seconds");
+    { mv1_panic("Get_GBD: Can't get a GDB after 60 seconds");
     }
     while (SemOp(SEM_GLOBAL, WRITE));			// re-get lock
     goto start;						// and try again

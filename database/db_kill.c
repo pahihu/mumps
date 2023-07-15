@@ -196,7 +196,7 @@ FullGlobalKill:
   { return s;						// return it
   }				// WARNING: This leaves blocks reserved
   if (rlevel != level)					// check this
-  { panic("Kill_data: left level not equal right level"); // die
+  { mv1_panic("Kill_data: left level not equal right level");// die
   }
   for (level = 0; level < rlevel; level++)		// scan the levels
   { if (blk[level + 1] != rblk[level + 1])		// check following lvl

@@ -84,25 +84,11 @@ int   _X_Empty(chr_x *a);
 void  X_set(const void *src, void *dst, size_t n);
 int   X_put(const chr_x *a, u_char *b);
 int   X_take(u_char *a, chr_x *b);
-int   _X_Len(const chr_x *a);
-int   X_ZEQ(const u_char *a, const u_char *b);
 
 #define X_Clear(x)    _X_Clear(&(x))
 #define X_EQ(x,y)     _X_EQ(&(x),&(y))
 #define X_NE(x,y)     _X_NE(&(x),&(y))
 #define X_Empty(x)    _X_Empty(&(x))
-#define X_Len(x)      _X_Len(&(x))
-
-
-//****************************************************************************
-// Compiler
-//
-void    comp_ushort(u_short u);
-void    comp_short(short s);
-#define FETCH_SHORT(v)      { v = 0; bcopy(mumpspc,&v,sizeof(short)); mumpspc += sizeof(short); }
-#define FETCH_USHORT(v)     { v = 0; bcopy(mumpspc,&v,sizeof(u_short)); mumpspc += sizeof(u_short); }
-#define READ_SHORT(v,idx)   { v = 0; bcopy(mumpspc+2*(idx),&v,sizeof(short)); }
-#define READ_USHORT(v,idx)  { v = 0; bcopy(mumpspc+2*(idx),&v,sizeof(u_short)); }
 
 
 //****************************************************************************
@@ -428,7 +414,7 @@ short ncopy(u_char **src, u_char *dst);         // copy as number
 short CleanJob(int job);			// tidy up a job
 uint32_t FNV1aHash(int n, u_char *buf);         // calc. FNV-1a hash
 void SemStats(void);                            // semaphore statistics
-void panic(char *msg); 				// die on error
+void mv1_panic(char *msg); 			// die on error
 struct RBD *Routine_Attach(chr_x routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine
 void Routine_Delete(chr_x routine, int uci, int vol);
@@ -500,10 +486,5 @@ short Xcall_getenv(char *ret_buffer, cstring *env, cstring *dummy);
 short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value);
 short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2);
 short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy);
-
-#define ErrM6   _ErrM6(__FILE__,__LINE__)
-extern int m6loc;
-extern char m6str[128];
-void dumpXU(chr_x *a);
 
 #endif                                          // !_MUMPS_PROTO_H_

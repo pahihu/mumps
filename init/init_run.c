@@ -59,7 +59,7 @@ systab_struct *systab;
 sem_stat semtab[2*SEM_MAX];
 
 u_char *astk[MAX_ASTK];                         // address stack
-u_char sstk[MAX_SSTK];				// string stack
+u_char sstk[MAX_SSTK + MAX_STR_LEN];		// string stack + fence
 u_char istk[MAX_ISTK];				// indirect stack
 long isp;					// indirect stack pointer
 int failed_tty = -1;				// flag for tty reset
@@ -72,7 +72,7 @@ void ser(short s)                               // display errors
   u_char junk[100];
 
   if (s == -(ERRMLAST + ERRZ27))		// if totally confused
-  { panic("Chanel zero has gone away");		// die
+  { mv1_panic("Chanel zero has gone away");	// die
   }
   cptr = (cstring *) junk;			// some space
   if (s < 0) s = -s;                            // make error positive
@@ -133,12 +133,8 @@ start:
   bzero(semtab, sizeof(semtab));
 
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-  dbfd = open(file, O_RDONLY);                  // open the database for read
-  // dbfd = open(file, O_RDWR);                  // open the database for read/write XXX
+  dbfd = OpenFile(file, O_RDONLY);              // open the database for read
   if (dbfd < 0) return (errno);                 // if that failed
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfd, F_NOCACHE, 1);
-#endif
   if (start_type == TYPE_RUN)			// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
     if (i != 0) return(i);                      // quit on error
@@ -263,13 +259,15 @@ start:
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
 
+  partab.compmsg = (cstring*)malloc(sizeof(cstring)); // compiler msg
+
   LB_Init();					// init local buffers
 
   ST_Init();					// initialize symbol table
 
   if ((systab->vol[0]->vollab->journal_available) &&
       (systab->vol[0]->vollab->journal_requested)) // if journaling
-  { partab.jnl_fds[0] = open(systab->vol[0]->vollab->journal_file, O_RDWR);
+  { partab.jnl_fds[0] = OpenFile(systab->vol[0]->vollab->journal_file, O_RDWR);
     if (partab.jnl_fds[0] < 0)
     { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
 		systab->vol[0]->vollab->journal_file, errno);
@@ -277,11 +275,7 @@ start:
       if (cmd != NULL) goto exit;
     }
     else
-    { 
-#ifdef MV1_F_NOCACHE
-      i = fcntl(partab.jnl_fds[0], F_NOCACHE, 1);
-#endif
-      partab.jnl_seq[0] = systab->vol[0]->jnl_seq;
+    { partab.jnl_seq[0] = systab->vol[0]->jnl_seq;
     }
   }
 

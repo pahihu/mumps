@@ -300,7 +300,7 @@ void do_netdaemon(void)
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
   { sprintf(msg, "nn_socket(): %s", nn_strerror(nn_errno()));
-    panic(msg);
+    mv1_panic(msg);
   }
 
   strcpy(url, DGP_GetServerURL((char *) systab->dgpURL,// construct server URL
@@ -310,7 +310,7 @@ void do_netdaemon(void)
   if (rv < 0)
   { nn_close(sock);
     sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
-    panic(msg);
+    mv1_panic(msg);
   }
 
   to = systab->dgpSNDTO;                                // set send timeout
@@ -319,7 +319,7 @@ void do_netdaemon(void)
   if (rv < 0)
   { nn_close(sock);
     sprintf(msg, "nn_setsockopt(%s): %s\n", url, nn_strerror(nn_errno()));
-    panic(msg);
+    mv1_panic(msg);
   }
 
   do_log("accepting connections on %s\n", url);
@@ -915,13 +915,13 @@ void do_dismount()					// dismount volnum
       off = lseek( dbfds[vol], 0, SEEK_SET);	        // move to start of file
       if (off < 0)
       { sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-        panic(msg);
+        mv1_panic(msg);
       }
       i = write( dbfds[vol], systab->vol[vol]->vollab,
 	     systab->vol[vol]->vollab->header_bytes);   // map/label
       if (i < 0)
       { sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-        panic(msg);
+        mv1_panic(msg);
       }
       systab->vol[vol]->map_dirty_flag = 0;	        // unset dirty flag
     }
@@ -1025,7 +1025,7 @@ void do_write()						// write GBDs
 
   if (!gbdptr)
   { systab->vol[0]->wd_tab[myslot].doing = DOING_NOTHING;
-    panic("Daemon: write msg gbd is NULL");		// check for null
+    mv1_panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
   // NB. same volnums in a chain
@@ -1055,7 +1055,7 @@ void do_write()						// write GBDs
       if (file_off < 1)
       { systab->vol[vol]->stats.diskerrors++;	        // count an error
         sprintf(msg, "lseek of vol %d failed in Write_Chain()!!", vol);
-        panic(msg);                                     // die on error
+        mv1_panic(msg);                                 // die on error
       }
       wrbuf->bkprevno = systab->vol[vol]->vollab->bkprevno;
       i = write( dbfds[vol], wrbuf,
@@ -1063,7 +1063,7 @@ void do_write()						// write GBDs
       if (i < 0)
       { systab->vol[vol]->stats.diskerrors++;	        // count an error
         sprintf(msg, "write of vol %d failed in Write_Chain()!!", vol);   
-        panic(msg);                                     // die on error
+        mv1_panic(msg);                                 // die on error
       }
       ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt);  // count a write
     }							// end write code
@@ -1393,7 +1393,7 @@ void do_mount(int vol)                                  // mount volume
                   strerror(errno));
     sprintf(msg, "do_mount: open() of database file %s failed",
                     systab->vol[vol]->file_name);
-    panic(msg);                                         // die on error
+    mv1_panic(msg);                                     // die on error
   }
 
   if ((systab->vol[vol]->upto) && (!myslot))		// if map needs check
@@ -1625,13 +1625,13 @@ void do_map_write(int vol)
     if (file_off < 0)
     { systab->vol[vol]->stats.diskerrors++;	// count an error
       sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-      panic(msg);
+      mv1_panic(msg);
     }
     i = write( dbfds[vol], systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
     if ((i < 0) || (i != SIZEOF_LABEL_BLOCK))
     { systab->vol[vol]->stats.diskerrors++;	// count an error
       sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-      panic(msg);
+      mv1_panic(msg);
     }
     systab->vol[vol]->map_dirty_flag ^= VOLLAB_DIRTY;
     SemOp( SEM_GLOBAL, -curr_lock);		// release lock
@@ -1654,7 +1654,7 @@ void do_map_write(int vol)
           if (file_off < 0)
           { systab->vol[vol]->stats.diskerrors++; // count an error
             sprintf(msg, "do_daemon: lseek() to map block (%d) of vol %d failed", block, vol);
-            panic(msg);
+            mv1_panic(msg);
           }
           ret = write( dbfds[vol], 		// write the map chunk
 		       systab->vol[vol]->map + block * MAP_CHUNK,
@@ -1662,7 +1662,7 @@ void do_map_write(int vol)
   	  if (ret < 0)
           { systab->vol[vol]->stats.diskerrors++; // count an error
             sprintf(msg, "do_daemon: write() map block (%d) of vol %d failed", block, vol);
-            panic(msg);
+            mv1_panic(msg);
           }
 	}
 	block++; chunk >>= 1;
@@ -1676,14 +1676,14 @@ void do_map_write(int vol)
   if (file_off<0)
   { systab->vol[vol]->stats.diskerrors++;	// count an error
     sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
-    panic(msg);
+    mv1_panic(msg);
   }
   i = write( dbfds[vol], systab->vol[vol]->vollab,
 	     systab->vol[vol]->vollab->header_bytes);// map/label
   if (i < 0)
   { systab->vol[vol]->stats.diskerrors++;	// count an error
     sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
-    panic(msg);
+    mv1_panic(msg);
   }
 */
   inter_add(&systab->vol[vol]->map_dirty_flag, -dirty_flag); // alter dirty flag

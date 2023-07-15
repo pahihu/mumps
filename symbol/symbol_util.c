@@ -945,7 +945,7 @@ short ST_GetAddEx(mvar *var,cstring **add,int *p_fwd)// get local data address
   { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   if ((ptr1 >= ST_MAX) || (ptr1 < -1))
-  { panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
+  { mv1_panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
   }
   *p_fwd = ptr1;                                // save symtab pos
   if (ptr1 >= 0)				// think we found it
