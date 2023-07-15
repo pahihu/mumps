@@ -167,21 +167,21 @@ short SemOpEx(int sem_num, int numb,
       (curr_lock != curr_sem[sem_num][volnum]))
   { sprintf(msg,"SemOp(): curr_lock unsynchronized curr_lock=%d curr_sem=%d @ %s:%d",
                  curr_lock, curr_sem[sem_num][volnum], file, line);
-    panic(msg);
+    mv1_panic(msg);
   }
   if ((SEM_GLOBAL == sem_num) &&                // global lock ?
       (abs(curr_lock) >= systab->maxjob) &&     //   AND already have WRITE lock
       (numb < 0))                               //   AND acquire
   { sprintf(msg,"SemOp(): have WRITE lock, sem_num=%d numb=%d curr_lock=%d @ %s:%d",
                  sem_num, numb, curr_lock, file, line);
-    panic(msg);
+    mv1_panic(msg);
   }
   curr_sem[sem_num][volnum] += numb;            // keep track changes
   if (abs(curr_sem[sem_num][volnum]) > systab->maxjob)
   { sprintf(msg, "SemOp(): overload sem_num=%d numb=%d curr_sem[%d]=%d @ %s:%d",
                   sem_num, numb, volnum, curr_sem[sem_num][volnum], 
                   file, line);
-    panic(msg);
+    mv1_panic(msg);
   }
   
   if ((SEM_GLOBAL == sem_num) &&		// GLOBAL lock?
@@ -205,7 +205,7 @@ short SemOpEx(int sem_num, int numb,
     }
     if (numb < 1)                               // if it was an add
     { if (partab.jobtab == NULL)		// from a daemon
-	panic("SemOp() error in write daemon");	// yes - die
+	mv1_panic("SemOp() error in write daemon");// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
       { curr_sem[sem_num][volnum] -= numb;      // adjust tracking info
         return -(ERRZ51+ERRMLAST);              // return an error
@@ -216,7 +216,7 @@ short SemOpEx(int sem_num, int numb,
   if (systab->start_user == -1)			// If shutting down
   { exit (0);					// just quit
   }
-  panic("SemOp() failed");                      // die...
+  mv1_panic("SemOp() failed");                  // die...
   return 0;                                     // shouldn't get here
 }
 

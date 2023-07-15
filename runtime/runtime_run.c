@@ -131,7 +131,7 @@ short run(long savasp, long savssp)		// run compiled code
 
   while (TRUE)					// keep going till done
   { if (ssp >= MAX_SSTK)			// check ssp
-    panic("String Stack overflow in runtime!!"); // die
+    mv1_panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it
       if (s == BREAK_NOW)			// funnee debug stuf
@@ -3698,7 +3698,7 @@ short run(long savasp, long savssp)		// run compiled code
 	cptr = Err_CString();                   // compiler msgs
         cptr->buf[cptr->len] = '\0';            // trailing null
         memcpy(&sstk[ssp], cptr, sizeof(short) + cptr->len + 1);
-        cptr = &sstk[ssp];
+        cptr = (cstring *) &sstk[ssp];
 	ssp = ssp + sizeof(short) + cptr->len + 1; // point past it
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// and exit

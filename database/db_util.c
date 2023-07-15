@@ -255,7 +255,7 @@ void Queit2(gbd *p_gbd,
   if (curr_lock != WRITE)
   { char msg[32];
     sprintf(msg, "Queit(): curr_lock = %d", curr_lock);
-    panic(msg);
+    mv1_panic(msg);
   }
 
 #ifdef MV1_CKIT
@@ -264,13 +264,13 @@ void Queit2(gbd *p_gbd,
     &systab->vol[0]->dirtyQBuffer[0],
     p_gbd);
   if (false == result)
-  { panic("Queit(): dirtyQ overflow");
+  { mv1_panic("Queit(): dirtyQ overflow");
   }
 #else
   // we have the WRITE lock, at least NUM_DIRTY/2 is free
   i = systab->vol[0]->dirtyQw;                          // where to put it
   if (systab->vol[0]->dirtyQ[i] != NULL)
-  { panic("Queit(): dirtyQ overflow");
+  { mv1_panic("Queit(): dirtyQ overflow");
   }
   systab->vol[0]->dirtyQ[i] = p_gbd;                    // stuff it in
   systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
@@ -351,7 +351,7 @@ void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
   if (curr_lock != WRITE)
   { char msg[32];
     sprintf(msg, "Garbit(): curr_lock = %d", curr_lock);
-    panic(msg);
+    mv1_panic(msg);
   }
 
   DBG(mv1log(0,"Garbit: blk=%d (%s:%d)",blknum,path,lno));
@@ -363,13 +363,13 @@ void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
     &systab->vol[0]->garbQBuffer[0],
     qentry);
   if (result == false)
-  { panic("Garbit(): garbQ overflow");
+  { mv1_panic("Garbit(): garbQ overflow");
   }
 #else
   // we have the WRITE lock
   i = systab->vol[0]->garbQw;                           // where to put it
   if (systab->vol[0]->garbQ[i] != 0)
-  { panic("Garbit(): garbQ overflow");
+  { mv1_panic("Garbit(): garbQ overflow");
   }
   systab->vol[0]->garbQ[i] = blknum;                    // stuff it in
   systab->vol[0]->garbQw = (i + 1) & (NUM_GARB - 1);    // reset ptr
@@ -611,7 +611,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     { if (fidx == -1)
       { goto Lreturn;
       }
-      panic("Copy_data: about to overflow block");
+      mv1_panic("Copy_data: about to overflow block");
     }
 
     blk[level]->mem->last_free -= (cs / 4);             // reset free
@@ -1296,7 +1296,7 @@ short Check_BlockNo(int vol, u_int blkno, int checks,
       if (!blk[i]) continue;
       DBG(mv1log(0,"blk[%02d] = %d",i,blk[i]->block));
     }
-    panic((char *) msg);
+    mv1_panic((char *) msg);
   }
   return 0;
 }

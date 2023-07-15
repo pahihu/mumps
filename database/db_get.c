@@ -226,7 +226,7 @@ Found:    if ((X_NE(ptr->mem->global,
     else if (dir < 0)					// if found and want -
     { Index--;						// backup the Index
       if (Index < LOW_INDEX)				// can't happen?
-      { panic("Get_data: Problem with negative direction");
+      { mv1_panic("Get_data: Problem with negative direction");
       }
     }
 

@@ -131,11 +131,11 @@ void ic_full()						// full check
   i = (volsiz / 8) + 1;					// number of bytes  
   rlnk = mv1malloc(i);					// for right links
   if (rlnk == NULL)					// if failed
-  { panic("ic_full: can't get memory for rlnk");	// die
+  { mv1_panic("ic_full: can't get memory for rlnk");	// die
   }
   dlnk = mv1malloc(i);					// for down links
   if (dlnk == NULL)					// if failed
-  { panic("ic_full: can't get memory for dlnk");	// die
+  { mv1_panic("ic_full: can't get memory for dlnk");	// die
   }
   bzero(rlnk, i);					// clear this
   bzero(dlnk, i);					// and this
@@ -558,7 +558,7 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
 							// base block number
     while (SemOp(SEM_GLOBAL, lock));			// grab a lock
 
-    for (off = off; off < 8; off++)			// scan the byte
+    for (off = off+0; off < 8; off++)			// scan the byte
     { block = base + off;				// the block#
       status = -1;					// not yet known
       if (block > systab->vol[vol]->vollab->max_block)
@@ -585,11 +585,11 @@ void ic_map(int flag, int vol, int dbfd)		// check the map
 		 + (off_t) systab->vol[vol]->vollab->header_bytes;
         file_off = lseek( dbfd, file_off, SEEK_SET);	// Seek to block
         if (file_off < 1)
-        { panic("ic_map: lseek failed!!");		// die on error
+        { mv1_panic("ic_map: lseek failed!!");		// die on error
         }
         i = read( dbfd, &type_byte, 1);			// read one byte
 	if (i < 0)
-        { panic("ic_map: read failed!!");		// die on error
+        { mv1_panic("ic_map: read failed!!");		// die on error
         }
 	status = (type_byte != 0);			// check used
       }							// end disk read

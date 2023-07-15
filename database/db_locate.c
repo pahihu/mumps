@@ -341,7 +341,7 @@ Lcheck:
   if (cnt != 1)
   { char msg[512];
     sprintf(msg,"LocateCount: more than one key (%s,%d)\r\n",path,line);
-    panic(msg);
+    mv1_panic(msg);
   }
 }
 

@@ -182,7 +182,7 @@ short TrySemLock(int sem_num, int numb)
     else
     { char msg[64];
       sprintf(msg, "TrySemLock(): numb=%d", numb);
-      panic(msg);
+      mv1_panic(msg);
     }
   }
   else {
@@ -190,7 +190,7 @@ short TrySemLock(int sem_num, int numb)
     LatchLock(&systab->shsem[sem_num]);
     s = 0;
     if (s < 0)
-    { panic("TrySemLock: failed");
+    { mv1_panic("TrySemLock: failed");
     }
   }
 #else
@@ -242,7 +242,7 @@ short SemLock(int sem_num, int numb)
   semop_time_sav = semop_time; 
 #ifdef MV1_SHSEM
   if (s < 0)
-  { panic("TrySemLock: failed");
+  { mv1_panic("TrySemLock: failed");
   }
 #else
   if (s != 0)
@@ -296,7 +296,7 @@ short SemUnlock(int sem_num, int numb)
     else
     { char msg[64];
       sprintf(msg, "SemUnLock(): numb=%d", numb);
-      panic(msg);
+      mv1_panic(msg);
     }
   }
   else {

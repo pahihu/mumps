@@ -128,7 +128,7 @@ short Copy2local(mvar *var, char *rtn)
   for (i = 0; i < MAXTREEDEPTH; blk[i++] = NULL);	// clear blk[]
   if (curr_lock)
   { sprintf(msg,"Copy2local: curr_lock != 0 [%s]", rtn);
-    panic(msg);
+    mv1_panic(msg);
   }
   curr_lock = 0;					// ensure this is clear
   writing = 0;						// assume reading
@@ -787,7 +787,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
     }
     Index--;                                          	// backup the Index
     if (Index < LOW_INDEX)                            	// can't happen?
-    { panic("DB_Order: Problem with negative direction");
+    { mv1_panic("DB_Order: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
@@ -934,7 +934,7 @@ short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat)
     }
 #endif
     if (Index < LOW_INDEX)                             	// can't happen?
-    { panic("DB_Query: Problem with negative direction");
+    { mv1_panic("DB_Query: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc

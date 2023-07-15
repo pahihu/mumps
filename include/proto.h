@@ -414,7 +414,7 @@ short ncopy(u_char **src, u_char *dst);         // copy as number
 short CleanJob(int job);			// tidy up a job
 uint32_t FNV1aHash(int n, u_char *buf);         // calc. FNV-1a hash
 void SemStats(void);                            // semaphore statistics
-void panic(char *msg); 				// die on error
+void mv1_panic(char *msg); 			// die on error
 struct RBD *Routine_Attach(chr_x routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine
 void Routine_Delete(chr_x routine, int uci, int vol);

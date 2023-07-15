@@ -404,7 +404,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   i = DB_GetLong(&rouglob, (u_char *) &ptr->comp_ver); // get the routine
   // fprintf(stderr,"get the routine=%d\r\n",i);
 
-  if (i != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
+  if (i != ptr->rou_size) mv1_panic("routine load - size wrong"); // DOUBLECHECK
 
   ptr->tag_tbl += RBD_OVERHEAD;			// adjust for rbd junk
   ptr->var_tbl += RBD_OVERHEAD;			// adjust for rbd junk

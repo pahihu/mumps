@@ -218,7 +218,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     if ((ts + rs) < rls)				// if new record fits
     { s = Insert(&db_var.slen, ptr);			// insert it
       if (s < 0)					// failed ?
-      { panic("Set_key: Insert in new block (RL) failed");
+      { mv1_panic("Set_key: Insert in new block (RL) failed");
       }
       bcopy(&chunk->buf[1], keybuf, chunk->buf[1] + 1);	// save key
     }
@@ -254,7 +254,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
     s = New_block();					// new blk for insert
     if (s < 0)						// if failed
-    { panic("Set_key: Failed to get new block for insert");
+    { mv1_panic("Set_key: Failed to get new block for insert");
     }
     
     blk[level]->mem->type = cblk[0]->mem->type;		// copy type
@@ -268,7 +268,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
     cblk[0]->mem->right_ptr = blk[level]->block;	// point at it
     s = Insert(&db_var.slen, ptr);			// insert it
     if (s < 0)						// failed ?
-    { panic("Set_key: Insert in new block (insert) failed");
+    { mv1_panic("Set_key: Insert in new block (insert) failed");
     }
     cblk[1] = blk[level];				// remember this one
     goto fix_keys;					// exit **3**
@@ -295,7 +295,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
 
   s = New_block();					// new blk for trail
   if (s < 0)						// if failed
-  { panic("Set_key: Failed to get new block for trailings");
+  { mv1_panic("Set_key: Failed to get new block for trailings");
   }
     
   blk[level]->mem->type = cblk[0]->mem->type;		// copy type
@@ -341,7 +341,7 @@ short Set_key(u_int ptr_blk, int this_level)		// set a block#
   else if (s != -(ERRMLAST+ERRZ62))
   { return s;						// error!
   }
-  panic("Set_key: Options 0->6 didn't work");		// die
+  mv1_panic("Set_key: Options 0->6 didn't work");       // die
 
 fix_keys:
 
@@ -407,7 +407,7 @@ short Add_rekey(u_int block, int level)			// add to re-key table
       return 0;						// and exit
     }
   }
-  panic("Add_rekey: rekey table overflowed - database is corrupt");
+  mv1_panic("Add_rekey: rekey table overflowed - database is corrupt");
   return 0;						// won't happen
 }
 
@@ -537,7 +537,7 @@ void Un_key()
 	  { s = Add_rekey(blk[level + 1]->block, level + 1); // do it later
 	  }
 	  else if (s < 0)
-	  { panic("Un_Key: Insert returned fatal value");
+	  { mv1_panic("Un_Key: Insert returned fatal value");
 	  }
 	}
 	else						// lower level is empty
@@ -549,7 +549,7 @@ void Un_key()
 	  { s = Locate(uptr);				// find key - must fail
             // 210109AP TESTING
 	    if ((save_level == level) && (s != -ERRM7)) // if not - die
-	    { panic("Un_key: key locate at 'level' didn't return -ERRM7");
+	    { mv1_panic("Un_key: key locate at 'level' didn't return -ERRM7");
 	    }
 	    if (Index > LOW_INDEX)			// if not first node
 	    { chunk = (cstring *) &iidx[idx[Index - 1]]; // point at prev
@@ -560,7 +560,7 @@ void Un_key()
 	    }
 	    level--;					// up a level
 	    if (!level)					// if not found
-	    { panic("Un_key: failed to determine left edge");
+	    { mv1_panic("Un_key: failed to determine left edge");
 	    }
 	  }						// end while (TRUE)
 
@@ -569,11 +569,11 @@ void Un_key()
 	    level = MAXTREEDEPTH - 1;			// use this one
 	    s = Get_block(blkno);
 	    if (s < 0)
-	    { panic("Un_key(): Get_block() failed in left block tree");
+	    { mv1_panic("Un_key(): Get_block() failed in left block tree");
 	    }
 	    s = Locate(uptr);				// find key - must fail
 	    if (s != -ERRM7)				// if not - die
-	    { panic("Un_key: key locate in left edge didn't return -ERRM7");
+	    { mv1_panic("Un_key: key locate in left edge didn't return -ERRM7");
 	    }
 	    chunk = (cstring *) &iidx[idx[Index - 1]]; // point at prev
 	    record = (cstring *) &chunk->buf[chunk->buf[1]+2]; // point at it
@@ -590,7 +590,7 @@ void Un_key()
 	  blk[xxx_level] = blk[level];			// remember that there
 	  s = Get_block(blkno);
 	  if (s < 0)
-	  { panic("Un_key(): Get_block() failed for left block");
+	  { mv1_panic("Un_key(): Get_block() failed for left block");
 	  }
 	  blk[level]->mem->right_ptr = blk[xxx_level]->mem->right_ptr;
 	  if (blk[level]->dirty == (gbd *) 1)		// if we changed it
