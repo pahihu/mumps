@@ -102,12 +102,20 @@ short Insert(u_char *key, cstring *data)		// insert a node
   ccc = 0;            // start here
 #ifdef MV1_CCC_DOCOMP
   if ((key[0]) && (keybuf[0]))                          //   and any there
-  { while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
+  { 
+    u_char keylen = key[0] < keybuf[0] ? key[0] : keybuf[0];
+    for (ccc = 1; ccc <= keylen; ccc++)
+      if (key[ccc] != keybuf[ccc])
+        break;
+    ccc--;
+    /*
+    while (key[ccc + 1] == keybuf[ccc + 1])             // while the same
     { if ((ccc == key[0]) || (ccc == keybuf[0]))        // at end of either
       { break;                                          // done
       }
       ccc++;                                            // increment ptr
     }
+    */
   }
 #endif
   ucc = key[0] - ccc;                                   // and this
@@ -199,14 +207,15 @@ void Mark_changes(int vol, int blknum)                	// mark changes
 }
 
 //-----------------------------------------------------------------------------
-// Function: Queit
+// Function: Queit2
 // Descript: Que the gbd p_gbd - links already setup
 // Input(s): the gbd to queue
 // Return:   0 - on success, 1 - on failed (queue empty)
 // Note:     Must hold a write lock before calling this function
 //
 
-void Queit2(gbd *p_gbd)                                 // que a gbd for write
+void Queit2(gbd *p_gbd,
+            const char *caller_path, int caller_line)   // que a gbd for write
 { gbd *ptr;                                       	// a handy ptr
 #ifdef MV1_CKIT
   bool result;
@@ -228,8 +237,10 @@ void Queit2(gbd *p_gbd)                                 // que a gbd for write
 #ifdef MV1_LOCATE_DEBUG
   LocateAllP(ptr,level,__FILE__,__LINE__);
 #endif
+  ASSERT2(0 <= ptr->hash);                              // ensure chained
   while (ptr->dirty != ptr)                             // check it
   { ptr = ptr->dirty;                                   // point at next
+    ASSERT2(0 <= ptr->hash);                            // ensure chained
     // fprintf(stderr," %d",ptr->block);
     systab->vol[volnum-1]->stats.logwt++;               // incr logical
     if (systab->vol[volnum-1]->track_changes)		// track changes ?
@@ -268,11 +279,7 @@ void Queit2(gbd *p_gbd)                                 // que a gbd for write
   return;                                               // and exit
 }
 
-void Queit(void)
-{ Queit2(blk[level]);
-}
-
-#define MAX_GARB  (NUM_GARB/2)
+#define MAX_GARB  (2*NUM_GARB)
 u_int garbedBlocks[MAX_GARB];
 int initGarbed = 1;
 
@@ -576,12 +583,20 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     ccc = 0;                                            // start here
 #ifdef MV1_CCC_DOCOMP
     if ((fk[0]) && (keybuf[0]))                         // and if any there
-    { while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
+    { 
+      u_char keylen = fk[0] < keybuf[0] ? fk[0] : keybuf[0];
+      for (ccc = 1; ccc <= keylen; ccc++)
+        if (fk[ccc] != keybuf[ccc])
+          break;
+      ccc--;
+/*
+      while (fk[ccc + 1] == keybuf[ccc + 1])            // while the same
       { if ((ccc == fk[0]) || (ccc == keybuf[0]))       // at end of either
         { break;                                        // done
         }
         ccc++;                                          // increment ptr
       }
+*/
     }
 #endif
     ucc = fk[0] - ccc;                                  // get the ucc
@@ -675,7 +690,7 @@ short Compress1()
   u_char gtmp[2*MAX_NAME_BYTES];                        // to find glob
 
   writing = 1;                                          // flag writing
-  Ensure_GBDs(0);                                       // ensure this many
+  Ensure_GarbQ();                                       // ensure this many
 
   curlevel = level;
   s = Get_data(curlevel);                               // get the data
@@ -708,7 +723,7 @@ short Compress1()
       }
       Allign_record();                                  // if not alligned
       *( (u_int *) record) = blk[2]->block;             // new top level blk
-      if (blk[level]->dirty < (gbd *) 5)                // if it needs queing
+      if (RESERVED(blk[level]))                         // if it needs queing
       { blk[level]->dirty = blk[level];                 // terminate list
 	TXSET(blk[level]);
         Queit();                                       	// and queue it
@@ -716,9 +731,7 @@ short Compress1()
       // Now, we totally release the block at level 1 for this global
       blk[1]->mem->type = 65;                           // pretend it's data
       blk[1]->last_accessed = MTIME(0) + 86400;         // clear last access
-#ifdef MV1_REFD
       REFD_MARK(blk[1]);
-#endif
       Garbit(blk[1]->block);                            // que for freeing
 
       bzero(&partab.jobtab->last_ref, sizeof(mvar));    // clear last ref
@@ -753,9 +766,7 @@ short Compress1()
   if (blk[level]->mem->last_idx < LOW_INDEX)            // if it's empty
   { blk[level]->mem->type = 65;                         // pretend it's data
     blk[level]->last_accessed = MTIME(0) + 86400;       // clear last access
-#ifdef MV1_REFD
     REFD_MARK(blk[level]);
-#endif
     blk[level + 1]->mem->right_ptr = blk[level]->mem->right_ptr; // copy RL
     Garbit(blk[level]->block);                          // que for freeing
     blk[level] = NULL;                                  // ignore
@@ -851,14 +862,11 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     if (j < 0)		                                // if that's junk
     { return -(errno+ERRMLAST+ERRZLAST);
     }
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)				        // on fail
     { return (-errno+ERRMLAST+ERRZLAST);
     }
 
-#ifdef MV1_F_NOCACHE
-    j = fcntl(jfd, F_NOCACHE, 1);
-#endif
     lseek(jfd, 0, SEEK_SET);
     errno = 0;
     j = read(jfd, tmp, sizeof(u_int));	        	// read the magic
@@ -1032,7 +1040,7 @@ void OpenJournal(int vol, int printlog)
   { if (i < 0)                                          // if doesn't exist
     { ClearJournal(0, vol);                             // create it
     }                                                   // end create code
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)                                        // on fail
     { if (printlog)
         fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
@@ -1041,9 +1049,6 @@ void OpenJournal(int vol, int printlog)
     else                                                // if open OK
     { u_char tmp[sizeof(u_int) + sizeof(off_t)];
 
-#ifdef MV1_F_NOCACHE
-      i = fcntl(jfd, F_NOCACHE, 1);
-#endif
       lseek(jfd, 0, SEEK_SET);
       errno = 0;
       i = read(jfd, tmp, sizeof(u_int));                // read the magic
@@ -1170,12 +1175,10 @@ int MSleep(u_int mseconds)
 
   while (mseconds > 500)                                // while more than 500ms
   { mseconds -= 500;                                    // reduce mseconds
-    systab->Mtime = time(0);                            // keep track of M time
     ret = usleep(1000 * 500);                           // sleep a bit
   }
   if (mseconds)                                         // any remains ?
-  { systab->Mtime = time(0);                            // keep track of M time
-    ret = usleep(1000 * mseconds);                      // sleep a bit
+  { ret = usleep(1000 * mseconds);                      // sleep a bit
   }
   return ret;
 }
@@ -1225,6 +1228,31 @@ start:
 
 cont:
   return;
+}
+
+void Ensure_GarbQ(void)
+{ int qpos, wpos, rpos, qlen, qfree;
+
+  while (1)
+  { Ensure_GBDs(0);                                     // get GBDs, has no lock
+#ifdef MV1_CKIT
+    qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
+                                                        // calc. free space
+#else
+    wpos = systab->vol[volnum - 1]->garbQw;
+    rpos = systab->vol[volnum - 1]->garbQr;
+    if (rpos <= wpos) qlen = wpos - rpos;
+    else
+      qlen = NUM_GARB + wpos - rpos;
+    qfree = NUM_GARB - qlen;
+#endif
+    if (qfree >= NUM_GARB/2)                            // more than half space
+      return;                                           //   empty? done
+
+    systab->vol[volnum - 1]->stats.gqstall++;           // count garbQ stall
+    SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
+    Sleep(1);
+  }
 }
 
 
@@ -1296,6 +1324,7 @@ u_int DB_GetDirty(int vol)
 { int i, num_gbd;
   u_int cnt;
   vol_def *curr_vol;
+  gbd *ptr;
 
   ASSERT(0 <= vol);                                     // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -1305,9 +1334,12 @@ u_int DB_GetDirty(int vol)
   num_gbd = curr_vol->num_gbd;
   cnt = 0;
   for (i = 0; i < num_gbd; i++)
-    if (curr_vol->gbd_head[i].dirty &&                  // dirty
-        curr_vol->gbd_head[i].block)                    //   AND has block
+  { ptr = &curr_vol->gbd_head[i];
+    if (ptr->block &&                                   // has a block
+        (ptr->dirty ||                                  //   AND dirty
+        (ptr->last_accessed <= 0)))                     //    OR zotted
       cnt++;
+  }
 
   return cnt;
 }
@@ -2130,3 +2162,24 @@ void ClearLastBlk(void)
   bzero(&systab->vol[volnum - 1]->last_blk_written[0],// zot all
                 netjobs * sizeof(u_int));
 }
+
+
+int OpenFile(const char *path, int mode)
+{ int fd, i;
+
+#if defined(MV1_F_NOCACHE)
+# if defined(__linux__)
+  fd = open(path, O_DIRECT | mode);
+# endif
+# if defined(__APPLE__)
+  fd = open(path, mode);
+  if (-1 != fd)
+    i = fcntl(fd, F_NOCACHE, 1);
+# endif
+#else
+  fd = open(path, mode);
+#endif
+  return fd;
+}
+
+// vim:ts=8:sw=8:et

@@ -38,7 +38,7 @@
 #ifndef _MUMPS_MUMPS_H_                         // only do this once
 #define _MUMPS_MUMPS_H_
 
-#if defined(__linux) && defined(__PPC__)
+#if defined(__linux)
 #define MV1_OSSEM
 #endif
 
@@ -85,16 +85,15 @@
 #define MAP_CHUNK	(4*1024)		// map is written in 4K chunks
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
-#define VERSION_MAJOR   1                       // Major version number
-#define VERSION_MINOR   70                      // Minor version number
-#define VERSION_TEST	3                       // Test version number
+#define VERSION_MAJOR   2023                    // Major version number
+#define VERSION_MINOR   7                       // Minor version number
+#define VERSION_TEST	1                       // Test version number
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
 #define DAEMONS         10                      // Jobs per daemon
 #define MIN_DAEMONS     2                       // minimum of these
 #define MAX_DAEMONS     10                      // maximum of these
 #define MAX_NET_DAEMONS	10			// maximum of these
-// #define STORAGE         1024                    // what $STORAGE returns
 #ifdef  __APPLE__
 #define PRVGRP          80                      // admin in OSX
 #else
@@ -170,25 +169,21 @@
 
 #define MIN_GBD		(40)                    // minumum number GBDs
 
-#define MIN_REST_TIME	  10			// min. daemon rest time
-#define MAX_REST_TIME	1000			// max. daemon rest time
+#define MINRESTTIME	          10		// min. daemon rest time
+#define DEFAULT_MAXRESTTIME	1000		// max. daemon rest time
 
 #define VOLLAB_DIRTY	(1U<<31)		// volume label dirty
 
 // Note the following three MUST be a power of 2 as they are masks for &
-#define GBD_HASH        4096                    // hash size for global buffers
-#define NUM_DIRTY       8192                    // max queued dirty chains
-#define NUM_GARB        8192                    // max queued garbage blocks
+#define GBD_HASH        32768                   // hash size for global buffers
+#define NUM_DIRTY       16384                   // max queued dirty chains
+#define NUM_GARB        16384                   // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
 #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
 
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list
 
-#define AVROUSIZ        3072                    // average compiled routine size
-#define MAXROUSIZ       32767                   // max compiled rou size
-#define MAXROULIN       32767                   // max rou lines
-#define COMP_VER        (8+(MAX_NAME_BYTES-8)*256)  // compiler version
 #define DB_VER          (3+(MAX_NAME_BYTES-8)*256)  // database version
 
 // Global flags (from Global Directory) follow
@@ -229,6 +224,7 @@
 #define SIG_U2          (1 << 31)               // user signal 2 (ERR Z68)
 // Unknown signals generate error Z69
 
+#define MAX_JOB                 4096            // max number of jobs
 #define MAX_VOL             	16              // max number of vols
 #define VOL_FILENAME_MAX	256             // max chars in stored filename
 //#define JNL_FILENAME_MAX	226             // max chars in journal filenam
@@ -292,14 +288,14 @@ typedef union __PACKED__ VAR_U 			// get at this two ways
 
 typedef struct __PACKED__ CSTRING 		// our string type
 { short len;                                    // length of it
-  u_char buf[32768];                            // and the content
+  u_char buf[MAX_STR_LEN+1];                    // and the content
 } cstring;                                      // end counted string
 
 #define MV1_SUBSPOS     1
 
 typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 { var_u name;                                   // variable name
-  u_char volset;                                // volset number
+  u_short volset;                               // volset number
   u_char uci;                                   // uci# -> 255 = local var
 #ifdef MV1_SUBSPOS
   u_char nsubs;                                 // no. of subscripts
@@ -311,7 +307,7 @@ typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 
 typedef struct __PACKED__ SIMPLE_MVAR
 { var_u name;                                   // variable name
-  u_char volset;                                // volset number
+  u_short volset;                               // volset number
   u_char uci;                                   // uci# -> 255 = local var
   u_char slen;                                  // subs (key) length
   u_char key[256];                              // the subs (key) - allow for 0
@@ -325,7 +321,7 @@ typedef struct GLOREF_T
   int Index;					// position
 } gloref_t;
 
-#define SIMPLE_MVAR_SIZE (sizeof(var_u) + 3*sizeof(u_char) + 2*sizeof(u_char))
+#define SIMPLE_MVAR_SIZE (sizeof(var_u) + sizeof(u_short) + 2*sizeof(u_char) + 2*sizeof(u_char))
 
 #ifdef MV1_SUBSPOS
 #define MVAR_SIZE    	(SIMPLE_MVAR_SIZE + sizeof(u_char)*(MAX_SUBSCRIPTS+1+1))
@@ -635,17 +631,21 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   size_t addoff;                                // off from systab to add buff
   size_t addsize;                               // add buff size
   VOLATILE u_int64 TxId;                        // TX id
-  VOLATILE time_t Mtime;                        // Mtime, updated by daemon 0
   VOLATILE int ZMinSpace;                       // Min. Space for Compress()
   VOLATILE int ZotData;                         // Kill zeroes data blocks
   VOLATILE int ZRestTime;			// Current daemon rest time
+  VOLATILE int ZMaxRestTime;			// Maximum daemon rest time
   u_char dgpURL[64];				// DGP URL base
   int dgpPORT;					// DGP port base
+  int dgpSNDTO;                                 // DGP send timeout
+  int dgpRCVTO;                                 // DGP receive timeout
   u_short dgpID;				// DGP system ID
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
-  u_char dgpSTART[256];				// client: MV1_PIDs (0-255)
+  int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-255)
+  int numcpu2;                                  // number of CPUs x 2
+  time_t Mtime;
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores
   RWLOCK_T glorw[MAX_VOL];
@@ -697,6 +697,7 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   u_char **sp;                                  // source ptr for compile
   cstring **lp;                                 // start of the line (ditto)
   int *ln;                                      // line num for $&%ROUCHK()
+  cstring *compmsg;                             // last compiler msg
   mvar src_var;                                 // temp space for src mvar
   u_long lastseq;				// last SEQUENCE time
   int lenseq;					// SEQUENCE length
@@ -717,3 +718,5 @@ extern u_char *mumpspc;                         // mumps prog pointer
 
 
 #endif                                          // !_MUMPS_MUMPS_H_
+
+// vim:ts=8:sw=8:et

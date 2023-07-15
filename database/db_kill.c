@@ -79,7 +79,6 @@ short Kill_data_ex(int what)				// remove tree
   u_char *p;						// a handy ptr
   cstring *c;						// and another
   u_int *ui;						// and another
-  int qpos, wpos, rpos, qlen, qfree;
   int save_level;                                       // save level 
   short rc;						// replication status
 
@@ -91,27 +90,8 @@ short Kill_data_ex(int what)				// remove tree
   systab->vol[volnum - 1]->last_blk_used[MV1_PID] = 0;  // clear last
 
   writing = 1;						// say we are killing
-start:
-  Ensure_GBDs(0);					// get GBDs, has no lock
-#ifdef MV1_CKIT
-  qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
-#else
-  wpos = systab->vol[volnum - 1]->garbQw;
-  rpos = systab->vol[volnum - 1]->garbQr;
-  if (rpos <= wpos) qlen = wpos - rpos;
-  else
-    qlen = NUM_GARB + wpos - rpos;
-  qfree = NUM_GARB - qlen;
-#endif
-  if (qfree >= NUM_GARB/2)
-    goto cont;
+  Ensure_GarbQ();                                       // ensure this many
 
-  systab->vol[volnum - 1]->stats.gqstall++;             // count garbQ stall
-  SemOp( SEM_GLOBAL, -curr_lock);			// release current lock
-  Sleep(1);
-  goto start;
-
-cont:
   TX_NEXT;
   level = 0;						// reset level
   s = Get_data(0);					// attempt to get it
@@ -255,7 +235,8 @@ FullGlobalKill:
     }							// end removing recs
 
     Tidy_block();					// tidy the block
-    if (!db_var.slen)                                   // KVALUE on global
+    if ((!db_var.slen) &&                               // KVALUE on global
+        (KILL_VAL & what))
     { s = Locate_next(0);                               // subscripted nodes ?
       if ((0 > s) && (s != -ERRM7))                     // got an error
         return s;                                       //   return
@@ -433,9 +414,7 @@ FullGlobalKill:
       blk[level]->mem->right_ptr = ptr->mem->right_ptr;	// copy right ptr
       ptr->mem->type = 65;				// say type = data!!
       ptr->last_accessed = MTIME(0) + 86400;	        // clear last access
-#ifdef MV1_REFD
       REFD_MARK(ptr);
-#endif
       Garbit(ptr->block);				// dump the block
       rblk[level] = NULL;				// mark gone
     }							// end move to one

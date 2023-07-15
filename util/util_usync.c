@@ -30,6 +30,23 @@ AO_t inter_add(volatile AO_t *ptr, AO_t incr)
 #endif
 
 
+#ifdef USE_LIBATOMIC_OPS
+#define inter_add(ptr,incr) AO_fetch_and_add_acquire_read(ptr,incr)
+#else
+
+AO_t inter_add(volatile AO_t *ptr, AO_t incr)
+{
+  AO_t oldval, newval;
+  do
+  { oldval = *ptr;
+    newval = oldval + incr;
+  } while(!__sync_bool_compare_and_swap(ptr, oldval, newval));
+  return newval;
+}
+
+#endif
+
+
 /* --- LATCH --- */
 
 #define USE_EXPBACK             1

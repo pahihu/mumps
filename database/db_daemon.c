@@ -62,6 +62,10 @@
 #include "dgp.h"					// DGP protos
 #endif
 
+#if !defined(min)
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
 static int dbfds[MAX_VOL];				// global db file desc
 static int myslot;					// my slot in WD table
 static int myslot_net;					// my slot in network
@@ -78,6 +82,7 @@ void do_mount(int vol);                                 // mount db file
 void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
+static time_t last_write_garb;                          // last WRITE/GARB
 static time_t last_map_write[MAX_VOL];                  // last map write
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 static u_char jnl_seq[MAX_VOL];				// jrn file sequence
@@ -126,9 +131,15 @@ int do_log(const char *fmt,...)
 static
 u_int MSLEEP(u_int mseconds)
 {
-  if (!myslot)                                          // update M time
-    systab->Mtime = time(0);
+  systab->Mtime = time(0);
   return usleep(1000 * mseconds);                       // sleep
+}
+
+static
+u_int MILLITIME()
+{
+  time_t now = MTIME(0);
+  return 1000 * (now % 86400);
 }
 
 #ifdef MV1_MAXDBOPS
@@ -186,13 +197,13 @@ void do_rest(void)
     else
       rest *= 1.5;
   } else
-  { rest = MAX_REST_TIME;
+  { rest = systab->ZMaxRestTime;
   }
 
-  if (rest < MIN_REST_TIME)                             // clip rest time to
-    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
-  else if (rest > MAX_REST_TIME)
-     rest = MAX_REST_TIME;
+  if (rest < MINRESTTIME)                               // clip rest time to
+    rest = MINRESTTIME;                                 // MIN/MAXRESTTIME
+  else if (rest > systab->ZMaxRestTime)
+     rest = systab->ZMaxRestTime;
 
   systab->ZRestTime = rest;                             // set in systab
   MEM_BARRIER;
@@ -233,10 +244,10 @@ void do_rest(void)
     rest *= 1.1;                                        //   wait more
   else
     rest /= 2;                                          // more stalls,rest less
-  if (rest < MIN_REST_TIME)                             // clip rest time to
-    rest = MIN_REST_TIME;                               // MIN/MAX_REST_TIME
-  else if (rest > MAX_REST_TIME)
-     rest = MAX_REST_TIME;
+  if (rest < MINRESTTIME)                               // clip rest time to
+    rest = MINRESTTIME;                                 // MIN/MAXRESTTIME
+  else if (rest > systab->ZMaxRestTime)
+     rest = systab->ZMaxRestTime;
   systab->ZRestTime = rest;                             // set in systab
   MEM_BARRIER;
 
@@ -283,6 +294,8 @@ void do_netdaemon(void)
   u_short msg_len;					// message length
   int client;						// client system ID
   int restart_phase = 1;
+  int flags;                                            // $Query() flags
+  int to;                                               // timeout
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -295,7 +308,17 @@ void do_netdaemon(void)
 
   rv = nn_bind(sock, url);
   if (rv < 0)
-  { sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
+  { nn_close(sock);
+    sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
+    panic(msg);
+  }
+
+  to = systab->dgpSNDTO;                                // set send timeout
+  if (-1 != to) to *= 1000;                             //   in milliseconds
+  rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_SNDTIMEO, &to, sizeof(to));
+  if (rv < 0)
+  { nn_close(sock);
+    sprintf(msg, "nn_setsockopt(%s): %s\n", url, nn_strerror(nn_errno()));
     panic(msg);
   }
 
@@ -315,7 +338,7 @@ void do_netdaemon(void)
       continue;
     }
 
-    req.header.remjob = ntohs(req.header.remjob);	// cvt to host fmt
+    req.header.remjob = ntohl(req.header.remjob);	// cvt to host fmt
     req.header.msglen = ntohs(req.header.msglen);
     req.data.len      = ntohs(req.data.len);
 
@@ -338,7 +361,7 @@ void do_netdaemon(void)
     // NB. when ULOK' system ID is 255, the LO(remjob) contains
     //     the DGP SYSID of the remote system
     if (req.header.code != DGP_ULOK)
-    { ASSERT((256 < remjob) && (remjob < 65281));	// validate
+    { ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF001)); // validate
     }
 
     client = DGP_SYSID(remjob);
@@ -453,10 +476,13 @@ void do_netdaemon(void)
         }
         break;
       case DGP_QRYV:
+        flags = GLO_DOCVT;
+        if (DGP_F_NOUCI & req.header.msgflag) flags += GLO_NOUCI;
+        if (DGP_F_NOVOL & req.header.msgflag) flags += GLO_NOVOL;
         s = DB_QueryEx(varptr, 
                        &rep.data.buf[0],
-                       DGP_F_PREV & req.header.msgflag ? -1 : 1,
-		       1, /* docvt */
+                       (DGP_F_PREV & req.header.msgflag) ? -1 : 1,
+                       flags,
 		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
         if (s < 0) goto Error;
         DGP_MkValue(&rep, s, &rep.data.buf[0]);
@@ -488,7 +514,7 @@ Send:
     { DGP_MsgDump(1, &rep.header, rep.data.len);
     }
     msg_len = rep.header.msglen;
-    rep.header.remjob = htons(rep.header.remjob);	// cvt to network fmt
+    rep.header.remjob = htonl(rep.header.remjob);	// cvt to network fmt
     rep.header.msglen = htons(rep.header.msglen);
     rep.data.len      = htons(rep.data.len);
     bytes = nn_send(sock, &rep, msg_len, 0);
@@ -627,7 +653,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
-  last_daemon_check = (time_t) 0;
+  last_daemon_check = (time_t) 0;                       // last daemon check
+  last_write_garb = (time_t) 0;                         // last WRITE/GARB
   for (i = 0; i < MAX_VOL; i++)
   { last_map_write[i] = (time_t) 0;                     // clear last map write
     dbfds[i] = 0;                                       // db file desc.
@@ -664,21 +691,15 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   a = freopen(logfile,"a",stderr);			// stderr to logfile
   if (!a) return (errno);			        // check for error
 
-  dbfds[0] = open(systab->vol[0]->file_name, O_RDWR);	// open database r/wr
+  dbfds[0] = OpenFile(systab->vol[0]->file_name, O_RDWR);// open database r/wr
   if (dbfds[0] < 0)
   { do_log("Cannot open database file %s\n",
                   systab->vol[0]->file_name);
     return(errno);					// check for error
   }
 
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfds[0], F_NOCACHE, 1);
-#endif
   t = time(0);						// for ctime()
   do_log("Daemon %d started successfully\n", myslot);   // log success
-
-  if (!myslot)
-    systab->Mtime = time(0);                            // update M time
 
   SLOT_JRN       =  0;                                  // default Daemon 0
   SLOT_VOLSYNC   = -1;                                  // default none
@@ -701,7 +722,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
       MEM_BARRIER;
     }
 
-    i = MSLEEP(systab->ZRestTime);                      // rest
+    i = MSLEEP(min(systab->ZRestTime, 1000));           // rest
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -721,11 +742,16 @@ void do_daemon()					// do something
 #endif
   int vol;                                              // vol[] index
   int dirtyQr, garbQr;                                  // queue read indices
+  int start_cnt;                                        // passes thru start
 
+  start_cnt = 0;
 start:
-  if (!myslot)                                          // update M time
-  { systab->Mtime = time(0);
-    do_rest();
+  systab->Mtime = time(0);
+  start_cnt++;
+  if (last_write_garb > MILLITIME())                    // check wrap-around
+    last_write_garb = 0;                                // reset last WRITE/GARB
+  if (!myslot)                                          // update RESTTIME
+  { do_rest();
   }
 
   daemon_check();					// ensure all running
@@ -760,6 +786,9 @@ start:
       { do_volsync(vol);                                // do volume sync
       }
     }                                                   // end foreach vol
+    if ((1 < start_cnt)                                 // 2nd loop thru start
+        || (last_write_garb + systab->ZRestTime < MILLITIME())) // lapsed
+    {
 #ifdef MV1_CKIT
     if (ck_ring_dequeue_spmc(                           // any writes?
                 &systab->vol[0]->dirtyQ,
@@ -796,6 +825,7 @@ start:
     }
     SemOp( SEM_WD, -WRITE);				// release WD lock
 #endif
+    }
   }							// end looking for work
 
   // XXX most ne lehessen kulon/kulon dismount-olni, csak egyben
@@ -818,10 +848,12 @@ start:
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_WRITE)
   { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
     do_write();						// do it 
+    last_write_garb = MILLITIME();
     goto start;						// try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
   { do_garb();						// or this 
+    last_write_garb = MILLITIME();
     goto start;						// try again
   }
   return;						// can't get here
@@ -902,7 +934,7 @@ void do_dismount()					// dismount volnum
       break;
     for (i=0; i<systab->vol[vol]->num_gbd; i++)	        // look for unwritten
     { if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
-          (systab->vol[vol]->gbd_head[i].last_accessed != (time_t) 0) &&
+          (0 < systab->vol[vol]->gbd_head[i].last_accessed) &&
 	  (systab->vol[vol]->gbd_head[i].dirty))
       { systab->vol[vol]->gbd_head[i].dirty
           = &systab->vol[vol]->gbd_head[i]; 	        // point at self
@@ -976,6 +1008,8 @@ void do_dismount()					// dismount volnum
 // Return:   none
 //
 
+#define ZOTTED  ((time_t)-1)
+
 void do_write()						// write GBDs
 { off_t file_off;                               	// for lseek() et al
   int i;						// a handy int
@@ -994,15 +1028,16 @@ void do_write()						// write GBDs
     panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
-  // NB. egy lancban egy volume-hoz tartoznak!
+  // NB. same volnums in a chain
   volnum = gbdptr->vol + 1;                             // set volnum
 
   if (!curr_lock)					// if we need a lock
   { while (SemOp( SEM_GLOBAL, READ));			// take a read lock
   }
   while (TRUE)						// until we break
-  { if (gbdptr->last_accessed == (time_t) 0)		// if garbaged
+  { if (gbdptr->last_accessed == ZOTTED)		// if garbaged
     { gbdptr->block = 0;				// just zot the block
+      // systab->vol[vol]->stats.eventcnt++;
     }
     else						// do a write
     { blkno = gbdptr->block;                            // get blkno
@@ -1133,13 +1168,19 @@ int do_zot(int vol,u_int gb)				// zot block
 		+ (off_t) systab->vol[vol]->vollab->header_bytes;
 
   volnum = vol + 1;                                     // set volnum
-  while (SemOp( SEM_GLOBAL, WRITE));			// take a global lock
+  while (SemOp( SEM_GLOBAL, READ));			// take a global lock
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get head
   while (ptr != NULL)					// for entire list
   { if (ptr->block == gb)				// found it?
     { bcopy(ptr->mem, bptr, systab->vol[vol]->vollab->block_size);
-      ptr->last_accessed = (time_t) 0;			// mark as zotted
-      // ptr->block = 0;
+      // NB. Setting last_accessed to zero could cause
+      //     indefinite waiting in Get_buffer(), when a READER
+      //     wants to read a block which is not cached, and
+      //     the global is modified by another job without a
+      //     LOCK.
+      //     WRITE lock does NOT help here either.
+      ptr->last_accessed = ZOTTED;			// mark as zotted
+      /* NB. ptr->block will be cleared in do_write() or in do_free() */
       MEM_BARRIER;
       break;						// exit
     }
@@ -1266,12 +1307,12 @@ void do_free(int vol, u_int gb)				// free from map et al
   ptr = systab->vol[vol]->gbd_hash[GBD_BUCKET(gb)];     // get listhead
   while (ptr != NULL)					// for each in list
   { if (ptr->block == gb)				// found it
-    { if (ptr->dirty < (gbd *) 5)			// not in use
+    { if (RESERVED(ptr))			        // not in use
       { Free_GBD(vol, ptr);				// free it
       }
       else						// in use or not locked
-      { ptr->last_accessed = (time_t) 0;		// mark as zotted
-        // ptr->block = 0;
+      { ptr->last_accessed = ZOTTED;		        // mark as zotted
+        /* NB. ptr->block will be cleared in do_write() */
       }
       break;						// and exit the loop
     }
@@ -1345,7 +1386,7 @@ void do_mount(int vol)                                  // mount volume
   if (dbfds[vol])
     return;
 
-  dbfds[vol] = open(systab->vol[vol]->file_name, O_RDWR);// open database r/wr
+  dbfds[vol] = OpenFile(systab->vol[vol]->file_name, O_RDWR);// open database r/wr
   if (dbfds[vol] < 0)
   { do_log("Cannot open database file %s - %s\n",
                   systab->vol[vol]->file_name,
@@ -1354,10 +1395,6 @@ void do_mount(int vol)                                  // mount volume
                     systab->vol[vol]->file_name);
     panic(msg);                                         // die on error
   }
-
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfds[vol], F_NOCACHE, 1);
-#endif
 
   if ((systab->vol[vol]->upto) && (!myslot))		// if map needs check
   { ic_map(-3, vol, dbfds[vol]);			// doit
@@ -1407,16 +1444,13 @@ int attach_jrn(int vol)
   		  systab->vol[vol]->vollab->journal_file);
       return 0;
     }
-    jfd = open(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)				        // on fail
     { do_log("Failed to open journal file %s\nerrno = %d\n",
 		  systab->vol[vol]->vollab->journal_file, errno);
       return 0;
     }
 
-#ifdef MV1_F_NOCACHE
-    j = fcntl(jfd, F_NOCACHE, 1);
-#endif
     lseek(jfd, 0, SEEK_SET);
     errno = 0;
     j = read(jfd, tmp, sizeof(u_int));	        	// read the magic
@@ -1657,4 +1691,4 @@ void do_map_write(int vol)
   last_map_write[vol] = MTIME(0);
 }
 
-
+// vim:ts=8:sw=8:et

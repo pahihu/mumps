@@ -86,7 +86,8 @@ int INIT_Start( char *file,                     // database
 		int netdaemons,			// no of network daemons
 		int sysid,			// system ID
 		char *srvurl,			// server URL
-		int srvport)			// server port
+		int srvport,			// server port
+                int srvsndto)                   // server send timeout
 { int dbfd;                                     // database file descriptor
   int hbuf[SIZEOF_LABEL_BLOCK/sizeof(int)];     // header buffer
   int i;                                        // usefull int
@@ -111,6 +112,7 @@ int INIT_Start( char *file,                     // database
   int syncjrn;                                  // sync jrn buf
   int minjkb;                                   // min JRN buf size
   int netjobs;					// #jobs inc. network daemons
+  int numcpu;                                   // number of CPUs
 
   if (!sysid)					// system ID not specified ?
   { struct timeval tv;
@@ -142,17 +144,21 @@ int INIT_Start( char *file,                     // database
     { fprintf(stderr, "Invalid server port %d - must be 0 to 65535\n", srvport);
       return(EINVAL);                           // exit with error
     }
+    if (srvsndto < -1)
+    { fprintf(stderr,"Invalid server send timeout %d - must be -1 to ...\n", srvsndto);
+      return(EINVAL);
+    }
   } else {					// no net daemons
     strcpy(srvurl, "");				//   clear params
     srvport = -1;
   }
 
-  if (jobs + netdaemons > 256)
-    jobs = 256 - netdaemons;
+  if (jobs + netdaemons > MAX_JOB)
+    jobs = MAX_JOB - netdaemons;
   netjobs = jobs + netdaemons;			// #jobs incl. network daemons
 
-  if ((jobs < 1)||(jobs > 256))                 // check number of jobs
-  { fprintf(stderr, "Invalid number of jobs %d - must be 1 to 256\n", jobs);
+  if ((jobs < 1)||(jobs > MAX_JOB))            // check number of jobs
+  { fprintf(stderr, "Invalid number of jobs %d - must be 1 to %d\n", jobs, MAX_JOB);
     return(EINVAL);                             // exit with error
   }
   pagesize = getpagesize();                     // get sys pagesize (bytes)
@@ -163,7 +169,7 @@ int INIT_Start( char *file,                     // database
   locksize = netjobs * LOCKTAB_SIZE;		// what we need for locktab
   locksize = (((locksize - 1) / pagesize) + 1) * pagesize; // round up
 
-  dbfd = open(file, O_RDWR);                    // open the database read/write
+  dbfd = OpenFile(file, O_RDWR);                // open the database read/write
   if (dbfd < 1)                                 // if that failed
   { fprintf( stderr,
              "Open of database %s failed\n - %s\n", // complain
@@ -171,9 +177,6 @@ int INIT_Start( char *file,                     // database
              strerror(errno));                  // what was returned
     return(errno);                              // exit with error
   }                                             // end file create test
-#ifdef MV1_F_NOCACHE
-  i = fcntl(dbfd, F_NOCACHE, 1);
-#endif
   i = read(dbfd, hbuf, SIZEOF_LABEL_BLOCK);     // read label block
   if (i < SIZEOF_LABEL_BLOCK)                   // in case of error
   { fprintf( stderr, "Read of label block failed\n - %s\n", // complain
@@ -224,7 +227,14 @@ int INIT_Start( char *file,                     // database
   jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
   jkb /= 1024;
 
-  if (sysid) printf("Starting system ID=%d\n", sysid);
+  numcpu = 1;                                   // default #cores
+#if defined(__linux) || defined(__APPLE__)
+  numcpu = sysconf(_SC_NPROCESSORS_ONLN);       // detect #cores
+  if (numcpu < 0)
+    numcpu = 1;
+#endif
+
+  if (sysid) printf("Starting system ID=%d (%dcores)\n", sysid, numcpu);
   printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
@@ -305,7 +315,7 @@ int INIT_Start( char *file,                     // database
     return(errno);                              // and return with error
   }
   
-  systab = shmat(shar_mem_id, SHMAT_SEED, 0);	// map it
+  systab = shmat(shar_mem_id, UTIL_ShmAt(), 0); // map it
   if (systab == (void *)-1) 	                // die on error
   { fprintf( stderr, "Unable to attach to systab correctly\n"); // give error
     fprintf( stderr, "error may be: %s\n", strerror(errno)); // give error
@@ -326,13 +336,16 @@ int INIT_Start( char *file,                     // database
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
-  systab->ZRestTime = MAX_REST_TIME;		// Daemon rest time
+  systab->ZMaxRestTime = DEFAULT_MAXRESTTIME;	// Daemon rest time
+  systab->ZRestTime = systab->ZMaxRestTime;
   systab->dgpID = sysid;			// system ID
   strcpy((char*) systab->dgpURL, srvurl);	// server URL
   systab->dgpPORT = srvport;			// server base port
+  systab->dgpSNDTO = srvsndto;                  // server send timeout
+  systab->dgpRCVTO = -1;                        // client recv timeout
   systab->dgpLOCKTO = 0;			// default LOCK timeout
   systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
-  for (i = 0; i < 256; i++)			// clear DGP table
+  for (i = 0; i < MAX_JOB; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
   systab->locbufTO = 0;				// disable local buffers
 
@@ -346,6 +359,7 @@ int INIT_Start( char *file,                     // database
   systab->lockfree->job = -1;			// means free
   systab->addoff = addoff;                      // Add buffer offset
   systab->addsize = addmb * MBYTE;              // and size in bytes
+  systab->numcpu2 = 2 * numcpu;                 // number of CPUs x 2
 
   for (i = 0; i < MAX_VOL; i++)                 // foreach vol[]
     systab->vol[i] = (vol_def *) ((void *)systab + sjlt_size
@@ -450,7 +464,6 @@ int INIT_Start( char *file,                     // database
   systab->vol[0]->num_of_daemons = jobs;	// initalise this
   systab->vol[0]->num_of_net_daemons = netdaemons;
 
-  systab->Mtime = time(0);                      // init MUMPS time
   curr_lock = 0;                                // clear lock on globals
 #ifdef MV1_SHSEM
   for (i = 0; i < SEM_GLOBAL; i++)              // init shared IPC
@@ -506,10 +519,8 @@ int INIT_Start( char *file,                     // database
     { gptr[i].next = NULL;			// end of list
     }
     systab->vol[0]->gbd_hash[ GBD_HASH ] = gptr; // head of free list
-#ifdef MV1_REFD
     gptr[i].prev = NULL;                        // no prev in free list
     gptr[i].hash = GBD_HASH;                    // store hash
-#endif
     gptr[i].vol = 0;                            // vol[] index
   }						// end setup gbds
 

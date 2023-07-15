@@ -82,6 +82,10 @@ u_char* Build_KeyBuf(int pIndex, u_char *pKeyBuf, int doCopy)
   return &pKeyBuf[0];					// return ptr to buf
 }
 
+short LocateEx(u_char *key, int frominsert, int indexTip)
+{
+  return Locate(key);
+}
 
 //-----------------------------------------------------------------------------
 // Function: Locate

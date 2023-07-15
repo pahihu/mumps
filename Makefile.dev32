@@ -3,13 +3,15 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
-OSTYPE	= linux
-CC	= gcc -g
+OSTYPE  = darwin
+CC	= gcc -m32
 LIBS	= -lm -lcrypt
+LOCAL_DIR = $(HOME)
 
-EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 #-DNDEBUG=1 -DMV1_DLMALLOC=1
+#EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -I$(LOCAL_DIR)/include #-DMV1_DLMALLOC=1 -DMV1_CKIT=1 -DMV1_MAPM=1 #-DNDEBUG=1 #-DMV1_SRWLOCK=1 #-DMV1_GBDRO=1 #-DMV1_F_NOCACHE=1 -DMV1_BLKSEM=1
+EXTRA   = -O2 -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -I$(LOCAL_DIR)/include -DMV1_DLMALLOC=1 -DMV1_CKIT=1 -DNDEBUG=1 -DMV1_MAPM=1 ##-DMV1_SRWLOCK=1 #-DMV1_GBDRO=1 #-DMV1_F_NOCACHE=1 -DMV1_BLKSEM=1
 ifeq ($(MAKECMDGOALS),test)
-EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64
+EXTRA   = -O0 -g -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -I$(HOME)/include -DMV1_MAPM=1 -DMV1_CKIT=1
 endif
 
 ifeq ($(findstring solaris,$(OSTYPE)),solaris)
@@ -22,8 +24,10 @@ endif
 
 
 ifeq ($(OSTYPE),darwin)
-LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
-EXTRA += -Wno-deprecated-declarations
+#LIBS    = -L$(LOCAL_DIR)/lib -lmapm -lm -framework CoreServices -framework DirectoryService -framework Security -mmacosx-version-min=10.5
+LIBS    = -L$(LOCAL_DIR)/lib -lmapm32 -lm -framework CoreServices -framework DirectoryService -framework Security -mmacosx-version-min=10.5
+#LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security -mmacosx-version-min=10.5
+EXTRA += -mmacosx-version-min=10.5 -Wno-deprecated-declarations
 
 endif
 
@@ -44,7 +48,6 @@ COMOBJS	= 	compile/dollar.o \
 		database/db_ic.o \
 		database/db_kill.o \
 		database/db_locate.o \
-		database/db_locbuf.o \
 		database/db_main.o \
 		database/db_mount.o \
 		database/db_rekey.o \
@@ -52,8 +55,6 @@ COMOBJS	= 	compile/dollar.o \
 		database/db_uci.o \
 		database/db_util.o \
 		database/db_view.o \
-		database/dgp.o \
-		database/dgp_main.o \
 		init/init_create.o \
 		init/init_run.o \
 		init/init_start.o \
@@ -68,7 +69,6 @@ COMOBJS	= 	compile/dollar.o \
 		runtime/runtime_util.o \
 		runtime/runtime_vars.o \
 		runtime/dlmalloc.o \
-		runtime/decnumber.o \
 		seqio/SQ_Util.o \
 		seqio/SQ_Signal.o \
 		seqio/SQ_Device.o \
@@ -84,12 +84,11 @@ COMOBJS	= 	compile/dollar.o \
 		util/util_memory.o \
 		util/util_routine.o \
                 util/util_rwlock.o \
-                util/util_usync.o \
 		util/util_share.o \
 		util/util_strerror.o \
-		util/util_bswap.o \
-		util/util_rle.o \
 		xcall/xcall.o
+
+#    		util/util_usync.o \
 
 LIBOBJS =       mv1api/mv1api_connect.o \
 		mv1api/mv1api_glb.o \
@@ -109,7 +108,7 @@ ${PROG}: ${OBJS}
 libmv1api.a: ${COMOBJS} ${LIBOBJS}
 	${AR} cru $@ ${COMOBJS} ${LIBOBJS}
 
-test: ${OBJS}
+test: ${OBJS} api_test
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
 api_test: api_test.o libmv1api.a

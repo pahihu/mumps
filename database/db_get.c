@@ -113,7 +113,7 @@ short Get_data(int dir)		                        // locate a record
 Found:    if ((X_NE(ptr->mem->global, 
                                 db_var.name.var_xu)) || // wrong global or
 	      (ptr->mem->type != (db_var.uci + 64)) ||	// wrong uci/type or
-	      (ptr->last_accessed == (time_t) 0))	// not available
+	      (ptr->last_accessed <= (time_t) 0))	// not available
           { break;					// exit the loop
 	  }
 	  if (LB_FILL == gbd_local_state)
@@ -130,9 +130,7 @@ Found:    if ((X_NE(ptr->mem->global,
                                                         // count success
             if (LB_DISABLED == gbd_local_state)
 	      blk[level]->last_accessed = MTIME(0);	// accessed
-#ifdef MV1_REFD
             REFD_MARK(blk[level]);
-#endif
             for (i = 0; i < level; blk[i++] = NULL);	// zot these
 	    if (!s)					// if ok
 	    { s = record->len;				// get the dbc
@@ -267,3 +265,5 @@ Found:    if ((X_NE(ptr->mem->global,
   }
   return logit(15,s);					// return result
 }
+
+// vim:ts=8:sw=8:et

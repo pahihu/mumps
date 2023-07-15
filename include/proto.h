@@ -84,11 +84,25 @@ int   _X_Empty(chr_x *a);
 void  X_set(const void *src, void *dst, size_t n);
 int   X_put(const chr_x *a, u_char *b);
 int   X_take(u_char *a, chr_x *b);
+int   _X_Len(const chr_x *a);
+int   X_ZEQ(const u_char *a, const u_char *b);
 
 #define X_Clear(x)    _X_Clear(&(x))
 #define X_EQ(x,y)     _X_EQ(&(x),&(y))
 #define X_NE(x,y)     _X_NE(&(x),&(y))
 #define X_Empty(x)    _X_Empty(&(x))
+#define X_Len(x)      _X_Len(&(x))
+
+
+//****************************************************************************
+// Compiler
+//
+void    comp_ushort(u_short u);
+void    comp_short(short s);
+#define FETCH_SHORT(v)      { v = 0; bcopy(mumpspc,&v,sizeof(short)); mumpspc += sizeof(short); }
+#define FETCH_USHORT(v)     { v = 0; bcopy(mumpspc,&v,sizeof(u_short)); mumpspc += sizeof(u_short); }
+#define READ_SHORT(v,idx)   { v = 0; bcopy(mumpspc+2*(idx),&v,sizeof(short)); }
+#define READ_USHORT(v,idx)  { v = 0; bcopy(mumpspc+2*(idx),&v,sizeof(u_short)); }
 
 
 //****************************************************************************
@@ -110,11 +124,20 @@ short DB_KillEx(mvar *var, int what);            // remove sub-tree
 short DB_Mount( char *file, int volume, int gmb, int jkb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_OrderEx(mvar *var, u_char *buf, int dir, cstring *dat);
-                                                 // get next subscript and value
-short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
-short DB_QueryEx(mvar *var, u_char *buf, int dir,// get next key
-                        int docvt, cstring *dat);//   and value
+short DB_Query(mvar *var, u_char *buf, int dir, int flags); // get next key
+
+#define GLO_NOVOL       1
+#define GLO_NOUCI       2
+#define GLO_PREV        4
+#define GLO_DOCVT       8
+                                                 // get next key and value
+short DB_QueryEx(mvar *var, u_char *buf, int dir, int flags, cstring *dat);
 short DB_QueryD(mvar *var, u_char *buf);	 // get next key and data
+
+short Lock_GBD(void);                            // lock SEM_GLOBAL
+void Unlock_GBD(void);                           // unlock SEM_GLOBAL
+int DB_SetLong(mvar *var, int len, u_char *data);// set long data to global
+int DB_GetLong(mvar *var, u_char *buf);          // get long data from global
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
 short DB_Compress(mvar *var, int flags);	 // on line compressor
 int DB_Free(int vol);                            // return total free blocks
@@ -139,6 +162,7 @@ short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
 int SyncFD(int fd);                              // sync file descriptor
+int OpenFile(const char *path,int mode);         // open specified file
 void DB_WillUnlock(void);                        // DB unlock
 void Reserve_GBD(struct GBD* p);                 // reserve a GBD
 
@@ -186,7 +210,7 @@ short SQ_Force(cstring *device,
 //****************************************************************************
 // Compiler
 //
-short Compile_Routine(mvar *rou, mvar *src, u_char *stack); // whole routine
+int Compile_Routine(mvar *rou, mvar *src, u_char *stack); // whole routine
 void eval();					// compiler
 void evalx(int chain);				// compiler, chaining
 void parse();					// ditto
@@ -233,6 +257,7 @@ short ltoa(char *buf, long n);                  // long to string
 short ultoa(char *buf, unsigned long n);        // u_long to string
 
 // Runtime Functions
+int do_log(const char *fmt,...);                // daemon log
 int mv1log(int depth,const char *fmt,...);
 #define LOG(x)
 #define DBG(x)
@@ -417,6 +442,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 typedef u_int64 usec_t;
 usec_t UTIL_GetMicroSec(void);			// microsec timestamp
 void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
+void* UTIL_ShmAt(void);                         // SHM address to attach to
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time
@@ -450,6 +476,7 @@ short LCK_Add(int count, cstring *list, int to, int job);
 short LCK_Sub(int count, cstring *list, int job);
 short LCK_LockToString(int count, const cstring *list, u_char *out);
 short LCK_StringToLock(int count, const cstring *str, cstring *list);
+void dumpCStr(char*,cstring*);
 
 // Xcalls
 //
@@ -472,5 +499,11 @@ short Xcall_xrsm(char *ret_buffer, cstring *str, cstring *dummy);
 short Xcall_getenv(char *ret_buffer, cstring *env, cstring *dummy);
 short Xcall_setenv(char *ret_buffer, cstring *env, cstring *value);
 short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2);
+short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy);
+
+#define ErrM6   _ErrM6(__FILE__,__LINE__)
+extern int m6loc;
+extern char m6str[128];
+void dumpXU(chr_x *a);
 
 #endif                                          // !_MUMPS_PROTO_H_
