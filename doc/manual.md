@@ -778,20 +778,22 @@ MUMPS with commands/functions written in MUMPS
 | Maximum identifier length	    | 31 chars		       |
 | Maximum routine object size	    | 64KB                     |
 | Maximum lines in a routine        | 32767                    |
+| Maximum no. of routine tags       | 256                      |
+| Maximum no. of different argument names in a routine | 256   |
 | Maximum local variable length	    | 32KB		       |
-| Maximum number of volumes	    | 16		       |
+| Maximum no. of volumes	    | 16		       |
 | Volume block size		    | 4KB - 256KB	       |
 | Volume size            	    | 32M blocks (128GB - 8TB) |
 | Namespaces per volume (UCI)	    | 63		       |
 | Maximum global key size	    | 255		       |
 | Maximum subscript length          | 127                      |
 | Maximum global value size	    | min(block size, 32KB)    |
-| Number of global subscripts	    | 63                       |
+| No. of global subscripts	    | 63                       |
 | Global translation table size	    | 255		       |
-| Maximum number of jobs            | 4096                     |
-| Maximum number of daemons	    | 10		       |
+| Maximum no. of jobs               | 4096                     |
+| Maximum no. of write daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |
-| Maximum number of network daemons | 10                       |
-| Maximum number of connected environments | 254               |
-| Maximum number of environment replicas | 16                  |
+| Maximum no. of network daemons    | 10                       |
+| Maximum no. of connected environments | 254                  |
+| Maximum no. of environment replicas   | 16                   |
 
