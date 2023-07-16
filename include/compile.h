@@ -58,7 +58,7 @@
 		+ sizeof(u_char) + sizeof(u_char) + sizeof(short)
 
 #define MAX_VAR_TBL     256                     // max var_tbl[] size
-#define MAX_TAG_TBL     256                     // max tag_tbl[] size
+#define MAX_TAG_TBL     1024                    // max tag_tbl[] size
 #define AVROUSIZ        3072                    // average compiled routine size
 #define MAXROUSIZ       (65535-RBD_OVERHEAD)    // max compiled rou size
 #define MAXROULIN       32767                   // max rou lines
@@ -119,6 +119,18 @@ typedef struct __PACKED__ TAGS 			// define routine tags
   u_short code;                                 // start of code this tag
 } tags;                                         // end tags struct
 
+#define DECL_RTNCODE_HEAD \
+  u_short comp_ver;     /* compiler version */ \
+  u_short comp_user;    /* compiled by user# */ \
+  int comp_date;        /* date compiled (MUMPS form) */ \
+  int comp_time;        /* time compiled (MUMPS form) */ \
+  u_short tag_tbl;      /* offset to tag table */ \
+  u_short num_tags;     /* number of tags in table */ \
+  u_short var_tbl;      /* offset to var table */ \
+  u_short num_vars;     /* number of vars in table */ \
+  u_short code;         /* offset to compiled code */ \
+  u_short code_size;    /* bytes of code */
+
 
 typedef struct __PACKED__ RBD 			// define routine buf desciptor
 { struct RBD *fwd_link;				// forward link this hash
@@ -130,18 +142,9 @@ typedef struct __PACKED__ RBD 			// define routine buf desciptor
   u_char vol;					// vol num for this rou
   u_short rou_size;				// rou->len of routine node
 
-// what follows is the routine from disk (up to 32767 bytes + a NULL)
+// what follows is the routine from disk (up to 65535 bytes + a NULL)
 
-  u_short comp_ver;                             // compiler version
-  u_short comp_user;                            // compiled by user#
-  int comp_date;                                // date compiled (MUMPS form)
-  int comp_time;                                // time compiled (MUMPS form)
-  u_short tag_tbl;                              // offset to tag table
-  u_short num_tags;                             // number of tags in table
-  u_short var_tbl;                              // offset to var table
-  u_short num_vars;                             // number of vars in table
-  u_short code;                                 // offset to compiled code
-  u_short code_size;                            // bytes of code
+  DECL_RTNCODE_HEAD
 
 } rbd;                 				// end rbd struct
 
@@ -174,6 +177,10 @@ void CompError(short err,const char *file,int lno); // compile error
 void Err_Init(void);                            // init comperror msg
 cstring *Err_CString(void);                     // comperror msg
 short Err_Len(void);                            // length of comperror msg
+
+// Compressed tag_tbl[]
+u_char *rbd_tag_name(rbd *rouadd, u_short i);   // ptr to ziped tag_tbl[i].name
+u_short rbd_tag_code(rbd *rouadd, u_short i);   // tag_tbl[i].code
 
 // Debug prototypes
 

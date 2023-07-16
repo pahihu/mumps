@@ -164,7 +164,7 @@
 #define ERRZ50		50	// Invalid argument to $STACK()
 #define ERRZ51		51	// Interupt - Control C Received
 #define ERRZ52		52	// Insufficient space to load routine
-#define ERRZ53		53	// Too many tags (max 255)
+#define ERRZ53		53	// Too many tags (max 1024)
 #define ERRZ54		54	// Too many lines in routine (max 65535)
 #define ERRZ55		55	// End of linked data reached
 #define ERRZ56		56	// Symbol table full
@@ -206,6 +206,7 @@
 #define ERRZ92		92	// Volume is protected
 #define ERRZ93		93	// Volume is read-only
 #define ERRZ94		94	// Block not found in local buffer 
+#define ERRZ95		95	// Too many argument names (max 255)
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

@@ -288,7 +288,7 @@ typedef union __PACKED__ VAR_U 			// get at this two ways
 
 typedef struct __PACKED__ CSTRING 		// our string type
 { short len;                                    // length of it
-  u_char buf[32768];                            // and the content
+  u_char buf[MAX_STR_LEN+1];                    // and the content
 } cstring;                                      // end counted string
 
 #define MV1_SUBSPOS     1

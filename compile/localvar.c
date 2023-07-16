@@ -81,7 +81,7 @@ u_char *localvar_op;
 
 short localvar()                                // evaluate local variable
 { char c;                                       // current character
-  u_short idx = 0;				// index
+  u_char idx = 0;				// index
   int i;                                        // a usefull int
   int count = 0;				// count subscripts
   var_u var;                                    // to hold variable names
@@ -188,19 +188,16 @@ subs:
 	break;
       }
     }
-    if (i == MAX_VAR_TBL)                       // too many?
-      return -(ERRZ53+ERRMLAST);                // error exit
-    type |= TYPVARIDX;			        // change the type
-    idx = i;					// save index
+    if (i != MAX_VAR_TBL)                       // too many?
+    { type |= TYPVARIDX;			// change the type
+      idx = i;					// save index
+    }
   }
   if (type < TYPVARNAKED)			// normal local or global var
   { type = type + count;			// add the count
     *comp_ptr++ = (u_char) type;		// store it
     if (type & TYPVARIDX)			// index type?
-    { bcopy(&idx, comp_ptr, sizeof(u_short));   // save the index
-      comp_ptr += sizeof(u_short);
-      // *comp_ptr++ = idx;			// save the index
-    }
+      *comp_ptr++ = idx;			// save the index
   }
   else						// funnee type
   { *comp_ptr++ = (u_char) type;		// store the type

@@ -340,17 +340,21 @@ exit:
 //
 // If rou == NULL, check the routine->src
 
+typedef struct __PACKED__ RTNCODE { DECL_RTNCODE_HEAD } rtncode;
+
 int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 { cstring *line;				// the source line
   u_char *code;					// the code
-  short s, ss;					// for returns
+  short s;					// for returns
   int cnt;					// count things
   int nsubs = 0;				// count subscripts
   u_char src_slen;				// key in source
   u_char rou_slen = 0;				// key in routine
   u_char temp[100];				// temp space
   tags tag_tbl[MAX_TAG_TBL];			// space for the tags
+  tags tag_tbl2[MAX_TAG_TBL];			// space for hashed tags
   var_u var_tbl[MAX_VAR_TBL];			// and the variables
+  u_short offs_tbl[MAX_TAG_TBL];                // space for the offset table
   var_u var;					// for one var
   int num_tags = 0;				// count tags
   int num_vars = 0;				// and variables
@@ -363,7 +367,8 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   var_u rounam;					// the routine name
   int same = 0;					// same routine flag
   u_char src_nsubs, rou_nsubs = 0;
-  u_short offs, u, *pu;                         // offset into RBD, handy vars
+  int offs;                                     // offset into line->buf[]
+  rtncode  *pcodehd;                            // ptr to rtn code header
 
   partab.checkonly = 0;				// a real compile
   partab.ln = &lino;				// save for $&%ROUCHK()
@@ -511,7 +516,6 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	*comp_ptr++ = LOADARG;			// add the opcode
 	p = comp_ptr;				// remember where the count is
 	comp_ptr++;				// skip the count
-        pu = (u_short *) comp_ptr;              // remember arg index list
 	while (TRUE)				// scan the list
 	{ if (*source_ptr == ')')		// found end yet?
 	  { source_ptr++;			// skip )
@@ -557,16 +561,13 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	    }
 	  }
 	  if (i == MAX_VAR_TBL)	                // too many?
-	  { cnt = (-(ERRZ53+ERRMLAST));		// too many
+	  { cnt = (-(ERRZ95+ERRMLAST));		// too many
 	    break;				// exit
 	  }
-	  // *comp_ptr++ = (u_char) i;		// save index
-          u = (u_short) i;                      // save index
-          bcopy(&u, comp_ptr, sizeof(u_short));
-          comp_ptr += sizeof(u_short);
+	  *comp_ptr++ = (u_char) i;		// save index
 	  cnt++;				// count it
-	  for (j = 0; j < cnt-1; j++)		// scan what's already there
-	    if (pu[j] == i)			// if already got that one
+	  for (j = 1; j < cnt; j++)		// scan what's already there
+	    if (p[j] == i)			// if already got that one
 	    { cnt = -ERRM21;			// complain
 	      break;				// exit
 	    }
@@ -654,45 +655,62 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   partab.varlst = NULL;				// for localvar()
   //for (num_vars = 0; var_tbl[num_vars].var_qu != 0; num_vars++); // count them
   for (num_vars = 0; !X_Empty(var_tbl[num_vars].var_xu); num_vars++); // count them
-  p = line->buf;				// where we put it now
 
-  cptr->len = Vhorolog(cptr->buf);		// get current date/time
-  s = COMP_VER;                                 // compiler version
-  bcopy(&s, p, sizeof(short));
-  p += sizeof(short);
-  s = partab.jobtab->user;                      // user who compiled it
-  bcopy(&s, p, sizeof(short));
-  p += sizeof(short);
-  i = cstringtoi(cptr);                         // get the date
-  bcopy(&i, p, sizeof(int));
-  p += sizeof(int);
-  i = atoi((char *)&cptr->buf[6]);              // and the time
-  bcopy(&i, p, sizeof(int));
-  p += sizeof(int);
-  i = sizeof(tags) * num_tags;			// space for tags
-  j = sizeof(var_u) * num_vars;			// space for vars
-  s = (p - line->buf) + (6 * sizeof(u_short));  // offset for tags
-  bcopy(tag_tbl, &line->buf[s], i);		// copy tag table
-  bcopy(&s, p, sizeof(short));                  // where it went
-  p += sizeof(short);
-  ss = (short)num_tags;                         // copy the count
-  bcopy(&ss, p, sizeof(short));
-  p += sizeof(short);
-  s = s + i;			                // wher vars go
-  bcopy(var_tbl, &line->buf[s], j);		// copy var table
-  bcopy(&s, p, sizeof(short));                  // where it went
-  p += sizeof(short);
-  ss = (short) num_vars;                        // copy the count
-  bcopy(&ss, p, sizeof(short));
-  p += sizeof(short);
-  s = s + j;		                        // where the code goes
-  bcopy(code, &line->buf[s], comp_ptr - code);  // copy the code
-  bcopy(&s, p, sizeof(short));                  // where it went
-  p += sizeof(short);
-  offs = (u_short) (comp_ptr - code);           // and the size
-  bcopy(&offs, p, sizeof(u_short));
-  p += sizeof(u_short);
-  i = p - line->buf + (comp_ptr - code) + i + j; // total size
+  for (i = 0; i < num_tags; i++)                // clear 2nd tag_tbl[]
+  { X_Clear(tag_tbl2[i].name.var_xu);
+  }
+  for (i = 0; i < num_tags; i++)                // hash tag_tbl[] into tag_tbl2
+  { uint32_t h;
+    int len;
+
+    len = X_Len(tag_tbl[i].name.var_xu);
+    h = FNV1aHash(len, tag_tbl[i].name.var_cu);
+    h = h % num_tags;
+    for (j = 0; j < num_tags; j++)
+    { if (X_Empty(tag_tbl2[h].name.var_xu))
+      { tag_tbl2[h] = tag_tbl[i];
+        break;
+      }
+      if (++h == num_tags) h = 0;
+    }
+  }
+ 
+  p = line->buf;                                // where we put it now
+  pcodehd = (rtncode *)p;                       // set up ptr
+
+  cptr->len = Vhorolog(cptr->buf);              // get current date/time
+  pcodehd->comp_ver = COMP_VER;                 // compiler version
+  pcodehd->comp_user = partab.jobtab->user;     // user who compiled it
+  pcodehd->comp_date = cstringtoi(cptr);        // get the date
+  pcodehd->comp_time = atoi((char *)&cptr->buf[6]); // and the time
+  offs = sizeof(rtncode);                       // offset for tags
+
+  for (i = 0; i < num_tags; i++)                // save tag table, compressed
+  { if (offs & 1) offs++;                       // align
+    offs_tbl[i] = RBD_OVERHEAD + offs;
+    *((u_short *)&line->buf[offs]) = tag_tbl2[i].code;
+    offs += sizeof(short);
+    offs += X_put(&tag_tbl2[i].name.var_xu, &line->buf[offs]);
+  }
+  j = sizeof(u_short) * num_tags;               // space for tag offs
+  if (offs & 1) offs++;                         // align
+  bcopy(offs_tbl, &line->buf[offs], j);         // copy tag offset table
+  pcodehd->tag_tbl = offs;                      // where it went
+  pcodehd->num_tags = num_tags;                 // copy the count
+  offs = offs + j;                              // wher vars go
+
+  i = sizeof(var_u) * num_vars;                 // space for vars
+  if (offs & 1) offs++;                         // align
+  bcopy(var_tbl, &line->buf[offs], i);          // copy var table
+  pcodehd->var_tbl = offs;                      // where it went
+  pcodehd->num_vars = num_vars;                 // copy the count
+  offs = offs + i;                              // where the code goes
+
+  i = comp_ptr - code;                          // code size
+  bcopy(code, &line->buf[offs], i);             // copy the code
+  pcodehd->code = offs;                         // where it went
+  pcodehd->code_size = (u_short) i;             // and the size
+  i += offs;                                    // total size
   if (i > MAXROUSIZ)
   { // comperror(-(ERRZ54+ERRMLAST));		// complain
     if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
@@ -715,3 +733,21 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   i = SemOp(SEM_ROU, systab->maxjob);		// release sem
   return j;					// NEED MORE HERE
 }
+
+u_char *rbd_tag_name(rbd *rouadd, u_short i)
+{ u_short *offs_tbl;
+
+  ASSERT(i < rouadd->num_tags);
+  offs_tbl = (u_short*)((u_char *)rouadd + rouadd->tag_tbl);
+  return (u_char *)rouadd + offs_tbl[i] + sizeof(u_short);
+}
+
+u_short rbd_tag_code(rbd *rouadd, u_short i)
+{ u_short *offs_tbl, *pu;
+
+  ASSERT(i < rouadd->num_tags);
+  offs_tbl = (u_short *)((u_char *)rouadd + rouadd->tag_tbl);
+  pu = (u_short *)((u_char *)rouadd + offs_tbl[i]);
+  return *pu;
+}
+

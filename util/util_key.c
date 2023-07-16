@@ -821,6 +821,30 @@ int X_take(u_char *a, chr_x *b)
   return 1 + len;
 }
 
+int _X_Len(const chr_x *a)
+{
+  int len;
+
+  for(len = 0; (len < MAX_NAME_BYTES) && a->buf[len]; len++);
+  return len;
+}
+
+int X_ZEQ(const u_char *a, const u_char *b)
+{
+/*
+char tmp1[MAX_NAME_BYTES+1];
+char tmp2[MAX_NAME_BYTES+1];
+
+bcopy(a + 1, tmp1, *a);
+tmp1[*a] = '\0';
+bcopy(b + 1, tmp2, *b);
+tmp2[*b] = '\0';
+fprintf(stderr,"ZEQ: %s ? %s\r\n",tmp1,tmp2);
+*/
+  if (*a != *b)
+    return 0;
+  return 0 == bcmp(a + 1, b + 1, *a);
+}
 
 short UTIL_Cat_VarU(u_char *str, var_u *name)
 { int i;

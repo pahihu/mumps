@@ -165,7 +165,7 @@ static struct
   {ERRZ50+ERRMLAST, 	"Invalid argument to $STACK()"},
   {ERRZ51+ERRMLAST, 	"Interupt - Control C Received"},
   {ERRZ52+ERRMLAST, 	"Insufficient space to load routine"},
-  {ERRZ53+ERRMLAST, 	"Too many tags (max 255)"},
+  {ERRZ53+ERRMLAST, 	"Too many tags (max 1024)"},
   {ERRZ54+ERRMLAST, 	"Too many lines in routine (max 65535)"},
   {ERRZ55+ERRMLAST,	"End of linked data reached"},
   {ERRZ56+ERRMLAST,	"Symbol table full"},
@@ -207,6 +207,7 @@ static struct
   {ERRZ92+ERRMLAST,	"Volume is protected"},
   {ERRZ93+ERRMLAST,	"Volume is read-only"},
   {ERRZ94+ERRMLAST,	"Block not found in local buffer"},
+  {ERRZ95+ERRMLAST, 	"Too many argument names (max 255)"},
   {0,         NULL}
 };                                                      // merrtab[]
 

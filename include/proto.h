@@ -84,11 +84,14 @@ int   _X_Empty(chr_x *a);
 void  X_set(const void *src, void *dst, size_t n);
 int   X_put(const chr_x *a, u_char *b);
 int   X_take(u_char *a, chr_x *b);
+int   _X_Len(const chr_x *a);
+int   X_ZEQ(const u_char *a, const u_char *b);
 
 #define X_Clear(x)    _X_Clear(&(x))
 #define X_EQ(x,y)     _X_EQ(&(x),&(y))
 #define X_NE(x,y)     _X_NE(&(x),&(y))
 #define X_Empty(x)    _X_Empty(&(x))
+#define X_Len(x)      _X_Len(&(x))
 
 
 //****************************************************************************

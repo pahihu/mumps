@@ -97,8 +97,8 @@ short run(long savasp, long savssp)		// run compiled code
   //chr_q tag;					// a tag name
   chr_x rou;					// a routine name
   chr_x tag;					// a tag name
+  u_char ztag[MAX_NAME_BYTES+1];                // ziped tag name
   var_u *list;					// pointer to chr_q things
-  tags *ttbl;					// a structure of tags
   rbd *rouadd;					// routine pointer
   do_frame *curframe;				// a do frame pointer
   long asp;					// copy of asp
@@ -2348,15 +2348,20 @@ short run(long savasp, long savssp)		// run compiled code
 	  &((u_char *)rouadd)[rouadd->code];	// save start pc
 	//if (tag != 0)				// tag specified ?
 	if (!X_Empty(tag))			// tag specified ?
-	{ ttbl = (tags *) &((u_char *)rouadd)[rouadd->tag_tbl];
-	  j = 0;				// setup j as a flag
-	  for (i = 0; i < rouadd->num_tags; i++) // scan the tags
-            //if (ttbl[i].name.var_qu == tag)	// found it
-            if (X_EQ(ttbl[i].name.var_xu, tag))	// found it
-	    { curframe->pc = curframe->pc + ttbl[i].code; // addjust pc
-	      j = 1;				// flag ok
-	      break;				// and exit
-	    }
+        { uint32_t h, tag_len;
+          tag_len = X_put(&tag, ztag);          // compress tag
+          j = 0;                                // setup j as a flag
+          h = FNV1aHash(tag_len-1, &ztag[1]) % rouadd->num_tags;
+          for (i = 0; i < rouadd->num_tags; i++) // scan the tags
+          { if (X_ZEQ(rbd_tag_name(rouadd, h), ztag)) // found it
+            { curframe->pc = curframe->pc + rbd_tag_code(rouadd, h);
+                                                // addjust pc
+              j = 1;                            // flag ok
+              break;                            // and exit
+            }
+            if (++h == rouadd->num_tags) h = 0;
+          }
+
 	  if (j == 0)				// if that didn't work
 	  { partab.jobtab->cur_do--;		// back to original frame
 	    ERROR(-ERRM13)			// give up
@@ -2439,11 +2444,8 @@ short run(long savasp, long savssp)		// run compiled code
 	  for (i = 0; i < j; i++)		// for each arg
 	  //{ vt = (chr_q *) (((u_char *) rouadd) + rouadd->var_tbl);
 	  //  list[i].var_qu = vt[mumpspc[i]];    // get the var name
-	  { u_short idx;
-            bcopy( mumpspc + 2*i, &idx, sizeof(u_short));// get the index
-            vt = (chr_x *) (((u_char *) rouadd) + rouadd->var_tbl);
-	    // list[i].var_xu = vt[mumpspc[i]];    // get the var name
-	    list[i].var_xu = vt[idx];           // get the var name
+	  { vt = (chr_x *) (((u_char *) rouadd) + rouadd->var_tbl);
+	    list[i].var_xu = vt[mumpspc[i]];    // get the var name
 	  }
 	  s = ST_New(j, list); 			// new them
 	  if (s < 0)
@@ -2461,12 +2463,9 @@ short run(long savasp, long savssp)		// run compiled code
 	  var->slen = 0;			// no subscripts
 	  s = 0;				// clear error flag
 	  for (i = args-2; i >=0; --i)		// for each supplied arg
-	  { u_short idx;
-            s = i;                              // index is i
-            if ((skip2ndarg) && (i > 1)) s--;     // $ZSEND 0->0,1 skip,2->1,...
-            bcopy( mumpspc + 2*s, &idx, sizeof(u_short));// get the index
-            // var->volset = mumpspc[s] + 1;	// get the index
-            var->volset = idx + 1;	        // get the index
+	  { s = i;                              // index is i
+            if ((skip2ndarg) && (i > 1)) s--;   // $ZSEND 0->0,1 skip,2->1,...
+            var->volset = mumpspc[s] + 1;	// get the index
 	    cptr = (cstring *) astk[--asp];	// get data ptr
 	    if (cptr != NULL)			// normal data type?
 	    { if ((skip2ndarg) && (i == 1))     // $ZSEND skip 2nd arg
@@ -2510,7 +2509,7 @@ short run(long savasp, long savssp)		// run compiled code
 	    partab.jobtab->cur_do--;	        // point back
             ERROR(s)			        // exit on error
           }
-	  mumpspc = mumpspc + 2*j;		// skip args
+	  mumpspc = mumpspc + j;		// skip args
 	}
 	if ((curframe->type & TYPE_EXTRINSIC) || // if it's extrinsic
 	    (curframe->level))			// or argless do
@@ -2741,15 +2740,19 @@ short run(long savasp, long savssp)		// run compiled code
 	  &((u_char *)rouadd)[rouadd->code];	// save start pc
 	//if (tag != 0)				// tag specified ?
 	if (!X_Empty(tag))			// tag specified ?
-	{ ttbl = (tags *) &((u_char *)rouadd)[rouadd->tag_tbl];
-	  j = 0;				// setup j as a flag
-	  for (i = 0; i < rouadd->num_tags; i++) // scan the tags
-            //if (ttbl[i].name.var_qu == tag)	// found it
-            if (X_EQ(ttbl[i].name.var_xu, tag))	// found it
-	    { curframe->pc = curframe->pc + ttbl[i].code; // addjust pc
-	      j = 1;				// flag ok
-	      break;				// and exit
-	    }
+        { uint32_t h, tag_len;
+          tag_len = X_put(&tag, ztag);          // zip tag
+          j = 0;                                // setup j as a flag
+          h = FNV1aHash(tag_len-1, &ztag[1]) % rouadd->num_tags;
+          for (i = 0; i < rouadd->num_tags; i++) // scan the tags
+          { if (X_ZEQ(rbd_tag_name(rouadd, h), ztag))// found it
+            { curframe->pc = curframe->pc + rbd_tag_code(rouadd, h);
+                                                // addjust pc
+              j = 1;                            // flag ok
+              break;                            // and exit
+            }
+            if (++h == rouadd->num_tags) h = 0;
+          }
 	  if (j == 0)				// if that didn't work
 	    ERROR(-ERRM13)			// give up
 	  while (offset)			// if there is an offset
@@ -3266,9 +3269,7 @@ short run(long savasp, long savssp)		// run compiled code
 	var = NULL;				// clear var address
 	if (i == TYPVARIDX)			// index type?
 	{ mumpspc++;				// skip type
-	  // i = *mumpspc++;			// get var idx
-          i = 0; bcopy( mumpspc, &i, sizeof(u_short));// get var idx
-          mumpspc += sizeof(u_short);
+	  i = *mumpspc++;			// get var idx
 	  s = partab.jobtab->dostk[partab.jobtab->cur_do].symbol[i];
 	  if (s == -1)				// if not attached
 	  { rouadd =
