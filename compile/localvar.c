@@ -182,10 +182,10 @@ subs:
 	break;
       }
     }
-    if (i == 256)                               // too many?
-      return -(ERRZ53+ERRMLAST);                // return error
-    type |= TYPVARIDX;			        // change the type
-    idx = i;					// save index
+    if (i != 256)
+    { type |= TYPVARIDX;			// change the type
+      idx = i;					// save index
+    }
   }
   if (type < TYPVARNAKED)			// normal local or global var
   { type = type + count;			// add the count
