@@ -207,7 +207,7 @@ static struct
   {ERRZ92+ERRMLAST,	"Volume is protected"},
   {ERRZ93+ERRMLAST,	"Volume is read-only"},
   {ERRZ94+ERRMLAST,	"Block not found in local buffer"},
-  {ERRZ95+ERRMLAST, 	"Too many argument names (max 255)"},
+  {ERRZ95+ERRMLAST, 	"Too many local/argument names (max 255)"},
   {0,         NULL}
 };                                                      // merrtab[]
 

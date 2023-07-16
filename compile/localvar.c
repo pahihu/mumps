@@ -172,25 +172,27 @@ subs:
   localvar_op = comp_ptr;
   ret = comp_ptr - ptr;				// remember here
   *comp_ptr++ = OPVAR;				// opcode
-  if ((type < TYPVARGBL) &&			// candidate for index?
-      (partab.varlst != NULL) &&		// and in a routine compile
-      (var.var_cu[0] != '$'))			// and it's not $...
-  { for (i = 0; ; i++)				// scan list
-    { if (i == MAX_VAR_TBL) break;		// too many
-      //if (partab.varlst[i].var_qu == var.var_qu)
-      if (X_EQ(partab.varlst[i].var_xu, var.var_xu))
-        break;					// found it
-      // if (partab.varlst[i].var_qu == 0)
-      if (X_Empty(partab.varlst[i].var_xu))
-      { 
-        //partab.varlst[i].var_qu = var.var_qu;	// set it
-        partab.varlst[i].var_xu = var.var_xu;	// set it
-	break;
+  if (systab->compidxloc)
+  { if ((type < TYPVARGBL) &&			// candidate for index?
+        (partab.varlst != NULL) &&		// and in a routine compile
+        (var.var_cu[0] != '$'))			// and it's not $...
+    { for (i = 0; ; i++)			// scan list
+      { if (i == MAX_VAR_TBL) break;		// too many
+        //if (partab.varlst[i].var_qu == var.var_qu)
+        if (X_EQ(partab.varlst[i].var_xu, var.var_xu))
+          break;				// found it
+        // if (partab.varlst[i].var_qu == 0)
+        if (X_Empty(partab.varlst[i].var_xu))
+        {
+          //partab.varlst[i].var_qu = var.var_qu;// set it
+          partab.varlst[i].var_xu = var.var_xu; // set it
+          break;
+        }
       }
-    }
-    if (i != MAX_VAR_TBL)                       // too many?
-    { type |= TYPVARIDX;			// change the type
-      idx = i;					// save index
+      if (i != MAX_VAR_TBL)                     // too many?
+      { type |= TYPVARIDX;			// change the type
+        idx = i;				// save index
+      }
     }
   }
   if (type < TYPVARNAKED)			// normal local or global var

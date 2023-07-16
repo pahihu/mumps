@@ -109,6 +109,7 @@
 #define MAX_SUBSCRIPTS  63                      // max no. of subscripts
 #define DEFAULT_ZMINSPACE 1024                  // Min. space for Compress
 #define DEFAULT_GBSYNC  300                     // Global Buffer Sync in sec
+#define DEFAULT_IDXLOC  1                       // Compile indexed locals
 
 #define SECDAY          86400                   // seconds per day ($H)
 #define YRADJ           47117                   // days from 1 Jan 1841 to 1970
@@ -660,6 +661,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   // values: 0 - FULL, 1 - CUMULATIVE, 2 - SERIAL
   char rstfile[VOL_FILENAME_MAX];		// file to restore
   u_int locbufTO;				// local buffer timeout
+  int compidxloc;                               // compile indexed locals
 } systab_struct;                                // end of systab
                                                 // Followed by jobtab.
 						// sizeof(systab_struct) = 256

@@ -206,7 +206,7 @@
 #define ERRZ92		92	// Volume is protected
 #define ERRZ93		93	// Volume is read-only
 #define ERRZ94		94	// Block not found in local buffer 
-#define ERRZ95		95	// Too many argument names (max 255)
+#define ERRZ95		95	// Too many local/argument names (max 255)
 #define ERRZLAST	200	// Must equal last implementation error
 
 // Database dummy errors

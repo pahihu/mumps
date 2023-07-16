@@ -361,6 +361,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         return partab.compmsg->len;                     // return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "compidxloc\0", 11) == 0))
+      { return itocstring(buf, systab->compidxloc);   // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "resttime\0", 9) == 0))
       { return itocstring(buf, systab->ZRestTime);   // return the value
       }
@@ -741,6 +745,12 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { if (cstringtob(data))
         { systab->historic |= HISTORIC_OFFOK;
         }
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "compidxloc\0", 11) == 0))
+      { systab->compidxloc = cstringtob(data);
 	return 0;				// and exit
       }
 
