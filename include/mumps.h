@@ -463,6 +463,7 @@ typedef struct __ALIGNED__ VOL_DEF
   VOLATILE int garbQw;                          // write ptr for garbage que
   VOLATILE int garbQr;                          // read ptr for garbage que
 #endif
+  VOLATILE u_int lastQw;                         // last dirty/garbageQ write
   int syncjrn;                                  // fsync() jrn file
   VOLATILE u_int jrnbufsize;                    // current jrn buffer size
   u_int   jrnbufcap;                            // jrn buffer capacity
@@ -482,6 +483,8 @@ typedef struct __ALIGNED__ VOL_DEF
   u_char remote_vollab[SIZEOF_LABEL_BLOCK];	// remote VOL label
   db_stat stats;                                // database statistics
   u_int map_chunks[MAX_MAP_CHUNKS];		// bitmap for dirty map blocks in 4K chunks
+  VOLATILE time_t last_map_write;               // last map write
+  VOLATILE time_t last_sync;                    // last database sync
 } vol_def;                                      // end of volume def
 						// sizeof(vol_def) = 57948
 

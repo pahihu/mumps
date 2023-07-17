@@ -276,6 +276,8 @@ void Queit2(gbd *p_gbd,
   systab->vol[0]->dirtyQw = (i + 1) & (NUM_DIRTY - 1);  // reset ptr
 #endif
 
+  systab->vol[0]->lastQw = MILLITIME();                 // last written
+
   return;                                               // and exit
 }
 
@@ -374,6 +376,9 @@ void GarbitEx(int blknum,char *path,int lno)            // que a blk for garb
   systab->vol[0]->garbQ[i] = blknum;                    // stuff it in
   systab->vol[0]->garbQw = (i + 1) & (NUM_GARB - 1);    // reset ptr
 #endif
+
+  systab->vol[0]->lastQw = MILLITIME();                 // last written
+
   return;                                               // and exit
 }
 
@@ -1342,6 +1347,33 @@ u_int DB_GetDirty(int vol)
   }
 
   return cnt;
+}
+
+int DB_HasDirty(int vol, u_int num_dirty)
+{ int i, num_gbd;
+  u_int cnt;
+  vol_def *curr_vol;
+  gbd *ptr;
+
+  ASSERT(0 <= vol);                                     // valid vol[] index
+  ASSERT(vol < MAX_VOL);
+  curr_vol = systab->vol[vol];
+  ASSERT(NULL != curr_vol->vollab);                     // mounted
+
+  num_gbd = curr_vol->num_gbd;
+  cnt = 0;
+  for (i = 0; i < num_gbd; i++)
+  { ptr = &curr_vol->gbd_head[i];
+    if (ptr->block &&                                   // has a block
+        (ptr->dirty ||                                  //   AND dirty
+        (ptr->last_accessed <= 0)))                     //    OR zotted
+    { cnt++;                                            // increment count
+      if (cnt > num_dirty)                              // at least num_dirty?
+        return 1;                                       //   say yes
+    }
+  }
+
+  return 0;                                             // not enough dirty
 }
 
 static

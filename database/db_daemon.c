@@ -83,10 +83,8 @@ void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
 static time_t last_write_garb;                          // last WRITE/GARB
-static time_t last_map_write[MAX_VOL];                  // last map write
 static int jnl_fds[MAX_VOL];                            // jrn file desc.
 static u_char jnl_seq[MAX_VOL];				// jrn file sequence
-static time_t last_sync[MAX_VOL];                       // last database sync
 void do_jrnflush(int vol);                              // flush jrn to disk
 void do_volsync(int vol);                               // flush vol to disk
 void do_map_write(int vol);				// write label/map
@@ -135,19 +133,19 @@ u_int MSLEEP(u_int mseconds)
   return usleep(1000 * mseconds);                       // sleep
 }
 
-static
 u_int MILLITIME()
 {
   time_t now = MTIME(0);
   return 1000 * (now % 86400);
 }
 
+static int old_stalls;
+static time_t last_do_rest;
+
 #ifdef MV1_MAXDBOPS
 
-static int old_stalls;
 static u_int old_dbops[MAX_VOL];
 static u_int old_sum_dbops;
-static time_t last_do_rest;
 
 static
 void stat_dbops(u_int *writes)
@@ -213,9 +211,6 @@ void do_rest(void)
 }
 
 #else
-
-static int old_stalls;
-static time_t last_do_rest;
 
 static
 void do_rest(void)
@@ -560,7 +555,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
   for (i = 0; i < MAX_VOL; i++)
-  { last_map_write[i] = (time_t) 0;                     // clear last map write
+  { systab->vol[i]->last_map_write = (time_t) 0;        // clear last map write
     dbfds[i] = 0;                                       // db file desc.
     jnl_fds[i] = 0;					// jrn file desc.
   }
@@ -656,11 +651,11 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   last_daemon_check = (time_t) 0;                       // last daemon check
   last_write_garb = (time_t) 0;                         // last WRITE/GARB
   for (i = 0; i < MAX_VOL; i++)
-  { last_map_write[i] = (time_t) 0;                     // clear last map write
+  { systab->vol[i]->last_map_write = (time_t) 0;        // clear last map write
     dbfds[i] = 0;                                       // db file desc.
     jnl_fds[i] = 0;                                     // clear jrn file desc.
     jnl_seq[i] = 0;					// clear jrn file seq.
-    last_sync[i] = time(0) + DEFAULT_GBSYNC;            // global buffer sync
+    systab->vol[i]->last_sync = time(0) + DEFAULT_GBSYNC;// global buffer sync
   }
   mypid = 0;
 
@@ -722,7 +717,7 @@ int DB_Daemon(int slot, int vol)			// start a daemon
       MEM_BARRIER;
     }
 
-    i = MSLEEP(min(systab->ZRestTime, 1000));           // rest
+    i = MSLEEP(min(systab->ZRestTime, 500));            // rest
     do_daemon();					// do something
   }
   return 0;						// never gets here
@@ -743,13 +738,27 @@ void do_daemon()					// do something
   int vol;                                              // vol[] index
   int dirtyQr, garbQr;                                  // queue read indices
   int start_cnt;                                        // passes thru start
+  vol_def *pvol;                                        // ptr to VOL
+  u_int millis;                                         // millitime
 
   start_cnt = 0;
 start:
-  systab->Mtime = time(0);
+  systab->Mtime = time(0);                              // update M time
+  millis = MILLITIME();                                 // get current millitime
   start_cnt++;
-  if (last_write_garb > MILLITIME())                    // check wrap-around
+  if (last_write_garb > millis)                         // check wrap-around
     last_write_garb = 0;                                // reset last WRITE/GARB
+  for (vol = 0; vol < MAX_VOL; vol++)
+  { pvol = systab->vol[vol];                            // ptr to VOL
+    if (pvol->local_name[0])                            // remote VOL ?
+      continue;                                         //   skip it
+    if (NULL == pvol->vollab)                           // stop at first
+      break;                                            //   not mounted
+    if (pvol->last_map_write > millis)                  // check wrap-around
+      pvol->last_map_write = 0;
+    if ((0 == vol) && (pvol->lastQw > millis))          // check wrap-around
+      pvol->lastQw = 0;
+  }
   if (!myslot)                                          // update RESTTIME
   { do_rest();
   }
@@ -757,37 +766,38 @@ start:
   daemon_check();					// ensure all running
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_NOTHING)
   { for (vol = 0; vol < MAX_VOL; vol++)
-    { if (systab->vol[vol]->local_name[0])		// remote VOL ?
+    { pvol = systab->vol[vol];                          // ptr to VOL
+      if (pvol->local_name[0])		                // remote VOL ?
 	continue;					//   skip it
-      if (NULL == systab->vol[vol]->vollab)             // stop at first
+      if (NULL == pvol->vollab)                         // stop at first
         break;                                          //   not mounted
       if ((!myslot) &&                                  // first daemon ?
-          (systab->vol[vol]->map_dirty_flag) &&         //   vol map dirty ?
-          (MTIME(0) != last_map_write[vol]))            //     not updated ?
+          (pvol->map_dirty_flag) &&                     //   vol map dirty ?
+          (pvol->last_map_write+systab->ZRestTime < MILLITIME()))// not updated?
       { do_map_write(vol);				// write map
       }							// end map write
-      if ((!myslot) && (systab->vol[vol]->writelock < 0)) // check wrtlck
+      if ((!myslot) && (pvol->writelock < 0))           // check wrtlck
       { do_queueflush(0);                               // flush queues
         inter_add(&systab->delaywt, -1);                // enable WRITEs
         MEM_BARRIER;
         // Set the writelock to a positive value when all quiet
-        systab->vol[vol]->writelock = abs(systab->vol[vol]->writelock);
+        pvol->writelock = abs(pvol->writelock);
       }							// end wrtlock
       if ((SLOT_JRN == myslot) &&
-          (systab->vol[vol]->vollab->journal_available) && // jrn available ?
-          (systab->vol[vol]->lastdojrn < MTIME(0)) &&   // DoJrn is old ?
-          (systab->vol[vol]->jrnbufsize))               // has records ?
+          (pvol->vollab->journal_available) &&          // jrn available ?
+          (pvol->lastdojrn < MTIME(0)) &&               // DoJrn is old ?
+          (pvol->jrnbufsize))                           // has records ?
       { do_jrnflush(vol);                               // do jrn flush
       }
       if ((SLOT_VOLSYNC == myslot) &&
-          (systab->vol[vol]->gbsync) &&                 // need sync ?
-          (0 == systab->vol[vol]->writelock) &&         //   not locked ?
-          (last_sync[vol] < MTIME(0)))                  //     sync is over ?
+          (pvol->gbsync) &&                             // need sync ?
+          (0 == pvol->writelock) &&                     //   not locked ?
+          (pvol->last_sync < MTIME(0)))                 //     sync is over ?
       { do_volsync(vol);                                // do volume sync
       }
     }                                                   // end foreach vol
-    if ((1 < start_cnt)                                 // 2nd loop thru start
-        || (last_write_garb + systab->ZRestTime < MILLITIME())) // lapsed
+    if ((1 < start_cnt) ||                              // 2nd loop thru start
+        (last_write_garb + systab->ZRestTime < MILLITIME())) // lapsed
     {
 #ifdef MV1_CKIT
     if (ck_ring_dequeue_spmc(                           // any writes?
@@ -849,12 +859,12 @@ start:
   { ASSERT(systab->vol[0]->wd_tab[myslot].currmsg.gbddata != NULL);
     do_write();						// do it 
     last_write_garb = MILLITIME();
-    goto start;						// try again
+    goto start;                                         // try again
   }
   if (systab->vol[0]->wd_tab[myslot].doing == DOING_GARB)
   { do_garb();						// or this 
     last_write_garb = MILLITIME();
-    goto start;						// try again
+    goto start;                                         // try again
   }
   return;						// can't get here
 }
@@ -1093,6 +1103,7 @@ void do_write()						// write GBDs
     MEM_BARRIER;
     if (lastptr == gbdptr)  				// if reached end
       break;  						// break from while
+    systab->Mtime = time(0);
   }							// end dirty write
   SemOp( SEM_GLOBAL, -curr_lock);			// release lock
   return;						// done
@@ -1251,6 +1262,7 @@ int do_zot(int vol,u_int gb)				// zot block
       { zot_data = TRUE;				// do the rest here
       }
     }
+    systab->Mtime = time(0);
   }							// end of indexes
 
 zotit:
@@ -1555,6 +1567,7 @@ void do_jrnflush(int vol)
 void do_volsync(int vol)
 { int old_volnum;                               // old volnum
   int jfd;                                      // jrn file desc.
+  vol_def *pvol;                                // ptr to VOL
 
   ASSERT(0 <= vol);                             // valid vol[] index
   ASSERT(vol < MAX_VOL);
@@ -1566,7 +1579,8 @@ void do_volsync(int vol)
   old_volnum = volnum;
   do_mount(vol);                                // mount vol. 
   do_queueflush(1);                             // flush queues
-  if (systab->vol[vol]->vollab->journal_available) // journal available ?
+  pvol = systab->vol[vol];                      // ptr to VOL
+  if (pvol->vollab->journal_available)          // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd > 0)
     { volnum = vol + 1;
@@ -1577,7 +1591,7 @@ void do_volsync(int vol)
     }
   }
   SyncFD(dbfds[vol]);                           // sync volume to disk
-  if (systab->vol[vol]->vollab->journal_available) // journal available ?
+  if (pvol->vollab->journal_available)          // journal available ?
   { jfd = attach_jrn(vol, &jnl_fds[0], &jnl_seq[0]);// open journal
     if (jfd > 0)
     { jrnrec jj;                                // write SYNC record
@@ -1594,7 +1608,7 @@ void do_volsync(int vol)
   }
   inter_add(&systab->delaywt, -1);              // release WRITEs
   MEM_BARRIER;
-  last_sync[vol] = time(0) + systab->vol[vol]->gbsync; // next sync time
+  pvol->last_sync = time(0) + pvol->gbsync;     // next sync time
   volnum = old_volnum;
 
   do_log("Done  volume sync on VOL%d\n",vol);
@@ -1616,31 +1630,33 @@ void do_map_write(int vol)
   u_int dirty_flag;				// map_dirty_flag
   u_int chunk;					// chunk bitmap
   char msg[128];				// msg buffer
+  vol_def *pvol;                                // ptr to VOL
 
   do_mount(vol);                                // mount db file
-  dirty_flag = systab->vol[vol]->map_dirty_flag;
+  pvol = systab->vol[vol];                      // ptr to VOL
+  dirty_flag = pvol->map_dirty_flag;
   if (dirty_flag & VOLLAB_DIRTY)		// check label block
   { while (SemOp( SEM_GLOBAL, READ));		// take a READ lock
     file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
     if (file_off < 0)
-    { systab->vol[vol]->stats.diskerrors++;	// count an error
+    { pvol->stats.diskerrors++;	                // count an error
       sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
       mv1_panic(msg);
     }
-    i = write( dbfds[vol], systab->vol[vol]->vollab, SIZEOF_LABEL_BLOCK);
+    i = write( dbfds[vol], pvol->vollab, SIZEOF_LABEL_BLOCK);
     if ((i < 0) || (i != SIZEOF_LABEL_BLOCK))
-    { systab->vol[vol]->stats.diskerrors++;	// count an error
+    { pvol->stats.diskerrors++;	                // count an error
       sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
       mv1_panic(msg);
     }
-    systab->vol[vol]->map_dirty_flag ^= VOLLAB_DIRTY;
+    pvol->map_dirty_flag ^= VOLLAB_DIRTY;
     SemOp( SEM_GLOBAL, -curr_lock);		// release lock
     dirty_flag ^= VOLLAB_DIRTY;			// clear VOLLAB flag
   }
   if (dirty_flag != VOLLAB_DIRTY)		// check map chunks
   { block = 0;
     for (i = 0; i < MAX_MAP_CHUNKS; i++)
-    { chunk = systab->vol[vol]->map_chunks[i];	// check bitmap
+    { chunk = pvol->map_chunks[i];	        // check bitmap
       if (0 == chunk)				// skip if empty
       { block += 32;
 	continue;
@@ -1652,43 +1668,43 @@ void do_map_write(int vol)
 		     block * MAP_CHUNK;
 	  file_off = lseek( dbfds[vol], file_off, SEEK_SET); // move to block
           if (file_off < 0)
-          { systab->vol[vol]->stats.diskerrors++; // count an error
+          { pvol->stats.diskerrors++;           // count an error
             sprintf(msg, "do_daemon: lseek() to map block (%d) of vol %d failed", block, vol);
             mv1_panic(msg);
           }
           ret = write( dbfds[vol], 		// write the map chunk
-		       systab->vol[vol]->map + block * MAP_CHUNK,
+		       pvol->map + block * MAP_CHUNK,
 	               MAP_CHUNK);
   	  if (ret < 0)
-          { systab->vol[vol]->stats.diskerrors++; // count an error
+          { pvol->stats.diskerrors++;           // count an error
             sprintf(msg, "do_daemon: write() map block (%d) of vol %d failed", block, vol);
             mv1_panic(msg);
           }
 	}
 	block++; chunk >>= 1;
       }
-      systab->vol[vol]->map_chunks[i] = 0;	// clear map chunk
+      pvol->map_chunks[i] = 0;	                // clear map chunk
       SemOp( SEM_GLOBAL, -curr_lock);		// release lock
     }
   }
 /*
   file_off = lseek( dbfds[vol], 0, SEEK_SET);	// move to start of file
   if (file_off<0)
-  { systab->vol[vol]->stats.diskerrors++;	// count an error
+  { pvol->stats.diskerrors++;	                // count an error
     sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
     mv1_panic(msg);
   }
-  i = write( dbfds[vol], systab->vol[vol]->vollab,
-	     systab->vol[vol]->vollab->header_bytes);// map/label
+  i = write( dbfds[vol], pvol->vollab,
+	     pvol->vollab->header_bytes);       // map/label
   if (i < 0)
-  { systab->vol[vol]->stats.diskerrors++;	// count an error
+  { pvol->stats.diskerrors++;	                // count an error
     sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
     mv1_panic(msg);
   }
 */
-  inter_add(&systab->vol[vol]->map_dirty_flag, -dirty_flag); // alter dirty flag
-  ATOMIC_INCREMENT(systab->vol[vol]->stats.phywt); // count a write
-  last_map_write[vol] = MTIME(0);
+  inter_add(&pvol->map_dirty_flag, -dirty_flag);// alter dirty flag
+  ATOMIC_INCREMENT(pvol->stats.phywt);          // count a write
+  pvol->last_map_write = MILLITIME();
 }
 
 // vim:ts=8:sw=8:et

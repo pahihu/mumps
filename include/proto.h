@@ -147,6 +147,7 @@ struct GBD *DB_ViewGet(int volume, int block);   // return gbd address of
 short DB_ViewPut(int volume, struct GBD *ptr);   // que block for write
 short DB_ViewRel(int volume, struct GBD *ptr);   // release block, gbd -> free
 u_int DB_GetDirty(int vol);                      // no. of dirty blocks
+int DB_HasDirty(int vol,u_int num_dirty);        // at least num_dirty blocks
 short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
@@ -169,6 +170,7 @@ short LDB_Query(mvar *var, u_char *buf,           // get next key
 		int dir, int docvt); 
 short LDB_QueryEx(mvar *var, u_char *buf,         // get next key and value
                 int dir, int docvt, cstring *dat);
+u_int MILLITIME(void);                            // millisecond stamp
 
 //****************************************************************************
 // Sequential IO
