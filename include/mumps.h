@@ -180,7 +180,8 @@
 #define NUM_DIRTY       16384                   // max queued dirty chains
 #define NUM_GARB        16384                   // max queued garbage blocks
 #define GBD_HASH_SEED   0xBEEFCACEU             // hash seed for GBD
-#define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
+// #define GBD_BUCKET(i)   (((i) ^ GBD_HASH_SEED) & (GBD_HASH - 1))
+u_int GBD_BUCKET(u_int i);
 
 #define RBD_HASH        1023                    // hash size for routine names
 #define GBD_FREE        GBD_HASH                // head of GBD free list

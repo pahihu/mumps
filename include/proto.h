@@ -152,7 +152,9 @@ short DB_Backup(const char *path, u_int volmask, int typ); // backup
 short DB_Restore(const char *bkp_path, int bkp_vol, // restore
 			const char *vol_path);
 int SyncFD(int fd);                              // sync file descriptor
+int SyncJournalFD(int fd);                       // sync journal file descriptor
 int OpenFile(const char *path,int mode);         // open specified file
+int OpenJournalFile(const char *path,int mode);  // open journal file
 void DB_WillUnlock(void);                        // DB unlock
 void Reserve_GBD(struct GBD* p);                 // reserve a GBD
 

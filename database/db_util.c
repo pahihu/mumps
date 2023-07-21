@@ -867,7 +867,7 @@ int attach_jrn(int vol, int *jnl_fds, u_char *jnl_seq)
     if (j < 0)		                                // if that's junk
     { return -(errno+ERRMLAST+ERRZLAST);
     }
-    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenJournalFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)				        // on fail
     { return (-errno+ERRMLAST+ERRZLAST);
     }
@@ -958,6 +958,7 @@ short FlushJournal(int vol, int jfd, int dosync)
     { ggg = 2; goto fail;
     }
     systab->vol[vol]->jrn_next += currsize;             // update next
+#ifndef MV1_JRN_NOCACHE
     jptr = lseek(jfd, sizeof(u_int), SEEK_SET);
     if (jptr != sizeof(u_int))
     { ggg = 3; goto fail;
@@ -967,16 +968,18 @@ short FlushJournal(int vol, int jfd, int dosync)
     if (j < 0)
     { ggg = 4; goto fail;
     }
+#endif
   }
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   if (dosync)                                           // if requested
-    SyncFD(jfd);                                        //   do a sync.
+    SyncJournalFD(jfd);                                 //   do a sync.
   return 0;
 
 fail:
   // fprintf(stderr,"FlushJournal: ggg = %d\n",ggg);
   systab->vol[vol]->jrnbufsize = 0;                     // clear buffer
   systab->vol[vol]->vollab->journal_available = 0;      // turn it off
+  systab->vol[vol]->jrn_next = ggg;                     // turn it off
   close(partab.jnl_fds[vol]);                           // close the file
   partab.jnl_fds[vol] = 0;                              // clear fd
   partab.jnl_seq[vol] = 0;                              // clear seq
@@ -1045,7 +1048,7 @@ void OpenJournal(int vol, int printlog)
   { if (i < 0)                                          // if doesn't exist
     { ClearJournal(0, vol);                             // create it
     }                                                   // end create code
-    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
+    jfd = OpenJournalFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
     if (jfd < 0)                                        // on fail
     { if (printlog)
         fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
@@ -1072,11 +1075,23 @@ void OpenJournal(int vol, int printlog)
           close(jfd);
         }
         else
-        { jptr = lseek(jfd, systab->vol[vol]->jrn_next, SEEK_SET);
+        {
+#ifdef MV1_JRN_NOCACHE
+          jptr = lseek(jfd, 0, SEEK_END);
+          if (jptr == (off_t)-1)
+          { if (printlog)
+              fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
+                        systab->vol[vol]->vollab->journal_file, errno);
+            close(jfd);
+            return;
+          }
+          systab->vol[vol]->jrn_next = jptr;
+#endif
+          jptr = lseek(jfd, systab->vol[vol]->jrn_next, SEEK_SET);
           if (jptr != systab->vol[vol]->jrn_next)
           { if (printlog)
               fprintf(stderr, "Failed journal file %s\nlseek failed - %d\n",
-            systab->vol[vol]->vollab->journal_file, errno);
+                        systab->vol[vol]->vollab->journal_file, errno);
             close(jfd);
           }
           else
@@ -1838,7 +1853,7 @@ ErrOut:
           volnum = vol + 1;
           DoJournal(&jj, 0);                    // do journal
           FlushJournal(vol, jfd, 0);            // flush journal
-          SyncFD(jfd);                          // sync to disk
+          SyncJournalFD(jfd);                   // sync to disk
         }
       }
     }
@@ -2184,6 +2199,15 @@ int SyncFD(int fd)
   return rc;
 }
 
+int SyncJournalFD(int fd)
+{
+#ifdef MV1_JRN_NOCACHE
+  return 0;
+#else
+  return SyncFD(fd);
+#endif
+}
+
 
 void ClearLastBlk(void)
 { int netjobs;          // #jobs + #net daemons
@@ -2196,22 +2220,43 @@ void ClearLastBlk(void)
 }
 
 
-int OpenFile(const char *path, int mode)
+static
+int OpenFileEx(const char *path, int mode, int nocache)
 { int fd, i;
 
-#if defined(MV1_F_NOCACHE)
-# if defined(__linux__)
-  fd = open(path, O_DIRECT | mode);
-# endif
-# if defined(__APPLE__)
+#if defined(__linux__)
+#define MV1_F_NOCACHE 1
+  if (nocache)
+    fd = open(path, O_DIRECT | mode);
+#endif
+
+#if defined(__APPLE__)
+#define MV1_F_NOCACHE 1
   fd = open(path, mode);
-  if (-1 != fd)
+  if (nocache && (-1 != fd))
     i = fcntl(fd, F_NOCACHE, 1);
-# endif
-#else
+#endif
+
+#if !defined(MV1_F_NOCACHE)
   fd = open(path, mode);
 #endif
   return fd;
 }
+
+
+int OpenFile(const char *path, int mode)
+{ return OpenFileEx(path, mode, 0);
+}
+
+
+int OpenJournalFile(const char *path, int mode)
+{
+#ifdef MV1_JRN_NOCACHE
+  return OpenFileEx(path, mode, 1);
+#else
+  return OpenFileEx(path, mode, 0);
+#endif
+}
+
 
 // vim:ts=8:sw=8:et

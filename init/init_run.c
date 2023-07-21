@@ -267,7 +267,7 @@ start:
 
   if ((systab->vol[0]->vollab->journal_available) &&
       (systab->vol[0]->vollab->journal_requested)) // if journaling
-  { partab.jnl_fds[0] = OpenFile(systab->vol[0]->vollab->journal_file, O_RDWR);
+  { partab.jnl_fds[0] = OpenJournalFile(systab->vol[0]->vollab->journal_file, O_RDWR);
     if (partab.jnl_fds[0] < 0)
     { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
 		systab->vol[0]->vollab->journal_file, errno);

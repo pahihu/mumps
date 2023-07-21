@@ -1416,70 +1416,6 @@ void do_mount(int vol)                                  // mount volume
 }
 
 
-#if 0
-//-----------------------------------------------------------------------------
-// Function: attach_jrn
-// Descript: Attach to the jrn file of the given volume.
-//	     The file must be initialized.
-// Input(s): vol - the volume
-// Return:   jrn file desc.
-//
-
-int attach_jrn(int vol)
-{ int j;                                                // handy int
-
-  ASSERT(0 <= vol);                                     // valid vol[] index
-  ASSERT(vol < MAX_VOL);
-  ASSERT(0 == systab->vol[vol]->local_name[0]);		// not remote VOL
-  ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
-
-  if (jnl_fds[vol] && 					// already open ?
-      (jnl_seq[vol] == systab->vol[vol]->jnl_seq))      //   AND same seq ?
-    return jnl_fds[vol];                                //   return file desc.
-
-  if (jnl_fds[vol])					// jrn file changed
-  { close(jnl_fds[vol]);				//   close old fd
-    jnl_fds[vol] = 0;					// clear jrn fds
-    jnl_seq[vol] = 0;					//   AND jrn file seq
-  }
-
-  if ((systab->vol[vol]->vollab->journal_available) &&
-      (systab->vol[vol]->vollab->journal_requested) &&
-         (systab->vol[vol]->vollab->journal_file[0]))
-  { struct stat   sb;				        // File attributes
-    int jfd;					        // file descriptor
-    u_char tmp[sizeof(u_int) + sizeof(off_t)];
-
-    j = stat(systab->vol[vol]->vollab->journal_file, &sb ); // check for file
-    if (j < 0)		                                // if that's junk
-    { do_log("Failed to access journal file %s\n",
-  		  systab->vol[vol]->vollab->journal_file);
-      return 0;
-    }
-    jfd = OpenFile(systab->vol[vol]->vollab->journal_file, O_RDWR);
-    if (jfd < 0)				        // on fail
-    { do_log("Failed to open journal file %s\nerrno = %d\n",
-		  systab->vol[vol]->vollab->journal_file, errno);
-      return 0;
-    }
-
-    lseek(jfd, 0, SEEK_SET);
-    errno = 0;
-    j = read(jfd, tmp, sizeof(u_int));	        	// read the magic
-    if ((j != sizeof(u_int)) || (*(u_int *) tmp != (MUMPS_MAGIC - 1)))
-    { do_log("Failed to open journal file %s: WRONG MAGIC\n",
-		    systab->vol[vol]->vollab->journal_file);
-      close(jfd);
-      return 0;
-    }
-    jnl_fds[vol] = jfd;					// save jrn fd
-    jnl_seq[vol] = systab->vol[vol]->jnl_seq;		//   AND jrn seq
-  }
-  return jnl_fds[vol];
-}
-#endif
-
-
 //-----------------------------------------------------------------------------
 // Function: do_queueflush
 // Descript: Flush the dirty and garbage queues. When finished both queues
@@ -1551,7 +1487,7 @@ void do_jrnflush(int vol)
     while (SemOp( SEM_GLOBAL, WRITE));          // lock GLOBALs
     FlushJournal(vol, jfd, 0);                  // flush journal
     SemOp( SEM_GLOBAL, -curr_lock);             // release GLOBALs
-    SyncFD(jfd);                                // sync to disk
+    SyncJournalFD(jfd);                         // sync to disk
   }
   volnum = old_volnum;                          // restore volnum
 }
@@ -1587,7 +1523,7 @@ void do_volsync(int vol)
       while (SemOp( SEM_GLOBAL, WRITE));        // lock GLOBALs
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      SyncFD(jfd);                              // sync JRN to disk
+      SyncJournalFD(jfd);                       // sync JRN to disk
     }
   }
   SyncFD(dbfds[vol]);                           // sync volume to disk
@@ -1603,7 +1539,7 @@ void do_volsync(int vol)
       DoJournal(&jj, 0);                        // do journal
       FlushJournal(vol, jfd, 0);                // flush journal
       SemOp( SEM_GLOBAL, -curr_lock);           // release GLOBALs
-      SyncFD(jfd);                              // sync to disk
+      SyncJournalFD(jfd);                       // sync to disk
     }
   }
   inter_add(&systab->delaywt, -1);              // release WRITEs

@@ -71,6 +71,13 @@ short logit(int where,short ret)
 //		iidx, keybuf Index.
 // NOTE: lastused block is NOT used if dir != 0 or writing
 
+u_int GBD_BUCKET(u_int K)
+{
+  const u_int a = 2654435769U;
+  K ^= K >> (8*sizeof(u_int) - 15);
+  return (a*K) >> (8*sizeof(u_int) - 15);
+}
+
 short Get_data(int dir)		                        // locate a record
 { int i, j;						// a handy int
   short s;						// for function returns

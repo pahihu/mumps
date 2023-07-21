@@ -59,7 +59,7 @@ extern partab_struct partab;                    // setup partab
 extern systab_struct *systab;
 
 extern u_char *astk[MAX_ASTK];                  // address stack
-extern u_char sstk[MAX_SSTK];			// string stack
+extern u_char sstk[MAX_SSTK + MAX_STR_LEN];	// string stack
 extern u_char istk[MAX_ISTK];			// indirect stack
 extern long isp;				// indirect stack pointer
 extern int failed_tty;			        // flag for tty reset
@@ -126,7 +126,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   hnd->file = strdup(file);                     // cpy database file name
   partab.jobtab = (jobtab_t *) NULL;		// clear jobtab pointer
-  hnd->dbfd = OpenFile(file, O_RDWR);           // open the database for write
+  hnd->dbfd = OpenFile(file, O_RDONLY);         // open the database for write
   if (hnd->dbfd < 0) return (errno);            // if that failed
   if (hnd->start_type == TYPE_RUN)		// if not from JOB
   { i = UTIL_Share(file);                       // attach to shared mem
@@ -156,7 +156,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   pid = (int) getpid();				// get process id
   for (i = 0; i < systab->maxjob; i++)		// scan the slots
   { hnd->ret = systab->jobtab[i].pid;		// get pid
-    if ((hnd->ret != pid) && (hnd->ret))			// if one there and not us
+    if ((hnd->ret != pid) && (hnd->ret))	// if one there and not us
     { if (kill(hnd->ret, 0))				// check the job
       { if (errno == ESRCH)			// doesn't exist
         { hnd->ret = CleanJob(i + 1);		// zot if not there
@@ -218,7 +218,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   partab.jobtab->precision = systab->precision;	// decimal precision
 
-  partab.jobtab->uci = hnd->env_num;			// uci number
+  partab.jobtab->uci = hnd->env_num;		// uci number
   partab.jobtab->vol = 1;			// volset
   partab.jobtab->luci = hnd->env_num;		// uci number
   partab.jobtab->lvol = 1;			// volset
@@ -230,7 +230,6 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   partab.jobtab->dostk[0].type = TYPE_RUN;	// ensure slot 0 has a value
 
-  // XXX
   failed_tty = tcgetattr ( 0, &hnd->tty_settings );
   i = SQ_Init();				// have seqio setup chan 0
 
@@ -241,6 +240,13 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   partab.sstk_start = &sstk[0];			// address of sstk
   partab.sstk_last =  &sstk[MAX_SSTK];		// and the last char
   partab.varlst = NULL;				// used by compiler
+
+  for (i = 0; i < MAX_VOL; i++)                 // clear DGP socks
+  { partab.dgp_sock[i] = -1;
+    partab.dgp_repl[i] = -1;
+    partab.vol_fds[i] = 0;
+    partab.jnl_fds[i] = 0;
+  }
 
   partab.vol_fds[0] = hnd->dbfd;		// make sure fd is right
   partab.lenseq = 0;				// no SEQUENCE
@@ -253,7 +259,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   if ((systab->vol[0]->vollab->journal_available) &&
       (systab->vol[0]->vollab->journal_requested)) // if journaling
-  { partab.jnl_fds[0] = OpenFile(systab->vol[0]->vollab->journal_file, O_RDWR);
+  { partab.jnl_fds[0] = OpenJournalFile(systab->vol[0]->vollab->journal_file, O_RDWR);
     if (partab.jnl_fds[0] < 0)
     { fprintf(stderr, "Failed to open journal file %s\nerrno = %d\n",
 		systab->vol[0]->vollab->journal_file, errno);
