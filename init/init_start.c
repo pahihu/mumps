@@ -235,7 +235,8 @@ int INIT_Start( char *file,                     // database
 #endif
 
   if (sysid) printf("Starting system ID=%d (%dcores)\n", sysid, numcpu);
-  printf( "Creating share for %d jobs with %dmb routine space,\n", jobs, rmb);
+  printf( "Creating share for %d jobs (%dmb) with %dmb routine space,\n",
+        jobs, sizeof(jobtab_t) * netjobs / 1024 / 1024, rmb);
   printf( "%dmb (%d) global buffers, %dkb label/map space\n", gmb,
   	   n_gbd, hbuf[2]/1024);
   printf( "and %lukb for locktab.\n", (u_long) (locksize/1024));
