@@ -5,11 +5,12 @@
 
 OSTYPE  = darwin
 #CC	= gcc -g -O0 #-m32
-CC	= gcc -flto -O3 -ffunction-sections -fdata-sections -Wl,-dead_strip  #-m32
+CC	= gcc -flto -O3 -ffunction-sections -fdata-sections #-m32
 #CC	= gcc -g -O #-m32
 #CC	= gcc -Os -DNDEBUG=1 #-m32
 LIBS	= -lm -lcrypt
 LOCAL_DIR = $(HOME)
+LDFLAGS = -Wl,-dead_strip
 
 EXTRA   = \
 	-fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 \
@@ -129,16 +130,16 @@ OBJS =          ${COMOBJS} \
 all: ${PROG} api_test
 
 ${PROG}: ${OBJS}
-	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+	${CC} ${LDFLAGS} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
 libmv1api.a: ${COMOBJS} ${LIBOBJS}
 	${AR} cru $@ ${COMOBJS} ${LIBOBJS}
 
 test: ${OBJS} api_test
-	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+	${CC} ${LDFLAGS} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
 
 api_test: api_test.o libmv1api.a
-	${CC} ${EXTRA} -o $@ api_test.o libmv1api.a ${LIBS}
+	${CC} ${LDFLAGS} ${EXTRA} -o $@ api_test.o libmv1api.a ${LIBS}
 
 clean:
 	rm -f ${OBJS} ${PROG} ${PROG}.core
