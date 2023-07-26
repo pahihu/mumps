@@ -40,6 +40,9 @@
 #include <unistd.h>                                     // for file reading
 #include <time.h>                                       // for gbd stuff
 #include <errno.h>                                      // for errno
+#if defined(__linux__)
+#define __USE_GNU       1
+#endif
 #include <fcntl.h>                                      // for expand
 #include <ctype.h>                                      // for gbd stuff
 #include <sys/types.h>                                  // for semaphores
