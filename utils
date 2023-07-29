@@ -3936,8 +3936,8 @@ volstat() ;volume status
 VOL ;System Volume Name;^$S("VOL",1,"NAME")
  ;Volume Database File;^$S("VOL",1,"FILE")
  ;Volume Block Size;$J(^$S("VOL",1,"BLOCK"),6)
- ;Volume Size;$J(^$S("VOL",1,"SIZE"),8);$TR(V," ","0")*B
  ;Volume Map Block Size;$J(^$S("VOL",1,"HEADER"),8);($TR(V," ","0")-$$LBLKSIZE^%MV1)*8*B
+ ;Volume Size;$J(^$S("VOL",1,"SIZE"),8);$TR(V," ","0")*B
  ;Volume Free Size;$J(^$S("VOL",1,"FREE"),8);$TR(V," ","0")*B
  ;Volume Status;$$volstat
  ;Volume Journaling;^$S("VOL",1,"JOURNAL_AVAILABLE")
