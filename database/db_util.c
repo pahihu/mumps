@@ -2227,20 +2227,11 @@ static
 int OpenFileEx(const char *path, int mode, int nocache)
 { int fd, i;
 
-#if defined(__linux__)
-#define MV1_F_NOCACHE 1
-  if (nocache)
-    fd = open(path, O_DIRECT | mode);
-#endif
-
 #if defined(__APPLE__)
-#define MV1_F_NOCACHE 1
   fd = open(path, mode);
   if (nocache && (-1 != fd))
     i = fcntl(fd, F_NOCACHE, 1);
-#endif
-
-#if !defined(MV1_F_NOCACHE)
+#else
   fd = open(path, mode);
 #endif
   return fd;

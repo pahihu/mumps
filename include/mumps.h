@@ -39,19 +39,21 @@
 #define _MUMPS_MUMPS_H_
 
 #if defined(__linux)
-#define MV1_OSSEM
+# if !defined(MV1_SHSEM)
+#  define MV1_OSSEM
+# endif
 #endif
 
 #ifdef MV1_OSSEM
-#undef MV1_SHSEM
-#define MEM_BARRIER     __sync_synchronize()
+# undef MV1_SHSEM
+# define MEM_BARRIER    __sync_synchronize()
 #else
-#define MV1_SHSEM       1
-#define MEM_BARRIER     __sync_synchronize()
+# define MV1_SHSEM      1
+# define MEM_BARRIER    __sync_synchronize()
 #endif
 
 #ifdef MV1_CKIT
-#include <ck_ring.h>
+# include <ck_ring.h>
 #endif
 
 // #define MV1_PROFILE     1
@@ -68,7 +70,7 @@
 #endif
 
 #ifndef VOLATILE
-#define VOLATILE
+# define VOLATILE
 #endif
 
 #define __ALIGNED__
