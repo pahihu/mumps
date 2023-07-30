@@ -104,7 +104,7 @@ static struct timeval sem_start[SEM_MAX];
 
 #ifdef MV1_DEVSYS
 #define SPINNUM   systab->numcpu2
-#define SPINTRY   (16*1024)
+#define SPINTRY   (32*1024)
 #else
 #define SPINNUM   4
 #define SPINTRY   (256*1024)

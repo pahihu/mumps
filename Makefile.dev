@@ -17,16 +17,17 @@ EXTRA   = \
 	-I$(LOCAL_DIR)/include \
   	-DMV1_DGP=1 \
         -DMV1_JRN_NOCACHE=1 \
-  	-DMV1_MAPM=1 \
-  	-DMV1_CKIT=1 \
+        -DMV1_SHSEM=1 -DMV1_CKIT=1 \
+        -DMV1_MAPM=1 \
    	-DMV1_DLMALLOC=1 \
         -DMV1_DEVSYS=1
 
-#        -DMV1_OS_SEM=1 \
-#        -DMV1_CCC=1
+#        -DMV1_OSSEM=1 \
+#        -DMV1_SHSEM=1 \
+#        -DMV1_SHSEM=1 -DMV1_CKIT=1 \
+#        -DMV1_SHSEM=1 -DMV1_SRWLOCK=1 \
 
 #  	-DMV1_DLMALLOC=1 \
-#  	-DMV1_CKIT=1 \
 #   	-DMV1_MAPM=1 \
 #	-DMV1_DECIMAL=1 \
 
