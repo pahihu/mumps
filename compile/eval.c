@@ -57,26 +57,30 @@ void comperror(short err)                       // compile error
   u_char *src;					// current src ptr
   int i;					// a handy int
   u_char tmp[128];				// some space
+  int lino = 0;                                 // line number
 
   *comp_ptr++ = OPERROR;                        // say it's an error
   bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
+  lino = partab.ln ? *partab.ln : 0;            // get line number
   if (partab.checkonly)
-  { if (partab.checkonly == *partab.ln) return; // done this one once
-    partab.checkonly = *partab.ln;		// record done
+  { if (partab.checkonly == lino) return;       // done this one once
+    partab.checkonly = lino;		        // record done
   }
-  line = *partab.lp;				// get the line address
-  src = *partab.sp;				// and the current source
-  s = SQ_Write(line);				// write the line
-  if (s < 0) goto scan;				// exit on error
-  s = SQ_WriteFormat(SQ_LF);			// return
-  if (s < 0) goto scan;				// exit on error
-  i = (src - line->buf) - 1;			// get the offset
-  if (i > 0)
-  { s = SQ_WriteFormat(i);			// tab
+  if ((partab.lp != NULL) && (partab.sp != NULL))
+  { line = *partab.lp;				// get the line address
+    src = *partab.sp;				// and the current source
+    s = SQ_Write(line);				// write the line
     if (s < 0) goto scan;			// exit on error
+    s = SQ_WriteFormat(SQ_LF);			// return
+    if (s < 0) goto scan;			// exit on error
+    i = (src - line->buf) - 1;			// get the offset
+    if (i > 0)
+    { s = SQ_WriteFormat(i);			// tab
+      if (s < 0) goto scan;			// exit on error
+    }
   }
   line = (cstring *) tmp;			// some space
   line->buf[0] = '^';				// point
@@ -85,7 +89,7 @@ void comperror(short err)                       // compile error
   if (s < 0) goto scan;				// exit on error
   line->len = s + 2;				// the length
   bcopy(" - At line ", &line->buf[line->len], 11); // front bit
-  s = itocstring(&line->buf[line->len + 11], *partab.ln); // format line number
+  s = itocstring(&line->buf[line->len + 11], lino); // format line number
   if (s < 0) goto scan;				// exit on error
   line->len = line->len + s + 11;		// the length
   s = SQ_Write(line);				// write the line
