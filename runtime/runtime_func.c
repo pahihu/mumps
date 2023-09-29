@@ -1029,7 +1029,8 @@ short Dorder3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
   { realdir = 1;
   }
   if (dir == -1)				// is it backwards?
-    if ((var->key[var->slen-1] == '\0') &&
+    if (var->slen &&                            // has subscripts?
+        (var->key[var->slen-1] == '\0') &&
         (var->key[var->slen-2] == '\0'))	// is it a nul?
     { i = var->slen-2;				// posn of first 0
       var->key[i] = '\377';			// change to 255
@@ -1153,7 +1154,7 @@ short Dquery3(u_char *ret_buffer, mvar *var, int dir, mvar *target)
     return -(ERRMLAST+ERRZ12);			// complain on error
 
   if (dir == -1)				// is it backwards?
-    if ( var->slen &&
+    if (var->slen &&                            // has subscripts?
         (var->key[var->slen-1] == '\0') &&
         (var->key[var->slen-2] == '\0'))	// is it a nul?
     { i = var->slen-2;				// posn of first 0
