@@ -57,14 +57,14 @@ void comperror(short err)                       // compile error
   u_char *src;					// current src ptr
   int i;					// a handy int
   u_char tmp[128];				// some space
-  int lino = 0;                                 // line number
+  int lino;                                     // line number
 
   *comp_ptr++ = OPERROR;                        // say it's an error
   bcopy(&err, comp_ptr, sizeof(short));
   comp_ptr += sizeof(short);
   *comp_ptr++ = OPNOP;				// in case of IF etc
   *comp_ptr++ = OPNOP;				// in case of IF etc
-  lino = partab.ln ? *partab.ln : 0;            // get line number
+  lino = partab.ln ? *partab.ln : -1;           // get line number
   if (partab.checkonly)
   { if (partab.checkonly == lino) return;       // done this one once
     partab.checkonly = lino;		        // record done
@@ -82,19 +82,21 @@ void comperror(short err)                       // compile error
       if (s < 0) goto scan;			// exit on error
     }
   }
-  line = (cstring *) tmp;			// some space
-  line->buf[0] = '^';				// point
-  line->buf[1] = ' ';				// and a space
-  s = UTIL_strerror(err, &line->buf[2]);	// get the error
-  if (s < 0) goto scan;				// exit on error
-  line->len = s + 2;				// the length
-  bcopy(" - At line ", &line->buf[line->len], 11); // front bit
-  s = itocstring(&line->buf[line->len + 11], lino); // format line number
-  if (s < 0) goto scan;				// exit on error
-  line->len = line->len + s + 11;		// the length
-  s = SQ_Write(line);				// write the line
-  if (s >= 0)					// if no error error
-    s = SQ_WriteFormat(SQ_LF);			// return
+  if (-1 != lino)
+  { line = (cstring *) tmp;			// some space
+    line->buf[0] = '^';				// point
+    line->buf[1] = ' ';				// and a space
+    s = UTIL_strerror(err, &line->buf[2]);	// get the error
+    if (s < 0) goto scan;			// exit on error
+    line->len = s + 2;				// the length
+    bcopy(" - At line ", &line->buf[line->len], 11); // front bit
+    s = itocstring(&line->buf[line->len + 11], lino); // format line number
+    if (s < 0) goto scan;			// exit on error
+    line->len = line->len + s + 11;		// the length
+    s = SQ_Write(line);				// write the line
+    if (s >= 0)					// if no error error
+      s = SQ_WriteFormat(SQ_LF);	        // return
+  }
 scan:
   while (*source_ptr) source_ptr++;		// skip rest of line
   return;					// and done
