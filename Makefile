@@ -3,7 +3,7 @@
 # Copyright (c) Raymond Douglas Newman, 1999 - 2016
 # with help from Sam Habiel
 
-CC	= gcc
+CC	= gcc -g
 LIBS	= -lm -lcrypt
 
 EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 -DNDEBUG=1
