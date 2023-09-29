@@ -9,7 +9,8 @@ LIBS	= -L$(HOME)/lib -lnanomsg -lmapm
 
 EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 \
 		-DMV1_DGP=1 \
-      -I$(HOME)/include
+      -I$(HOME)/include \
+		-DMV1_SHSEM=1 -DMV1_CKIT=1
 # 		-DMV1_DLMALLOC=1
 #     -DMV1_DEVSYS=1
 
