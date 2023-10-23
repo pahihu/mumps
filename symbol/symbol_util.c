@@ -945,8 +945,9 @@ short ST_DumpV(mvar *global)
       cdata->len = s;
       bcopy(gks, global->key, gs);		// restore initial key
       global->slen = gs;			// restore initial length
-      global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-      						// set rest of global key&len
+      s = UTIL_Key_Build(cdata, &global->key[gs]);// set rest of global key&len
+      if (s < 0) return s;                      // die on error
+      global->slen = global->slen + s;
       s = DB_Set(global, (cstring *) &(symtab[i].data->dbc)); // try to set it
       if (s == -ERRM75)				// if string too long
       { j = symtab[i].data->dbc;		// save this
@@ -966,8 +967,9 @@ short ST_DumpV(mvar *global)
       if ((j&1)!=0) j++;			// up it to next even boudary
       bcopy(gks, global->key, gs);		// restore initial key
       global->slen = gs;			// restore initial length
-      global->slen = global->slen + UTIL_Key_Build(cdata, &global->key[gs]);
-      						// set up global key
+      s = UTIL_Key_Build(cdata, &global->key[gs]); // set up global key
+      if (s < 0) return s;                      // die on error
+      global->slen = global->slen + s;
       s = DB_Set(global, (cstring *) &depPtr->bytes[j]); // try to set it
       if (s < 0) return s;
 

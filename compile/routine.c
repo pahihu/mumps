@@ -452,6 +452,10 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   line->buf[1] = '\0';				// null terminated
   line->len = 1;				// this long
   s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
+  if (s < 0)
+  { if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+    return s;
+  }
   src->slen = src_slen + s;			// store the new length
   comp_ptr = code;				// setup the compiler ptr
   partab.varlst = var_tbl;			// for localvar()
@@ -461,6 +465,10 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
     if (!s) break;				// all done
     line->len = s;				// save length
     s = UTIL_Key_Build(line, &src->key[src_slen]); // build the key
+    if (s < 0)
+    { if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+      return s;
+    }
     src->slen = src_slen + s;			// store the new length
     s = Dget1(line->buf, src);			// get the data
     if (s < 1) continue;			// ignore empty/undefined lines
@@ -575,6 +583,10 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 						// convert leading tab to space
       cptr->len = itocstring(cptr->buf, lino);	// convert to a cstring
       s = UTIL_Key_Build(cptr, &rou->key[rou_slen]); // build the key
+      if (s < 0)
+      { if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+        return s;
+      }
       rou->slen = rou_slen + s;			// store the new length
       s = DB_Set(rou, line);			// write out the source line
       if (s < 0)
@@ -691,6 +703,10 @@ short Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   if (partab.checkonly)				// just a check
     return 0;					// exit - NEED an error count
   s = UTIL_Key_Build(cptr, &rou->key[rou_slen]); // build the key
+  if (s < 0)
+  { if (!partab.checkonly) SemOp(SEM_ROU, systab->maxjob); // unlock
+    return s;
+  }
   rou->slen = rou_slen + s;			// store the new length
   s = DB_Set(rou, line);			// set it
   if (same)

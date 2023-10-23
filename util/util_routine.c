@@ -337,11 +337,13 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   cptr->buf[i] = '\0';				// terminate
   cptr->len = (short) i;			// the count
   s = UTIL_Key_Build(cptr, rouglob.key);	// first subs
+  if (s < 0) return NULL;                       // die on error
   rouglob.slen = s;				// save count so far
   cptr->buf[0] = '0';				// now the zero
   cptr->buf[1] = '\0';				// null terminate
   cptr->len = 1;				// and the length
   s = UTIL_Key_Build(cptr, &rouglob.key[s]);	// second subs
+  if (s < 0) return NULL;                       // die on error
   rouglob.slen = rouglob.slen + s;		// save count so far
   s = DB_GetLen(&rouglob, 0, NULL);		// get a possible length
   if (s < 1) return NULL;			// no such

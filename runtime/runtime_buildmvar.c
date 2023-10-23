@@ -147,6 +147,7 @@ short buildmvar(mvar *var, int nul_ok, int asp) // build an mvar
       return (-(ERRZ16+ERRMLAST));		// complain
     s = UTIL_Key_Build(ptr,
 		       &var->key[var->slen]); 	// get one subscript
+    if (s < 0) return s;                        // complain on error
     if ((s + var->slen) > 255)			// check how big
       return (-(ERRZ2+ERRMLAST));		// complain on error
     var->slen = s + var->slen; 			// add it in

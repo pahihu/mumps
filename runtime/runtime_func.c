@@ -853,7 +853,9 @@ short Dstack2x(u_char *ret_buffer, int level, cstring *code, int job)
     var->uci = UCI_IS_LOCALVAR;
     cptr = (cstring *) temp;			// some spare space
     cptr->len = itocstring(cptr->buf, level);	// setup for subscript
-    var->slen = UTIL_Key_Build(cptr, &var->key[0]);
+    s = UTIL_Key_Build(cptr, &var->key[0]);
+    if (s < 0) return s;                        // die on error
+    var->slen = s;
     s = ST_Get(var, ret_buffer);		// get and return
     if (s == -ERRM6) s = 0;			// allow for not there
     return s;
