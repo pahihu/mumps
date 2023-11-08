@@ -74,11 +74,11 @@ int parse2eq(u_char *ptr)			// scan to = or EOS
       continue;					// go for more
     }
     if (rb) continue;				// ignore in brackets
-    if (c == '[' && ptr[i] == '"')              // open sq.bracket
+    if (prevc == '^' && c == '[')               // open sq.bracket
     { sb++;					// increment counter
       continue;					// and go for more
     }
-    if (prevc == '"' && c == ']')               // close sq.bracket
+    if (c == ']')                               // close sq.bracket
     { sb--;					// decrement count
       if (sb < 0) break;			// EOS
       continue;					// go for more
