@@ -52,11 +52,12 @@
 
 int parse2eq(u_char *ptr)			// scan to = or EOS
 { int i = 0;					// a handy int
-  int b = 0;					// in brackets
+  int rb = 0, sb = 0;			        // in round/square brackets
   int q = 0;					// in quotes
-  u_char c;					// current character
+  u_char prevc, c = 0;				// prev./curr.character
   while (TRUE)					// keep looping
-  { c = ptr[i++];				// get the char
+  { prevc = c;                                  // save prev.character
+    c = ptr[i++];				// get the char
     if (c == '\0') break;			// ran out of string
     if (c == '"')				// a quote?
     { q = !q;					// reverse quote switch
@@ -64,15 +65,25 @@ int parse2eq(u_char *ptr)			// scan to = or EOS
     }
     if (q) continue;				// continue if in quotes
     if (c == '(')		                // open bracket (F.Fornazier)
-    { b++;					// increment counter
+    { rb++;					// increment counter
       continue;					// and go for more
     }
     if (c == ')')                               // close bracket (F.Fornazier)
-    { b--;					// decrement count
-      if (b < 0) break;				// EOS
+    { rb--;					// decrement count
+      if (rb < 0) break;			// EOS
       continue;					// go for more
     }
-    if (b) continue;				// ignore in brackets
+    if (rb) continue;				// ignore in brackets
+    if (c == '[' && ptr[i] == '"')              // open sq.bracket
+    { sb++;					// increment counter
+      continue;					// and go for more
+    }
+    if (prevc == '"' && c == ']')               // close sq.bracket
+    { sb--;					// decrement count
+      if (sb < 0) break;			// EOS
+      continue;					// go for more
+    }
+    if (sb) continue;				// ignore in brackets
     if ((c == '=') || (c == ' ') || (c == ','))
       break;
   }
