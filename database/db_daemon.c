@@ -454,6 +454,7 @@ void do_netdaemon(void)
       case DGP_ZINC:
         ptr1 = (cstring *) (&req.data.buf[req.data.len]);
 	ptr1->len = ntohs(ptr1->len);			// cvt to host fmt
+        ptr1->buf[ptr1->len] = '\0';
 	// fprintf(stderr,"ptr1->len=%d ptr1->buf=%s\n",ptr1->len,&ptr1->buf[0]); fflush(stderr);
         s = Dzincrement2((cstring *) &rep.data, varptr, ptr1);
         if (s < 0) goto Error;
