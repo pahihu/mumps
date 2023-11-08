@@ -319,6 +319,8 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   {  uci = 1;					// check for a % routine
      vol = 1;
   }
+  if (systab->vol[vol - 1]->local_name[0])      // remote VOL?
+    Routine_Delete(routine, uci, vol);          //   invalidate (J.Nagy)
   while (ptr != NULL)				// while we have something
   //{ if ((ptr->rnam.var_qu == routine) &&
   { if (X_EQ(ptr->rnam.var_xu, routine) &&
