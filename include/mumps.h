@@ -647,8 +647,9 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_short dgpID;				// DGP system ID
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
+  u_char dgpROUAGE;                             // DGP remote routine age (0-60)
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
-  int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-255)
+  int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
   int numcpu2;                                  // number of CPUs x 2
   time_t Mtime;
 #ifdef MV1_SHSEM
