@@ -1,6 +1,6 @@
 # A Terse Guide to MUMPS V2
 
-Copyright 2018-2021 Andras Pahi. All rights reserved.
+Copyright 2018-2023 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
@@ -236,7 +236,11 @@ routine code is transferred to the client, the server and the client
 should have the same word length (32-32bits or 64-64bits) and the same
 byte order (eg. you cannot execute routines compiled on an IBM POWER
 server on x86_64 clients). In the client environment you should not
-compile routines on remote volumes.
+compile routines on remote volumes. If you recompile a routine on the
+sever the client still executes the old routine. The client on each
+routine attach checks the remote routine age in the routine cache, if
+it is greater than the system parameter `DGP_ROUTINE_AGE` it will
+reload the routine from the server.
 
 Each MUMPS environment participating in a remote environment (either
 as a server or client) should have a unique system ID, which should be
@@ -714,7 +718,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | COMPMSG            | Last routine compilation message. | no |
 | COMPIDXLOC         | Compile indexed locals.           | set with priv |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
-| DGP_LOCK_TIMEOUT   | LOCK timeout for network locks       | set with priv |
+| DGP_LOCK_TIMEOUT   | LOCK timeout for network locks (0-60sec) | set with priv |
+| DGP_ROUTINE_AGE    | Max. remote routine age in routine cache (0-60sec) | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
 | DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |
 | DGP_SEND_TIMEOUT   | Server-side send timeout in seconds  | no |

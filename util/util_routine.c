@@ -319,14 +319,20 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   {  uci = 1;					// check for a % routine
      vol = 1;
   }
-  if (systab->vol[vol - 1]->local_name[0])      // remote VOL?
-    Routine_Delete(routine, uci, vol);          //   invalidate (J.Nagy)
   while (ptr != NULL)				// while we have something
   //{ if ((ptr->rnam.var_qu == routine) &&
   { if (X_EQ(ptr->rnam.var_xu, routine) &&
 	(ptr->uci == uci) &&
         (ptr->vol == vol))			// if this is the right one
-    { ptr->attached++;				// count an attach
+    { if (systab->vol[vol - 1]->local_name[0])  // remote VOL?
+      { if (MTIME(0) - ptr->last_access > systab->dgpROUAGE) // routine too old?
+        { ptr->uci = 0;                         // mark for delete
+          if (ptr->attached == 0)               // not attached?
+            Routine_Free(ptr);                  //   free it
+          break;
+        }
+      }
+      ptr->attached++;				// count an attach
       s = SemOp(SEM_ROU, systab->maxjob);	// release the lock
       return ptr;				// and return the pointer
     }

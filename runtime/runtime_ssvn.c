@@ -397,6 +397,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_lock_timeout\0", 17) == 0))
       { return itocstring(buf, systab->dgpLOCKTO);// return the value
       }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_routine_age\0", 16) == 0))
+      { return itocstring(buf, systab->dgpROUAGE);// return the value
+      }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
       { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
 	if ((!(i < MAX_TRANTAB)) || (i < 0))	// validate it
@@ -776,6 +780,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > DGP_MAX_LOCKTO)) return -ERRM28;
         systab->dgpLOCKTO = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_routine_age\0", 16) == 0))
+      { j = cstringtoi(data);
+	if ((j < 0) || (j > DGP_MAX_ROUAGE)) return -ERRM28;
+        systab->dgpROUAGE = j;
 	return 0;				// and exit
       }
       if ((nsubs == 1) &&
