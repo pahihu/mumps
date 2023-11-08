@@ -720,7 +720,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks (0-60sec) | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
 | DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |
-| DGP_ROUTINE_AGE    | Max. remote routine agea in routine space (0-60sec) | set with priv |
+| DGP_ROUTINE_AGE    | Max. remote routine age in routine cache (0-60sec) | set with priv |
 | DGP_SEND_TIMEOUT   | Server-side send timeout in seconds  | no |
 | DGP_URL            | Transport URL for network daemons    | no |
 | DQLEN              | Dirty queue length        | no |

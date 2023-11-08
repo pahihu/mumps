@@ -306,7 +306,6 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   u_char uci;					// current uci
   u_char vol;					// current vol
   var_u *test;					// for testing name
-  time_t currtime;                              // current time
   
   test = (var_u *) &routine;			// map as a var_u
   hash = Routine_Hash(routine);			// get the hash
