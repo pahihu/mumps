@@ -1,6 +1,6 @@
 # A Terse Guide to MUMPS V2
 
-Copyright 2018-2021 Andras Pahi. All rights reserved.
+Copyright 2018-2023 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
