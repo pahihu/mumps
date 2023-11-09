@@ -291,6 +291,7 @@ void do_netdaemon(void)
   int restart_phase = 1;
   int flags;                                            // $Query() flags
   int to;                                               // timeout
+  int dir;                                              // direction
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -372,9 +373,9 @@ void do_netdaemon(void)
     }
 
     if ((req.header.code > DGP_ZDAL) && (DGP_MNTV != req.header.code))
-    { // fprintf(stderr,"got GLB=[%s] (len=%d)\n", (char *) &req.data.buf[0], req.data.len);
-      old = req.data.buf[req.data.len];			// patch GLB name
+    { old = req.data.buf[req.data.len];			// patch GLB name
       req.data.buf[req.data.len] = '\0';
+      // fprintf(stderr,"got GLB=[%s] (len=%d)\n", (char *) &req.data.buf[0], req.data.len);
       s = UTIL_MvarFromCStr((cstring *) &req.data, &var);
       // fprintf(stderr,"GLB=[%s]\n", &db_var.name.var_cu[0]); fflush(stderr);
       if (s < 0) goto Error;
@@ -461,10 +462,19 @@ void do_netdaemon(void)
 	DGP_MkStatus(&rep, s);
 	break;
       case DGP_ORDV: 
+        dir = (DGP_F_PREV & req.header.msgflag) ? -1 : 1;
+        if (-1 == dir)
+        { if (varptr->slen &&
+              varptr->key[varptr->slen - 2] == 0 &&
+              varptr->key[varptr->slen - 1] == 0)
+          { varptr->key[varptr->slen - 2] = 255;
+          }
+        }
         s = DB_OrderEx(varptr, 
                        &rep.data.buf[0],
-                       DGP_F_PREV & req.header.msgflag ? -1 : 1,
-		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
+                       dir,
+                       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
+        // fprintf(stderr,"DB_OrderEx: %d\n",s);
         if (s < 0) goto Error;
         DGP_MkValue(&rep, s, &rep.data.buf[0]);
         if (DGP_F_RDAT & req.header.msgflag)
@@ -475,9 +485,17 @@ void do_netdaemon(void)
         flags = GLO_DOCVT;
         if (DGP_F_NOUCI & req.header.msgflag) flags += GLO_NOUCI;
         if (DGP_F_NOVOL & req.header.msgflag) flags += GLO_NOVOL;
+        dir = (DGP_F_PREV & req.header.msgflag) ? -1 : 1;
+        if (-1 == dir)
+        { if (varptr->slen &&
+              varptr->key[varptr->slen - 2] == 0 &&
+              varptr->key[varptr->slen - 1] == 0)
+          { varptr->key[varptr->slen - 2] = 255;
+          }
+        }
         s = DB_QueryEx(varptr, 
                        &rep.data.buf[0],
-                       (DGP_F_PREV & req.header.msgflag) ? -1 : 1,
+                       dir,
                        flags,
 		       DGP_F_RDAT & req.header.msgflag ? &cstr : NULL);
         if (s < 0) goto Error;

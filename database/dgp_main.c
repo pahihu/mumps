@@ -70,7 +70,14 @@ short DGP_Order(int vol, mvar *var, u_char *buf, int dir, cstring *dat)
   u_char flag;
 
   flag = 0;
-  if (  -1 == dir) flag += DGP_F_PREV;
+  if (  -1 == dir)
+  { if (var->slen &&
+        var->key[var->slen - 2] == 255 &&
+        var->key[var->slen - 1] == 0)
+    { var->key[var->slen - 2] = 0;
+    }
+    flag += DGP_F_PREV;
+  }
   if (NULL != dat) flag += DGP_F_RDAT;
   DGP_MkRequest(&req, DGP_ORDV, flag, var, 0, NULL);
   s = DGP_Dialog(vol, &req, &rep);
@@ -91,7 +98,14 @@ short DGP_Query(int vol, mvar *var, u_char *buf, int flags, cstring *dat)
   u_char flag;
 
   flag = 0;
-  if (flags & GLO_PREV)  flag += DGP_F_PREV;
+  if (flags & GLO_PREV)
+  { if (var->slen &&
+        var->key[var->slen - 2] == 255 &&
+        var->key[var->slen - 1] == 0)
+    { var->key[var->slen - 2] = 0;
+    }
+    flag += DGP_F_PREV;
+  }
   if (flags & GLO_NOUCI) flag += DGP_F_NOUCI;
   if (flags & GLO_NOVOL) flag += DGP_F_NOVOL;
   if (NULL != dat) flag += DGP_F_RDAT;
