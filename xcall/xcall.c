@@ -73,6 +73,11 @@
 #include <DirectoryService/DirectoryService.h>
 #endif
 
+#if defined(__APPLE__) || defined(__linux) || defined(__linux__)
+#include <unistd.h>
+#include <utmpx.h>
+#endif
+
 
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)	// if linux
 #define _XOPEN_SOURCE				// define this
@@ -1753,6 +1758,8 @@ short Xcall_host ( char *ret_buffer, cstring *name, cstring *arg2 )
   int		 i;
   short		 s;
   u_char	a[8];
+  char          *tty, *p, *env;
+  struct utmpx  protox, *utp;
 
   if (strcasecmp((char *)arg2->buf, "ip") == 0)
   {
@@ -1782,39 +1789,69 @@ short Xcall_host ( char *ret_buffer, cstring *name, cstring *arg2 )
     s--;					// ignore last dot
     ret_buffer[s] = '\0';			// null terminate
     return s;
-
   }						// end of "IP"
 
   if (strcasecmp((char *)arg2->buf, "name") == 0)
-  { if (name->len == 0)
-    { i = gethostname(ret_buffer, 1023);	// get it
-      if (i < 0) return -(ERRMLAST+ERRZLAST+errno); // die on error
-      ret_buffer[1023] = '\0';			// JIC
-      return strlen(ret_buffer);
-    }
-    s = 0;
-    i = 0;
-    a[0] = 0;
-    while (TRUE)
-    { if (i >= name->len) break;
-      if (name->buf[i] == '.')
-      { s++;
-        a[s] = 0;
-        i++;
+  { // Steve Friedl's Unixwiz.net Tools
+    //  http://unixwiz.net/tools/whoamip.html
+    if(0 == strcasecmp((char *)name->buf, "<client>"))
+    { s = 0;
+      ret_buffer[s] = '\0';
+      if ((env = getenv("SSH_CLIENT")) != NULL &&
+          (p = strchr(env, ' ')) != NULL)
+      { s = p - env;
+        strncpy(ret_buffer, env, s);
+        ret_buffer[s] = '\0';
       }
       else
-      { a[s] = a[s] * 10 + name->buf[i++] - '0';
+      { if ((tty = ttyname(fileno(stdin))) != NULL)
+        { if (0 == strncmp(tty, "/dev/", 5))
+            tty += 5;
+          memset(&protox, 0, sizeof(protox));
+          strcpy(protox.ut_line, tty);
+#define SZ sizeof(utp->ut_host)
+          if ((utp = getutxline(&protox)) != NULL)
+          { memcpy(ret_buffer, utp->ut_host, SZ);
+            s = 0;
+            while ((s < SZ) && (32 < ret_buffer[s]))
+              s++;
+            ret_buffer[s] = '\0';
+          }
+        }
       }
+      return s;
     }
-    h = gethostbyaddr ((const char *)a, 4, AF_INET );
-    if ( h == NULL )				// gethostname() failed
-    {
-      ret_buffer[0] = '\0';
-      if ( h_errno == HOST_NOT_FOUND ) return ( - ( ERRMLAST+ERRZ71 ) );
-      else return ( - ( ERRMLAST+ERRZ72 ) );
+    else
+    { if (name->len == 0)
+      { i = gethostname(ret_buffer, 1023);	// get it
+        if (i < 0) return -(ERRMLAST+ERRZLAST+errno); // die on error
+        ret_buffer[1023] = '\0';			// JIC
+        return strlen(ret_buffer);
+      }
+      s = 0;
+      i = 0;
+      a[0] = 0;
+      while (TRUE)
+      { if (i >= name->len) break;
+        if (name->buf[i] == '.')
+        { s++;
+          a[s] = 0;
+          i++;
+        }
+        else
+        { a[s] = a[s] * 10 + name->buf[i++] - '0';
+        }
+      }
+      h = gethostbyaddr ((const char *)a, 4, AF_INET );
+      if ( h == NULL )				// gethostname() failed
+      {
+        ret_buffer[0] = '\0';
+        if ( h_errno == HOST_NOT_FOUND ) return ( - ( ERRMLAST+ERRZ71 ) );
+        else return ( - ( ERRMLAST+ERRZ72 ) );
+      }
+      strcpy(ret_buffer, h->h_name);
+      return strlen(ret_buffer);
     }
-    strcpy(ret_buffer, h->h_name);
-    return strlen(ret_buffer);
   }
   ret_buffer[0] = '\0';
   return -(ERRMLAST+ERRZ18);			// error
