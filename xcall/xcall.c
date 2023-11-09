@@ -1810,6 +1810,7 @@ short Xcall_host ( char *ret_buffer, cstring *name, cstring *arg2 )
           memset(&protox, 0, sizeof(protox));
           strcpy(protox.ut_line, tty);
 #define SZ sizeof(utp->ut_host)
+          setutxent();
           if ((utp = getutxline(&protox)) != NULL)
           { memcpy(ret_buffer, utp->ut_host, SZ);
             s = 0;
@@ -1817,6 +1818,7 @@ short Xcall_host ( char *ret_buffer, cstring *name, cstring *arg2 )
               s++;
             ret_buffer[s] = '\0';
           }
+          endutxent();
         }
       }
       return s;
