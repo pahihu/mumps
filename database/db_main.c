@@ -836,7 +836,7 @@ short DB_OrderEx(mvar *var, u_char *buf, int dir,       // get next subscript
   s = UTIL_Key_Extract(&keyptr[last_key+1], buf, &i);	// extract the key
   // fprintf(stderr, "DB_Order(): i=%d last_key=%d len=%d\r\n",
   //                  i, last_key, keybuf[0]);
-  fflush(stderr);
+  // fflush(stderr);
   if (dat &&                                            // dat given
       (s >= 0) &&                                       //   extract was succ.
       (keybuf[0] == last_key + i))                      // extracted the last

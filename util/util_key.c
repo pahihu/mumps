@@ -834,5 +834,29 @@ short UTIL_Cat_VarU(u_char *str, var_u *name)
   str[p] = '\0';                                // null terminate
   return p;
 }
+
+void Dump_mvar(mvar *var)
+{ char tmp[MAX_NAME_BYTES+1];
+  int i;
+
+  for (i = 0; (i < MAX_NAME_BYTES) && var->name.var_cu[i]; i++) {
+    tmp[i] = var->name.var_cu[i];
+  }
+  tmp[i] = '\0';
+  fprintf(stderr,"mvar @ %p\r\n", var);
+  fprintf(stderr,"  name = %s\r\n", tmp);
+  fprintf(stderr,"volset = %d\r\n", var->volset);
+  fprintf(stderr,"   uci = %d\r\n", var->uci);
+  fprintf(stderr," nsubs = %d\r\n", var->nsubs);
+  fprintf(stderr,"  subs = [");
+  for (i = 0; i < var->nsubs; i++)
+    fprintf(stderr,"%d ",var->subspos[i]);
+  fprintf(stderr,"]\r\n");
+  fprintf(stderr,"  slen = %d\r\n", var->slen);
+  fprintf(stderr,"   key = [");
+  for (i = 0; i < var->slen; i++)
+    fprintf(stderr,"%02X ",var->key[i]);
+  fprintf(stderr,"]\r\n");
+}
  
 
