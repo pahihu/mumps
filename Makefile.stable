@@ -10,7 +10,7 @@ LIBS	= -L$(HOME)/lib -lnanomsg -lmapm
 EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 \
 		-DMV1_DGP=1 \
       -I$(HOME)/include \
-		-DMV1_SHSEM=1 -DMV1_CKIT=1
+		-DMV1_SHSEM=1 -DMV1_CKIT=1 -DMUMPSPRG="\"mv2d\""
 # 		-DMV1_DLMALLOC=1
 #     -DMV1_DEVSYS=1
 
@@ -44,7 +44,7 @@ SUBDIRS=compile database init mv1api runtime seqio symbol util xcall
 
 RM=rm -f
 
-PROG    = mumps
+PROG    = mv2d
 
 COMOBJS	= 	compile/dollar.o \
 		compile/eval.o \

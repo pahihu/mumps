@@ -44,6 +44,12 @@
 #include "proto.h"                              // function prototypes
 #include "init.h"                               // init prototypes
 
+#if !defined(MUMPSPRG)
+#define MUMPSPRG        "mumps"
+#endif
+
+const char *MumpsPrg = MUMPSPRG;
+
 //****************************************************************************
 // Give help if they entered -h or similar
 //
@@ -56,17 +62,17 @@ void help(void)                                 // give some help
   printf( "Copyright (c) 2016 - 2023 Andras Pahi.\n");
   printf( "All rights reserved.\n\n");
   printf( "To create a database:\n");
-  printf( "> mumps -v volnam -b blocksize(kb) -s dbsize(Blocks) filename\n");
+  printf( "> %s -v volnam -b blocksize(kb) -s dbsize(Blocks) filename\n",MumpsPrg);
   printf( "                   and optionally -m mapblocksize(kb)\n");
   printf( "  volnam is 1 to %d alpha characters\n\n",MAX_NAME_BYTES);
   printf( "To initialize an environment:\n");
-  printf( "> mumps -j maxjobs  -r routinemb\n");
+  printf( "> %s -j maxjobs  -r routinemb\n",MumpsPrg);
   printf( "        -g globalmb -a addmb -l [-]jrnkb -i sysid\n");
   printf( "        -n #netdaemons -u srvurl -p srvport -t srvsndto database\n");
   printf( "  routinemb, globalmb, addmb, jrnkb, sysid,\n");
   printf( "  #netdaemons, srvurl, srvport, srvsndto are optional\n\n");
   printf( "To attach to an environment:\n");
-  printf( "> mumps -x command -e environment(uci) database\n" );
+  printf( "> %s -x command -e environment(uci) database\n",MumpsPrg);
   printf( "               where both switches are optional\n\n");
   printf( "      see http://github.com/pahihu/mumps/tree/development\n");
   printf( "----------------------------------------------------\n");
