@@ -1190,6 +1190,9 @@ int DB_Free(int vol)	                           	// total free blocks
   u_int i;						// loop cnt
   int count = 0;					// blk count
 
+  if (systab->vol[vol-1]->local_name[0])                // remote VOL?
+    return 0;
+
   s = SemOp( SEM_GLOBAL, READ);				// lock the globals
   if (s < 0)
   { return s;						// return any errors
