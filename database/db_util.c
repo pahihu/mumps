@@ -1330,6 +1330,8 @@ u_int DB_GetDirty(int vol)
   ASSERT(vol < MAX_VOL);
   curr_vol = systab->vol[vol];
   ASSERT(NULL != curr_vol->vollab);                     // mounted
+  if (curr_vol->local_name[0])                          // remote VOL?
+    return 0;
 
   num_gbd = curr_vol->num_gbd;
   cnt = 0;
