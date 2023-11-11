@@ -626,6 +626,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   int historic;                                 // Enn, tag+off, $NEXT etc
   int precision;                                // decimal precision
   int max_tt;                                   // max TRANTAB used
+  int tthash_empty;                             // empty tthash[]
   trantab tt[MAX_TRANTAB];                      // translation tables
   tranhash tthash[2 * MAX_TRANTAB];             // trantab hash
   uid_t start_user;                             // he's priv too

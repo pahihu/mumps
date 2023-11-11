@@ -402,7 +402,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	if ((!(i < MAX_TRANTAB)) || (i < 0))	// validate it
 	  return (-ERRM38);			// junk
 	if (nsubs != 2) return (-ERRM38);	// must be 2 subs
-	if (!systab->tt[i].from_vol)		// if nothing there
+	if (!systab->tt[i].to_uci)		// if nothing there
 	{ buf[0] = '\0';			// null terminate
 	  return 0;				// and return nothing
 	}
@@ -868,7 +868,9 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((!(cnt < MAX_TRANTAB)) || (cnt < 0)) // validate it
 	  return (-ERRM38);			// junk
 	if (data->len == 0)			// if null
-	{ bzero(&systab->tt[cnt], sizeof(trantab)); // clear it
+	{ while (SemOp( SEM_SYS, -systab->maxjob))
+            ;
+          bzero(&systab->tt[cnt], sizeof(trantab)); // clear it
 	  systab->max_tt = 0;			// clear this for now
 	  for (i = MAX_TRANTAB; i; i--)		// look for last used
 	  { if (systab->tt[i - 1].to_uci)	// if found
@@ -878,6 +880,8 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	  }
           bzero(&systab->tthash[0],             // clear trantab hash
                           sizeof(systab->tthash));
+          systab->tthash_empty = 1;             // mark empty
+          SemOp( SEM_SYS, systab->maxjob);
 	  return 0;				// and exit
 	}
 	subs[2] = (cstring *) tmp;		// some space
@@ -902,12 +906,16 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	{ return s;				// complain on error
 	}
 	bcopy(&partab.src_var, &tt.to_global, sizeof(var_u) + 2);
+        while (SemOp( SEM_SYS, -systab->maxjob))
+          ;
 	bcopy(&tt, &systab->tt[cnt], sizeof(trantab));
 	if ((cnt + 1) > systab->max_tt)		// check flag
 	{ systab->max_tt = cnt + 1;		// ensure current is there
 	}
         bzero(&systab->tthash[0],               // clear trantab hash
                           sizeof(systab->tthash));
+        systab->tthash_empty = 1;               // mark empty
+        SemOp( SEM_SYS, systab->maxjob);
 	return 0;
       }						// end trantab stuf
 
