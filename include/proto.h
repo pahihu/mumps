@@ -408,7 +408,7 @@ int UTIL_Key_Chars_In_SubsEx( char *Key, int keylen,
 short UTIL_Cat_VarU(u_char *str, var_u *name);	// concat var_u
 void Dump_mvar(mvar *var);                      // dump mvar
 void UTIL_TTFillHash(void);                     // fill up tthash[]
-int  UTIL_TTFind(var_u *src);                   // trantab lookup for src
+int  UTIL_TTFind(var_u *src, var_u *dst);       // trantab lookup for src
 
 // General utility prototypes
 short UTIL_strerror(int err, u_char *buf);      // return string error msg

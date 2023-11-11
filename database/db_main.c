@@ -147,7 +147,7 @@ void UTIL_TTFillHash(void)                              // Fill up tthash[]
 }
 
 
-int UTIL_TTFind(var_u *src)                             // find src in tthash[]
+int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
 { int i, j, k;                                          // handy ints
 
   if (systab->tthash_empty)                             // hash empty?
@@ -162,7 +162,7 @@ int UTIL_TTFind(var_u *src)                             // find src in tthash[]
       if (systab->tt[k].to_vol == 0)
       { return (k+1);					// flag routine proc
       }
-      bcopy(&systab->tt[k].to_global, src, sizeof(var_u) + 2);
+      bcopy(&systab->tt[k].to_global, dst, sizeof(var_u) + 2);
       return 0;
     }
     j = (j + 1) & (2 * MAX_TRANTAB - 1);                // next hash entry
@@ -170,6 +170,15 @@ int UTIL_TTFind(var_u *src)                             // find src in tthash[]
   return -1;
 }
 
+const char* UTIL_VarName(mvar *var)
+{ int i;
+  static char name[MAX_NAME_BYTES+1];
+
+  for (i = 0; var->name.var_cu[i] > 32 &&  i < MAX_NAME_BYTES; i++)
+    name[i] = var->name.var_cu[i];
+  name[i] = '\0';
+  return &name[0];
+}
 
 // NB. ha rtn eleje ":", akkor nem kell meghivni, mint rutint
 short Copy2local(mvar *var, char *rtn)
@@ -216,7 +225,7 @@ short Copy2local(mvar *var, char *rtn)
   if ((var->volset == 0) &&                             // no vol or uci
       (var->uci == 0) &&		
       (systab->max_tt))                                 //   and has translation
-  { i = UTIL_TTFind(&db_var.name);                      // trantab lookup
+  { i = UTIL_TTFind(&var->name, &db_var.name);          // trantab lookup
     if (i > 0)                                          // routine proc?
       return i;                                         //   done
   }							// end trantab lookup
