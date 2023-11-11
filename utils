@@ -3892,8 +3892,8 @@ mumtris ;
  q
 
 SYSINF
-SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
- n i,r,NF,B,V,X,now,ver,COL,D,W,DOTZ
+SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2023-11-11 12:24]
+ n i,r,NF,B,V,X,now,ver,COL,D,W,DOTZ,LN,VOL
  s now=$H,W=25,D=" ",COL=": ",ver=$P($SY,",",2),$P(DOTZ,".",21)=""
  w !,"MUMPS V1 system 'detector'"
  w !,"=========================="
@@ -3904,12 +3904,13 @@ SYSINF ;MV1 system information (idea by Josef Nagy);AP;[2016-12-01 14:50]
  d show("User/Process limit",$$cj_"/"_^$J)
  s W=25,D=";",COL=": " w !
  f i=0:1 s r=$T(SYS+i) q:2=$L(r,D)  d show($P(r,D,2),$G(^$S($P(r,D,3))))
- w ! s B=^$S("VOL",1,"BLOCK")
+ s VOL=^$J($J,"GLOBAL_VOL")
+ w ! s B=^$S("VOL",VOL,"BLOCK"),LN=$L(^$S("VOL",VOL,"LOCAL_NAME"))
  f i=0:1 s r=$T(VOL+i),NF=$L(r,D) q:2=NF  d
  . X "S V="_$P(r,D,3)
  . s:3<NF X=$P(r,D,4),V=V_" ==> "_$$bytes(@X)
  . d show($P(r,D,2),V)
- d show("Journal New Global",^$G("$GLOBAL","JOURNAL"))
+ d show("Journal New Global",$S(LN:"",1:^$G("$GLOBAL","JOURNAL")))
  w !
  Q
 show(msg,val) ;show msg and val
@@ -3930,19 +3931,19 @@ cj() ;current job no
  Q cnt
 volstat() ;volume status
  n i,ff
- f i="WRITELOCK","READONLY","PROTECTED","DUMMY" s ff=$G(^$S("VOL",1,i),0) Q:ff
+ f i="WRITELOCK","READONLY","PROTECTED","DUMMY" s ff=$G(^$S("VOL",VOL,i),0) Q:ff
  Q:ff i Q ""
  ;
-VOL ;System Volume Name;^$S("VOL",1,"NAME")
- ;Volume Database File;^$S("VOL",1,"FILE")
- ;Volume Block Size;$J(^$S("VOL",1,"BLOCK"),6)
- ;Volume Map Block Size;$J(^$S("VOL",1,"HEADER"),8);($TR(V," ","0")-$$LBLKSIZE^%MV1)*8*B
- ;Volume Size;$J(^$S("VOL",1,"SIZE"),8);$TR(V," ","0")*B
- ;Volume Free Size;$J(^$S("VOL",1,"FREE"),8);$TR(V," ","0")*B
+VOL ;System Volume Name;^$S("VOL",VOL,"NAME")
+ ;Volume Database File;^$S("VOL",VOL,"FILE")
+ ;Volume Block Size;$J(^$S("VOL",VOL,"BLOCK"),6)
+ ;Volume Map Block Size;$J(^$S("VOL",VOL,"HEADER"),8);($TR(V," ","0")-$$LBLKSIZE^%MV1)*8*B
+ ;Volume Size;$J(^$S("VOL",VOL,"SIZE"),8);$TR(V," ","0")*B
+ ;Volume Free Size;$J(^$S("VOL",VOL,"FREE"),8);$TR(V," ","0")*B
  ;Volume Status;$$volstat
- ;Volume Journaling;^$S("VOL",1,"JOURNAL_AVAILABLE")
- ;Volume Journal File;^$S("VOL",1,"JOURNAL_FILE")
- ;Volume Journal File Size;^$S("VOL",1,"JOURNAL_SIZE");V
+ ;Volume Journaling;^$S("VOL",VOL,"JOURNAL_AVAILABLE")
+ ;Volume Journal File;^$S("VOL",VOL,"JOURNAL_FILE")
+ ;Volume Journal File Size;^$S("VOL",VOL,"JOURNAL_SIZE");V
  ;
 SYS ;$NEXT enabled;$NEXTOK
  ;Exponent junk;EOK

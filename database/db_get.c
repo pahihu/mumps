@@ -94,6 +94,9 @@ short Get_data(int dir)		                        // locate a record
   if (systab->vol[db_var.volset-1]->vollab == NULL)	// vol still mounted?
   { return logit(2,(-ERRM26));				// no - error
   }
+  if (systab->vol[db_var.volset-1]->local_name[0])      // remote VOL?
+  { return logit(21,-(ERRZ91 + ERRMLAST));
+  }
   if ((bcmp("$GLOBAL\0", &db_var.name.var_cu[0], 8) == 0) || // if ^$G
       (dir != 0) ||					// or level or backward
       /* NB. we CAN write without journaling */
