@@ -154,6 +154,25 @@ short SS_Norm(mvar *var)			// "normalize" ssvn
   }
 }
 
+static
+short SS_TTGet(u_char *buf, int nsubs, cstring *subs[], trantab *tt, int x)
+{ int i;                                        // handy int
+  short s;                                      // for functions
+
+  if (nsubs != (x + 2)) return (-ERRM38);	// must be 2 subs
+  i = cstringtoi(subs[x+1]) - 1;	        // make an int of entry#
+  if ((!(i < MAX_TRANTAB)) || (i < 0))	        // validate it
+    return (-ERRM38);			        // junk
+  if (!tt->tab[i].to_uci)	                // if nothing there
+  { buf[0] = '\0';			        // null terminate
+    return 0;				        // and return nothing
+  }
+  s = UTIL_String_Mvar((mvar *) &tt->tab[i].to_global, buf, 0);
+  buf[s++] = '=';
+  s += UTIL_String_Mvar((mvar *) &tt->tab[i].from_global, &buf[s], 0);
+  return s;
+}
+
 short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 { int i = 0;					// usefull int
   int j;					// and another
@@ -402,18 +421,7 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->dgpROUAGE);// return the value
       }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
-      { i = cstringtoi(subs[1]) - 1;		// make an int of entry#
-	if ((!(i < MAX_TRANTAB)) || (i < 0))	// validate it
-	  return (-ERRM38);			// junk
-	if (nsubs != 2) return (-ERRM38);	// must be 2 subs
-	if (!systab->tt[i].from_vol)		// if nothing there
-	{ buf[0] = '\0';			// null terminate
-	  return 0;				// and return nothing
-	}
-	s = UTIL_String_Mvar((mvar *) &systab->tt[i].to_global, buf, 0);
-	buf[s++] = '=';
-	s += UTIL_String_Mvar((mvar *) &systab->tt[i].from_global, &buf[s], 0);
-	return s;
+      { return SS_TTGet(buf, nsubs, subs, &systab->tt, 0);
       }						// end trantab stuf
       if (strncasecmp( (char *) subs[0]->buf, "replica\0", 7) == 0)
       { if (nsubs < 3) return (-ERRM38); 	// must be 2 subs
@@ -606,6 +614,47 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
   return (-ERRM38);				// can't get here?
 }
 
+short SS_TTSet(cstring *data, int nsubs, cstring *subs[], trantab *tt, int x)
+{ int i, j;                                     // handy ints
+  int cnt;                                      // count of bytes used
+  short s;                                      // for functions
+  u_char tmp[1024];                             // temp string space
+  ttentry tte;                                  // for translations
+
+  if (nsubs != (x + 2)) return (-ERRM38);	// must be 2 subs
+  cnt = cstringtoi(subs[x+1]) - 1;              // make an int of entry#
+  if ((!(cnt < MAX_TRANTAB)) || (cnt < 0))      // validate it
+    return (-ERRM38);			        // junk
+  if (data->len == 0)			        // if null
+  { UTIL_TTDelete(tt, cnt);
+    return 0;				        // and exit
+  }
+  subs[x+2] = (cstring *) tmp;		        // some space
+  subs[x+3] = (cstring *) &tmp[512];	        // some more
+  for (i = 0; ;i++)			        // scan input
+  { if (data->buf[i] == '=')		        // found =
+    { subs[x+3]->buf[i] = '\0';		        // null terminate
+      subs[x+3]->len = i++;			// save length (incr i)
+      break;				        // and exit loop
+    }
+    subs[x+3]->buf[i] = data->buf[i];	        // copy
+  }					        // destination created
+  j = 0;					// clear index
+  while ((subs[x+2]->buf[j++] = data->buf[i++]));    // and other one
+  s = UTIL_MvarFromCStr(subs[x+2], &partab.src_var); // encode
+  if (s < 0)
+  { return s;				        // complain on error
+  }
+  bcopy(&partab.src_var, &tte.from_global, sizeof(var_u) + 2);
+  s = UTIL_MvarFromCStr(subs[x+3], &partab.src_var); // encode
+  if (s < 0)
+  { return s;				        // complain on error
+  }
+  bcopy(&partab.src_var, &tte.to_global, sizeof(var_u) + 2);
+  UTIL_TTAdd(&systab->tt, cnt, &tte);           // add to TRANTAB
+  return 0;
+}
+
 short SS_Set(mvar *var, cstring *data)          // set ssvn data
 { int i = 0;					// usefull int
   int j;					// and another
@@ -616,7 +665,6 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
   int ptmp = 0;					// pointer into this
   int nsubs = 0;				// count subscripts
   cstring *subs[4];				// where to put them
-  trantab tt;					// for translations
 
   while (i < var->slen)				// for all subs
   { cnt = 0;					// flag no rabit ears quotes
@@ -873,52 +921,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
-      { if (nsubs != 2) return (-ERRM38);	// must be 2 subs
-	cnt = cstringtoi(subs[1]) - 1;		// make an int of entry#
-	if ((!(cnt < MAX_TRANTAB)) || (cnt < 0)) // validate it
-	  return (-ERRM38);			// junk
-	if (data->len == 0)			// if null
-	{ bzero(&systab->tt[cnt], sizeof(trantab)); // clear it
-	  systab->max_tt = 0;			// clear this for now
-	  for (i = MAX_TRANTAB; i; i--)		// look for last used
-	  { if (systab->tt[i - 1].to_uci)	// if found
-	    { systab->max_tt = i;		// save here
-	      break;				// exit
-	    }
-	  }
-          bzero(&systab->tthash[0],             // clear trantab hash
-                          sizeof(systab->tthash));
-	  return 0;				// and exit
-	}
-	subs[2] = (cstring *) tmp;		// some space
-	subs[3] = (cstring *) &tmp[512];	// some more
-	for (i = 0; ;i++)			// scan input
-	{ if (data->buf[i] == '=')		// found =
-	  { subs[3]->buf[i] = '\0';		// null terminate
-	    subs[3]->len = i++;			// save length (incr i)
-	    break;				// and exit loop
-	  }
-	  subs[3]->buf[i] = data->buf[i];	// copy
-	}					// destination created
-	j = 0;					// clear index
-	while ((subs[2]->buf[j++] = data->buf[i++])); // and other one
-	s = UTIL_MvarFromCStr(subs[2], &partab.src_var); // encode
-	if (s < 0)
-	{ return s;				// complain on error
-	}
-	bcopy(&partab.src_var, &tt.from_global, sizeof(var_u) + 2);
-	s = UTIL_MvarFromCStr(subs[3], &partab.src_var); // encode
-	if (s < 0)
-	{ return s;				// complain on error
-	}
-	bcopy(&partab.src_var, &tt.to_global, sizeof(var_u) + 2);
-	bcopy(&tt, &systab->tt[cnt], sizeof(trantab));
-	if ((cnt + 1) > systab->max_tt)		// check flag
-	{ systab->max_tt = cnt + 1;		// ensure current is there
-	}
-        bzero(&systab->tthash[0],               // clear trantab hash
-                          sizeof(systab->tthash));
-	return 0;
+      { return SS_TTSet(data, nsubs, subs, &systab->tt, 0);
       }						// end trantab stuf
 
       if ((nsubs == 3) &&

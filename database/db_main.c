@@ -160,47 +160,12 @@ short Copy2local(mvar *var, char *rtn)
 
   if ((var->volset == 0) &&                             // no vol or uci
       (var->uci == 0) &&		
-      (systab->max_tt))                                 //   and has translation
-  { int j = FNV1aHash(sizeof(var_u) + 2,                // calc. hash
-                        (u_char *) &db_var) & (2 * MAX_TRANTAB - 1);
-    int k, found = 0;                                   // scan trantab hash
-    for (i = 0; systab->tthash[j].tti && i < 2 * MAX_TRANTAB; i++)
-    { if (bcmp(&db_var, &systab->tthash[j].from_global, // if a match
-                            sizeof(var_u) + 2) == 0)
-      { k = systab->tthash[j].tti;                      // check trantab[] index
-        if (k == -1)                                    // not translated ?
-          goto EndTTLookup;                             //   end lookup
-        if (systab->tt[k].to_vol == 0)
-        { return (k+1);					// flag routine proc
-        }
-        bcopy(&systab->tt[k].to_global, &db_var.name, sizeof(var_u) + 2);
-        found = 1;                                      // flag as found
-      }
-      j = (j + 1) & (2 * MAX_TRANTAB - 1);              // next hash entry
-    }
-    if (!found)                                         // linear search
-    { for (i = 0; i < systab->max_tt; i++)		// scan trantab
-      if (bcmp(&db_var, &systab->tt[i], sizeof(var_u) + 2) == 0) // if a match
-      { if (0 == systab->tthash[j].tti)                 // slot empty ?
-        { systab->tthash[j].tti = i;                    // enter in trantab hash
-          bcopy(&db_var, &systab->tthash[j].from_global, sizeof(var_u) + 2);
-        }
-        found = 1;                                      // flag as found
-        if (systab->tt[i].to_vol == 0)
-        { return (i+1);					// flag routine proc
-        }
-        bcopy(&systab->tt[i].to_global, &db_var.name, sizeof(var_u) + 2);
-        break;
-      }							// end found one
-      if (!found &&                                     // still not found ?
-          (0 == systab->tthash[j].tti))                 //   and slot empty ?
-      { systab->tthash[j].tti = -1;                     // flag not translated
-        bcopy(&db_var, &systab->tthash[j].from_global, sizeof(var_u) + 2);
-      }
-    }
+      (systab->tt.ntab))                                //   and has translation
+  { i = UTIL_TTFind(&systab->tt, var, &db_var);
+    if (i > 0)                                          // routine spec?
+      return i;
   }							// end trantab lookup
 
-EndTTLookup:
   if (systab->vol[db_var.volset-1]->vollab->
       uci[db_var.uci-1].name.var_cu[0] == '\0')		// does uci exits?
   { return (-ERRM26);					// no - error

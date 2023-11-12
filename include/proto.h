@@ -438,6 +438,13 @@ usec_t UTIL_GetMicroSec(void);			// microsec timestamp
 void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
 void* UTIL_ShmAt(void);                         // SHM address to attach to
 
+// TRANTAB Utility prototypes
+short UTIL_TTFind(trantab *tt, mvar *src, mvar *dst);
+                                     // find src in TRANTAB, update dst if found
+void UTIL_TTAdd(trantab *tt, int i, ttentry *elt);// add ith entry to TRANTAB
+void UTIL_TTDelete(trantab *tt, int i);         // delete ith entry in TRANTAB
+
+
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time
 

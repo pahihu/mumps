@@ -295,6 +295,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
   //chr_q *vt;                                  // var table pointer
   chr_x *vt;                                    // var table pointer
   rbd *p;                                       // a handy pointer
+  mvar srcvar;                                  // for trantab lookup
 
   if (var->uci == UCI_IS_LOCALVAR)              // if local
   { if (var->volset)                            // if index type
@@ -338,19 +339,18 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
     { buf[1] = partab.jobtab->luci;             // default
     }
   }
-  if ((var->volset == 0) && (var->uci == 0))	// no vol or uci
-  { for (i = 0; i < systab->max_tt; i++)        // scan trantab
-    { if ((buf[0] == systab->tt[i].from_vol) &&
-	  (buf[1] == systab->tt[i].from_uci) &&
-	  //(var->name.var_qu == systab->tt[i].from_global.var_qu))
-	  X_EQ(var->name.var_xu, systab->tt[i].from_global.var_xu))
-      { buf[0] = systab->tt[i].to_vol;          // copy this
-	buf[1] = systab->tt[i].to_uci;              // and this
-	//*((chr_q *) &buf[2]) = systab->tt[i].to_global.var_qu; // and this
-	*((chr_x *) &buf[2]) = systab->tt[i].to_global.var_xu; // and this
-	break;                                      // done
-      }
-    }                                           // end found one
+  if ((var->volset == 0)                        // no vol or uci
+        && (var->uci == 0)
+        && (systab->tt.ntab))                   // trantab lookup
+  { srcvar.volset = buf[0];
+    srcvar.uci = buf[1];
+    srcvar.name.var_xu = var->name.var_xu;
+    i = UTIL_TTFind(&systab->tt, &srcvar, &srcvar);
+    if (0 == i)
+    { buf[0] = srcvar.volset;                   // copy this
+      buf[1] = srcvar.uci;                      // and this
+      *((chr_x *) &buf[2]) = srcvar.name.var_xu; // and this
+    }
   }                                             // end trantab lookup
   //bcopy(&var->key[0], &buf[sizeof(chr_q) + 2], var->slen); // copy key
   //i = var->slen + sizeof(chr_q) + 2;            // how big it is

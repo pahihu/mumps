@@ -275,7 +275,9 @@ typedef union semun semun_t;
 
 #endif
 
-#define MAX_TRANTAB	256                     // total number of entries
+#define MAX_TRANTAB	        256             // total number of entries
+#define MAX_TRANTAB_HASH        (2 * MAX_TRANTAB)
+#define TRANTAB_HASH_MASK       (MAX_TRANTAB_HASH - 1)
 
 typedef unsigned long long      u_int64;        // unix unsigned quadword
 
@@ -599,21 +601,29 @@ typedef struct __ALIGNED__ LOCKTAB             // internal lock tables
   u_char key[256];                              // and the key
 } locktab;             				// define locktab
 
-typedef struct __ALIGNED__ TRANTAB             // translation table
-{ var_u  from_global;                           // from global
-  u_char from_vol;                              //      volumeset#
-  u_char from_uci;                              //      uci#
-  var_u  to_global;                             //   to global
-  u_char to_vol;                                //      volumeset#
-  u_char to_uci;                                //      uci#
-} trantab;             				// define trantab
+typedef struct __PACKED__ TTENTRY               // trantab entry
+{ uint32_t from_h;                              // hash value
+  var_u  from_global;                           // from global
+  u_char from_vol;                              //   volumeset#
+  u_char from_uci;                              //   uci#
+  var_u  to_global;                             // to global
+  u_char to_vol;                                //   volumeset# (0 - rtn.spec)
+  u_char to_uci;                                //   uci#
+} ttentry;             				// define trantab entry
 
-typedef struct __ALIGNED__ TRANHASH            // trantab hash entry
-{ int    tti;                                   // trantab[] index
+typedef struct __PACKED__ THENTRY               // trantab hash entry
+{ int    tti;                                   // tab[] index
+  uint32_t from_h;                              // hash value
   var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
   u_char from_uci;                              //      uci#
-} tranhash;                                     // define tranhash
+} thentry;                                      // define tranhash entry
+
+typedef struct __ALIGNED__ TRANTAB              // define trantab
+{ int ntab;                                     // max ttentry used
+  ttentry tab[MAX_TRANTAB];                     // translation tables
+  thentry hash[MAX_TRANTAB_HASH];               // trantab hash
+} trantab;
 
 typedef struct __ALIGNED__ REPLTAB
 { char connection[VOL_FILENAME_MAX];		// connection URL in nanomsg fmt
@@ -627,9 +637,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   int sem_id;                                   // GBD semaphore id
   int historic;                                 // Enn, tag+off, $NEXT etc
   int precision;                                // decimal precision
-  int max_tt;                                   // max TRANTAB used
-  trantab tt[MAX_TRANTAB];                      // translation tables
-  tranhash tthash[2 * MAX_TRANTAB];             // trantab hash
+  trantab tt;                                   // trantab
   uid_t start_user;                             // he's priv too
   void *lockstart;                              // head of lock table
   size_t locksize;                              // how many bytes

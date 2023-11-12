@@ -89,6 +89,7 @@ COMOBJS	= 	compile/dollar.o \
 		util/util_strerror.o \
 		util/util_bswap.o \
 		util/util_rle.o \
+		util/util_trantab.o \
 		xcall/xcall.o
 
 LIBOBJS =       mv1api/mv1api_connect.o \
