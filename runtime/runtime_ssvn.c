@@ -167,7 +167,12 @@ short SS_TTGet(u_char *buf, int nsubs, cstring *subs[], trantab *tt, int x)
   { buf[0] = '\0';			        // null terminate
     return 0;				        // and return nothing
   }
-  s = UTIL_String_Mvar((mvar *) &tt->tab[i].to_global, buf, 0);
+  if (255 == tt->tab[i].to_vol)                 // not translated?
+  { strcpy((char *) buf, (char *) tt->tab[i].to_var);
+    s = strlen((char *) buf);
+  }
+  else
+    s = UTIL_String_Mvar((mvar *) &tt->tab[i].to_global, buf, 0);
   buf[s++] = '=';
   s += UTIL_String_Mvar((mvar *) &tt->tab[i].from_global, &buf[s], 0);
   return s;
@@ -183,11 +188,11 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
   int ptmp = 0;					// pointer into this
   int nsubs = 0;				// count subscripts
   struct passwd *pp;				// for getpwuid()
-  cstring *subs[4];				// where to put them
+  cstring *subs[6];				// where to put them
   mvar *vp;					// variable ptr
   while (i < var->slen)				// for all subs
   { cnt = 0;					// flag no rabit ears quotes
-    if (nsubs > 3) return (-ERRM38);		// junk
+    if (nsubs > 5) return (-ERRM38);		// junk
     subs[nsubs] = (cstring *) &tmp[ptmp];	// point at the buffer
     s = UTIL_Key_Extract( &var->key[i],		// key from here
 			  subs[nsubs]->buf,	// where to put it
@@ -424,21 +429,35 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return SS_TTGet(buf, nsubs, subs, &systab->tt, 0);
       }						// end trantab stuf
       if (strncasecmp( (char *) subs[0]->buf, "replica\0", 7) == 0)
-      { if (nsubs < 3) return (-ERRM38); 	// must be 2 subs
-        i = cstringtoi(subs[1]) - 1;		// make an int of entry#
-	if ((!(i < MAX_REPLICAS)) || (i < 0))	// validate it
-	  return (-ERRM38);			// junk
-	if (!systab->replicas[i].connection[0])  // if nothing there
-	{ buf[0] = '\0';			// null terminate
-	  return 0;				// and return nothing
-	}
-        if (strncasecmp( (char *) subs[2]->buf, "connection\0", 11) == 0)
-        { strcpy((char *)buf, &systab->replicas[i].connection[0]);
-          return strlen((char *) buf);
-        }
-        if (strncasecmp( (char *) subs[2]->buf, "type\0", 5) == 0)
-        { strcpy((char *)buf, systab->replicas[i].typ ? "mandatory":"optional");
-          return strlen((char *) buf);
+      { // "REPLICA",N,"TYPE"
+        // "REPLICA",N,"CONNECTION"
+        // "REPLICA",N,"TRANTAB",M
+        // "REPLICA",N,"ENABLED"
+        if (nsubs > 2)
+        { i = cstringtoi(subs[1]) - 1;		        // make an int of entry#
+	  if ((!(i < MAX_REPLICAS)) || (i < 0))	// validate it
+	    return (-ERRM38);			        // junk
+          if (strncasecmp( (char *) subs[2]->buf, "type\0", 5) == 0)
+          { strcpy((char *)buf, systab->replicas[i].typ ?
+                                      "mandatory":"optional");
+            return strlen((char *) buf);
+          }
+          if (strncasecmp( (char *) subs[2]->buf, "enabled\0", 8) == 0)
+          { return itocstring(buf, systab->replicas[i].enabled);
+          }
+          if (nsubs == 4)
+          { if (strncasecmp( (char *) subs[2]->buf, "trantab\0", 8) == 0)
+            { return SS_TTGet(buf, nsubs, subs, &systab->replicas[i].tt, 2);
+            }
+          }
+	  if (!systab->replicas[i].connection[0])     // if nothing there
+	  { buf[0] = '\0';			        // null terminate
+	    return 0;				        // and return nothing
+	  }
+          if (strncasecmp( (char *) subs[2]->buf, "connection\0", 11) == 0)
+          { strcpy((char *)buf, &systab->replicas[i].connection[0]);
+            return strlen((char *) buf);
+          }
         }
 	return -(ERRM38);
       }						// end replica stuff
@@ -614,16 +633,22 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
   return (-ERRM38);				// can't get here?
 }
 
-short SS_TTSet(cstring *data, int nsubs, cstring *subs[], trantab *tt, int x)
+short SS_TTSet(
+        int xlate,
+        cstring *data,
+        int nsubs, cstring *subs[],
+        trantab *tt, int x)
 { int i, j;                                     // handy ints
   int cnt;                                      // count of bytes used
   short s;                                      // for functions
   u_char tmp[1024];                             // temp string space
   ttentry tte;                                  // for translations
 
+  bzero(&tte, sizeof(tte));                     // clear it
+
   if (nsubs != (x + 2)) return (-ERRM38);	// must be 2 subs
   cnt = cstringtoi(subs[x+1]) - 1;              // make an int of entry#
-  if ((!(cnt < MAX_TRANTAB)) || (cnt < 0))      // validate it
+  if ((!(cnt < MAX_TRANTAB)) || (cnt < 0))	// validate it
     return (-ERRM38);			        // junk
   if (data->len == 0)			        // if null
   { UTIL_TTDelete(tt, cnt);
@@ -646,12 +671,20 @@ short SS_TTSet(cstring *data, int nsubs, cstring *subs[], trantab *tt, int x)
   { return s;				        // complain on error
   }
   bcopy(&partab.src_var, &tte.from_global, sizeof(var_u) + 2);
-  s = UTIL_MvarFromCStr(subs[x+3], &partab.src_var); // encode
-  if (s < 0)
-  { return s;				        // complain on error
+  if (xlate)
+  { s = UTIL_MvarFromCStr(subs[x+3], &partab.src_var); // encode
+    if (s < 0)
+    { return s;				        // complain on error
+    }
+    bcopy(&partab.src_var, &tte.to_global, sizeof(var_u) + 2);
   }
-  bcopy(&partab.src_var, &tte.to_global, sizeof(var_u) + 2);
-  UTIL_TTAdd(&systab->tt, cnt, &tte);           // add to TRANTAB
+  else
+  { tte.to_vol = 255;                           // mark not translated
+    tte.to_uci = 255;                           // mark not empty
+  }
+  bcopy(&subs[x+3]->buf[0], &tte.to_var, subs[x+3]->len); // save global name
+  tte.to_var[subs[x+3]->len] = '\0';
+  UTIL_TTAdd(tt, cnt, &tte);                    // add to TRANTAB
   return 0;
 }
 
@@ -921,7 +954,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       }
 
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
-      { return SS_TTSet(data, nsubs, subs, &systab->tt, 0);
+      { return SS_TTSet(1, data, nsubs, subs, &systab->tt, 0);
       }						// end trantab stuf
 
       if ((nsubs == 3) &&
@@ -957,7 +990,7 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       if ((nsubs == 3) &&
           (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
 	  (strncasecmp( (char *) subs[2]->buf, "type\0", 11) == 0))
-      { i = cstringtoi(subs[1]) - 1;		// get vol#
+      { i = cstringtoi(subs[1]) - 1;		// get replica#
 	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
         if (i && !systab->replicas[i-1].connection[0])	// out of order?
           return -(ERRM38);
@@ -970,6 +1003,24 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         { systab->replicas[i].typ = DGP_REPL_OPT;
         }
 	return 0;				// return OK
+      }
+
+      if ((nsubs == 4) &&
+          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "trantab\0", 8) == 0))
+      { i = cstringtoi(subs[1]) - 1;		// get replica#
+	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
+        return SS_TTSet(0, data, nsubs, subs, &systab->replicas[i].tt, 2);
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "enabled\0", 8) == 0))
+      { i = cstringtoi(subs[1]) - 1;		        // get replica#
+	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
+        if (!systab->replicas[i].connection[0])	        // not connected?
+          return -(ERRZ89 + ERRMLAST);
+        systab->replicas[i].enabled = cstringtob(data) ? 1 : 0;
       }
 
       if ((nsubs == 4) &&

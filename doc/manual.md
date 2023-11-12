@@ -286,10 +286,11 @@ client side.
 ### MUMPS environment replicas
 
 This requires the nanomsg library as for the remote volume sets.
-You could set upto 16 environment replicas. The journaling phase sends remote messages
-on SET and KILL commands to the specified replicas. If the replica is mandatory then
-any error got from the replica will stop the operation. If the replica is optional
-the replication errors are ignored.
+You could set upto 16 environment replicas. The journaling phase sends
+remote messages on SET and KILL commands to the specified replicas.
+If the replica is mandatory then any error got from the replica will
+stop the operation. If the replica is optional the replication errors
+are ignored.
 
 To set replicas issue the following commands:
 
@@ -297,6 +298,17 @@ To set replicas issue the following commands:
 	SET ^$S("REPLICA",1,"CONNECTION")="tcp://192.168.1.23:2000"
 	SET ^$S("REPLICA",2,"TYPE")="OPTIONAL"
 	SET ^$S("REPLICA",2,"CONNECTION")="tcp://192.168.1.23:3000"
+
+By default all globals are replicated to the replicas. You could
+specify a translation table for each replica, if you want to restrict
+and/or translate the globals. If a replica has a translation table
+then only those globals are replicated which are in the table.
+
+	SET ^$S("REPLICA",2,"TRANTAB",1)="^[""DEV"",""DATA""]REMGLO=^LOCGLO"
+
+The replica should be enabled, to start replicate the globals.
+
+	SET ^$S("REPLICA",2,"ENABLED")=1
 
 
 ### Volume states
@@ -728,6 +740,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | MAXRESTTIME        | Maximum daemon rest time   | set with priv |
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
 | REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
+| REPLICA,n,ENABLED    | Replica status | set with priv |
+| REPLICA,n,TRANTAB,m  | Replica TRANTAB table | set with priv |
 | RESTTIME           | Daemon rest time          | no |
 | RESTORE_FILE       | Volume file to restore from backup | set with priv |
 | TSIZE              | sizeof(time_t)            | no |

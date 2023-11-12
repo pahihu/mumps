@@ -204,6 +204,8 @@ short DGP_ReplSet(mvar *var, cstring *data)
   for (i = 0; i < MAX_REPLICAS; i++)
   { if (0 == systab->replicas[i].connection[0])
       break;
+    if (0 == systab->replicas[i].enabled)
+      continue;
     if (DGP_REPL_REQ == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
       if (s < 0) return -(ERRZ88+ERRMLAST);
@@ -213,6 +215,8 @@ short DGP_ReplSet(mvar *var, cstring *data)
   for (i = 0; i < MAX_REPLICAS; i++)
   { if (0 == systab->replicas[i].connection[0])
       break;
+    if (0 == systab->replicas[i].enabled)
+      continue;
     if (DGP_REPL_OPT == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
     }
@@ -232,6 +236,8 @@ short DGP_ReplKill(mvar *var, int what)
   for (i = 0; i < MAX_REPLICAS; i++)
   { if (0 == systab->replicas[i].connection[0])
       break;
+    if (0 == systab->replicas[i].enabled)
+      continue;
     if (DGP_REPL_REQ == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
       if (s < 0) return -(ERRZ88+ERRMLAST);
@@ -241,6 +247,8 @@ short DGP_ReplKill(mvar *var, int what)
   for (i = 0; i < MAX_REPLICAS; i++)
   { if (0 == systab->replicas[i].connection[0])
       break;
+    if (0 == systab->replicas[i].enabled)
+      continue;
     if (DGP_REPL_OPT == systab->replicas[i].typ)
     { s = DGP_ReplDialog(i, &req, &rep);
     }

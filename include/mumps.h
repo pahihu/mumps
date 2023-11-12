@@ -607,8 +607,11 @@ typedef struct __PACKED__ TTENTRY               // trantab entry
   u_char from_vol;                              //   volumeset#
   u_char from_uci;                              //   uci#
   var_u  to_global;                             // to global
-  u_char to_vol;                                //   volumeset# (0 - rtn.spec)
+  u_char to_vol;                                //   volumeset#
+                                                //       0 - rtn.spec
+                                                //     255 - not translated
   u_char to_uci;                                //   uci#
+  u_char to_var[128];                           // global name
 } ttentry;             				// define trantab entry
 
 typedef struct __PACKED__ THENTRY               // trantab hash entry
@@ -628,6 +631,8 @@ typedef struct __ALIGNED__ TRANTAB              // define trantab
 typedef struct __ALIGNED__ REPLTAB
 { char connection[VOL_FILENAME_MAX];		// connection URL in nanomsg fmt
   int  typ;					// DGP_SYNC_REQ, DGP_SYNC_OPT
+  int  enabled;                                 // enabled?
+  trantab tt;                                   // replica TRANTAB
 } repltab;
 
 typedef struct __ALIGNED__ SYSTAB              // system tables
