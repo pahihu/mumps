@@ -288,15 +288,18 @@ client side.
 This requires the nanomsg library as for the remote volume sets.
 You could set upto 16 environment replicas. The journaling phase sends
 remote messages on SET and KILL commands to the specified replicas.
-If the replica is mandatory then any error got from the replica will
-stop the operation. If the replica is optional the replication errors
-are ignored.
+If the replica is cascaded, then the replica will send replication
+messages too. Any error got from the replica will stop the operation. 
+With the help of cascaded replicas you could configure cascading
+replication where a server node replicates globals to client nodes
+and any client will be replicated to the server and the other clients.
+Beware of loops in the replication configuration.
 
 To set replicas issue the following commands:
 
-	SET ^$S("REPLICA",1,"TYPE")="MANDATORY"
+	SET ^$S("REPLICA",1,"CASCADED")=1
 	SET ^$S("REPLICA",1,"CONNECTION")="tcp://192.168.1.23:2000"
-	SET ^$S("REPLICA",2,"TYPE")="OPTIONAL"
+	SET ^$S("REPLICA",2,"CASCADED")=0
 	SET ^$S("REPLICA",2,"CONNECTION")="tcp://192.168.1.23:3000"
 
 By default all globals are replicated to the replicas. You could
@@ -739,9 +742,9 @@ Additional `^$SYSTEM` variables or changed behavior.
 | DQLEN              | Dirty queue length        | no |
 | MAXRESTTIME        | Maximum daemon rest time   | set with priv |
 | REPLICA,n,CONNECTION | Replica connection URL   | set with priv |
-| REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
-| REPLICA,n,ENABLED    | Replica status | set with priv |
-| REPLICA,n,TRANTAB,m  | Replica TRANTAB table | set with priv |
+| REPLICA,n,CASCADED   | Cascaded replication     | set with priv |
+| REPLICA,n,ENABLED    | Replica status           | set with priv |
+| REPLICA,n,TRANTAB,m  | Replica TRANTAB table    | set with priv |
 | RESTTIME           | Daemon rest time          | no |
 | RESTORE_FILE       | Volume file to restore from backup | set with priv |
 | TSIZE              | sizeof(time_t)            | no |

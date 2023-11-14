@@ -243,14 +243,18 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   for (i = 0; i < MAX_VOL; i++)                 // clear DGP socks
   { partab.dgp_sock[i] = -1;
-    partab.dgp_repl[i] = -1;
     partab.vol_fds[i] = 0;
     partab.jnl_fds[i] = 0;
+  }
+
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { partab.dgp_repl[i] = -1;
   }
 
   partab.vol_fds[0] = hnd->dbfd;		// make sure fd is right
   partab.lenseq = 0;				// no SEQUENCE
   partab.lastseq = 0;
+  partab.daemon  = 0;                           // not daemon
 
   partab.compmsg = (cstring*)malloc(sizeof(cstring)); // compiler msg
 

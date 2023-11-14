@@ -168,8 +168,8 @@ short SS_TTGet(u_char *buf, int nsubs, cstring *subs[], trantab *tt, int x)
     return 0;				        // and return nothing
   }
   if (255 == tt->tab[i].to_vol)                 // not translated?
-  { strcpy((char *) buf, (char *) tt->tab[i].to_var);
-    s = strlen((char *) buf);
+  { bcopy((char *) tt->tab[i].to_var, buf, tt->tab[i].to_var_len);
+    s = tt->tab[i].to_var_len;
   }
   else
     s = UTIL_String_Mvar((mvar *) &tt->tab[i].to_global, buf, 0);
@@ -437,13 +437,11 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
         { i = cstringtoi(subs[1]) - 1;		        // make an int of entry#
 	  if ((!(i < MAX_REPLICAS)) || (i < 0))	// validate it
 	    return (-ERRM38);			        // junk
-          if (strncasecmp( (char *) subs[2]->buf, "type\0", 5) == 0)
-          { strcpy((char *)buf, systab->replicas[i].typ ?
-                                      "mandatory":"optional");
-            return strlen((char *) buf);
-          }
           if (strncasecmp( (char *) subs[2]->buf, "enabled\0", 8) == 0)
           { return itocstring(buf, systab->replicas[i].enabled);
+          }
+          if (strncasecmp( (char *) subs[2]->buf, "cascaded\0", 9) == 0)
+          { return itocstring(buf, systab->replicas[i].cascaded);
           }
           if (nsubs == 4)
           { if (strncasecmp( (char *) subs[2]->buf, "trantab\0", 8) == 0)
@@ -682,8 +680,9 @@ short SS_TTSet(
   { tte.to_vol = 255;                           // mark not translated
     tte.to_uci = 255;                           // mark not empty
   }
-  bcopy(&subs[x+3]->buf[0], &tte.to_var, subs[x+3]->len); // save global name
-  tte.to_var[subs[x+3]->len] = '\0';
+  tte.to_var_len = subs[x+3]->len;              // save global name length
+  bcopy(&subs[x+3]->buf[0], &tte.to_var, tte.to_var_len); // save global name
+  tte.to_var[tte.to_var_len] = '\0';            // terminate
   UTIL_TTAdd(tt, cnt, &tte);                    // add to TRANTAB
   return 0;
 }
@@ -976,32 +975,15 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 #ifdef MV1_DGP
         if (partab.dgp_repl[i] != -1)		// if connected, disconnect
         { s = DGP_ReplDisconnect(i);
+          systab->dgp_repl_sysid[i] = 0;
         }
 	s = DGP_ReplConnect(i);			// init connection
 	if (s < 0) return s;			// failed ? return
-	s = DGP_ReplDisconnect(i);		// disconnect
-	if (s < 0) return s;			// failed ? return
+	// s = DGP_ReplDisconnect(i);		// disconnect
+	// if (s < 0) return s;			// failed ? return
 	fprintf(stderr, "DGP: Replica connected at %s\r\n",
 			&systab->replicas[i].connection[0]);
 #endif
-	return 0;				// return OK
-      }
-
-      if ((nsubs == 3) &&
-          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
-	  (strncasecmp( (char *) subs[2]->buf, "type\0", 11) == 0))
-      { i = cstringtoi(subs[1]) - 1;		// get replica#
-	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
-        if (i && !systab->replicas[i-1].connection[0])	// out of order?
-          return -(ERRM38);
-        if (systab->replicas[i].connection[0])	// cannot change after
-          return -(ERRM38);			// connection set
-        if (strncasecmp( (char *) &data->buf[0], "mandatory\0", 10) == 0)
-        { systab->replicas[i].typ = DGP_REPL_REQ;
-        }
-        if (strncasecmp( (char *) &data->buf[0], "optional\0", 9) == 0)
-        { systab->replicas[i].typ = DGP_REPL_OPT;
-        }
 	return 0;				// return OK
       }
 
@@ -1021,6 +1003,18 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
         if (!systab->replicas[i].connection[0])	        // not connected?
           return -(ERRZ89 + ERRMLAST);
         systab->replicas[i].enabled = cstringtob(data) ? 1 : 0;
+        return 0;
+      }
+
+      if ((nsubs == 3) &&
+          (strncasecmp( (char *) subs[0]->buf, "replica\0", 8) == 0) &&
+	  (strncasecmp( (char *) subs[2]->buf, "cascaded\0", 9) == 0))
+      { i = cstringtoi(subs[1]) - 1;		        // get replica#
+	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
+        if (systab->replicas[i].connection[0])	        // cannot change after
+          return -(ERRM38);			        // connection set
+        systab->replicas[i].cascaded = cstringtob(data) ? 1 : 0;
+        return 0;
       }
 
       if ((nsubs == 4) &&

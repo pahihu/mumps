@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <arpa/inet.h>					// for ntoh() stuff
 
+#include "mumps.h"
+
 #if !defined(htonll) || !defined(ntohll)
 uint64_t HToNLL(uint64_t hostlonglong);
 uint64_t NToHLL(uint64_t netlonglong);
@@ -30,6 +32,7 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_SRV		26	/* normal response */
 #define DGP_SER		28	/* error response, only status is sent */
+#define DGP_SIDV        30      /* system id */
 
 #define DGP_MNTV	64	/* mount remote VOL */
 
@@ -37,6 +40,7 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_F_PREV	 64	/* reverse direction for ORDV/QRYV  */
 #define DGP_F_NOUCI      32     /* original var didn't had UCI */
 #define DGP_F_NOVOL      16     /* original var didn't had VOL */
+#define DGP_F_CASD        8     /* cascaded replication */
 
 /* NB. vvv--- same encoding as in mumps.h ---vvv */ 
 #define DGP_F_KSUBS	  2	/* KSUBSCRIPTS ^GLB */
@@ -48,9 +52,6 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_MAX_LOCKTO	60
 #define DGP_MAX_ROUAGE	60
 #define DGP_RESTARTTO	 5
-
-#define DGP_REPL_REQ	 1
-#define DGP_REPL_OPT	 0
 
 #define ATTR_PACKED	__attribute__ ((__packed__))
 
@@ -82,16 +83,27 @@ typedef struct ATTR_PACKED DGPREPLY
   u_char    buf[1024];
 } DGPReply;
 
+extern DGPRequest replreq[MAX_REPLICAS];
+
 short DGP_GetConnectionURL(const char* uri, char *buf);
 short DGP_GetRemoteVOL(const char *uri, char *buf);
 const char* DGP_GetServerURL(const char* base_url, int port);
 short DGP_Connect(int vol);
 short DGP_Disconnect(int vol);
 
+short DGP_Translate(trantab *tt, mvar *var, cstring *varstr);
+
 short DGP_MkRequest(DGPRequest *req,
 		    u_char code,
 		    u_char flag,
 		    mvar *var,
+		    short len,
+		    const u_char *buf);
+
+short DGP_MkRequestStr(DGPRequest *req,
+		    u_char code,
+		    u_char flag,
+		    cstring *varstr,
 		    short len,
 		    const u_char *buf);
 
@@ -110,7 +122,7 @@ short DGP_GetValue(DGPReply *rep, u_char *buf);
 
 short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep);
 
-void  DGP_MsgDump(int dosend, DGPHeader *header, short status);
+void  DGP_MsgDump(const char* fn, int dosend, DGPHeader *header, short status, int sock);
 
 
 short DGP_ReplConnect(int i);

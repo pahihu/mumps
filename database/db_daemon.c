@@ -308,6 +308,7 @@ void do_netdaemon(void)
     sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
     mv1_panic(msg);
   }
+  // fprintf(stderr,"NetDaemon: bound %d to %s\r\n",sock,url);
 
   to = systab->dgpSNDTO;                                // set send timeout
   if (-1 != to) to *= 1000;                             //   in milliseconds
@@ -349,14 +350,21 @@ void do_netdaemon(void)
     varptr = 0;
     remjob = req.header.remjob + 1;			// remote JOB no.
 
+    partab.dgpREPL_SYSID = (DGP_F_CASD & req.header.msgflag)
+                                ? (0xFF & remjob)
+                                : 0;
+
+    // do_log("REPL_SYSID = $%X\n", partab.dgpREPL_SYSID);
     // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
     if (dump_msg)
-    { DGP_MsgDump(0, &req.header, req.data.len);
+    { DGP_MsgDump("NetDaemon", 0, &req.header, req.data.len, sock);
     }
 
     // NB. when ULOK' system ID is 255, the LO(remjob) contains
     //     the DGP SYSID of the remote system
-    if (req.header.code != DGP_ULOK)
+    // NB. replication messages contains DGP SYSJOB numbers
+    if ((req.header.code != DGP_ULOK)
+                && (0 == (DGP_F_CASD & req.header.msgflag)))
     { ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF001)); // validate
     }
 
@@ -457,7 +465,7 @@ void do_netdaemon(void)
         DGP_MkValue(&rep, s, &rep.data.buf[0]);
         break;
       case DGP_KILV:
-	s = DB_KillEx(varptr, req.header.msgflag);
+        s = DB_KillEx(varptr, req.header.msgflag);
 	if (s < 0) goto Error;
 	DGP_MkStatus(&rep, s);
 	break;
@@ -514,6 +522,10 @@ void do_netdaemon(void)
         { DGP_AppendValue(&rep, cstr.len, &cstr.buf[0]);
         }
 	break;
+      case DGP_SIDV:
+        s = htons(systab->dgpID);
+	DGP_MkValue(&rep, sizeof(s), &s);
+        break;
       default:
         do_log("unknown message code: %d\n", req.header.code);
         s = -(ERRZ82+ERRMLAST);
@@ -525,7 +537,7 @@ Send:
       DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
     if (dump_msg)
-    { DGP_MsgDump(1, &rep.header, rep.data.len);
+    { DGP_MsgDump("NetDaemon", 1, &rep.header, rep.data.len, sock);
     }
     msg_len = rep.header.msglen;
     rep.header.remjob = htonl(rep.header.remjob);	// cvt to network fmt
@@ -593,6 +605,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
 
   partab.jobtab = &systab->jobtab[systab->maxjob + myslot_net];// dummy jobtab
   partab.jobtab->pid = getpid();
+  partab.daemon = 1;                                    // mark as daemon
 
   // setup jobtab entries
   partab.jobtab->precision = systab->precision;		// decimal precision
@@ -606,6 +619,15 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   partab.sstk_start = &sstk[0];				// address of sstk
   partab.sstk_last = &sstk[MAX_SSTK];			// and the last char
   partab.varlst = NULL;
+
+  for (i = 0; i < MAX_VOL; i++)                         // clear partab entries
+  { partab.dgp_sock[i] = -1;
+    partab.vol_fds[i] = 0;
+    partab.jnl_fds[i] = 0;
+  }
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { partab.dgp_repl[i] = -1;
+  }
 
   partab.jobtab->attention = 0;
   partab.jobtab->trap = 0;

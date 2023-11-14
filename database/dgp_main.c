@@ -193,33 +193,94 @@ short DGP_UnLock(int vol, int job)
 }
 
 
+short DGP_Translate(trantab *tt, mvar *var, cstring *varstr)
+{ int i;                                        // handy int
+  short s;                                      // for functions
+
+  if (tt->ntab)
+  { s = UTIL_TTFindIdx(tt, var);
+    if (s < 0)
+    { i = -s; i--;
+      varstr->len = tt->tab[i].to_var_len;
+      bcopy(&tt->tab[i].to_var[0], &varstr->buf[0], varstr->len);
+      if (var->slen != 0)                       // if there are subscripts
+      { i = UTIL_String_Key( &var->slen, &varstr->buf[varstr->len],
+                                MAX_SUBSCRIPTS); //do the subscripts
+        if (i < 0) return i;			// quit on error
+        varstr->len += i;
+      }
+      varstr->buf[varstr->len] = '\0';          // terminate
+      return varstr->len;                       // return len
+    }
+    return -1;
+  }
+  s = UTIL_String_Mvar(var, &varstr->buf[0], MAX_SUBSCRIPTS);
+  if (s < 0) return s;
+  varstr->buf[s] = '\0';
+  varstr->len = s;
+
+  return s;
+}
+
+
+short DGP_ReplSYSID(int i)
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  if (systab->dgp_repl_sysid[i])
+    return systab->dgp_repl_sysid[i];
+
+  DGP_MkRequest(&req, DGP_SIDV, 0, NULL, 0, NULL);
+  s = DGP_ReplDialog(i, &req, &rep);
+  if (s < 0)
+     return s;
+  bcopy(&rep.data.buf[0], &s, sizeof(short));
+  s = ntohs(s);
+  // fprintf(stderr,"ReplSYSID: replica%d got %d\r\n",i,s);
+  systab->dgp_repl_sysid[i] = s;
+  return s;
+}
+
+
 short DGP_ReplSet(mvar *var, cstring *data)
 { DGPRequest req;
   DGPReply rep;
   short s;
   int i;
+  cstring varstr;
 
-  DGP_MkRequest(&req, DGP_SETV, 0, var, data->len, &data->buf[0]);
-  // required members
+  // fprintf(stderr,"DGP_ReplSet: SYSID=%X REPL_SYSID=%X data=%s\r\n",
+  //            systab->dgpID, partab.dgpREPL_SYSID, data->buf); fflush(stderr);
+
+  if (partab.daemon && (0 == partab.dgpREPL_SYSID))
+    return 0;
+
   for (i = 0; i < MAX_REPLICAS; i++)
-  { if (0 == systab->replicas[i].connection[0])
-      break;
-    if (0 == systab->replicas[i].enabled)
-      continue;
-    if (DGP_REPL_REQ == systab->replicas[i].typ)
-    { s = DGP_ReplDialog(i, &req, &rep);
-      if (s < 0) return -(ERRZ88+ERRMLAST);
+  { if (0 == systab->replicas[i].connection[0])         // no connection?
+      break;                                            //   done
+    if (0 == systab->replicas[i].enabled)               // not enabled?
+      continue;                                         //   skip
+    if (0 == systab->dgp_repl_sysid[i])                 // no SYSID yet?
+    { s = DGP_ReplConnect(i);                           //   connect
+      if (s < 0) return s;                              // error? done
     }
-  }
-  // optional members
-  for (i = 0; i < MAX_REPLICAS; i++)
-  { if (0 == systab->replicas[i].connection[0])
-      break;
-    if (0 == systab->replicas[i].enabled)
-      continue;
-    if (DGP_REPL_OPT == systab->replicas[i].typ)
-    { s = DGP_ReplDialog(i, &req, &rep);
+    if (partab.dgpREPL_SYSID == systab->dgp_repl_sysid[i])// do not send back
+    { // fprintf(stderr,"DGP_ReplSet: dgpREPL_SYSID = %d, SYSID = %d\r\n",
+      //        partab.dgpREPL_SYSID, systab->dgpID); fflush(stderr);
+      continue;                                         //   REPL messages
     }
+    s = DGP_Translate(&systab->replicas[i].tt,          // translate global
+                                        var, &varstr);
+    // fprintf(stderr,"DGP_ReplSet: Translate %d\r\n",s); fflush(stderr);
+    if (s < 0) continue;                                // failed?, continue
+    DGP_MkRequestStr(                                   // make request
+                &req, DGP_SETV,
+                systab->replicas[i].cascaded ? DGP_F_CASD : 0,
+                &varstr, data->len, &data->buf[0]);     // repl. REQd
+    s = DGP_ReplDialog(i, &req, &rep);                  // communicate
+    // fprintf(stderr,"DGP_ReplSet: ReplDialog %d\r\n",s); fflush(stderr);
+    if (s < 0) return -(ERRZ88+ERRMLAST);               // failed?, error
   }
   return 0;
 }
@@ -230,28 +291,33 @@ short DGP_ReplKill(mvar *var, int what)
   DGPReply rep;
   short s;
   int i;
+  cstring varstr;
+  int cascade;
 
-  DGP_MkRequest(&req, DGP_KILV, what, var, 0, NULL);
-  // required members
+  if (partab.daemon && (0 == partab.dgpREPL_SYSID))
+    return 0;
+
   for (i = 0; i < MAX_REPLICAS; i++)
-  { if (0 == systab->replicas[i].connection[0])
-      break;
-    if (0 == systab->replicas[i].enabled)
-      continue;
-    if (DGP_REPL_REQ == systab->replicas[i].typ)
-    { s = DGP_ReplDialog(i, &req, &rep);
-      if (s < 0) return -(ERRZ88+ERRMLAST);
+  { if (0 == systab->replicas[i].connection[0])         // no connection?
+      break;                                            //   done
+    if (0 == systab->replicas[i].enabled)               // not enabled?
+      continue;                                         //   skip
+    if (0 == systab->dgp_repl_sysid[i])                 // no SYSID yet?
+    { s = DGP_ReplConnect(i);                           //   connect
+      if (s < 0) return s;                              // error? done
     }
-  }
-  // optional members
-  for (i = 0; i < MAX_REPLICAS; i++)
-  { if (0 == systab->replicas[i].connection[0])
-      break;
-    if (0 == systab->replicas[i].enabled)
-      continue;
-    if (DGP_REPL_OPT == systab->replicas[i].typ)
-    { s = DGP_ReplDialog(i, &req, &rep);
-    }
+    if (partab.dgpREPL_SYSID == systab->dgp_repl_sysid[i])// don't send back
+      continue;                                         // REPL messages
+    s = DGP_Translate(&systab->replicas[i].tt,          // translate global
+                                        var, &varstr);
+    if (s < 0) continue;                                // failed? skip
+    cascade = systab->replicas[i].cascaded;
+    DGP_MkRequestStr(                                   // make request
+        &req, DGP_KILV,
+        (cascade ? DGP_F_CASD : 0) | what,
+        &varstr, 0, NULL);                              // repl. REQd
+    s = DGP_ReplDialog(i, &req, &rep);                  // communicate
+    if (s < 0) return -(ERRZ88+ERRMLAST);               // failed?, error
   }
   return 0;
 }

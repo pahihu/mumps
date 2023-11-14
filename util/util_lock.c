@@ -346,7 +346,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
     srcvar.uci = buf[1];
     srcvar.name.var_xu = var->name.var_xu;
     i = UTIL_TTFind(&systab->tt, &srcvar, &srcvar);
-    if (0 == i)
+    if (i < 0)                                  // found?
     { buf[0] = srcvar.volset;                   // copy this
       buf[1] = srcvar.uci;                      // and this
       *((chr_x *) &buf[2]) = srcvar.name.var_xu; // and this

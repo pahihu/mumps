@@ -9,6 +9,7 @@
 #include "proto.h"
 #include "dgp.h"
 #include "database.h"
+#include "dgp_database.h"
 
 #ifdef MV1_DGP
 #include <nanomsg/nn.h>
@@ -200,6 +201,7 @@ short DGP_Disconnect(int vol)
 short DGP_ReplConnect(int i)
 { int sock;						// NN socket
   int rv;						// return value
+  short s;                                              // for functions
 
   ASSERT((0 <= i) && (i < MAX_REPLICAS));
 
@@ -214,7 +216,11 @@ short DGP_ReplConnect(int i)
   if (rv < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
+  // fprintf(stderr,"DGP_ReplConnect: %d @ %s\r\n",sock,systab->replicas[i].connection);
   partab.dgp_repl[i] = sock;
+  s = DGP_ReplSYSID(i);
+  if (s < 0)
+    return s;
   return 0;
 }
 
@@ -242,12 +248,35 @@ short DGP_MkRequest(DGPRequest *req,
 		   mvar *var,
 		   short len,
 		   const u_char *buf)
+{ short s;
+  cstring varstr;
+
+  if (var)
+  { s = UTIL_String_Mvar(var, &varstr.buf[0], MAX_SUBSCRIPTS);
+    if (s < 0) return s;
+    varstr.buf[s] = '\0';
+    varstr.len = s;
+  }
+  return DGP_MkRequestStr(req, code, flag, var ? &varstr : NULL, len, buf);
+}
+
+
+short DGP_MkRequestStr(DGPRequest *req,
+		   u_char code,
+		   u_char flag,
+		   cstring *varstr,
+		   short len,
+		   const u_char *buf)
 { DGPData *data;
-  int s;						// status
   int remjob;
 
-  remjob = systab->dgpID * MAX_JOB + MV1_PID;		// system JOB number
-  ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF000));   // validate
+  if (DGP_F_CASD & flag)                                // cascaded replication?
+  { remjob = DGP_SYSJOB - 1;                            // current system job
+  }
+  else
+  { remjob = systab->dgpID * MAX_JOB + MV1_PID;         // remote job number
+  }
+  ASSERT((MAX_JOB-1 < remjob) && (remjob < 0xFF100));   // validate
 
   if (buf && (-1 == len))
     len = strlen((char *) buf);
@@ -259,15 +288,15 @@ short DGP_MkRequest(DGPRequest *req,
   req->header.msgflag = flag;
   req->header.msglen  = sizeof(DGPHeader);
 
-  if (var)
-  { s = UTIL_String_Mvar(var, &req->data.buf[0], MAX_SUBSCRIPTS);
-    if (s < 0) return s;
-    req->data.len = s;
+  req->data.len = 0;
+  if (varstr)
+  { bcopy(&varstr->buf[0], &req->data.buf[0], varstr->len);
+    req->data.len = varstr->len;
     req->header.msglen += sizeof(short) + req->data.len;
   }
 
   if (buf)
-  { if (var)						// use space
+  { if (varstr)						// use space
       data = (DGPData *) &req->data.buf[req->data.len];	//   after var
     else
       data = (DGPData *) &req->data;			// use data
@@ -416,7 +445,7 @@ short DGP_Dialog2(int vol, DGPRequest *req, DGPReply *rep, int do_restart)
     }
   }
   if (dump_msg)
-  { DGP_MsgDump(1, &req->header, req->data.len);
+  { DGP_MsgDump("Dialog2", 1, &req->header, req->data.len, sock);
   }
   
   msg_len = req->header.msglen;				// cvt to network fmt
@@ -465,7 +494,7 @@ ReSend:
 
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
   if (dump_msg)
-  { DGP_MsgDump(0, &rep->header, rep->data.len);
+  { DGP_MsgDump("Dialog2", 0, &rep->header, rep->data.len, sock);
   }
   if (DGP_SER == rep->header.code)			// error reply ?
   { if (-(ERRZ85+ERRMLAST) == rep->data.len)		// server (re)START ?
@@ -520,7 +549,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
     sock = partab.dgp_repl[i];				// get NN socket
   }
   if (dump_msg)
-  { DGP_MsgDump(1, &req->header, req->data.len);
+  { DGP_MsgDump("ReplDialog", 1, &req->header, req->data.len, sock);
   }
   
   msg_len = req->header.msglen;				// cvt to network fmt
@@ -549,7 +578,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
 
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
   if (dump_msg)
-  { DGP_MsgDump(0, &rep->header, rep->data.len);
+  { DGP_MsgDump("ReplDialog", 0, &rep->header, rep->data.len, sock);
   }
   if (DGP_SER == rep->header.code)			// error reply ?
   { return rep->data.len;				//   return error code
@@ -558,14 +587,14 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
 }
 
 
-void DGP_MsgDump(int dosend, DGPHeader *header, short status)
+void DGP_MsgDump(const char *fn, int dosend, DGPHeader *header, short status, int sock)
 {
   fprintf(stderr, dosend
-		  ? ">>>>>>>>>>>>>\r\n"
-		  : "<<<<<<<<<<<<<\r\n");
+		  ? ">>>SEND>>> (%s using %d @ %d)\r\n"
+		  : "<<<RECV<<< (%s using %d @ %d)\r\n", fn, sock, getpid());
   fprintf(stderr, "    code = %d\r\n", header->code);
   fprintf(stderr, " version = %d\r\n", header->version);
-  fprintf(stderr, "  remjob = %d\r\n", header->remjob);
+  fprintf(stderr, "  remjob = %d ($%X)\r\n", header->remjob, header->remjob);
   fprintf(stderr, "  hdrlen = %d\r\n", header->hdrlen);
   fprintf(stderr, " msgflag = %d\r\n", header->msgflag);
   fprintf(stderr, "  msglen = %d\r\n", header->msglen);

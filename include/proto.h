@@ -439,6 +439,7 @@ void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
 void* UTIL_ShmAt(void);                         // SHM address to attach to
 
 // TRANTAB Utility prototypes
+short UTIL_TTFindIdx(trantab *tt, mvar *src);   // find src,return encoded index
 short UTIL_TTFind(trantab *tt, mvar *src, mvar *dst);
                                      // find src in TRANTAB, update dst if found
 void UTIL_TTAdd(trantab *tt, int i, ttentry *elt);// add ith entry to TRANTAB

@@ -15,5 +15,6 @@ short DGP_UnLock(int vol, int job);
 
 short DGP_ReplSet(mvar *var, cstring *data);
 short DGP_ReplKill(mvar *var, int what);
+short DGP_ReplSYSID(int i);
 
 #endif

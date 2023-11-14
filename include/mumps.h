@@ -612,6 +612,7 @@ typedef struct __PACKED__ TTENTRY               // trantab entry
                                                 //     255 - not translated
   u_char to_uci;                                //   uci#
   u_char to_var[128];                           // global name
+  u_char to_var_len;                            // global namek length
 } ttentry;             				// define trantab entry
 
 typedef struct __PACKED__ THENTRY               // trantab hash entry
@@ -630,7 +631,7 @@ typedef struct __ALIGNED__ TRANTAB              // define trantab
 
 typedef struct __ALIGNED__ REPLTAB
 { char connection[VOL_FILENAME_MAX];		// connection URL in nanomsg fmt
-  int  typ;					// DGP_SYNC_REQ, DGP_SYNC_OPT
+  int  cascaded;			        // cascaded?
   int  enabled;                                 // enabled?
   trantab tt;                                   // replica TRANTAB
 } repltab;
@@ -663,6 +664,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
   u_char dgpROUAGE;                             // DGP remote routine age (0-60)
+  int dgp_repl_sysid[MAX_REPLICAS];             // DGP remote system IDs
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
   int numcpu2;                                  // number of CPUs x 2
@@ -711,6 +713,7 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   u_char jnl_seq[MAX_VOL];			// the seq. numbers of journals
   int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
   int dgp_repl[MAX_REPLICAS];			// DGP sockets for replicas
+  int dgpREPL_SYSID;                            // DGP remote system ID for msg
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack
   u_char *sstk_last;                            // last byte of sstk
@@ -728,6 +731,7 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   u_char *gbd_mem;				// local buffer memory
   int gbd_nlocal;				// no. of local buffers
   struct GBD *gbd_local;			// local GBD table
+  int daemon;                                   // daemon flag
 }partab_struct;        				// end of partab type
 						// sizeof(partab) = 339
 
