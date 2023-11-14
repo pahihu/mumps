@@ -612,6 +612,15 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   partab.sstk_last = &sstk[MAX_SSTK];			// and the last char
   partab.varlst = NULL;
 
+  for (i = 0; i < MAX_VOL; i++)                         // clear partab entries
+  { partab.dgp_sock[i] = -1;
+    partab.vol_fds[i] = 0;
+    partab.jnl_fds[i] = 0;
+  }
+  for (i = 0; i < MAX_REPLICAS; i++)
+  { partab.dgp_repl[i] = -1;
+  }
+
   partab.jobtab->attention = 0;
   partab.jobtab->trap = 0;
   partab.jobtab->async_error = 0;

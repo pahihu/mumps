@@ -276,7 +276,9 @@ typedef union semun semun_t;
 
 #endif
 
-#define MAX_TRANTAB	256                     // total number of entries
+#define MAX_TRANTAB	        256             // total number of entries
+#define MAX_TRANTAB_HASH        (2*MAX_TRANTAB)
+#define TRANTAB_HASH_MASK       (MAX_TRANTAB_HASH-1)
 
 typedef unsigned long long      u_int64;        // unix unsigned quadword
 
@@ -597,7 +599,7 @@ typedef struct __ALIGNED__ LOCKTAB             // internal lock tables
   u_char key[256];                              // and the key
 } locktab;             				// define locktab
 
-typedef struct __ALIGNED__ TRANTAB             // translation table
+typedef struct __PACKED__ TRANTAB               // translation table
 { var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
   u_char from_uci;                              //      uci#
@@ -606,7 +608,7 @@ typedef struct __ALIGNED__ TRANTAB             // translation table
   u_char to_uci;                                //      uci#
 } trantab;             				// define trantab
 
-typedef struct __ALIGNED__ TRANHASH            // trantab hash entry
+typedef struct __PACKED__ TRANHASH              // trantab hash entry
 { int    tti;                                   // trantab[] index
   var_u  from_global;                           // from global
   u_char from_vol;                              //      volumeset#
@@ -628,7 +630,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   int max_tt;                                   // max TRANTAB used
   int tthash_empty;                             // empty tthash[]
   trantab tt[MAX_TRANTAB];                      // translation tables
-  tranhash tthash[2 * MAX_TRANTAB];             // trantab hash
+  tranhash tthash[MAX_TRANTAB_HASH];            // trantab hash
   uid_t start_user;                             // he's priv too
   void *lockstart;                              // head of lock table
   size_t locksize;                              // how many bytes

@@ -127,14 +127,14 @@ void UTIL_TTFillHash(void)                              // Fill up tthash[]
         continue;
       var = &systab->tt[i].from_global;                 // point to from_global
       j = FNV1aHash(sizeof(var_u) + 2,                  // calc. hash index
-                          (u_char *) var) & (2 * MAX_TRANTAB - 1);
-      for (x = 0; systab->tthash[j].tti && x < (2 * MAX_TRANTAB); x++)
+                          (u_char *) var) & TRANTAB_HASH_MASK;
+      for (x = 0; systab->tthash[j].tti && x < MAX_TRANTAB_HASH; x++)
       { if (bcmp(var, &systab->tthash[j].from_global,
                                 sizeof(var_u) + 2) == 0)// if a match
         { systab->tthash[j].tti = i + 1;                // update entry 
           break;                                        // done
         }
-        j = (j + 1) & (2 * MAX_TRANTAB - 1);            // next entry
+        j = (j + 1) & TRANTAB_HASH_MASK;                // next entry
       }
       if (0 == systab->tthash[j].tti)                   // slot empty ?
       { systab->tthash[j].tti = i + 1;                  // enter in trantab hash
@@ -154,8 +154,8 @@ int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
     UTIL_TTFillHash();                                  //   fill it!
 
   j = FNV1aHash(sizeof(var_u) + 2,                      // calc. hash
-                      (u_char *) src) & (2 * MAX_TRANTAB - 1);
-  for (i = 0; systab->tthash[j].tti && i < (2 * MAX_TRANTAB); i++)
+                      (u_char *) src) & TRANTAB_HASH_MASK;
+  for (i = 0; systab->tthash[j].tti && i < MAX_TRANTAB_HASH; i++)
   { if (bcmp(src, &systab->tthash[j].from_global,       // if a match
                                 sizeof(var_u) + 2) == 0)
     { k = systab->tthash[j].tti - 1;                    // check trantab[] index
@@ -165,7 +165,7 @@ int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
       bcopy(&systab->tt[k].to_global, dst, sizeof(var_u) + 2);
       return 0;
     }
-    j = (j + 1) & (2 * MAX_TRANTAB - 1);                // next hash entry
+    j = (j + 1) & TRANTAB_HASH_MASK;                    // next hash entry
   }
   return -1;
 }
