@@ -82,6 +82,9 @@ typedef struct ATTR_PACKED DGPREPLY
   u_char    buf[1024];
 } DGPReply;
 
+#define DGP_HAUSNUMERO          4096
+const char* DGP_StrError(int err);
+
 short DGP_GetConnectionURL(const char* uri, char *buf);
 short DGP_GetRemoteVOL(const char *uri, char *buf);
 const char* DGP_GetServerURL(const char* base_url, int port);

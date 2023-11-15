@@ -22,6 +22,7 @@
 #define NN_SNDTIMEO     0
 #define NN_RCVTIMEO     0
 int nn_errno() { return EINVAL; }
+const char* nn_strerror(int err) { return NULL; }
 int nn_socket(int domain, int protocol) { return EINVAL; }
 int nn_close(int s) { return EBADF; }
 int nn_bind(int s, const char *addr) { return EINVAL; }
@@ -47,8 +48,15 @@ static
 short DGP_ErrNo(void)
 { int lasterr;
 
-  lasterr = nn_errno() - NN_HAUSNUMERO;
-  return lasterr + 4096;
+  lasterr = nn_errno();
+  if (lasterr > NN_HAUSNUMERO)
+    lasterr -= NN_HAUSNUMERO;
+  return lasterr + DGP_HAUSNUMERO;
+}
+
+const char*
+DGP_StrError(int err)
+{ return nn_strerror(err - DGP_HAUSNUMERO);
 }
 
 

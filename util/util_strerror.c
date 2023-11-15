@@ -53,6 +53,7 @@
 #include "proto.h"                              // standard includes
 #include "error.h"				// mumps errors
 #include "database.h"                           // for curr_lock
+#include "dgp.h"                                // for DGP stuff
 
 static struct 
 {
@@ -217,7 +218,11 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
   ptr = none;                                           // default to none
   if (err < 0) err = -err;                              // ensure err +ve
   if (err > (ERRMLAST+ERRZLAST))                        // check for errno
-  { ptr = (u_char *) strerror(err-(ERRMLAST+ERRZLAST));            // get error msg
+  { err -= (ERRMLAST+ERRZLAST);
+    if (err > DGP_HAUSNUMERO)
+      ptr = (u_char *) DGP_StrError(err);               // get error msg
+    else
+      ptr = (u_char *) strerror(err);                   // get error msg
   }
   else
   { for (i = 0; merrtab[i].msg != NULL; i++)            // search our table
