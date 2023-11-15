@@ -422,6 +422,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->dgpLOCKTO);// return the value
       }
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_replica_timeout\0", 20) == 0))
+      { return itocstring(buf, systab->dgpREPLTO);// return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_routine_age\0", 16) == 0))
       { return itocstring(buf, systab->dgpROUAGE);// return the value
       }
@@ -860,6 +864,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > DGP_MAX_LOCKTO)) return -ERRM28;
         systab->dgpLOCKTO = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_replica_timeout\0", 20) == 0))
+      { j = cstringtoi(data);
+	if ((j < -1) || (j > DGP_MAX_REPLTO)) return -ERRM28;
+        systab->dgpREPLTO = j;
 	return 0;				// and exit
       }
       if ((nsubs == 1) &&

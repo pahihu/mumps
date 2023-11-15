@@ -51,6 +51,7 @@ uint64_t NToHLL(uint64_t netlonglong);
 #define DGP_SYSID(x)	(((x)-1)/MAX_JOB)
 #define DGP_MAX_LOCKTO	60
 #define DGP_MAX_ROUAGE	60
+#define DGP_MAX_REPLTO  60
 #define DGP_RESTARTTO	 5
 
 #define ATTR_PACKED	__attribute__ ((__packed__))

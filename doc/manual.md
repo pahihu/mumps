@@ -293,7 +293,9 @@ messages too. Any error got from the replica will stop the operation.
 With the help of cascaded replicas you could configure cascading
 replication where a server node replicates globals to client nodes
 and any client will be replicated to the server and the other clients.
-Beware of loops in the replication configuration.
+Beware of loops in the replication configuration. Send and receive
+timeout could be specified on replication connections with the
+system parameter `DGP_REPLICA_TIMEOUT`.
 
 To set replicas issue the following commands:
 
@@ -734,6 +736,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | COMPIDXLOC         | Compile indexed locals.           | set with priv |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks (0-60sec) | set with priv |
+| DGP_REPLICA_TIMEOUT | Timeout for replica connections (0-60sec) | set with priv |
 | DGP_ROUTINE_AGE    | Max. remote routine age in routine cache (0-60sec) | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
 | DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |

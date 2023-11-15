@@ -202,6 +202,7 @@ short DGP_ReplConnect(int i)
 { int sock;						// NN socket
   int rv;						// return value
   short s;                                              // for functions
+  int to;                                               // timeout
 
   ASSERT((0 <= i) && (i < MAX_REPLICAS));
 
@@ -211,6 +212,20 @@ short DGP_ReplConnect(int i)
   sock = nn_socket(AF_SP, NN_REQ);
   if (sock < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
+  }
+  to = systab->dgpREPLTO;                               // set recv timeout
+  if (-1 != to) to *= 1000;                             //   in milliseconds
+  rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_RCVTIMEO,  // RECV timeout
+                                        &to, sizeof(to));
+  if (rv < 0)
+  { nn_close(sock);
+    return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
+  }
+  rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_SNDTIMEO,  // SEND timeout
+                                        &to, sizeof(to));
+  if (rv < 0)
+  { nn_close(sock);
+    return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
   rv = nn_connect(sock, systab->replicas[i].connection);
   if (rv < 0)

@@ -664,6 +664,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
   u_char dgpROUAGE;                             // DGP remote routine age (0-60)
+  u_char dgpREPLTO;                             // DGP repl. timeout (0-60)
   int dgp_repl_sysid[MAX_REPLICAS];             // DGP remote system IDs
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
