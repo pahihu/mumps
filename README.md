@@ -15,6 +15,7 @@ Changes:
   * multiple volume sets
   * remote volume sets, local execution of remote routines
   * online backup and restore
+  * global translation, replication
   * HANG supports fractional seconds
   * 3 argument $ORDER(), $QUERY() and 2 argument $DATA() functions
   * KVALUE and KSUBSCRIPTS commands
