@@ -243,6 +243,8 @@ short DGP_ReplSYSID(int i)
 }
 
 
+DGPRequest replreq[MAX_REPLICAS];                       // repl. messages
+
 short DGP_ReplSet(mvar *var, cstring *data)
 { DGPRequest req;
   DGPReply rep;
@@ -275,12 +277,14 @@ short DGP_ReplSet(mvar *var, cstring *data)
     // fprintf(stderr,"DGP_ReplSet: Translate %d\r\n",s); fflush(stderr);
     if (s < 0) continue;                                // failed?, continue
     DGP_MkRequestStr(                                   // make request
-                &req, DGP_SETV,
+                partab.daemon ? &replreq[i] : &req, DGP_SETV,
                 systab->replicas[i].cascaded ? DGP_F_CASD : 0,
                 &varstr, data->len, &data->buf[0]);     // repl. REQd
-    s = DGP_ReplDialog(i, &req, &rep);                  // communicate
-    // fprintf(stderr,"DGP_ReplSet: ReplDialog %d\r\n",s); fflush(stderr);
-    if (s < 0) return -(ERRZ88+ERRMLAST);               // failed?, error
+    if (!partab.daemon)
+    { s = DGP_ReplDialog(i, &req, &rep);                // communicate
+      // fprintf(stderr,"DGP_ReplSet: ReplDialog %d\r\n",s); fflush(stderr);
+      if (s < 0) return -(ERRZ88+ERRMLAST);             // failed?, error
+    }
   }
   return 0;
 }
@@ -313,11 +317,13 @@ short DGP_ReplKill(mvar *var, int what)
     if (s < 0) continue;                                // failed? skip
     cascade = systab->replicas[i].cascaded;
     DGP_MkRequestStr(                                   // make request
-        &req, DGP_KILV,
+        partab.daemon ? &replreq[i] : &req, DGP_KILV,
         (cascade ? DGP_F_CASD : 0) | what,
         &varstr, 0, NULL);                              // repl. REQd
-    s = DGP_ReplDialog(i, &req, &rep);                  // communicate
-    if (s < 0) return -(ERRZ88+ERRMLAST);               // failed?, error
+    if (!partab.daemon)
+    { s = DGP_ReplDialog(i, &req, &rep);                // communicate
+      if (s < 0) return -(ERRZ88+ERRMLAST);             // failed?, error
+    }
   }
   return 0;
 }

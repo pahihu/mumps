@@ -265,6 +265,8 @@ extern pid_t mypid;
 extern short getvol(cstring *);
 extern int dump_msg;
 
+extern DGPRequest replreq[MAX_REPLICAS];
+
 void do_netdaemon(void)
 { 
 #ifdef MV1_DGP
@@ -547,6 +549,14 @@ Send:
     if (bytes < 0)
     { do_log("nn_send: %s\n", nn_strerror(nn_errno()));
     }
+
+    for (i = 0; i < MAX_REPLICAS; i++)                  // send repl. messages
+    { if (replreq[i].header.msglen)                     // slot filled?
+      { DGPReply rep;
+        s = DGP_ReplDialog(i, &replreq[i], &rep);
+        replreq[i].header.msglen = 0;                   // clear msg. length
+      }
+    }
   }
 #else
   for (;;)
@@ -626,7 +636,8 @@ int Net_Daemon(int slot, int vol)			// start a daemon
     partab.jnl_fds[i] = 0;
   }
   for (i = 0; i < MAX_REPLICAS; i++)
-  { partab.dgp_repl[i] = -1;
+  { partab.dgp_repl[i] = -1;                            // clear repl. socket
+    replreq[i].header.msglen = 0;                       // clear repl. slot
   }
 
   partab.jobtab->attention = 0;
