@@ -477,30 +477,32 @@ gives back one at a time.
 
 `$ZSEND(obj,"tag"[,arg1,arg2...])`
 
-Calls dynamically `tag^class(obj,arg1,arg2...)`.
-*obj* should be in the form *value[@class]*. Note the class part
-is optional. When it is empty it will use `%Object` as routine
+Calls dynamically `tag^class(obj,arg1,arg2...)` in the routine
+named `class`.  The value of *obj* should be in the form
+*value[@class]*.  Note the class part is optional. When it is
+empty it will use `%Object` as the class and hence the routine
 name. For more information see README.OOP and see the example
 classes in oopex.rsa.
 
-The root of the example hierarchy is the `Animal` class. There
-are three subclasses: `Dog`, `Duck` and `Toad`.
+About the example: the root of the hierarchy is the `Animal`
+class. There are three subclasses: `Dog`, `Duck` and `Toad`.
 
 Run the `Example^Animal` routine. The subclasses can save and 
-load themselves from globals in about 20 lines.
+load themselves from globals in about 20 lines code.
 
-Every class resides in the an M routine which has the same name
+Every class resides in an M routine which has the same name
 as the class. The methods are labels/tags in the routine.
 The first parameter of every method is the object instance, which
 receives the message (you can call it whatever you want: this, self etc.)
-The methods parameters follow the instance parameter.
+The method parameters follow the instance parameter.
 
-The object instance contains a simple string in the form of *value@class*.
-Every class inherits from the `%Object` class. If you want to specify
-more superclasses, put a `%Parents` label in your routine, and after a `;;`
-separator, list the superclasses separated by commas.
-The inheritance order is from right to left: the rightmost superclass
-is searched first, then we are going to the left.
+The object instance contains a simple string in the form of
+*value@class*. Every class inherits from the `%Object` class.
+If you want to specify more superclasses, put a `%Parents`
+label in your routine, and after a `;;` separator, list the
+superclasses separated by commas.
+The inheritance order is from right to left: the rightmost
+superclass is searched first, then we are going to the left.
 
 If the method is not found in the class hierarchy, the `%Unknown`
 method is called with the object instace, the message name and
@@ -513,16 +515,16 @@ The method call is dynamic, it is actually a message send.
 We search for the specified label/tag in the routines according 
 to the specified class hierarchy.
 The method call is performed by `$ZSEND(instance,"message",param1,param2,...)`.
-The result of the method search is cached in the local array `%ZSEND`,
-to avoid the search when the same method is called on an instance of
-the same class.
+The result of the method search is cached in the local array
+`%ZSEND`, to avoid the search when the same method is called
+on an instance of the same class.
 
-There are no instance variables, in the example the `%zobj` local array
-contains them, indexed by the instance identifiers.
+There are no instance variables, in the example the `%zobj`
+local array contains them, indexed by the instance identifiers.
 
-This object-oriented extension is fully dynamic, uses message sends
-only, there are a few predefined things only. The predefined identifiers
-are:
+This object-oriented extension is fully dynamic, uses message
+sends only, there are only a few predefined things.
+The predefined identifiers are:
 
 * the name `%Object` which is the root class
 * the label `%Parents` which specify the superclasses
