@@ -53,6 +53,7 @@
 #include "compile.h"
 #include "opcodes.h"
 #include "database.h"
+#include "dgp.h"                                // for DGP
 #include "mv1api.h"
 
 extern partab_struct partab;                    // setup partab
@@ -248,7 +249,7 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
   }
 
   for (i = 0; i < MAX_REPLICAS; i++)
-  { partab.dgp_repl[i] = -1;
+  { partab.dgp_repl[i] = DGP_REPL_DISCONNECTED;
   }
 
   partab.vol_fds[0] = hnd->dbfd;		// make sure fd is right

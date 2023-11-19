@@ -288,14 +288,25 @@ client side.
 This requires the nanomsg library as for the remote volume sets.
 You could set upto 16 environment replicas. The journaling phase sends
 remote messages on SET and KILL commands to the specified replicas.
+
 If the replica is cascaded, then the replica will send replication
 messages too. Any error got from the replica will stop the operation. 
 With the help of cascaded replicas you could configure cascading
 replication where a server node replicates globals to client nodes
 and any client will be replicated to the server and the other clients.
-Beware of loops in the replication configuration. Send and receive
-timeout could be specified on replication connections with the
-system parameter `DGP_REPLICA_TIMEOUT`.
+Beware of loops in the replication configuration.
+
+The replication server sends *PING* messages to the replicas checking
+the liveness of the connection. Send and receive timeout could be
+specified on replication connections with the system parameter
+`DGP_REPCLIENT_TIMEOUT` which denotes the timeout for the replica
+(ie. the client) where the replication server sends updates it is
+checked on the replication server. The system parameter
+`DGP_REPSERVER_TIMEOUT` denotes the replication server timeout
+which is checked on the replica (ie. the client). The timeouts are
+loggen in the netdaemon log files. The replication server sends the
+*PING* messages at the rate of half of the `DGP_REPCLIENT_TIMEOUT`
+system parameter.
 
 To set replicas issue the following commands:
 

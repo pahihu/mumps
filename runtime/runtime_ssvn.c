@@ -422,12 +422,20 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
       { return itocstring(buf, systab->dgpLOCKTO);// return the value
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "dgp_replica_timeout\0", 20) == 0))
-      { return itocstring(buf, systab->dgpREPLTO);// return the value
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_repclient_timeout\0", 22) == 0))
+      { return itocstring(buf, systab->dgpREPCLNTO);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_repserver_timeout\0", 22) == 0))
+      { return itocstring(buf, systab->dgpREPSRVTO);// return the value
       }
       if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "dgp_routine_age\0", 16) == 0))
       { return itocstring(buf, systab->dgpROUAGE);// return the value
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_dump_msg\0", 13) == 0))
+      { return itocstring(buf, systab->dgpDUMPMSG);// return the value
       }
       if (strncasecmp( (char *) subs[0]->buf, "trantab\0", 8) == 0)
       { return SS_TTGet(buf, nsubs, subs, &systab->tt, 0);
@@ -867,10 +875,19 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	return 0;				// and exit
       }
       if ((nsubs == 1) &&
-	  (strncasecmp( (char *) subs[0]->buf, "dgp_replica_timeout\0", 20) == 0))
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_repclient_timeout\0", 22) == 0))
       { j = cstringtoi(data);
-	if ((j < -1) || (j > DGP_MAX_REPLTO)) return -ERRM28;
-        systab->dgpREPLTO = j;
+	if ((j < -1) ||                         // -1 to turn off
+            (j == 0) || (j == 1) ||             // at least 2sec
+            (j > DGP_MAX_REPCLNTO)) return -ERRM28;
+        systab->dgpREPCLNTO = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_repserver_timeout\0", 22) == 0))
+      { j = cstringtoi(data);
+	if ((j < -1) || (j > DGP_MAX_REPSRVTO)) return -ERRM28;
+        systab->dgpREPSRVTO = j;
 	return 0;				// and exit
       }
       if ((nsubs == 1) &&
@@ -878,6 +895,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
       { j = cstringtoi(data);
 	if ((j < 0) || (j > DGP_MAX_ROUAGE)) return -ERRM28;
         systab->dgpROUAGE = j;
+	return 0;				// and exit
+      }
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "dgp_dump_msg\0", 13) == 0))
+      { j = cstringtoi(data);
+	if (j < 0) return -ERRM28;
+        systab->dgpDUMPMSG = j;
 	return 0;				// and exit
       }
       if ((nsubs == 1) &&
@@ -984,11 +1008,10 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	       (char *) data->buf);
         SemOp( SEM_SYS, systab->maxjob);
 #ifdef MV1_DGP
-        if (partab.dgp_repl[i] != -1)		// if connected, disconnect
+        if (partab.dgp_repl[i] >= 0)		// if connected, disconnect
         { s = DGP_ReplDisconnect(i);
-          systab->dgp_repl_sysid[i] = 0;
         }
-	s = DGP_ReplConnect(i);			// init connection
+	s = DGP_ReplConnect(i, 1);		// init connection
 	if (s < 0) return s;			// failed ? return
 	// s = DGP_ReplDisconnect(i);		// disconnect
 	// if (s < 0) return s;			// failed ? return
@@ -1013,7 +1036,10 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	if ((i < 0) || (i >= MAX_REPLICAS)) return (-ERRM60); // out of range
         if (!systab->replicas[i].connection[0])	        // not connected?
           return -(ERRZ89 + ERRMLAST);
+        j = systab->replicas[i].enabled;
         systab->replicas[i].enabled = cstringtob(data) ? 1 : 0;
+        if (j != systab->replicas[i].enabled)           // state changed?
+          j ? DGP_ReplEnd(i) : DGP_ReplStart(i);        //   either start OR end
         return 0;
       }
 

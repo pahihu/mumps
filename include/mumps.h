@@ -279,6 +279,8 @@ typedef union semun semun_t;
 #define MAX_TRANTAB_HASH        (2 * MAX_TRANTAB)
 #define TRANTAB_HASH_MASK       (MAX_TRANTAB_HASH - 1)
 
+#define DGP_MAX_SYSTEMS         256
+
 typedef unsigned long long      u_int64;        // unix unsigned quadword
 
 //typedef u_int64 chr_q;                        // our quadword special
@@ -664,8 +666,13 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   u_char dgpLOCKTO;				// DGP LOCK timeout (0-60)
   u_char dgpULOK;				// DGP local ULOK in progress
   u_char dgpROUAGE;                             // DGP remote routine age (0-60)
-  u_char dgpREPLTO;                             // DGP repl. timeout (0-60)
-  int dgp_repl_sysid[MAX_REPLICAS];             // DGP remote system IDs
+  int dgpREPCLNTO;                              // DGP repl. cln timeout (0-60)
+  int dgpREPSRVTO;                              // DGP repl. srv timeout (0-60)
+  int dgpDUMPMSG;                               // DGP message dump
+  int dgp_repl_clients[MAX_REPLICAS];           // DGP repl. client system IDs
+  time_t dgp_repl_lastclnchk[MAX_REPLICAS];     // DGP repl. last client check
+  u_char dgp_repl_servers[DGP_MAX_SYSTEMS];     // DGP repl. servers connected
+  time_t dgp_repl_lastsrvchk[DGP_MAX_SYSTEMS];  // DGP repl. last served check
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
   int numcpu2;                                  // number of CPUs x 2

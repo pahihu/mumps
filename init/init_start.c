@@ -347,7 +347,8 @@ int INIT_Start( char *file,                     // database
   systab->dgpLOCKTO = 0;			// default LOCK timeout
   systab->dgpRESTART = time(0) + DGP_RESTARTTO + 1;// DGP RESTART phase timeout
   systab->dgpROUAGE = 60;                       // remote routine age
-  systab->dgpREPLTO = -1;			// default replication timeout
+  systab->dgpREPCLNTO = -1;			// default repl.client timeout
+  systab->dgpREPSRVTO = -1;                     // default repl.server timeout
   for (i = 0; i < MAX_JOB; i++)			// clear DGP table
     systab->dgpSTART[i] = 0;
   systab->locbufTO = 0;				// disable local buffers

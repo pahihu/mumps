@@ -32,7 +32,9 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_SRV		26	/* normal response */
 #define DGP_SER		28	/* error response, only status is sent */
-#define DGP_SIDV        30      /* system id */
+#define DGP_PING        30      /* system id */
+#define DGP_RSTA        32      /* replication start */
+#define DGP_REND        34      /* replication end   */
 
 #define DGP_MNTV	64	/* mount remote VOL */
 
@@ -49,10 +51,14 @@ uint64_t NToHLL(uint64_t netlonglong);
 
 #define DGP_SYSJOB	(0x0FF000 + systab->dgpID)
 #define DGP_SYSID(x)	(((x)-1)/MAX_JOB)
-#define DGP_MAX_LOCKTO	60
-#define DGP_MAX_ROUAGE	60
-#define DGP_MAX_REPLTO  60
-#define DGP_RESTARTTO	 5
+#define DGP_MAX_LOCKTO          60
+#define DGP_MAX_ROUAGE	        60
+#define DGP_MAX_REPCLNTO        60
+#define DGP_MAX_REPSRVTO        60
+#define DGP_RESTARTTO	         5
+
+#define DGP_REPL_DISCONNECTED   -1
+#define DGP_REPL_BROKEN         -2
 
 #define ATTR_PACKED	__attribute__ ((__packed__))
 
@@ -128,8 +134,16 @@ short DGP_Dialog(int vol, DGPRequest *req, DGPReply *rep);
 void  DGP_MsgDump(const char* fn, int dosend, DGPHeader *header, short status, int sock);
 
 
-short DGP_ReplConnect(int i);
+short DGP_ReplConnect(int i, int p_getsysid);
+short DGP_ReplSYSID(int i);
+short DGP_ReplPing(int i);
+short DGP_ReplPingSend(int i);
+short DGP_ReplPingRecv(int i);
+short DGP_ReplStart(int i);
+short DGP_ReplEnd(int i);
 short DGP_ReplDisconnect(int i);
 short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep);
+short DGP_ReplDialogSend(int i, DGPRequest *req);
+short DGP_ReplDialogRecv(int i, DGPReply *rep);
 
 #endif

@@ -34,8 +34,6 @@ int nn_recv(int s, void *buf, size_t len, int flags) { return EINVAL; }
 int nn_setsockopt(int s, int lvl, int opt, const void *optval, size_t optvallen) { return EINVAL; }
 #endif
 
-int dump_msg = 0;
-
 /*
    - zarolas
      * helyben is kell zarolni, ha az sikerul, akkor lehet a tavoli zart
@@ -209,7 +207,85 @@ short DGP_Disconnect(int vol)
 }
 
 
-short DGP_ReplConnect(int i)
+short DGP_ReplSYSID(int i)                              // return client SYSID
+{ short s;
+
+  if (systab->dgp_repl_clients[i])                      // alread connected?
+    return systab->dgp_repl_clients[i];                 //   return client SYSID
+
+  s = DGP_ReplPing(i);                                  // ping client
+  if (s < 0)
+    return s;
+  systab->dgp_repl_clients[i] = s;                      // save client SYSID
+  return s;
+}
+
+
+short DGP_ReplPing(int i)                               // get repl.client SYSID
+{ DGPRequest req;
+  DGPReply rep;
+  short s;
+
+  DGP_MkRequest(&req, DGP_PING, 0, NULL, 0, NULL);
+  s = DGP_ReplDialog(i, &req, &rep);
+  if (s < 0)
+     return s;
+  bcopy(&rep.data.buf[0], &s, sizeof(short));
+  s = ntohs(s);
+  // fprintf(stderr,"ReplSYSID: replica%d got %d\r\n",i,s);
+  systab->dgp_repl_lastclnchk[i] = MTIME(0);            // save time
+  return s;
+}
+
+
+short DGP_ReplPingSend(int i)                           // get repl.client SYSID
+{ DGPRequest req;
+
+  DGP_MkRequest(&req, DGP_PING, 0, NULL, 0, NULL);
+  return DGP_ReplDialogSend(i, &req);
+}
+
+
+short DGP_ReplPingRecv(int i)
+{ short s;
+  DGPReply rep;
+
+  s = DGP_ReplDialogRecv(i, &rep);
+  if (s < 0)
+     return s;
+  bcopy(&rep.data.buf[0], &s, sizeof(short));
+  s = ntohs(s);
+  // fprintf(stderr,"ReplSYSID: replica%d got %d\r\n",i,s);
+  systab->dgp_repl_lastclnchk[i] = MTIME(0);            // save time
+  return s;
+}
+
+
+short DGP_ReplStart(int i)                              // start replication
+{ DGPRequest req;
+  DGPReply rep;
+
+  // on the CLIENT (ie. the replica)
+  // - enter server SYSID in dgp_repl_servers[]
+  // - save time in dgp_repl_lastsrvchk[]
+  DGP_MkRequest(&req, DGP_RSTA, 0, NULL, 0, NULL);
+  return DGP_ReplDialog(i, &req, &rep);
+}
+
+
+short DGP_ReplEnd(int i)                                // end replication
+{ DGPRequest req;
+  DGPReply rep;
+
+  // on the CLIENT (ie. the replica)
+  // - remove server SYSID from dgp_repl_servers[]
+  // - clear time in dgp_repl_lastsrvchk[]
+  DGP_MkRequest(&req, DGP_REND, 0, NULL, 0, NULL);
+  return DGP_ReplDialog(i, &req, &rep);
+}
+
+
+short DGP_ReplConnect(int i, int p_getsysid)
 { int sock;						// NN socket
   int rv;						// return value
   short s;                                              // for functions
@@ -224,7 +300,7 @@ short DGP_ReplConnect(int i)
   if (sock < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
-  to = systab->dgpREPLTO;                               // set recv timeout
+  to = systab->dgpREPCLNTO;                             // set recv timeout
   if (-1 != to) to *= 1000;                             //   in milliseconds
   rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_RCVTIMEO,  // RECV timeout
                                         &to, sizeof(to));
@@ -244,23 +320,31 @@ short DGP_ReplConnect(int i)
   }
   // fprintf(stderr,"DGP_ReplConnect: %d @ %s\r\n",sock,systab->replicas[i].connection);
   partab.dgp_repl[i] = sock;
-  s = DGP_ReplSYSID(i);
-  if (s < 0)
-    return s;
+  if (p_getsysid)                                       // get client SYSID?
+  { s = DGP_ReplSYSID(i);                               // get it!
+    if (s < 0) return s;                                // failed? return
+  }
   return 0;
 }
 
 
 short DGP_ReplDisconnect(int i)
 { int rv;
+  short s;
 
   ASSERT((0 <= i) && (i < MAX_REPLICAS));
 
-  if (-1 == partab.dgp_repl[i])
+  if (DGP_REPL_DISCONNECTED == partab.dgp_repl[i])
     return -(ERRZ89+ERRMLAST);
+  if (systab->replicas[i].enabled)                      // enabled?
+  { s = DGP_ReplEnd(i);                                 // repl.end to CLIENT
+  }
   rv = nn_shutdown(partab.dgp_repl[i], 0);
   nn_close(partab.dgp_repl[i]);
-  partab.dgp_repl[i] = -1;
+
+  partab.dgp_repl[i] = DGP_REPL_DISCONNECTED;
+  systab->dgp_repl_clients[i] = 0;                      // clear client SYSID
+  systab->dgp_repl_lastclnchk[i] = 0;                   // clear last client chk
   if (rv < 0)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
@@ -470,8 +554,8 @@ short DGP_Dialog2(int vol, DGPRequest *req, DGPReply *rep, int do_restart)
       sock = partab.dgp_sock[vol];			// get NN socket
     }
   }
-  if (dump_msg)
-  { DGP_MsgDump("Dialog2", 1, &req->header, req->data.len, sock);
+  if (systab->dgpDUMPMSG)
+  { DGP_MsgDump("Dialog2   ", 1, &req->header, req->data.len, sock);
   }
   
   msg_len = req->header.msglen;				// cvt to network fmt
@@ -509,6 +593,7 @@ ReSend:
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
   // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
+  rep->data.len = 0;
   bytes = nn_recv(sock, rep, sizeof(DGPReply), 0);	// receive reply
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
@@ -519,8 +604,8 @@ ReSend:
   rep->data.len      = ntohs(rep->data.len);
 
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
-  if (dump_msg)
-  { DGP_MsgDump("Dialog2", 0, &rep->header, rep->data.len, sock);
+  if (systab->dgpDUMPMSG)
+  { DGP_MsgDump("Dialog2   ", 0, &rep->header, rep->data.len, sock);
   }
   if (DGP_SER == rep->header.code)			// error reply ?
   { if (-(ERRZ85+ERRMLAST) == rep->data.len)		// server (re)START ?
@@ -569,12 +654,12 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   ASSERT(systab->replicas[i].connection[0]);		// ensure replica name
 
   sock = partab.dgp_repl[i];			
-  if (-1 == sock)					// not connected yet ?
-  { s = DGP_ReplConnect(i);				// connect DGP
-    if (s < 0) return s;				// failed ? return
+  if (DGP_REPL_DISCONNECTED == sock)			// not connected yet ?
+  { s = DGP_ReplConnect(i, 1);				// connect DGP
+    if (s < 0) return s;				// failed? return
     sock = partab.dgp_repl[i];				// get NN socket
   }
-  if (dump_msg)
+  if (systab->dgpDUMPMSG)
   { DGP_MsgDump("ReplDialog", 1, &req->header, req->data.len, sock);
   }
   
@@ -588,11 +673,14 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
   }
 
-  req->header.remjob = ntohl(req->header.remjob);	// cvt to host fmt
-  req->header.msglen = ntohs(req->header.msglen);
-  req->data.len      = ntohs(req->data.len);
+  if (systab->dgpDUMPMSG)
+  { req->header.remjob = ntohl(req->header.remjob);	// cvt to host fmt
+    req->header.msglen = ntohs(req->header.msglen);
+    req->data.len      = ntohs(req->data.len);
+    // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
+  }
 
-  // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
+  rep->data.len = 0;
   bytes = nn_recv(sock, rep, sizeof(DGPReply), 0);	// receive reply
   if (bytes < 0)					// failed ?
   { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
@@ -603,7 +691,7 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
   rep->data.len      = ntohs(rep->data.len);
 
   // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
-  if (dump_msg)
+  if (systab->dgpDUMPMSG)
   { DGP_MsgDump("ReplDialog", 0, &rep->header, rep->data.len, sock);
   }
   if (DGP_SER == rep->header.code)			// error reply ?
@@ -613,18 +701,118 @@ short DGP_ReplDialog(int i, DGPRequest *req, DGPReply *rep)
 }
 
 
+short DGP_ReplDialogSend(int i, DGPRequest *req)
+{ int bytes;						// bytes sent/received
+  int sock;						// NN socket
+  short s;						// status
+  u_short msg_len;
+
+  ASSERT((0 <= i) && (i < MAX_REPLICAS));
+  ASSERT(systab->replicas[i].connection[0]);		// ensure replica name
+
+  sock = partab.dgp_repl[i];
+  if (DGP_REPL_DISCONNECTED == sock)			// not connected yet ?
+  { s = DGP_ReplConnect(i, 1);				// connect DGP
+    if (s < 0) return s;				// failed? return
+    sock = partab.dgp_repl[i];				// get NN socket
+  }
+  if (systab->dgpDUMPMSG)
+  { DGP_MsgDump("RepDialogS", 1, &req->header, req->data.len, sock);
+  }
+
+  msg_len = req->header.msglen;				// cvt to network fmt
+  req->header.remjob = htonl(req->header.remjob);
+  req->header.msglen = htons(req->header.msglen);
+  req->data.len      = htons(req->data.len);
+
+  bytes = nn_send(sock, req, msg_len, 0);		// send request
+  if (bytes < 0)					// failed ?
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
+  }
+
+  if (systab->dgpDUMPMSG)
+  { req->header.remjob = ntohl(req->header.remjob);	// cvt to host fmt
+    req->header.msglen = ntohs(req->header.msglen);
+    req->data.len      = ntohs(req->data.len);
+    // fprintf(stderr, "sent request %d(len=%d)\r\n", req->header.code, req->header.msglen);
+  }
+  return 0;
+}
+
+
+short DGP_ReplDialogRecv(int i, DGPReply *rep)
+{ int bytes;						// bytes sent/received
+  int sock;						// NN socket
+
+  ASSERT((0 <= i) && (i < MAX_REPLICAS));
+  ASSERT(partab.dgp_repl[i] >= 0);                      // ensure connected
+
+  sock = partab.dgp_repl[i];
+  rep->data.len = 0;
+  bytes = nn_recv(sock, rep, sizeof(DGPReply), 0);	// receive reply
+  if (bytes < 0)					// failed ?
+  { return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);		//   return error
+  }
+
+  rep->header.remjob = ntohl(rep->header.remjob);	// cvt to host fmt
+  rep->header.msglen = ntohs(rep->header.msglen);
+  rep->data.len      = ntohs(rep->data.len);
+
+  // fprintf(stderr, "received reply %d(len=%d)\r\n", rep->header.code, rep->header.msglen);
+  if (systab->dgpDUMPMSG)
+  { DGP_MsgDump("RepDialogR", 0, &rep->header, rep->data.len, sock);
+  }
+  if (DGP_SER == rep->header.code)			// error reply ?
+  { return rep->data.len;				//   return error code
+  }
+  return 0;						// done
+}
+
+
 void DGP_MsgDump(const char *fn, int dosend, DGPHeader *header, short status, int sock)
-{
-  fprintf(stderr, dosend
+{ const char *msg;
+  const char* msgs[] = {
+        "ERR ",
+        "LOKV",
+        "ULOK",
+        "ZALL",
+        "ZDAL",
+        "GETV",
+        "SETV",
+        "KILV",
+        "ORDV",
+        "QRYV",
+        "DATV",
+        "ZINC",
+        "-24-",
+        "rSRV",
+        "rSER",
+        "PING",
+        "RSTA",
+        "REND"
+  };
+
+  msg = header->code == DGP_MNTV ? "MNTV" : msgs[header->code / 2];
+  if (systab->dgpDUMPMSG > 1)
+  { fprintf(stderr, dosend
 		  ? ">>>SEND>>> (%s using %d @ %d)\r\n"
 		  : "<<<RECV<<< (%s using %d @ %d)\r\n", fn, sock, getpid());
-  fprintf(stderr, "    code = %d\r\n", header->code);
-  fprintf(stderr, " version = %d\r\n", header->version);
-  fprintf(stderr, "  remjob = %d ($%X)\r\n", header->remjob, header->remjob);
-  fprintf(stderr, "  hdrlen = %d\r\n", header->hdrlen);
-  fprintf(stderr, " msgflag = %d\r\n", header->msgflag);
-  fprintf(stderr, "  msglen = %d\r\n", header->msglen);
-  fprintf(stderr, "data.len = %d\r\n", status);
+    fprintf(stderr, "    code = %d (%s)\r\n", header->code, msg);
+    fprintf(stderr, " version = %d\r\n", header->version);
+    fprintf(stderr, "  remjob = %d ($%X)\r\n", header->remjob, header->remjob);
+    fprintf(stderr, "  hdrlen = %d\r\n", header->hdrlen);
+    fprintf(stderr, " msgflag = %d\r\n", header->msgflag);
+    fprintf(stderr, "  msglen = %d\r\n", header->msglen);
+    fprintf(stderr, "data.len = %d\r\n", status);
+  }
+  else
+  { fprintf(stderr, dosend
+		  ? ">>>SEND>>> (%s using %d @ %d) "
+		  : "<<<RECV<<< (%s using %d @ %d) ", fn, sock, getpid());
+    fprintf(stderr, " %s", msg);
+    fprintf(stderr, " $%05X", header->remjob);
+    fprintf(stderr, " len = %d\r\n", status);
+  }
   fflush(stderr);
 }
 

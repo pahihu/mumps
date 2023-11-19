@@ -263,9 +263,60 @@ extern pid_t mypid;
 //
 
 extern short getvol(cstring *);
-extern int dump_msg;
 
 extern DGPRequest replreq[MAX_REPLICAS];
+
+#define MAX_NETFD        (MAX_REPLICAS+1)
+
+typedef struct __NETFD__ {
+    int fd;                                             // FD to check
+    int repl;                                           // 0 - sock
+                                                        //   OR ith ReplPingRecv
+    time_t to;                                          // timeout
+} netfd;
+
+int infds[MAX_NETFD];                                   // repl in FDs
+
+void AddNetFD(netfd *fds, int fd, int repl, int to)
+{ int i, j;
+
+  if (infds[repl])                                      // already in FDs?
+    return;                                             //   done
+
+  j = -1;
+  for (i = 0; i < MAX_NETFD; i++)
+  { if (-1 == fds[i].fd)                                // empty slot?
+    { j = i;                                            // remember
+    }
+    else if (fds[i].fd == fd)                           // duplicate?
+    { do_log("AddNetFD: duplicate entry for fd=%d %ld/%ld @ %ld\n",fd,to,fds[i].to, MTIME(0));
+      ASSERT(0);
+    }
+  }
+
+  ASSERT(j >= 0);                                       // ensure empty slot
+  fds[j].fd   = fd;                                     // save fd, repl, to
+  fds[j].repl = repl;
+  fds[j].to   = to;
+
+  infds[repl] = 1;
+}
+
+
+void MarkReplBroken(netfd *fds, const char *msg, int i, int j)
+                                                   // i - fds[], j - dgp_repl[]
+{ ASSERT(0 <= i && i < MAX_NETFD);
+  ASSERT(0 <= j && j < MAX_REPLICAS);
+
+  partab.dgp_repl[j] = DGP_REPL_BROKEN;                 // mark broken
+  do_log("Replication: connection to client system %d is broken (%s)\n",
+                       systab->dgp_repl_clients[j], msg);
+  systab->dgp_repl_lastclnchk[j] = MTIME(0);            // mark checked
+  if (fds) fds[i].fd = -1;                              // clear slot
+
+  infds[j+1] = 0;                                       // remove from FDs
+}
+
 
 void do_netdaemon(void)
 { 
@@ -287,13 +338,22 @@ void do_netdaemon(void)
   cstring *lck_list;					// LOCK list
   DGPData *data;
   label_block *remote_label;				// remote VOL label
-  int i;						// handy int
+  int i, j;						// handy ints
   u_short msg_len;					// message length
   int client;						// client system ID
   int restart_phase = 1;
   int flags;                                            // $Query() flags
   int to;                                               // timeout
   int dir;                                              // direction
+  struct nn_pollfd pfd[MAX_NETFD];                      // for nn_poll()
+  int npfd;                                             // no. of nn_pollfd
+  netfd fds[MAX_NETFD];                                 // FDs to check
+  int pfd2fds[MAX_NETFD];                               // pfd[] to fds[] index
+
+  for (i = 0; i < MAX_NETFD; i++)                       // clear FDs
+  { fds[i].fd = -1;
+    infds[i] = 0;
+  }
 
   sock = nn_socket(AF_SP, NN_REP);
   if (sock < 0)
@@ -323,8 +383,51 @@ void do_netdaemon(void)
 
   do_log("accepting connections on %s\n", url);
   do_log("(RE)START phase...\n");
+
+  AddNetFD(fds, sock, 0, 0);                    // sock, not replica, no timeout
+
   for (;;)
-  { bytes = nn_recv(sock, &req, sizeof(req), 0);	// receive request
+  { npfd = 0; t = MTIME(0);
+    for (i = 0; i < MAX_NETFD; i++)
+    { if (-1 != fds[i].fd)                              // not empty?
+      { if (fds[i].to && fds[i].to < t)                 // handle timeout
+        { j = fds[i].repl - 1;                          // get replica index
+          MarkReplBroken(fds, "timeout", i, j);         // mark broken
+          continue;
+        }
+        pfd[npfd].fd = fds[i].fd;
+        pfd[npfd].events = NN_POLLIN;
+        pfd2fds[npfd] = i;                              // save index
+        npfd++;
+      }
+    }
+    bytes = -1;                                         // no message
+    rv = nn_poll(pfd, npfd, 10);                        // chk for receive/10ms
+    if (rv > 0)                                         // any socket ready?
+    { for (i = 0; i < npfd; i++)                        // for each pfd[]
+      { if (pfd[i].revents & NN_POLLIN)                 // readable?
+        { j = pfd2fds[i];                               // get FDs index
+          ASSERT(-1 != fds[j].fd);
+          if (0 == fds[j].repl)                         // socket?
+          { req.data.len = 0;
+            bytes = nn_recv(sock, &req, sizeof(req), 0);// receive request
+            if (bytes < 0)
+            { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
+            }
+          }
+          else
+          { s = DGP_ReplPingRecv(fds[j].repl-1);        // get PING reply
+            if (s < 0)                                  // failed?
+            { DGP_ReplDisconnect(fds[j].repl-1);        // disconnect
+              MarkReplBroken(fds, "DGP_ReplPingRecv", i, fds[j].repl-1);
+                                                        // mark broken
+            }
+            infds[fds[j].repl] = 0;                     // remove from FDs
+            fds[j].fd = -1;
+          }
+        }
+      }
+    }
     if (systab->vol[0]->dismount_flag)		        // dismounting?
     { t = time(0);					// for ctime()
       do_log("Network Daemon %d shutting down\n", myslot);// log success
@@ -332,9 +435,44 @@ void do_netdaemon(void)
       systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
       exit (0);						// and exit
     }
-    if (bytes < 0)
-    { do_log("nn_recv(): %s\n", nn_strerror(nn_errno()));
-      continue;
+    if (-1 != systab->dgpREPSRVTO)                      // timeout specified?
+    { t = MTIME(0);
+      for (i = 0; i < DGP_MAX_SYSTEMS; i++)             // chk replication srvs
+      { if (systab->dgp_repl_servers[i])                // connected?
+        { if (t - systab->dgp_repl_lastsrvchk[i] > systab->dgpREPSRVTO)
+          { do_log("Replication: server system %d timed out\n", i);
+            systab->dgp_repl_lastsrvchk[i] = t;
+          }
+        }
+      }
+    }
+    if (-1 != systab->dgpREPCLNTO)                      // timeout specified?
+    { for (i = 0; i < MAX_REPLICAS; i++)                // check clients
+      { if (systab->replicas[i].enabled &&              // enabled
+            (0 == infds[i+1]) &&                        // AND not in FDs
+            (0 != systab->dgp_repl_clients[i]))         // AND has client SYSID?
+        { t = MTIME(0);
+          if (t - systab->dgp_repl_lastclnchk[i] > systab->dgpREPCLNTO / 2)
+          { if (partab.dgp_repl[i] < 0)                 // not connected/broken?
+            { s = DGP_ReplConnect(i, 0);                // connect!
+              if (s < 0)                                // failed?
+              { MarkReplBroken(NULL, "DGP_ReplConnect", 0, i);// mark broken
+              }
+              continue;
+            }
+            s = DGP_ReplPingSend(i);                    // ping it!
+            if (s < 0)                                  // failed?
+            { DGP_ReplDisconnect(i);                    // disconnect
+              MarkReplBroken(NULL, "DGP_ReplPingSend", 0, i);// mark broken
+              continue;
+            }
+            AddNetFD(fds, partab.dgp_repl[i], i+1, t + systab->dgpREPCLNTO);
+          }
+        }
+      }
+    }
+    if (bytes < 0)                                      // no message?
+    { continue;
     }
 
     req.header.remjob = ntohl(req.header.remjob);	// cvt to host fmt
@@ -358,8 +496,8 @@ void do_netdaemon(void)
 
     // do_log("REPL_SYSID = $%X\n", partab.dgpREPL_SYSID);
     // do_log("received request %d(len=%d)\n", req.header.code, req.header.msglen);
-    if (dump_msg)
-    { DGP_MsgDump("NetDaemon", 0, &req.header, req.data.len, sock);
+    if (systab->dgpDUMPMSG)
+    { DGP_MsgDump("NetDaemon ", 0, &req.header, req.data.len, sock);
     }
 
     // NB. when ULOK' system ID is 255, the LO(remjob) contains
@@ -524,9 +662,21 @@ void do_netdaemon(void)
         { DGP_AppendValue(&rep, cstr.len, &cstr.buf[0]);
         }
 	break;
-      case DGP_SIDV:
+      case DGP_PING:
+        if (systab->dgp_repl_servers[client])
+          systab->dgp_repl_lastsrvchk[client] = MTIME(0);
         s = htons(systab->dgpID);
-	DGP_MkValue(&rep, sizeof(s), &s);
+	DGP_MkValue(&rep, sizeof(s), (u_char *) &s);
+        break;
+      case DGP_RSTA:
+        systab->dgp_repl_servers[client] = 1;
+        systab->dgp_repl_lastsrvchk[client] = MTIME(0);
+        DGP_MkStatus(&rep, 0);
+        break;
+      case DGP_REND:
+        systab->dgp_repl_servers[client] = 0;
+        systab->dgp_repl_lastsrvchk[client] = 0;
+        DGP_MkStatus(&rep, 0);
         break;
       default:
         do_log("unknown message code: %d\n", req.header.code);
@@ -538,8 +688,8 @@ Send:
     if (DGP_ERR == rep.header.code)
       DGP_MkError(&rep, -(ERRZ82+ERRMLAST));
 
-    if (dump_msg)
-    { DGP_MsgDump("NetDaemon", 1, &rep.header, rep.data.len, sock);
+    if (systab->dgpDUMPMSG)
+    { DGP_MsgDump("NetDaemon ", 1, &rep.header, rep.data.len, sock);
     }
     msg_len = rep.header.msglen;
     rep.header.remjob = htonl(rep.header.remjob);	// cvt to network fmt
@@ -636,7 +786,7 @@ int Net_Daemon(int slot, int vol)			// start a daemon
     partab.jnl_fds[i] = 0;
   }
   for (i = 0; i < MAX_REPLICAS; i++)
-  { partab.dgp_repl[i] = -1;                            // clear repl. socket
+  { partab.dgp_repl[i] = DGP_REPL_DISCONNECTED;         // clear repl. socket
     replreq[i].header.msglen = 0;                       // clear repl. slot
   }
 

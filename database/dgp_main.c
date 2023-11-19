@@ -223,26 +223,6 @@ short DGP_Translate(trantab *tt, mvar *var, cstring *varstr)
 }
 
 
-short DGP_ReplSYSID(int i)
-{ DGPRequest req;
-  DGPReply rep;
-  short s;
-
-  if (systab->dgp_repl_sysid[i])
-    return systab->dgp_repl_sysid[i];
-
-  DGP_MkRequest(&req, DGP_SIDV, 0, NULL, 0, NULL);
-  s = DGP_ReplDialog(i, &req, &rep);
-  if (s < 0)
-     return s;
-  bcopy(&rep.data.buf[0], &s, sizeof(short));
-  s = ntohs(s);
-  // fprintf(stderr,"ReplSYSID: replica%d got %d\r\n",i,s);
-  systab->dgp_repl_sysid[i] = s;
-  return s;
-}
-
-
 DGPRequest replreq[MAX_REPLICAS];                       // repl. messages
 
 short DGP_ReplSet(mvar *var, cstring *data)
@@ -263,11 +243,11 @@ short DGP_ReplSet(mvar *var, cstring *data)
       break;                                            //   done
     if (0 == systab->replicas[i].enabled)               // not enabled?
       continue;                                         //   skip
-    if (0 == systab->dgp_repl_sysid[i])                 // no SYSID yet?
-    { s = DGP_ReplConnect(i);                           //   connect
+    if (0 == systab->dgp_repl_clients[i])               // no SYSID yet?
+    { s = DGP_ReplConnect(i, 1);                        //   connect
       if (s < 0) return s;                              // error? done
     }
-    if (partab.dgpREPL_SYSID == systab->dgp_repl_sysid[i])// do not send back
+    if (partab.dgpREPL_SYSID == systab->dgp_repl_clients[i])// do not send back
     { // fprintf(stderr,"DGP_ReplSet: dgpREPL_SYSID = %d, SYSID = %d\r\n",
       //        partab.dgpREPL_SYSID, systab->dgpID); fflush(stderr);
       continue;                                         //   REPL messages
@@ -306,11 +286,11 @@ short DGP_ReplKill(mvar *var, int what)
       break;                                            //   done
     if (0 == systab->replicas[i].enabled)               // not enabled?
       continue;                                         //   skip
-    if (0 == systab->dgp_repl_sysid[i])                 // no SYSID yet?
-    { s = DGP_ReplConnect(i);                           //   connect
+    if (0 == systab->dgp_repl_clients[i])               // no SYSID yet?
+    { s = DGP_ReplConnect(i, 1);                        //   connect
       if (s < 0) return s;                              // error? done
     }
-    if (partab.dgpREPL_SYSID == systab->dgp_repl_sysid[i])// don't send back
+    if (partab.dgpREPL_SYSID == systab->dgp_repl_clients[i])// don't send back
       continue;                                         // REPL messages
     s = DGP_Translate(&systab->replicas[i].tt,          // translate global
                                         var, &varstr);
