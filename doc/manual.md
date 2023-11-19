@@ -749,7 +749,8 @@ Additional `^$SYSTEM` variables or changed behavior.
 | COMPIDXLOC         | Compile indexed locals.           | set with priv |
 | DGP_ID             | Network ID of the MUMPS environment  | no |
 | DGP_LOCK_TIMEOUT   | LOCK timeout for network locks (0-60sec) | set with priv |
-| DGP_REPLICA_TIMEOUT | Timeout for replica connections (0-60sec) | set with priv |
+| DGP_REPCLIENT_TIMEOUT | Timeout for replica connections (2-60sec) | set with priv |
+| DGP_REPSERVER_TIMEOUT | Timeout for replication server connections (0-60sec) | set with priv |
 | DGP_ROUTINE_AGE    | Max. remote routine age in routine cache (0-60sec) | set with priv |
 | DGP_PORT           | Base port number for network daemons | no |
 | DGP_RECV_TIMEOUT   | Client-side recv timeout in seconds  | set with priv |
