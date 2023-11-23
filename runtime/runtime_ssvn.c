@@ -1143,11 +1143,17 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	    // NB. connect() - disconnect() pair will download remote VOL
 	    //     label from server
 	    s = DGP_Connect(i);				// init connection
-	    if (s < 0) return s;			// failed ? return
+	    if (s < 0)                                  // failed ?
+            { systab->vol[i]->file_name[0] = '\0';      //   clear name
+              return s;                                 //   quit on error
+            }
 	    // DGP client restart: remove any pending remote LOCKs
 	    LCK_Remove(DGP_SYSJOB);
 	    s = DGP_Disconnect(i);			// disconnect
-	    if (s < 0) return s;			// failed ? return
+	    if (s < 0)                                  // failed ?
+            { systab->vol[i]->file_name[0] = '\0';      //   clear name
+              return s;                                 //   quit on error
+            }
 	    fprintf(stderr, "DGP: Mounted %s as %s\r\n",// say OK
 			&systab->vol[i]->file_name[0], 
 			&systab->vol[i]->local_name[0]);
