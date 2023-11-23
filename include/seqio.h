@@ -50,8 +50,16 @@
 
 // IO operations
 
+#if defined(WRITE)
+#define		IO_WRITE	1		// Write only
+#else
 #define		WRITE		1		// Write only
+#endif
+#if defined(READ)
+#define		IO_READ		2		// Read only
+#else
 #define		READ		2		// Read only
+#endif
 #define		APPEND		3		// Append
 #define		IO		4		// Write/Read
 #define		TCPIP		5		// Client socket

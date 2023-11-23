@@ -55,6 +55,7 @@
 #include "database.h"					// database protos
 #include "proto.h"					// standard prototypes
 #include "error.h"					// error strings
+#include "seqio.h"                                      // for setSignal()
 
 #ifdef MV1_DGP
 #include <nanomsg/nn.h>					// nanomsg lib
@@ -746,6 +747,8 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   { return (errno);					// die on error
   }
 
+  setSignal( SIGINT, CATCH );                           // catch Control-C
+
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
   curr_sem_init = 1;
@@ -850,6 +853,8 @@ int DB_Daemon(int slot, int vol)			// start a daemon
   if (fit < 0)
   { return (errno);					// die on error
   }
+
+  setSignal( SIGINT, CATCH );                           // catch Control-C
 
   curr_lock = 0;					// clear lock flag
   bzero(semtab, sizeof(semtab));
