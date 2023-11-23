@@ -670,9 +670,11 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   int dgpREPSRVTO;                              // DGP repl. srv timeout (0-60)
   int dgpDUMPMSG;                               // DGP message dump
   int dgp_repl_clients[MAX_REPLICAS];           // DGP repl. client system IDs
-  time_t dgp_repl_lastclnchk[MAX_REPLICAS];     // DGP repl. last client check
+  time_t dgp_repl_lastclnchk[MAX_REPLICAS];     // DGP repl. server-side
+                                                //   last client check
   u_char dgp_repl_servers[DGP_MAX_SYSTEMS];     // DGP repl. servers connected
-  time_t dgp_repl_lastsrvchk[DGP_MAX_SYSTEMS];  // DGP repl. last served check
+  time_t dgp_repl_lastsrvchk[DGP_MAX_SYSTEMS];  // DGP repl. client-side
+                                                //   last server check
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
   int numcpu2;                                  // number of CPUs x 2
@@ -720,7 +722,9 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   int jnl_fds[MAX_VOL];                         // the filedes for journals
   u_char jnl_seq[MAX_VOL];			// the seq. numbers of journals
   int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
+  int dgp_sock_ep[MAX_VOL];                     // DGP socket endpoints
   int dgp_repl[MAX_REPLICAS];			// DGP sockets for replicas
+  int dgp_repl_ep[MAX_REPLICAS];                // DGP repl.socket endpoints
   int dgpREPL_SYSID;                            // DGP remote system ID for msg
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack

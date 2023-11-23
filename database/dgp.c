@@ -125,6 +125,7 @@ short DGP_Connect(int vol)
   char remote_name[MAX_NAME_BYTES];
   int i;						// handy int
   int to;                                               // timeout
+  int epid;                                             // endpoint ID
 
   if (strlen(systab->vol[vol]->file_name) < 6)		// tcp://
   { return -(ERRM38);
@@ -143,6 +144,7 @@ short DGP_Connect(int vol)
   { nn_close(sock);
     return -(DGP_ErrNo()+ERRMLAST+ERRZLAST);
   }
+  epid = rv;
   to = systab->dgpRCVTO;                                // set recv timeout
   if (-1 != to) to *= 1000;                             //   in milliseconds
   rv = nn_setsockopt(sock, NN_SOL_SOCKET, NN_RCVTIMEO, &to, sizeof(to));
@@ -154,13 +156,13 @@ short DGP_Connect(int vol)
   { DGP_MkRequest(&req, DGP_MNTV, 0, NULL, -1, (u_char *) &remote_name[0]);
     s = DGP_Dialog2(-(sock + 1), &req, &rep, 0);
     if (s < 0)
-    { nn_shutdown(sock, 0);
+    { nn_shutdown(sock, epid);
       nn_close(sock);
       return s;
     }
     if (SIZEOF_LABEL_BLOCK != rep.data.len)
     { s = -(ERRZ81+ERRMLAST);
-      nn_shutdown(sock, 0);
+      nn_shutdown(sock, epid);
       nn_close(sock);
       return s;
     }
@@ -186,6 +188,7 @@ short DGP_Connect(int vol)
   SemOp( SEM_SYS, systab->maxjob);
 
   partab.dgp_sock[vol] = sock;
+  partab.dgp_sock_ep[vol] = epid;
   return 0;
 }
 
@@ -197,7 +200,7 @@ short DGP_Disconnect(int vol)
 
   if (-1 == partab.dgp_sock[vol])
     return -(ERRZ89+ERRMLAST);
-  rv = nn_shutdown(partab.dgp_sock[vol], 0);
+  rv = nn_shutdown(partab.dgp_sock[vol], partab.dgp_sock_ep[vol]);
   nn_close(partab.dgp_sock[vol]);
   partab.dgp_sock[vol] = -1;
   if (rv < 0)
@@ -320,6 +323,7 @@ short DGP_ReplConnect(int i, int p_getsysid)
   }
   // fprintf(stderr,"DGP_ReplConnect: %d @ %s\r\n",sock,systab->replicas[i].connection);
   partab.dgp_repl[i] = sock;
+  partab.dgp_repl_ep[i] = rv;
   if (p_getsysid)                                       // get client SYSID?
   { s = DGP_ReplSYSID(i);                               // get it!
     if (s < 0) return s;                                // failed? return
@@ -339,7 +343,7 @@ short DGP_ReplDisconnect(int i)
   if (systab->replicas[i].enabled)                      // enabled?
   { s = DGP_ReplEnd(i);                                 // repl.end to CLIENT
   }
-  rv = nn_shutdown(partab.dgp_repl[i], 0);
+  rv = nn_shutdown(partab.dgp_repl[i], partab.dgp_repl_ep[i]);
   nn_close(partab.dgp_repl[i]);
 
   partab.dgp_repl[i] = DGP_REPL_DISCONNECTED;

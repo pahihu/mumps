@@ -349,6 +349,7 @@ void do_netdaemon(void)
   int npfd;                                             // no. of nn_pollfd
   netfd fds[MAX_NETFD];                                 // FDs to check
   int pfd2fds[MAX_NETFD];                               // pfd[] to fds[] index
+  int epid;                                             // endpoint ID
 
   for (i = 0; i < MAX_NETFD; i++)                       // clear FDs
   { fds[i].fd = -1;
@@ -370,6 +371,7 @@ void do_netdaemon(void)
     sprintf(msg, "nn_bind(%s): %s", url, nn_strerror(nn_errno()));
     mv1_panic(msg);
   }
+  epid = rv;
   // fprintf(stderr,"NetDaemon: bound %d to %s\r\n",sock,url);
 
   to = systab->dgpSNDTO;                                // set send timeout
@@ -431,6 +433,8 @@ void do_netdaemon(void)
     if (systab->vol[0]->dismount_flag)		        // dismounting?
     { t = time(0);					// for ctime()
       do_log("Network Daemon %d shutting down\n", myslot);// log success
+      nn_shutdown(sock, epid);
+      nn_close(sock);
       SemStats();                                     	// print sem stats
       systab->vol[0]->wd_tab[myslot].pid = 0;	        // say gone
       exit (0);						// and exit
