@@ -697,7 +697,9 @@ typedef struct __ALIGNED__ PARTAB              // define the partition table
   int jnl_fds[MAX_VOL];                         // the filedes for journals
   u_char jnl_seq[MAX_VOL];			// the seq. numbers of journals
   int dgp_sock[MAX_VOL];			// DGP sockets for remote VOLs
+  int dgp_sock_ep[MAX_VOL];                     // DGP socket endpoints
   int dgp_repl[MAX_REPLICAS];			// DGP sockets for replicas
+  int dgp_repl_ep[MAX_REPLICAS];                // DGP repl.socket endpoints
   int debug;                                    // debug in progress
   u_char *sstk_start;                           // start of string stack
   u_char *sstk_last;                            // last byte of sstk
