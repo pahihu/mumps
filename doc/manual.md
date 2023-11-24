@@ -196,12 +196,20 @@ daemons is 10. The connection interface is specified as a transport protocol
 base URL in the nanomsg library format and a base port number. Each network
 daemon constructs its connection point from the URL and the base port number.
 
-Example:
+Example for TCP connection:
 
     mumps -i 1 -n 5 -u tcp://192.168.1.23 -p 2000 datadb
 
-The command above will start the MUMPS environment which ID is 1, with 5 
-network daemons, with the following connection point URLs:
+If both the server and the client environment is on the same machine,
+then you can use IPC connections.
+
+Example for IPC connection:
+
+    mumps -i 1 -n 5 -u ipc:///tmp/mv2dgp -p 2000 datadb
+
+The command above with the TCP protocol will start the MUMPS environment
+which ID is 1, with 5 network daemons, with the following connection
+point URLs:
 
     tcp://192.168.1.23:2000
     tcp://192.168.1.23:2001
@@ -209,16 +217,30 @@ network daemons, with the following connection point URLs:
     tcp://192.168.1.23:2003
     tcp://192.168.1.23:2004
 
+The IPC protocol example will construct the following connection point URLs:
+
+    ipc:///tmp/mv2dgp.2000
+    ipc:///tmp/mv2dgp.2001
+    ipc:///tmp/mv2dgp.2002
+    ipc:///tmp/mv2dgp.2003
+    ipc:///tmp/mv2dgp.2004
+
 The client MUMPS systems can mount a volume from a server MUMPS system,
 with the following commands:
 
     SET ^$SYSTEM("VOL",2,"LOCAL_NAME")="AAA"
     SET ^$SYSTEM("VOL",2,"FILE")="tcp://192.168.1.23:2002/BBB"
 
+For the IPC protocol connection point URL:
+
+    SET ^$SYSTEM("VOL",2,"FILE")="ipc:///tmp/mv2dgp.2002/BBB"
+
 This commands specify that the local volume "AAA" stands for the remote
 volume "BBB" on the remote server. The client will connect using TCP/IP
-protocol to the IP address 192.168.1.23 on port 2002. The remote volume 
-"BBB" should be local on the server (ie. cannot be a remote volume set).
+protocol to the IP address 192.168.1.23 on port 2002. If the server
+uses the IPC protocol then the client will connect to the local IPC
+endpoint /tmp/mv2dgp.2002. The remote volume "BBB" should be local
+on the server (ie. cannot be a remote volume set).
 
 Using the volume "AAA" on the client system will transfer each database
 command to the remote system and the results are coming from there.
