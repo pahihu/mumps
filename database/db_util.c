@@ -194,7 +194,7 @@ void Queit()						// que a gbd for write
   while (systab->vol[volnum - 1]->dirtyQ[i] != NULL)	// if slot not avbl
   { SchedYield();
     if (TimerCheck(&tim))                               // check timeout
-    { panic("Queit: Couldn't get a dirty slot after 10 seconds");
+    { Panic("Queit: Couldn't get a dirty slot after 10 seconds");
     }
   }				// NOTE: The above CAN'T work!!!
   systab->vol[volnum - 1]->dirtyQ[i] = blk[level];	// stuff it in
@@ -221,7 +221,7 @@ void Garbit(int blknum)					// que a blk for garb
   while (systab->vol[volnum - 1]->garbQ[i] != 0)        // if not empty
   { SchedYield();
     if (TimerCheck(&tim))                               // check timeout
-    { panic("Garbit: Couldn't get a garbage slot after 10 seconds");
+    { Panic("Garbit: Couldn't get a garbage slot after 10 seconds");
     }
   }
 #if 0
@@ -230,7 +230,7 @@ void Garbit(int blknum)					// que a blk for garb
     { break;						// exit
     }
     if (j == 9)
-    { panic("Garbit: could not get a garbage slot after 10 seconds");
+    { Panic("Garbit: could not get a garbage slot after 10 seconds");
     }
     sleep(1);						// wait a bit
   }				// NOTE: I don't think this can work either
@@ -428,7 +428,7 @@ void Copy_data(gbd *fptr, int fidx)			// copy records
     { if (fidx == -1)
       { return;
       }
-      panic("Copy_data: about to overflow block");
+      Panic("Copy_data: about to overflow block");
     }
 
     blk[level]->mem->last_free -= (cs / 4);		// reset free
@@ -775,7 +775,7 @@ start:
   { msleep(DQ_SLEEP);                                   // wait DQ_SLEEP msecs
   }
   if (TimerCheck(&tim))
-  { panic("Ensure_GBDs: Couldn't get enough GBDs and dirty slots after 60 seconds");
+  { Panic("Ensure_GBDs: Couldn't get enough GBDs and dirty slots after 60 seconds");
   }
   pass++;
   goto start;
@@ -799,7 +799,7 @@ void CheckGBD_(gbd *ptr, const char *path, int lno)
 { char msg[128];
   if (ptr < systab->vol[0]->gbd_head || ptr >= systab->vol[0]->gbd_head + systab->vol[0]->num_gbd)
   { sprintf(msg,"%s:%d: invalid GBD (%#lx)",path,lno,(u_long)ptr);
-    panic(msg);
+    Panic(msg);
   }
 }
 

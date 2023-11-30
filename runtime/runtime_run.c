@@ -98,7 +98,7 @@ short run(int savasp, int savssp)		// run compiled code
 
   while (TRUE)					// keep going till done
   { if (ssp >= MAX_SSTK)			// check ssp
-    panic("String Stack overflow in runtime!!"); // die
+    Panic("String Stack overflow in runtime!!"); // die
     if (partab.jobtab->attention)		// any attention thingys
     { s = attention();				// do it
       if (s == BREAK_NOW)			// funnee debug stuf

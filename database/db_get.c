@@ -202,7 +202,7 @@ short Get_data(int dir)					// locate a record
     else if (dir < 0)					// if found and want -
     { Index--;						// backup the Index
       if (Index < LOW_INDEX)				// can't happen?
-      { panic("Get_data: Problem with negative direction");
+      { Panic("Get_data: Problem with negative direction");
       }
     }
 

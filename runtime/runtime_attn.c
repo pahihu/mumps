@@ -252,13 +252,13 @@ int ForkIt(int cft)				// Copy File Table True/False
       if (getpid() == partab.jobtab->pid)	// done yet ?
         break;					// yes - exit
       if (i > 120)				// two minutes is nuff
-	panic("ForkIt: Child job never got setup");
+	Panic("ForkIt: Child job never got setup");
       sleep(1);					// wait for a second
     }
   }
   if (cft)					// fork type?
   { i = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
-    if (i < 0) panic("Can't get SEM_ROU in ForkIt()"); // die on fail
+    if (i < 0) Panic("Can't get SEM_ROU in ForkIt()"); // die on fail
     for (i = partab.jobtab->cur_do; i > 0; i--)	// scan all do frames
     { if (partab.jobtab->dostk[i].flags & DO_FLAG_ATT)
         ((rbd *) partab.jobtab->dostk[i].routine)->attached++; // count attached

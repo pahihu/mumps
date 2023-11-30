@@ -115,7 +115,7 @@ short Get_block(u_int blknum)                           // Get block
       while (ptr->last_accessed == (time_t) 0)		// if being read
       { SchedYield();					// wait for it
         if (TimerCheck(&tim))
-        { panic("Get_block: Can't get block after 60 seconds");
+        { Panic("Get_block: Can't get block after 60 seconds");
         }
         MEM_BARRIER;
       }
@@ -136,7 +136,7 @@ short Get_block(u_int blknum)                           // Get block
         while (ptr->last_accessed == (time_t) 0)	// if being read
         { SchedYield();					// wait for it
           if (TimerCheck(&tim))
-          { panic("Get_block: Can't get block after 60 seconds");
+          { Panic("Get_block: Can't get block after 60 seconds");
           }
           MEM_BARRIER;
         }
@@ -178,12 +178,12 @@ short Get_block(u_int blknum)                           // Get block
   file_off = lseek( partab.vol_fds[volnum - 1],
 		    file_off, SEEK_SET);		// Seek to blk
   if (file_off < 1)					// if that failed
-  { panic("Get_block: lseek() failed!");		// die
+  { Panic("Get_block: lseek() failed!");		// die
   }
   i = read(partab.vol_fds[volnum-1], blk[level]->mem,
 	   systab->vol[volnum-1]->vollab->block_size);
   if (i < 0)						// if read failed
-  { panic("Get_block: read() failed!");			// die
+  { Panic("Get_block: read() failed!");			// die
   }
 
 exit:
@@ -345,7 +345,7 @@ start:
   else                                                  // OR
     msleep(GBD_SLEEP);                                  //   wait a bit
   if (TimerCheck(&tim))					// this is crazy!
-  { panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
+  { Panic("Get_GBDs: Can't get enough GDBs after 60 seconds");
   }
   goto start;						// try again
 }
@@ -435,7 +435,7 @@ start:
 found:
   if (oldptr == NULL)					// did we get one
   { if (writing)					// SET or KILL
-    { panic("Get_GBD: Failed to find an available GBD while writing"); // die
+    { Panic("Get_GBD: Failed to find an available GBD while writing"); // die
     }
     SemOp(SEM_GLOBAL, -curr_lock);			// release current
     pass++;                                             // increment a pass
@@ -448,7 +448,7 @@ found:
   }
 
   if (-1 == hash)
-  { panic("Get_GBD: internal error 1 (-1 == hash)");      // die
+  { Panic("Get_GBD: internal error 1 (-1 == hash)");      // die
   }
   ptr = systab->vol[volnum-1]->gbd_hash[hash];		// get the list
   if (ptr == oldptr)					// is this it
@@ -464,7 +464,7 @@ found:
 
 exit:
   if (-1 == hash)
-  { panic("Get_GBD: internal error 2 (-1 == hash)");      // die
+  { Panic("Get_GBD: internal error 2 (-1 == hash)");      // die
   }
   systab->vol[volnum-1]->hash_start = hash;             // save hash start
   blk[level]->block = 0;				// no block attached

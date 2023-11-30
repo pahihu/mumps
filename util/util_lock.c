@@ -179,7 +179,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf)	// convert mvar to string
 short LCK_Combine(locktab *ptr)
 { locktab *next;                                // a handy pointer
 
-  if (ptr == NULL) panic("Null pointer passed to LCK_Combine()");
+  if (ptr == NULL) Panic("Null pointer passed to LCK_Combine()");
 
   while (TRUE)
   { next = (locktab *) (((u_char *) (ptr)) + ptr->size); // where next
@@ -187,7 +187,7 @@ short LCK_Combine(locktab *ptr)
         (((char *) systab->lockstart) + systab->locksize))
       break;                                    // quit when done
     if (next != ptr->fwd_link) break;           // quit if next not free
-    if (next->job > -1) panic("Attempt to combine non-free in LCK_Combine()");
+    if (next->job > -1) Panic("Attempt to combine non-free in LCK_Combine()");
     ptr->size += ptr->fwd_link->size;           // increment the new free space
     ptr->fwd_link = next->fwd_link;             // new block now points correct
   }                                             // prev block/this block merge
@@ -203,7 +203,7 @@ short LCK_Free(locktab *ptr)
   locktab *prevptr = NULL;                      // handy ptr
 
   if (ptr == NULL)
-    panic("Null pointer passed to LCK_Free()");	// die
+    Panic("Null pointer passed to LCK_Free()");	// die
 
   currptr = systab->lockfree;                   // start here
   if (ptr < currptr)                            // freeing at start of mem sect

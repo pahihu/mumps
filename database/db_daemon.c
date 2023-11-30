@@ -243,13 +243,13 @@ start:
       file_off = lseek( dbfd, 0, SEEK_SET);		// move to start of file
       if (file_off<0)
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("do_daemon: lseek() to start of file failed");
+        Panic("do_daemon: lseek() to start of file failed");
       }
       i = write( dbfd, systab->vol[volnum-1]->vollab,
 		 systab->vol[volnum-1]->vollab->header_bytes);// map/label
       if (i < 0)
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("do_daemon: write() map block failed");
+        Panic("do_daemon: write() map block failed");
       }
       systab->vol[volnum-1]->map_dirty_flag = 0;	// unset dirty flag
       systab->vol[volnum-1]->stats.phywt++;		// count a write
@@ -434,7 +434,7 @@ void do_write()						// write GBDs
 
   CheckGBD(gbdptr);
   if (!gbdptr)
-  { panic("Daemon: write msg gbd is NULL");		// check for null
+  { Panic("Daemon: write msg gbd is NULL");		// check for null
   }
 
   CHKPT;
@@ -456,13 +456,13 @@ void do_write()						// write GBDs
       file_off = lseek( dbfd, file_off, SEEK_SET);	// Seek to block
       if (file_off < 1)
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("lseek failed in Write_Chain()!!");	// die on error
+        Panic("lseek failed in Write_Chain()!!");	// die on error
       }
       i = write( dbfd, gbdptr->mem,
 		 systab->vol[volnum-1]->vollab->block_size); // write it
       if (i < 0)
       { systab->vol[volnum-1]->stats.diskerrors++;	// count an error
-        panic("write failed in Write_Chain()!!");
+        Panic("write failed in Write_Chain()!!");
       }
       systab->vol[volnum-1]->stats.phywt++;		// count a write
 

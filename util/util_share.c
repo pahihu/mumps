@@ -112,7 +112,7 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
     }
     if (numb < 1)                               // if it was an add
     { if (partab.jobtab == NULL)		// from a daemon
-	panic("SemOp() error in write daemon");	// yes - die
+	Panic("SemOp() error in write daemon");	// yes - die
       if (partab.jobtab->trap)                  // and we got a <Ctrl><C>
         return -(ERRZ51+ERRMLAST);              // return an error
     }
@@ -123,7 +123,7 @@ short SemOp(int sem_num, int numb)              // Add/Remove semaphore
   // NB. nonsense, why allow unlocking SEM_LOCK fail here ?
   //     if fails, you could not LOCK anything after this
   //     --- PROVEN WITH SIM4.ROU --- (32 processes on 16 CPUs)
-  panic("SemOp() failed");                      // die...
+  Panic("SemOp() failed");                      // die...
   return 0;
 }
 
@@ -187,7 +187,7 @@ void UTIL_assert(int cond, const char *expr, const char *path, int lno)
     { SemOp( SEM_GLOBAL, -curr_lock);
     }
     sprintf(msg,"%s:%d: assertion failed %s",path,lno,expr);
-    panic(msg);
+    Panic(msg);
   }
 }
 

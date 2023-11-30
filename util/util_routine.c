@@ -392,7 +392,7 @@ rbd *Routine_Attach(chr_x routine)		// attach to routine
   ptr->rou_size = s;				// save the size
   s = DB_GetLen(&rouglob, -1, (u_char *) &ptr->comp_ver); // get the routine
 
-  if (s != ptr->rou_size) panic("routine load - size wrong"); // DOUBLECHECK
+  if (s != ptr->rou_size) Panic("routine load - size wrong"); // DOUBLECHECK
 
   ptr->tag_tbl += RBD_OVERHEAD;			// adjust for rbd junk
   ptr->var_tbl += RBD_OVERHEAD;			// adjust for rbd junk

@@ -255,7 +255,7 @@ short UTIL_strerror(int err, u_char *buf);      // return string error msg
 short mcopy(u_char *src, u_char *dst, int bytes); // bcopy with checking etc
 short ncopy(u_char **src, u_char *dst);         // copy as number
 short CleanJob(int job);			// tidy up a job
-void panic(char *msg); 				// die on error
+void Panic(char *msg); 				// die on error
 struct RBD *Routine_Attach(chr_x routine);	// attach to routine
 void Routine_Detach(struct RBD *pointer);	// Detach from routine
 void Routine_Delete(chr_x routine, int uci);	// mark mapped routine deleted

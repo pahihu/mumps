@@ -71,7 +71,7 @@ void ser(short s)                               // display errors
   u_char junk[100];
 
   if (s == -(ERRMLAST + ERRZ27))		// if totally confused
-  { panic("Chanel zero has gone away");		// die
+  { Panic("Chanel zero has gone away");		// die
   }
   cptr = (cstring *) junk;			// some space
   if (s < 0) s = -s;                            // make error positive

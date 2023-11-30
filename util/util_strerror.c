@@ -208,7 +208,7 @@ short UTIL_strerror(int err, u_char *buf)               // return string form
   return (short)(strlen((char *) ptr));                 // and return length
 }
 
-void panic(char *msg)					// print msg and exit
+void Panic(char *msg)					// print msg and exit
 { FILE *a;						// for freopen
   char tmp[1024];					// some string space
   int i;						// a handy int

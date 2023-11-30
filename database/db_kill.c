@@ -93,7 +93,7 @@ start:
   else                                                  // OR
     msleep(GQ_SLEEP);                                   //   wait a bit
   if (TimerCheck(&tim))
-  { panic("Kill_data: Couldn't get enough garbage slots after 60 seconds");
+  { Panic("Kill_data: Couldn't get enough garbage slots after 60 seconds");
   }
   goto start;
 
@@ -183,7 +183,7 @@ cont:
   { return s;						// return it
   }				// WARNING: This leaves blocks reserved
   if (rlevel != level)					// check this
-  { panic("Kill_data: left level not equal right level"); // die
+  { Panic("Kill_data: left level not equal right level"); // die
   }
   for (level = 0; level < rlevel; level++)		// scan the levels
   { if (blk[level + 1] != rblk[level + 1])		// check following lvl

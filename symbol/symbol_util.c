@@ -766,7 +766,7 @@ short ST_GetAdd(mvar *var, cstring **add)	// get local data address
   { ptr1 = ST_Locate(&var->name.var_xu);        // locate the variable by name
   }
   if ((ptr1 >= ST_MAX) || (ptr1 < -1))
-  { panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
+  { Panic("ST_GetAdd: Junk pointer returned from ST_LocateIdx");
   }
   if (ptr1 >= 0)				// think we found it
   { if (symtab[ptr1].data == ST_DATA_NULL)

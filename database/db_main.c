@@ -403,7 +403,7 @@ short DB_Order(mvar *var, u_char *buf, int dir) 	// get next subscript
     }
     Index--;                                          	// backup the Index
     if (Index < LOW_INDEX)                            	// can't happen?
-    { panic("DB_Order: Problem with negative direction");
+    { Panic("DB_Order: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
@@ -489,7 +489,7 @@ short DB_Query(mvar *var, u_char *buf, int dir, int docvt) // get next key
     }
     Index--;                                          	// backup the Index
     if (Index < LOW_INDEX)                             	// can't happen?
-    { panic("DB_Query: Problem with negative direction");
+    { Panic("DB_Query: Problem with negative direction");
     }
     chunk = (cstring *) &iidx[idx[Index]];             	// point at the chunk
     record = (cstring *) &chunk->buf[chunk->buf[1]+4];	// point at the dbc
