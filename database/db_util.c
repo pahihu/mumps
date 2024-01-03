@@ -761,6 +761,8 @@ start:
   if (rpos <= wpos) qlen = wpos - rpos;
   else
     qlen = NUM_DIRTY + wpos - rpos;
+  if (qlen == NUM_DIRTY - 1)                            // fix queue len
+    qlen = NUM_DIRTY;
   qfree = NUM_DIRTY - qlen;
   if (qfree >= greqd)                               	// have that many
     goto cont;                                          //   continue
