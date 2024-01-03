@@ -1158,13 +1158,7 @@ u_int SleepEx(u_int seconds, const char* file, int line)
 {
 #ifdef MV1_PROFILE
   fprintf(stderr,"%s:%d: curr_lock=%d sleep=%d #dQ=%d\r\n",
-           file, line, curr_lock, seconds,
-#ifdef MV1_CKIT
-           NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1
-#else
-           abs(systab->vol[0]->dirtyQw - systab->vol[0]->dirtyQr)
-#endif
-  );
+           file, line, curr_lock, seconds, NUM_DIRTY - DirtyQ_Len());
   fflush(stderr);
 #endif
   return MSleep(1000 * seconds);
@@ -1188,9 +1182,6 @@ int MSleep(u_int mseconds)
 void Ensure_GBDs(int haslock)
 {
   int j;
-#if !defined(MV1_CKIT)
-  int qpos, wpos, rpos, qlen;
-#endif
   int qfree;
   int MinSlots;
   int pass = 0;
@@ -1201,16 +1192,7 @@ start:
 
   j = 0;                                                // clear counter
   MinSlots = 2 * MAXTREEDEPTH;
-#ifdef MV1_CKIT
-  qfree = NUM_DIRTY - ck_ring_size(&systab->vol[0]->dirtyQ) - 1;
-#else
-  wpos = systab->vol[0]->dirtyQw;
-  rpos = systab->vol[0]->dirtyQr;
-  if (rpos <= wpos) qlen = wpos - rpos;
-  else
-    qlen = NUM_DIRTY + wpos - rpos;
-  qfree = NUM_DIRTY - qlen;
-#endif
+  qfree = NUM_DIRTY - DirtyQ_Len();
   if (qfree >= MinSlots)
     goto cont;
 
@@ -1236,7 +1218,7 @@ void Ensure_GarbQ(void)
   while (1)
   { Ensure_GBDs(0);                                     // get GBDs, has no lock
 #ifdef MV1_CKIT
-    qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ) - 1;
+    qfree = NUM_GARB - ck_ring_size(&systab->vol[volnum-1]->garbQ);
                                                         // calc. free space
 #else
     wpos = systab->vol[volnum - 1]->garbQw;
@@ -1244,6 +1226,8 @@ void Ensure_GarbQ(void)
     if (rpos <= wpos) qlen = wpos - rpos;
     else
       qlen = NUM_GARB + wpos - rpos;
+    if (qlen == NUM_GARB - 1)
+      qlen = NUM_GARB;
     qfree = NUM_GARB - qlen;
 #endif
     if (qfree >= NUM_GARB/2)                            // more than half space
@@ -1315,6 +1299,8 @@ int DirtyQ_Len(void)
     qlen = wpos - rpos;
   else
     qlen = NUM_DIRTY + wpos - rpos;
+  if (qlen == NUM_DIRTY - 1)
+    qlen = NUM_DIRTY;
 #endif
 
   return qlen;
