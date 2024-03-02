@@ -94,7 +94,7 @@ void mv1_log_flush(void)
 
 
 // Checking and profiling versions of semaphore operations
-// Source: pahia@t-online.hu
+// Source: pahihu@gmail.com
 
 static struct timeval sem_start[SEM_MAX];
 
