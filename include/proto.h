@@ -268,6 +268,7 @@ short UTIL_mvartolock( mvar *var, u_char *buf);	// convert mvar to string
 
 // Share and semaphore stuff
 int UTIL_Share(char *dbf);			// attach share and semaphores
+void *UTIL_ShmAt();				// return SHM addr (MV1R2_SHMAT)
 short SemOp(int sem_num, int numb);             // Add/Remove semaphore
 short LCK_Order(cstring *ent, u_char *buf, int dir);
 short LCK_Get(cstring *ent, u_char *buf);
