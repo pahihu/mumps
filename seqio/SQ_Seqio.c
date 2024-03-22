@@ -808,6 +808,7 @@ short SQ_Read (u_char *buf, int tout, int maxbyt)
   if ( isChanFree ( chan ) == 1 ) return ( getError ( INT, ERRZ27 ) );
   if ( tout < -1 ) return ( getError ( INT, ERRZ22 ) );
   if ( maxbyt < -1 ) return ( getError ( INT, ERRZ36 ) );
+  if ( maxbyt > MAX_STR_LEN ) return ( getError ( INT, ERRZ37 ) );
 
   // Initialise variables
 

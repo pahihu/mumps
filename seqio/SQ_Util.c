@@ -66,8 +66,8 @@
 //	SYS	System error	-( "errnum" + ERRMLAST + ERRZLAST );
 //	INT	Internal error	-( "errnum" + ERRMLAST );
 
-int getError (int type, int errnum)
-{ int	err;
+short getError (int type, int errnum)
+{ short	err;
 
   switch ( type )
   { case SYS:

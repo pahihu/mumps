@@ -65,19 +65,19 @@ short DB_Kill(mvar *var);                        // remove sub-tree
 short DB_Mount( char *file, int volnum, int gmb); // mount dataset
 short DB_Order(mvar *var, u_char *buf, int dir); // get next subscript
 short DB_Query(mvar *var, u_char *buf, int dir, int docvt); // get next key
-short DB_QueryD(mvar *var, u_char *buf);	     // get next key and data
+short DB_QueryD(mvar *var, u_char *buf);	 // get next key and data
 short DB_GetLen( mvar *var, int lock, u_char *buf); // return length of global
-short DB_Compress(mvar *var, int flags);	     // on line compressor
+short DB_Compress(mvar *var, int flags);	 // on line compressor
 int DB_Free(int vol);                            // return total free blocks
 short DB_UCISet(int vol, int uci, var_u name);   // set uci name
 short DB_UCIKill(int vol, int uci);              // kill uci entry
-short DB_Expand(int vol, u_int vsiz);		     // expand db
-int DB_Dismount(int vol);			             // dismount a volume
-void ClearJournal();				             // clear journal
+short DB_Expand(int vol, u_int vsiz);		 // expand db
+int DB_Dismount(int vol);			 // dismount a volume
+void ClearJournal(int vol);		 	 // clear journal
 void DB_StopJournal(int vol, u_char action);	 // Stop journal
 int DB_GetFlags(mvar *var);                    	 // Get flags
 int DB_SetFlags(mvar *var, int flags);         	 // Set flags
-int DB_ic(int vol, int block);			         // integrity checker
+int DB_ic(int vol, int block);			 // integrity checker
 struct GBD *DB_ViewGet(int vol, int block);      // return gbd address of
                                                  // specified block, null on err
 void DB_ViewPut(int vol, struct GBD *ptr);       // que block for write

@@ -91,7 +91,7 @@ int setSignals ( void );
 void printBytestr ( char *bytestr, int nbytes );
 void printSQChan ( jobtab *jobptr, SQ_Chan *chanptr );
 int seqioSelect ( int sid, int type, int tout );
-int getError ( int type, int errnum );
+short getError ( int type, int errnum );
 int SQ_File_Open ( char *file, int op );
 int SQ_File_Write ( int fid, u_char *writebuf, int nbytes );
 int SQ_File_Read ( int fid, u_char *readbuf );
