@@ -162,8 +162,9 @@ void atom()                                     // evaluate source
   short s;                                      // for function returns
   u_char *p;                                    // a pointer
   u_char *sav_source_ptr;			// save source_ptr
+  int dbg = 0;
 
-  // fprintf(stderr,"atom: [%s]\r\n",source_ptr);
+  if (dbg) fprintf(stderr,"atom: [%s]\r\n",source_ptr);
   c = *source_ptr++;                            // get a character
   if (c == '@')					// indirection?
   { atom();					// eval what follows
@@ -184,10 +185,11 @@ void atom()                                     // evaluate source
       ((c == '$') &&                            // check for $BP
        (0 == strncasecmp((char *)source_ptr,"BP",2))))
   { --source_ptr;				// backup to first character
+    if (dbg) fprintf(stderr,"chklocal=%s\r\n",source_ptr);
     sav_source_ptr = source_ptr;
     s = localvar();				// parse the variable
     if (s < 0)					// if we got an error
-    { // fprintf(stderr,"localvar() failed: %s\r\n",sav_source_ptr);
+    { if (dbg) fprintf(stderr,"localvar() failed: %s\r\n",sav_source_ptr);
       comperror(s);				// compile it
       return;					// and exit
     }
@@ -201,6 +203,7 @@ void atom()                                     // evaluate source
 
   if ((isdigit((int)c) != 0) || (c == '.'))     // check for number or dot
   { source_ptr--;                               // back up the source ptr
+    if (dbg) fprintf(stderr,"isdigit=%s\r\n",source_ptr);
     *comp_ptr++ = OPSTR;                        // say string following
     s = ncopy(&source_ptr, comp_ptr+2);         // copy as number
     *((short *)comp_ptr) = s;                   // store string count
@@ -331,7 +334,7 @@ int operator()                                  // extract an operator
 // function eval entered with source_ptr pointing at the source
 // expression to evaluate and comp_ptr pointing at where to put the code.
 //
-void eval(int chain)                            // evaluate source
+void eval()                            		// evaluate source
 { evalx(0);
 }
 
@@ -346,10 +349,11 @@ void evalx(int chain)                           // evaluate source
   int patmat = 0;				// for pattern match funnee
   cstring *ptr;					// spare pointer
   u_char c;
+  int dbg = 0;
 
-  // fprintf(stderr, "\r\neval(): [%s]", source_ptr);
+  if (dbg) fprintf(stderr, "\r\neval(): [%s]", source_ptr);
   atom();                                       // get first operand
-  // fprintf(stderr,"next: '%c'\r\n",*source_ptr);
+  if (dbg) fprintf(stderr,"next: '%c'\r\n",*source_ptr);
   if ((*source_ptr == ')') ||			// do it at a higher level
       (*source_ptr == ',') ||			// ditto
       (*source_ptr == ':') ||			// ditto
@@ -360,7 +364,7 @@ void evalx(int chain)                           // evaluate source
     return;                                     // exit
 
   while (TRUE)                                  // until the end
-  { // fprintf(stderr,"oper: %c\r\n",*source_ptr);
+  { if (dbg) fprintf(stderr,"oper: %c\r\n",*source_ptr);
     op = operator();                            // get the operator
     if (op == 0)                                // an error??
     { comperror(-(ERRZ12+ERRMLAST));            // compile the error

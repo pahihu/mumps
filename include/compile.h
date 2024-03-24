@@ -161,7 +161,7 @@ void parse_xecute();				// XECUTE
 void parse();                                   // parse - main loop
 
 short localvar();                               // evaluate local variable
-void eval();                                    // eval a string
+void eval();                           		// eval a string
 void atom();                                    // evaluate source
 void CompError(short err,const char *file,int lno); // compile error
 void Err_Init(void);                            // init comperror msg

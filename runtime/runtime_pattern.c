@@ -162,11 +162,11 @@ short patmat(cstring *str, cstring *code)
 
 // ***************************************************************************
 // ***************************************************************************
-void pminmax (str, min, max)   // auxiliary function for grouped pattern match 
+void pminmax (cstring *str, int *min, int *max)   // auxiliary function for grouped pattern match
 
-        cstring   *str;                         // a pattern 'str'
-        int       *min,                         // the minimum possible length
-                  *max;                         // the maximum possible length
+//      cstring   *str;		a pattern 'str'
+//      int       *min,         the minimum possible length
+//                *max;         the maximum possible length
 
 {   int     mininc,                             //
             maxinc,                             //

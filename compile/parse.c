@@ -126,6 +126,7 @@ void parse_dox(int runtime, u_char *zzcmd)	// DO / ZZcmd
   u_char *sav_comp_ptr, *sav_source_ptr;        // save source/comp ptr
   u_char argsep = ',', argsend = ')';           // DO arg and cmdsep
   u_int sav_disp_errors;			// save disp_errors
+  int dbg = 0;
 
   if (zzcmd)
   { argsep  = ':';
@@ -158,7 +159,7 @@ CheckChaining:
     { sav_source_ptr = source_ptr;              // save position
       sav_comp_ptr = comp_ptr;
       sav_disp_errors = disp_errors;
-      if (partab.checkonly) disp_errors = 0;	// check? disable disp.errors
+      disp_errors = 0;				// disable disp.errors
       atom();                                   // try to compile an atom
       if (*source_ptr == '.')                   // check dot
       { source_ptr++;
@@ -170,7 +171,7 @@ CheckChaining:
           goto Postcond;                        // continue with postcond
         }
       }
-      // fprintf(stderr,"atom() failed\r\n");
+      if (dbg) fprintf(stderr,"atom() failed\r\n");
       source_ptr  = sav_source_ptr;             // failed, restore
       comp_ptr    = sav_comp_ptr;               //   source/comp ptrs
       disp_errors = sav_disp_errors;
@@ -204,6 +205,7 @@ CompileArgs:
         if (!zzcmd) source_ptr++;		// skip the (
         while (TRUE)				// while we have args
         { args++;				// count an argument
+	  if (dbg) fprintf(stderr, "arg=%s\r\n", source_ptr);
 	  if (args > 127) SYNTX			// too many
           if (*source_ptr == argsend /*')'*/)	// trailing bracket ?
           { if (!zzcmd) source_ptr++;	        // skip the )
@@ -218,17 +220,21 @@ CompileArgs:
 	  }
           else if ((*source_ptr == '.') &&	// by reference?
 	           (isdigit(source_ptr[1]) == 0)) // and not .numeric
-          { source_ptr++;			// skip the dot
+          { if (dbg) fprintf(stderr,"byref=%s\r\n",source_ptr);
+	    source_ptr++;			// skip the dot
 	    if (*source_ptr == '@')		// if indirection
-	    { source_ptr++;			// skip the @
+	    { if (dbg) fprintf(stderr,".indir=%s\r\n",source_ptr);
+	      source_ptr++;			// skip the @
               atom();					// eval the string
 	      *comp_ptr++ = INDMVAR;
 	    }
 	    else
-	    { p = comp_ptr;			// save current posn
+	    { if (dbg) fprintf(stderr,".localvar=%s\r\n",source_ptr);
+	      p = comp_ptr;			// save current posn
 	      s = localvar();			// get a variable
        	      if (s < 0)                    	// if we got an error
-              { comperror(s);               	// compile it
+              { if (dbg) fprintf(stderr,".localvar failed\r\n");
+		comperror(s);               	// compile it
                 return;                     	// and exit
               }
 	      p = p + s;			// point here
