@@ -5,7 +5,7 @@
 
 OSTYPE	= darwin
 CC	= gcc -g
-LIBS	= -L$(HOME)/lib -lnanomsg -lmapm
+LIBS	= -L/usr/local/lib -lnanomsg -lmapm
 
 EXTRA   = -O -fsigned-char -Wall -Iinclude -Imv1api -D_FILE_OFFSET_BITS=64 \
 		-DMV1_DGP=1 \
@@ -120,6 +120,11 @@ all: ${PROG} api_test
 
 ${PROG}: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+   rm -f darwin.rpath
+
+darwin.rpath: ${PROG}
+	install_name_tool -add_rpath /usr/local/lib ${PROG}
+	touch darwin.rpath
 
 libmv1api.a: ${COMOBJS} ${LIBOBJS}
 	${AR} cru $@ ${COMOBJS} ${LIBOBJS}
@@ -134,4 +139,4 @@ clean:
 	rm -f ${OBJS} ${PROG} ${PROG}.core
 	rm -f ${LIBOBJS} libmv1api.a api_test.o api_test
 
-# vim:ts=3:sw=3:et:
+# vim:ts=3:sw=3:noet:
