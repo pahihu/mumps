@@ -3736,7 +3736,7 @@ short run(long savasp, long savssp)		// run compiled code
 	astk[asp++] = (u_char *) cptr;		// stack it
 	break;					// done
 
-      case XCLEHMER:				// Xcall $&%LEHMER()
+      case XCLEHMER:				// Xcall $&LEHMER()
 	ptr2 = (cstring *) astk[--asp];		// get arg 2
 	ptr1 = (cstring *) astk[--asp];		// get arg 1
 	cptr = (cstring *) &sstk[ssp];		// where we will put it
