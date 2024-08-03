@@ -22,7 +22,7 @@ endif
 
 
 ifeq ($(OSTYPE),darwin)
-LIBS    = -lm -framework CoreServices -framework DirectoryService -framework Security
+LIBS  += -framework CoreServices -framework DirectoryService -framework Security
 EXTRA += -Wno-deprecated-declarations
 
 endif
@@ -105,6 +105,11 @@ all: ${PROG} api_test
 
 ${PROG}: ${OBJS}
 	${CC} ${EXTRA} -o ${PROG} ${OBJS} ${LIBS}
+	rm -f darwin.rpath
+
+darwin.rpath: ${PROG}
+	install_name_tool -add_rpath /usr/local/lib ${PROG}
+	touch darwin.rpath
 
 libmv1api.a: ${COMOBJS} ${LIBOBJS}
 	${AR} cru $@ ${COMOBJS} ${LIBOBJS}
