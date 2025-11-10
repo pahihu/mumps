@@ -1534,3 +1534,5 @@ short DB_Compress(mvar *var, int flags)			// Compress global
     }
   }
 }
+
+// vim:set ts=8 sw=8 et:

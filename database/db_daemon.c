@@ -1157,6 +1157,7 @@ void do_garb()						// garbage collect
   gb = systab->vol[0]->wd_tab[myslot].currmsg.intdata;  // get block
   systab->vol[0]->wd_tab[myslot].currmsg.intdata = 0;   // clear slot
 
+  ASSERT(VOLNORAW(gb));                                 // VOLNO valid
   vol = VOLNO(gb);
   gb  = BLKNO(gb);
   do_mount(vol);                                        // mount db file
