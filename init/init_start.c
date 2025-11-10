@@ -365,7 +365,7 @@ int INIT_Start( char *file,                     // database
   for (i = 0; i < MAX_VOL; i++)                 // foreach vol[]
     systab->vol[i] = (vol_def *) ((void *)systab + sjlt_size
                                         + i * sizeof(vol_def));
-						// volume set memory
+						                        // volume set memory
 
   systab->vol[0]->vollab =
     (label_block *) ((void *)systab->vol[0] + MAX_VOL * sizeof(vol_def));
