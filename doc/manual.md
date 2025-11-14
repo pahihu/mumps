@@ -1,6 +1,6 @@
 # A Terse Guide to MUMPS V2
 
-Copyright 2018-2023 Andras Pahi. All rights reserved.
+Copyright 2018-2025 Andras Pahi. All rights reserved.
 
 [Foreword](#foreword)
 
@@ -782,7 +782,7 @@ Additional `^$JOB` variables or changed behavior.
 
 | Subscript          | Contains                  | Setable |
 | ------------------ | ------------------------- | ------- |
-| ZJU        | Journal user Extra data          | yes |
+| ZJU        | Journal user extra data          | yes |
 
 | Parameters | Contains |
 | ---------- | ------------------- |
