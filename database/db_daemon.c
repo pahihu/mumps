@@ -610,6 +610,8 @@ int Net_Daemon(int slot, int vol)			// start a daemon
   partab.jobtab->precision = systab->precision;		// decimal precision
   partab.jobtab->start_len = 				// store start date/time
     Vhorolog(partab.jobtab->start_dh);
+  partab.jobtab->zjuDATA_len = 0;                       // init ZJU
+  partab.jobtab->zjuDATA[0] = '\0';
   partab.jobtab->dostk[0].type = TYPE_JOB;		// ensure slot 0 has val
   systab->vol[0]->last_blk_used[MV1_PID] = 0;		// clear last glb block
   systab->vol[0]->last_blk_written[MV1_PID] = 0;	// clear last written

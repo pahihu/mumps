@@ -279,6 +279,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 	  return mcopy(systab->jobtab[i].start_dh,	// the data
 		       buf,				// the destination
 		       systab->jobtab[i].start_len);	// and length
+        if (strncasecmp( (char *) subs[1]->buf, "zju\0", 4) == 0)
+        { strcpy((char *) buf, (char *) systab->jobtab[i].zjuDATA);
+          return systab->jobtab[i].zjuDATA_len;		// return the length
+        }
       }						// end of two sub case
       else if (nsubs == 3)			// three sub case
       { if (strncasecmp( (char *) subs[1]->buf, "$io\0", 4) == 0)
@@ -686,6 +690,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
 	{ systab->jobtab[i].rvol = j;		// set it
 	  return 0;				// and quit
 	}
+        if (strncasecmp( (char *) subs[1]->buf, "zju\0", 4) == 0)
+        { if ((data->len < 0) || (data->len + 1 > 256))
+            return -ERRM28;
+	  strcpy((char *) systab->jobtab[i].zjuDATA, (char *) data->buf);
+          systab->jobtab[i].zjuDATA_len = data->len;
+	  return 0;
+        }
       }
       j = cstringtoi(data);			// convert to int (again)
       if (priv())				// is it priveleged ?
@@ -1640,3 +1651,5 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
   }
   return (-ERRM38);				// can't get here?
 }
+
+/* vim:set ts=8 sw=8 et: */

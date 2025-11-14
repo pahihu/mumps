@@ -196,7 +196,7 @@ start:
     goto exit;					// and exit
   }
 
-  partab.jobtab->user = getuid();	// get user number
+  partab.jobtab->user = getuid();	        // get user number
 
   if ((partab.jobtab->user == systab->start_user) || // if he started it
       (partab.jobtab->user == 0))		// or is root
@@ -234,6 +234,9 @@ start:
 
   partab.jobtab->start_len =
     Vhorolog(partab.jobtab->start_dh);		// store start date/time
+
+  partab.jobtab->zjuDATA_len = 0;               // init ZJU
+  partab.jobtab->zjuDATA[0] = '\0';
 
   partab.jobtab->dostk[0].type = TYPE_RUN;	// ensure slot 0 has a value
 

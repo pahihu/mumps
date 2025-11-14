@@ -579,6 +579,8 @@ typedef struct __ALIGNED__ JOBTAB
   u_char ruci;                                  // current rou uci number
   u_char rvol;                                  // current rou volset number
   mvar last_ref;                                // $REFERENCE
+  u_char zjuDATA_len;                           // ZJournalUser_data length
+  u_char zjuDATA[256];                          // ZJournalUser_data
   short start_len;                              // length start data
   u_char start_dh[14];                          // store start time here
   do_frame dostk[MAX_DO_FRAMES];                // the do stack
