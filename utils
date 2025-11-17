@@ -1400,7 +1400,7 @@ SAVE I '$G(BLK) W "?There is no current block",$C(7),! Q
 ;#define JRN_SYNC        6                               // sync VOL
 ;#define JRN_BACKUP      7                               // backup VOL
 ;
- N NREC,ANS,OD,CTIME,OTIME,HDR,$ET,ACTS,DDATA,ZJU
+ N NREC,ANS,OD,CTIME,OTIME,HDR,$ET,ACTS,DDATA,ZJU,GLOS
  S $ET="D ^%ET",OTIME="" S ACTS="CREATE,START,STOP,ESTOP,SET,KILL,SYNC,BACKUP"
 ASK R "Enter file: ",FILE,! Q:FILE=""
  R "Enter outfile: ",OFILE,!
@@ -1411,7 +1411,7 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
  S MAGIC=$$CVT(MAGIC),OFFSET=$$CVT(OFFSET)
  I MAGIC-4155766916 W "Invalid MAGIC number",! C 1 C:OD OD G ASK
  W "Date/Time",?24,"Action",?31,"UCI",?35,"Reference/Data",!
- S OFF=12,TSIZE=^$S("tsize") F  D  Q:OFF'<OFFSET
+ S OFF=12,TSIZE=^$S("tsize"),GLOS=$$GLOSIZE^%MV1 F  D  Q:OFF'<OFFSET
 ;Scan the file
  .U 1 R HDR#(4+TSIZE) U OD S SIZE=$$CVT($E(HDR,1,2)),UCI=$A(HDR,4),ACTION=$A(HDR,3)
 ;.Get the fixed fields
@@ -1428,16 +1428,16 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
 ;.Get the rest of the record
 ;.I $E(DATA,1,4)=$C(0,0,0,0) S DATA=$E(DATA,5,99999)
 ;.Check for a 64 bit time_t here
- .S NAME=$TR($E(DATA,1,$$GLOSIZE^%MV1),$C(0)),SLEN=$A(DATA,1+$$GLOSIZE^%MV1),DATA=$E(DATA,2+$$GLOSIZE^%MV1,99999)
+ .S NAME=$TR($E(DATA,1,GLOS),$C(0)),SLEN=$A(DATA,1+GLOS),DATA=$E(DATA,2+GLOS,99999)
 ;.Extract the name and key length
  .S KEY=$$FULLUNK^FIX1($E(DATA,1,SLEN)),DATA=$E(DATA,SLEN+1,99999)
 ;.Get the key
  .S REF="^"_NAME_$S(SLEN:"("_KEY_")",1:"") W ?35,REF I '$L(DATA) W ! Q
 ;.Write the key - quit if not SET or no ZJU
- .I "SET"=ACTION S DBC=$$CVT($E(DATA,1,2)),DDATA=$$DISP^%U($E(DATA,3,DBC+2)),ZJU=$E(DATA,DBC+2+1+1,99999) W "=",DDATA I 1
- .E  S ZJU=$E(DATA,2,99999) I 0
+ .I "SET"=ACTION S DBC=$$CVT($E(DATA,1,2)),DDATA=$$DISP^%U($E(DATA,3,DBC+2)),DATA=$E(DATA,DBC+2+1,99999),DBC=$A($E(DATA,1)),ZJU=$E(DATA,2,DBC+1) W "=",DDATA I 1
+ .E  S DBC=$A($E(DATA,1)),ZJU=$E(DATA,2,DBC+1) I 0
 ;.Extract the data
- .W:$L(ZJU) " ZJU=[",ZJU,"]" W !
+ .W:DBC " ZJU=[",ZJU,"]" W !
  .S NREC=$G(NREC)+1 I 'OD&(NREC#20=0) U 0 R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
 ;.Finally the data (if any)
  C 1 C:OD OD Q

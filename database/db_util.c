@@ -1155,8 +1155,11 @@ void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
     bcopy(partab.jobtab->zjuDATA, p, zjuDATA_len);
     currsize += i;
   }
-  if (jj_alignment)
+  if (jj_alignment)                                     // alignment?
+  { p = systab->vol[volnum - 1]->jrnbuf + currsize;
+    for (i = 0; i < jj_alignment; i++) *p++ = 0;        // fill w/ zeros
     currsize += jj_alignment;
+  }
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
   systab->vol[volnum - 1]->lastdojrn  = MTIME(0);       // save time
   return;
