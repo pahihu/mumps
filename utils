@@ -1434,10 +1434,10 @@ ASK R "Enter file: ",FILE,! Q:FILE=""
 ;.Get the key
  .S REF="^"_NAME_$S(SLEN:"("_KEY_")",1:"") W ?35,REF I '$L(DATA) W ! Q
 ;.Write the key - quit if not SET or no ZJU
- .I "SET"=ACTION S DBC=$$CVT($E(DATA,1,2)),DDATA=$$DISP^%U($E(DATA,3,DBC+2)),DATA=$E(DATA,DBC+2+1,99999),DBC=$A($E(DATA,1)),ZJU=$E(DATA,2,DBC+1) W "=",DDATA I 1
- .E  S DBC=$A($E(DATA,1)),ZJU=$E(DATA,2,DBC+1) I 0
+ .I "SET"=ACTION S DBC=$$CVT($E(DATA,1,2)),DDATA=$$DISP^%U($E(DATA,3,DBC+2)),DATA=$E(DATA,DBC+2+1,99999),DBC=$A($E(DATA)),ZJU=$E(DATA,2,DBC+1) W "=",DDATA I 1
+ .E  S DBC=$A($E(DATA)),ZJU=$E(DATA,2,DBC+1) I 0
 ;.Extract the data
- .W:DBC " ZJU=[",ZJU,"]" W !
+ .W:DBC>0 " ZJU=[",ZJU,"]" W !
  .S NREC=$G(NREC)+1 I 'OD&(NREC#20=0) U 0 R !,"Continue? ",ANS,!! U 1 S:"nN"[ANS&$L(ANS) OFF=OFFSET+1
 ;.Finally the data (if any)
  C 1 C:OD OD Q
