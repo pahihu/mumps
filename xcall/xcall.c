@@ -366,6 +366,10 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       (void) sprintf ( path, "%s%c", path, (char)PATHSEP );
     }
 
+    if ( dirp )                                 // Open ?
+    { closedir ( dirp );                        //   close it
+      dirp = NULL;
+    }
     dirp = opendir ( path );			// Open the directory
     if ( dirp == NULL )				// Failed to open directory
     { ret_buffer = NULL;
@@ -910,7 +914,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
 
     patternToFind = eDSLocalNodeNames;
     
-    context = NULL;
+    context = 0;
     
     // Allocate a buffer for the node find results.  We'll grow 
     // this buffer if it proves to be to small.
@@ -959,7 +963,7 @@ static tDirStatus GetSearchNodePathList(tDirReference dirRef, tDataListPtr * sea
     
     // Clean up.
     
-    if (context != NULL) {
+    if (context != 0) {
         junk = dsReleaseContinueData(dirRef, context);
         assert(junk == eDSNoErr);
     }
@@ -1023,7 +1027,7 @@ static tDirStatus FindUsersAuthInfo(
     recordName = NULL;
     requestedAttributes = NULL;
     foundRecAttrList = 0;
-    context = NULL;
+    context = 0;
     foundRecEntry = NULL;
     pathListToAuthNode = NULL;
     userNameForAuth = NULL;
@@ -1218,7 +1222,7 @@ static tDirStatus FindUsersAuthInfo(
         junk = dsCloseAttributeList(foundRecAttrList);
         assert(junk == eDSNoErr);
     }
-    if (context != NULL) {
+    if (context != 0) {
         junk = dsReleaseContinueData(dirRef, context);
         assert(junk == eDSNoErr);
     }
