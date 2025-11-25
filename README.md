@@ -22,6 +22,7 @@ Changes:
   * blkalloc/blkdeall/blkreorg/dqstall statistics
 
 Fixes:
+  * closedir() when DIRECTORY Xcall exhausted
   * fixed UCI,VOL parsing in SET command
   * display all compilation messages ("Too many tags" got garbaged)
   * parser/runtime fix for LOCK (@GLVN1[,...])
