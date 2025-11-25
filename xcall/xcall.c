@@ -1671,6 +1671,9 @@ short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2)
 //
 //			  SIZE		File size, in bytes
 //			  EXISTS	1:true ; 0:false
+//                        ATIME         File last access
+//                        MTIME         File last modification
+//                        CTIME         File last status change
 //
 // Returns:
 //    Fail		<0
@@ -1683,6 +1686,9 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
   struct stat	sb;				// File attributes
   int		ret;				// Return value
   int		exists;				// 1:true ; 0:false
+  time_t        t;                              // File times
+
+  t = 0;                                        // init time
 
 // Get all the file's attributes
 
@@ -1719,14 +1725,29 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
 
   if ( strcasecmp ( "size", (char *)attr->buf ) == 0 )
   {
-    ret = sprintf ( ret_buffer, "%d", (int)(sb.st_size) );
+    ret = sprintf ( ret_buffer, "%ld", sb.st_size );
     return ( ret );				// Size of ret_buffer ( SIZE )
   }
+
+						// File exists
 						// File exists
   else if ( strcasecmp ( "exists", (char *)attr->buf ) == 0 )
   {
     ret = sprintf ( ret_buffer, "%d", exists );
     return ( ret );				// Size of ret_buffer ( EXISTS )
+  }
+                                                // File times
+  else if ( strcasecmp ( "atime", (char *)attr->buf ) == 0 )
+  {
+    t = sb.st_atime;
+  }
+  else if ( strcasecmp ( "mtime", (char *)attr->buf ) == 0 )
+  {
+    t = sb.st_mtime;
+  }
+  else if ( strcasecmp ( "ctime", (char *)attr->buf ) == 0 )
+  {
+    t = sb.st_ctime;
   }
   else						// Invalid attribute name
   {
@@ -1734,7 +1755,8 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
     return ( - ( ERRM46 ) );
   }
 
-// Unreachable
+  ret = sprintf ( ret_buffer, "%ld", t );
+  return ( ret );				// Size of ret_buffer ( xTIME )
 
 }
 
@@ -1965,3 +1987,5 @@ short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy)
   s = mv1_uitocstring((u_char *)&ret_buffer[0], ret);
   return s;
 }
+
+/* vim:set ts=8 sw=8 et: */
