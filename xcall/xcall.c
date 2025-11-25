@@ -318,6 +318,8 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
     { dent = readdir ( dirp );
       if ( dent == NULL )			// No more matching directory
       {						//  entries
+        closedir(dirp);                         // close directory
+        dirp = NULL;
         ret_buffer = NULL;
 	return ( 0 );
       }
@@ -373,7 +375,10 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       if ( ret < 0 ) return ( ret );
       (void) sprintf ( path, "%s%c", path, (char)PATHSEP );
     }
-
+    if (dirp)                                   // Directory open?
+    { closedir(dirp);                           // close it
+      dirp = NULL;
+    }
     dirp = opendir ( path );			// Open the directory
     if ( dirp == NULL )				// Failed to open directory
     { ret_buffer = NULL;
@@ -383,6 +388,8 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
     { dent = readdir ( dirp );
       if ( dent == NULL )			// No more matching directory
       {						//  entries
+        closedir(dirp);                         // Close directory
+        dirp = NULL;
 	ret_buffer = NULL;
 	return ( 0 );
       }
