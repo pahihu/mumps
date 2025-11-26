@@ -1686,9 +1686,9 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
   struct stat	sb;				// File attributes
   int		ret;				// Return value
   int		exists;				// 1:true ; 0:false
-  time_t        t;                              // File times
+  time_t        sec;                            // File times
 
-  t = 0;                                        // init time
+  sec = 0;                                      // init time
 
 // Get all the file's attributes
 
@@ -1725,7 +1725,7 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
 
   if ( strcasecmp ( "size", (char *)attr->buf ) == 0 )
   {
-    ret = sprintf ( ret_buffer, "%ld", sb.st_size );
+    ret = sprintf ( ret_buffer, "%lld", sb.st_size );
     return ( ret );				// Size of ret_buffer ( SIZE )
   }
 
@@ -1739,15 +1739,15 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
                                                 // File times
   else if ( strcasecmp ( "atime", (char *)attr->buf ) == 0 )
   {
-    t = sb.st_atime;
+    sec = sb.st_atime;
   }
   else if ( strcasecmp ( "mtime", (char *)attr->buf ) == 0 )
   {
-    t = sb.st_mtime;
+    sec = sb.st_mtime;
   }
   else if ( strcasecmp ( "ctime", (char *)attr->buf ) == 0 )
   {
-    t = sb.st_ctime;
+    sec = sb.st_ctime;
   }
   else						// Invalid attribute name
   {
@@ -1755,9 +1755,7 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
     return ( - ( ERRM46 ) );
   }
 
-  ret = sprintf ( ret_buffer, "%ld", t );
-  return ( ret );				// Size of ret_buffer ( xTIME )
-
+  return UTIL_time2horolog( sec, ret_buffer );  // construct horolog
 }
 
 //***********************************************************************
