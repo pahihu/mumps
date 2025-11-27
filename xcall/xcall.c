@@ -306,6 +306,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
   int		len;				// Filename length
   char		*patptr;			// Pointer to pattern
   cstring	env;				// Current directory
+  char          pathsep[] = {PATHSEP, 0};
 
 // If file is empty, then return the next matching directory entry or NULL
 
@@ -324,7 +325,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       ret = isPatternMatch ( pattern, dent->d_name );
       if ( ret == 1 )				// Found next matching
       {						//  directory entry
-	(void) sprintf ( ret_buffer, "%s", dent->d_name );
+	(void) strcpy ( ret_buffer, dent->d_name );
 	return ( strlen ( ret_buffer ) );
       }
     }
@@ -334,7 +335,8 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 // entry or NULL
 
   else
-  { (void) sprintf ( path, "%s", file->buf );	// Make a local copy of the
+  { (void) strcpy ( path,                       // Make a local copy of the
+                    (const char *) file->buf );
     len = strlen ( path );			//  filename
     patptr = path;				// Move pointer to the
     patptr += len;				//  filenames NULL terminator
@@ -350,8 +352,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 	// If the first occurence of PATHSEP is the first character in "path",
 	// then we want to search the root directory.
 	
-	if ( len == 0 ) (void) sprintf ( path, "%c", (char)PATHSEP );
-	else (void) sprintf ( path, "%s", path );
+	if ( len == 0 ) (void) strcpy ( path, pathsep );
 	patptr += 1;
 	len = -2;
       }
@@ -361,19 +362,23 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       }
     }
 
-    (void) sprintf ( pattern, "%s", patptr );	// Record pattern for
+    (void) strcpy ( pattern, patptr );	        // Record pattern for
 						//  subsequent calls
 
     // If path is empty, then assume current directory
 
     if (len == -1)
-    { (void) sprintf ( (char *)env.buf, "%s", "PWD" );
+    { (void) strcpy ( (char *)env.buf, "PWD" );
       env.len = strlen ( (char *)env.buf ); 
       ret = Xcall_getenv ( path, &env, NULL);
       if ( ret < 0 ) return ( ret );
-      (void) sprintf ( path, "%s%c", path, (char)PATHSEP );
+      (void) strcat ( path, pathsep );
     }
 
+    if ( dirp )                                 // Directory open?
+    { closedir ( dirp );                        //   close it
+      dirp = NULL;
+    }
     dirp = opendir ( path );			// Open the directory
     if ( dirp == NULL )				// Failed to open directory
     { ret_buffer = NULL;
@@ -389,7 +394,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       ret = isPatternMatch ( pattern, dent->d_name );
       if ( ret == 1 )				// Found next matching
       {						//  directory entry
-	(void) sprintf ( ret_buffer, "%s", dent->d_name );
+	(void) strcpy ( ret_buffer, dent->d_name );
 	return ( strlen ( ret_buffer ) );
       }
     }
@@ -1671,6 +1676,9 @@ short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2)
 //
 //			  SIZE		File size, in bytes
 //			  EXISTS	1:true ; 0:false
+//                        ATIME         File last access
+//                        MTIME         File last modification
+//                        CTIME         File last status change
 //
 // Returns:
 //    Fail		<0
@@ -1683,6 +1691,9 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
   struct stat	sb;				// File attributes
   int		ret;				// Return value
   int		exists;				// 1:true ; 0:false
+  time_t        sec;                            // File times
+
+  sec = 0;                                      // init time
 
 // Get all the file's attributes
 
@@ -1719,14 +1730,29 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
 
   if ( strcasecmp ( "size", (char *)attr->buf ) == 0 )
   {
-    ret = sprintf ( ret_buffer, "%d", (int)(sb.st_size) );
+    ret = sprintf ( ret_buffer, "%lld", sb.st_size );
     return ( ret );				// Size of ret_buffer ( SIZE )
   }
+
+						// File exists
 						// File exists
   else if ( strcasecmp ( "exists", (char *)attr->buf ) == 0 )
   {
     ret = sprintf ( ret_buffer, "%d", exists );
     return ( ret );				// Size of ret_buffer ( EXISTS )
+  }
+                                                // File times
+  else if ( strcasecmp ( "atime", (char *)attr->buf ) == 0 )
+  {
+    sec = sb.st_atime;
+  }
+  else if ( strcasecmp ( "mtime", (char *)attr->buf ) == 0 )
+  {
+    sec = sb.st_mtime;
+  }
+  else if ( strcasecmp ( "ctime", (char *)attr->buf ) == 0 )
+  {
+    sec = sb.st_ctime;
   }
   else						// Invalid attribute name
   {
@@ -1734,8 +1760,7 @@ short Xcall_file ( char *ret_buffer, cstring *file, cstring *attr )
     return ( - ( ERRM46 ) );
   }
 
-// Unreachable
-
+  return UTIL_time2horolog( sec, ret_buffer );  // construct horolog
 }
 
 //***********************************************************************
@@ -1965,3 +1990,5 @@ short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy)
   s = mv1_uitocstring((u_char *)&ret_buffer[0], ret);
   return s;
 }
+
+/* vim:set ts=8 sw=8 et: */

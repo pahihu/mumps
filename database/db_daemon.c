@@ -80,6 +80,7 @@ void do_garb();						// garbage collect
 int do_zot(int vol, u_int gb);				// zot block and lower
 void do_free(int vol, u_int gb);			// free from map et al
 void do_mount(int vol);                                 // mount db file
+int do_mount2(int vol,int dopanic);                     // mount db file, panic
 void ic_map(int flag, int vol, int dbfd);		// check the map
 void daemon_check();					// ensure all running
 static time_t last_daemon_check;                        // last daemon_check()
@@ -950,14 +951,18 @@ void do_dismount()					// dismount volnum
     if (NULL == systab->vol[vol]->vollab)               // stop at first
       break;                                            //   not mounted
     if (systab->vol[vol]->map_dirty_flag)               // vol map dirty ?
-    { do_mount(vol);                                    // mount db file
+    { do_mount2(vol, 0);                                // mount db file
+                                                        //   don't panic
+      if (dbfds[vol] < 0)                               // failed, cont.
+        continue;
+
       off = lseek( dbfds[vol], 0, SEEK_SET);	        // move to start of file
       if (off < 0)
       { sprintf(msg, "do_daemon: lseek() to start of vol %d failed", vol);
         mv1_panic(msg);
       }
       i = write( dbfds[vol], systab->vol[vol]->vollab,
-	     systab->vol[vol]->vollab->header_bytes);   // map/label
+              systab->vol[vol]->vollab->header_bytes);  // map/label
       if (i < 0)
       { sprintf(msg, "do_daemon: write() map block of vol %d failed", vol);
         mv1_panic(msg);
@@ -972,7 +977,9 @@ void do_dismount()					// dismount volnum
     if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
     for (i=0; i<systab->vol[vol]->num_gbd; i++)	        // look for unwritten
-    { if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
+    { if (dbfds[vol] < 0)                               // failed, cont.
+        continue;
+      if ((systab->vol[vol]->gbd_head[i].block) && 	// if there is a blk
           (0 < systab->vol[vol]->gbd_head[i].last_accessed) &&
 	  (systab->vol[vol]->gbd_head[i].dirty))
       { systab->vol[vol]->gbd_head[i].dirty
@@ -1018,8 +1025,12 @@ void do_dismount()					// dismount volnum
       continue;						//   skip it
     if (NULL == systab->vol[vol]->vollab)               // stop if not mounted
       break;
+    do_mount2(vol, 0);                                  // mount db file
+                                                        //   don't panic
+    if (dbfds[vol] < 0)                                 // failed, cont.
+      continue;
+
     systab->vol[vol]->vollab->clean = 1;		// set database as clean
-    do_mount(vol);                                      // mount db file
     off =lseek( dbfds[vol], 0, SEEK_SET);		// seek to start of file
     if (off < 0)
     { do_log("do_dismount: lseek() to start of file failed");
@@ -1159,6 +1170,7 @@ void do_garb()						// garbage collect
   gb = systab->vol[0]->wd_tab[myslot].currmsg.intdata;  // get block
   systab->vol[0]->wd_tab[myslot].currmsg.intdata = 0;   // clear slot
 
+  ASSERT(VOLNORAW(gb));                                 // VOLNO valid
   vol = VOLNO(gb);
   gb  = BLKNO(gb);
   do_mount(vol);                                        // mount db file
@@ -1414,7 +1426,7 @@ void daemon_check()					// ensure all running
 // Return:   none
 //
 
-void do_mount(int vol)                                  // mount volume
+int do_mount2(int vol,int dopanic)                      // mount volume
 { char msg[VOL_FILENAME_MAX + 128];                     // msg buffer
 
   ASSERT(0 <= vol);                                     // valid vol[] index
@@ -1423,23 +1435,31 @@ void do_mount(int vol)                                  // mount volume
   ASSERT(NULL != systab->vol[vol]->vollab);             // mounted
 
   if (dbfds[vol])
-    return;
+    return 0;
 
   dbfds[vol] = OpenFile(systab->vol[vol]->file_name, O_RDWR);// open database r/wr
   if (dbfds[vol] < 0)
   { do_log("Cannot open database file %s - %s\n",
                   systab->vol[vol]->file_name,
                   strerror(errno));
-    sprintf(msg, "do_mount: open() of database file %s failed",
+    if (dopanic)
+    { sprintf(msg, "do_mount: open() of database file %s failed",
                     systab->vol[vol]->file_name);
-    mv1_panic(msg);                                     // die on error
+      mv1_panic(msg);                                   // die on error
+    }
+    return -1;
   }
 
   if ((systab->vol[vol]->upto) && (!myslot))		// if map needs check
   { ic_map(-3, vol, dbfds[vol]);			// doit
   }
 
-  return;
+  return 0;
+}
+
+void do_mount(int vol)
+{
+  do_mount2(vol, 1);                                    // panic if failed
 }
 
 

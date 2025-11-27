@@ -474,3 +474,5 @@ jobit:						// code for JOB
   env = NULL;
   goto start;					// go do it
 }
+
+// vim:set ts=8 sw=8 et:

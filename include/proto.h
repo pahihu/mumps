@@ -432,6 +432,7 @@ typedef u_int64 usec_t;
 usec_t UTIL_GetMicroSec(void);			// microsec timestamp
 void UTIL_Mvar2Simple(mvar *var, simple_mvar *svar);
 void* UTIL_ShmAt(void);                         // SHM address to attach to
+int UTIL_time2horolog(time_t sec, char *ret_buffer); //cvt. time to $H format
 
 // Share and semaphore stuff
 u_int64 monotonic_time(void);                   // 64bit monotonic time
@@ -491,3 +492,5 @@ short Xcall_fork(char *ret_buffer, cstring *dum1, cstring *dum2);
 short Xcall_lehmer(char *ret_buffer, cstring *arg1, cstring *dummy);
 
 #endif                                          // !_MUMPS_PROTO_H_
+
+/* vim: set ts=8 sw=8 et: */

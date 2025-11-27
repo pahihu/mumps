@@ -104,13 +104,7 @@ short Vhorolog(u_char *ret_buffer)              // $HOROLOG
   int day;                                      // number of days
   if (bufsec != sec)
   { bufsec = sec;
-    buf = localtime(&sec);                      // get GMT-localtime
-#if !defined __CYGWIN__ && !defined __sun__
-    sec = sec + buf->tm_gmtoff;                 // adjust to local
-#endif
-    day = sec/SECDAY+YRADJ;                     // get number of days
-    sec = sec%SECDAY;                           // and number of seconds
-    buflen = sprintf(buffer, "%d,%d", day, (int) sec); // construct horolog
+    buflen = UTIL_time2horolog(sec, buffer);    // construct horolog
   }
   bcopy(buffer, ret_buffer, buflen + 1);
   return buflen;
@@ -180,21 +174,15 @@ short Vzhorolog(u_char *ret_buffer)             // $ZHOROLOG
   static unsigned bufusec = 0;
   struct timeval tv;                            // struct for gettimeofday()
   time_t sec;                            	// seconds
-  struct tm *buf;                               // struct for localtime()
-  int day;                                      // number of days
 
   gettimeofday(&tv, NULL);
   sec = tv.tv_sec;
   if (bufsec != sec)
   { bufsec = sec;
-    buf = localtime(&sec);                      // get GMT-localtime
-#if !defined __CYGWIN__ && !defined __sun__
-    sec += buf->tm_gmtoff;                      // adjust to local
-#endif
-    day = sec/SECDAY+YRADJ;                     // get number of days
-    sec = sec%SECDAY;                           // and number of seconds
-    hbuflen = sprintf(buffer, "%d,%d.", day, (int) sec); // construct horolog
-    bufusec = 0;
+    hbuflen = UTIL_time2horolog(sec, buffer);   // construct horolog
+    buffer[hbuflen++] = '.';                    // add dot
+    buffer[hbuflen] = 0;
+    bufusec = (unsigned) -1;
   }
   if (bufusec != tv.tv_usec)
   { buflen = hbuflen + sprintf(buffer + hbuflen, "%ld", (long) tv.tv_usec);
@@ -262,3 +250,5 @@ short Vset(mvar *var, cstring *cptr)		// set a special variable
   }
   return -ERRM8;				// else junk
 }
+
+/* vim:set ts=8 sw=8 et: */

@@ -10,9 +10,11 @@ Copyright 2018-2025 Andras Pahi. All rights reserved.
 
 [Functions](#functions)
 
+[Extended functions](#extended-functions)
+
 [Variables](#variables)
 
-[Structured System Variables](#ssvns)
+[Structured System Variables](#structured-system-variables)
 
 [Limits](#limits)
 
@@ -454,6 +456,38 @@ the descendants. `KSUBSCRIPTS` kills only the descendants of a
 global node, but leaves the node intact.
 
 ---
+
+## Extended functions
+
+`$&%FILE(path,"ATIME")`
+
+Returns the last access time for *path* in horolog format.
+
+---
+
+`$&%FILE(path,"MTIME")`
+
+Returns the last modification time for *path* in horolog format.
+
+---
+
+`$&%FILE(path,"CTIME")`
+
+Returns the last time when the file status changed for *path* in horolog format.
+
+---
+
+`$&%E(expr,"H")`
+
+Returns the numeric expression as hexadecimal string.
+
+---
+
+`$&%HOST("<client>","NAME")`
+
+
+Returns the hostname/IP of current remote shell user.
+
 
 ## Functions
 

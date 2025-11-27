@@ -82,9 +82,13 @@
 // #define ATOMIC_INCREMENT(x)      __sync_add_and_fetch(&(x), 1)
 #define ATOMIC_INCREMENT(x)         inter_add(&(x),1)
 
-#define BLKNO(x)        ((x) & ((1 << 25) - 1))		// 25bit block number
-#define VOLNO(x)        (15 & ((x) >> 25))		//  4bit volume number
-#define VOLBLK(vol,blk) ((((vol) & 15) << 25) | (blk))
+// 25bit block number + 5bit volume number (actually 4bit, but incremented)
+#define VOLMASK         31
+
+#define BLKNO(x)        ((x) & ((1 << 25) - 1))
+#define VOLNORAW(x)     (VOLMASK & ((x) >> 25))
+#define VOLNO(x)        (VOLNORAW(x)-1)
+#define VOLBLK(vol,blk) (((((vol)+1) & VOLMASK) << 25) | (blk))
 
 // **** Structures ***********************************************************
 
