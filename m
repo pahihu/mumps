@@ -1,3 +1,4 @@
 #!/bin/bash
-gnumake -f Makefile.me clean
-gnumake -f Makefile.me darwin.rpath 2>&1 | tee make.log
+GNUMAKE=gnumake
+$GNUMAKE -f Makefile.me clean
+$GNUMAKE -f Makefile.me darwin.rpath 2>&1 | tee make.log

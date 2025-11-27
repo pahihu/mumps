@@ -37,6 +37,7 @@
 #include <stdlib.h>                             // these two
 #include <string.h>
 #include <strings.h>                            // for bzero()
+#include <time.h>                               // for localtime()
 #include <sys/types.h>                          // for u_char def
 #include <errno.h>                              // error stuf
 #include <sched.h>                              // for sched_yield()
@@ -65,6 +66,24 @@ u_int64 monotonic_time(void)
   return (u_int64)time.tv_sec * 1000000000 + time.tv_nsec;
 }
 #endif
+
+//****************************************************************************
+//**  Function: UTIL_time2horolog - converts time to local         ***
+//**  HOROLOG format                                               ***
+int UTIL_time2horolog(time_t sec, char *ret_buffer)
+{ struct tm     *buf;                           // struct for localtime()
+  int day;                                      // number of days
+  int ret;                                      // return value
+
+  buf = localtime( &sec );                      // get GMT-localtime
+#if !defined __CYGWIN__ && !defined __sun__
+  sec = sec + buf->tm_gmtoff;                   // adjust to local
+#endif
+  day = sec / SECDAY + YRADJ;                   // get number of days
+  sec = sec % SECDAY;                           // and number of seconds
+  ret = sprintf( ret_buffer, "%d,%d", day, (int) sec); // construct horolog
+  return ( ret );				// Size of ret_buffer
+}
 
 //****************************************************************************
 //**  Function: UTIL_assert - my assert() funcion, if supplied     ***
@@ -249,3 +268,5 @@ void* UTIL_ShmAt(void)
     return ptr;                                 //   if succeeded, return value
   return SHMAT_SEED;                            // return compiled default
 }
+
+/* vim:set ts=8 sw=8 et: */
