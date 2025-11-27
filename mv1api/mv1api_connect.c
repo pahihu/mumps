@@ -227,6 +227,8 @@ int mv1_initialize_p(MV1DB *hnd,                // connection handle
 
   partab.jobtab->start_len =
     Vhorolog(partab.jobtab->start_dh);		// store start date/time
+  partab.jobtab->zjuDATA_len = 0;               // init ZJU
+  partab.jobtab->zjuDATA[0] = '\0';
 
   partab.jobtab->dostk[0].type = TYPE_RUN;	// ensure slot 0 has a value
 

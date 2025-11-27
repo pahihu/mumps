@@ -1109,7 +1109,13 @@ void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
   int jj_alignment;                                     // align. to 4byte bound
   u_int currsize;                                       // curr. JNL buffer size
   short s;
+  u_char zjuDATA_len;
+  u_char *p;
 
+  zjuDATA_len = 0;
+  if ((JRN_SET == jj->action) || (JRN_KILL == jj->action))
+  { zjuDATA_len = partab.jobtab->zjuDATA_len;
+  }
   currsize = systab->vol[volnum - 1]->jrnbufsize;       // get current size
   jj->time = MTIME(0);                                  // store the time
   jj->size = sizeof(u_short) + 2 * sizeof(u_char) + sizeof(time_t) + sizeof(var_u) + sizeof(u_char) + jj->slen;
@@ -1119,6 +1125,9 @@ void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
   i = jj->size;
   if (jj->action == JRN_SET)                            // add data length
   { jj->size += (sizeof(short) + data->len);
+  }
+  if (zjuDATA_len)
+  { jj->size += (sizeof(u_char) + zjuDATA_len);
   }
   jj_alignment = 0;                                     // calc. aligment
   if (jj->size & 3)
@@ -1139,8 +1148,18 @@ void DoJournal(jrnrec *jj, cstring *data)              	// Write journal
     bcopy(data, systab->vol[volnum - 1]->jrnbuf + currsize, i);
     currsize += i;
   }
-  if (jj_alignment)
+  if (zjuDATA_len)
+  { i = sizeof(u_char) + zjuDATA_len;
+    p = systab->vol[volnum - 1]->jrnbuf + currsize;
+    *p++ = zjuDATA_len;
+    bcopy(partab.jobtab->zjuDATA, p, zjuDATA_len);
+    currsize += i;
+  }
+  if (jj_alignment)                                     // alignment?
+  { p = systab->vol[volnum - 1]->jrnbuf + currsize;
+    for (i = 0; i < jj_alignment; i++) *p++ = 0;        // fill w/ zeros
     currsize += jj_alignment;
+  }
   systab->vol[volnum - 1]->jrnbufsize = currsize;       // update systab
   systab->vol[volnum - 1]->lastdojrn  = MTIME(0);       // save time
   return;

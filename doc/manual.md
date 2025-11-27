@@ -112,6 +112,17 @@ Example:
     SET ^$SYSTEM("VOL",1,"JOURNAL_FILE")="/path/to/newjrn"
 
 
+### Journal user extra data
+
+You can attach additional data to the SET and KILL journal records,
+if you set the per job `ZJU` subscript.  The contents of the ssvn subscript is
+attached to every journal record written.
+
+Example:
+
+    SET ^$JOB($JOB,"ZJU")="UID=42,CLIENT=MOON"
+
+
 ### KILLing data
 
 When you `KILL` globals in the database, MUMPS does not overwrite
@@ -800,6 +811,12 @@ Additional `^$SYSTEM` variables or changed behavior.
 | VOL,n,READONLY            | Read-only volume           | set with priv |
 | VOL,n,TRACK_CHANGES	    | Track block changes in VOL | set with priv |
 | VOL,n,param               | Usage parameters for vol set | no |
+
+Additional `^$JOB` variables or changed behavior.
+
+| Subscript          | Contains                  | Setable |
+| ------------------ | ------------------------- | ------- |
+| ZJU        | Journal user extra data          | yes |
 
 | Parameters | Contains |
 | ---------- | ------------------- |
