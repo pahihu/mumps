@@ -14,7 +14,7 @@ Copyright 2018-2025 Andras Pahi. All rights reserved.
 
 [Variables](#variables)
 
-[Structured System Variables](#structured-system-variables)
+[Structured System Variables](#ssvns)
 
 [Limits](#limits)
 
