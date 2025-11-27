@@ -152,14 +152,15 @@ short DB_Mount( char *file,                     // database
   }
 
   syncjrn = 1;                                  // buffer flush w/ sync
-  if (jkb < 0)                                  // if negative
+  minjkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
+  if (0 == jkb)                                 // default jkb?
+  { jkb = minjkb;
+  }
+  else if (jkb < 0)                             // if negative
   { syncjrn = 0;                                //   then disable sync
     jkb   = -jkb;
   }
-  minjkb = ((MIN(hbuf[3], MAX_STR_LEN) + sizeof(jrnrec)) * MIN_JRNREC) / 1024;
-  if (minjkb > jkb)
-  { jkb = minjkb;
-  }
+  jkb = MAX(minjkb, jkb);
   jkb *= 1024;
   jkb = (((jkb - 1) / pagesize) + 1) * pagesize;
   jkb /= 1024;
@@ -327,3 +328,5 @@ short DB_Mount( char *file,                     // database
 
   return (0);                                   // indicate success
 }
+
+// vim:set ts=8 sw=8 et:
