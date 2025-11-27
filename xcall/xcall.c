@@ -306,6 +306,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
   int		len;				// Filename length
   char		*patptr;			// Pointer to pattern
   cstring	env;				// Current directory
+  char          pathsep[] = {PATHSEP, 0};
 
 // If file is empty, then return the next matching directory entry or NULL
 
@@ -324,7 +325,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       ret = isPatternMatch ( pattern, dent->d_name );
       if ( ret == 1 )				// Found next matching
       {						//  directory entry
-	(void) sprintf ( ret_buffer, "%s", dent->d_name );
+	(void) strcpy ( ret_buffer, dent->d_name );
 	return ( strlen ( ret_buffer ) );
       }
     }
@@ -334,7 +335,8 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 // entry or NULL
 
   else
-  { (void) sprintf ( path, "%s", file->buf );	// Make a local copy of the
+  { (void) strcpy ( path,                       // Make a local copy of the
+                    (const char *) file->buf );
     len = strlen ( path );			//  filename
     patptr = path;				// Move pointer to the
     patptr += len;				//  filenames NULL terminator
@@ -350,8 +352,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
 	// If the first occurence of PATHSEP is the first character in "path",
 	// then we want to search the root directory.
 	
-	if ( len == 0 ) (void) sprintf ( path, "%c", (char)PATHSEP );
-	else (void) sprintf ( path, "%s", path );
+	if ( len == 0 ) (void) strcpy ( path, pathsep );
 	patptr += 1;
 	len = -2;
       }
@@ -361,19 +362,23 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       }
     }
 
-    (void) sprintf ( pattern, "%s", patptr );	// Record pattern for
+    (void) strcpy ( pattern, patptr );	        // Record pattern for
 						//  subsequent calls
 
     // If path is empty, then assume current directory
 
     if (len == -1)
-    { (void) sprintf ( (char *)env.buf, "%s", "PWD" );
+    { (void) strcpy ( (char *)env.buf, "PWD" );
       env.len = strlen ( (char *)env.buf ); 
       ret = Xcall_getenv ( path, &env, NULL);
       if ( ret < 0 ) return ( ret );
-      (void) sprintf ( path, "%s%c", path, (char)PATHSEP );
+      (void) strcat ( path, pathsep );
     }
 
+    if ( dirp )                                 // Directory open?
+    { closedir ( dirp );                        //   close it
+      dirp = NULL;
+    }
     dirp = opendir ( path );			// Open the directory
     if ( dirp == NULL )				// Failed to open directory
     { ret_buffer = NULL;
@@ -389,7 +394,7 @@ short Xcall_directory(char *ret_buffer, cstring *file, cstring *dummy)
       ret = isPatternMatch ( pattern, dent->d_name );
       if ( ret == 1 )				// Found next matching
       {						//  directory entry
-	(void) sprintf ( ret_buffer, "%s", dent->d_name );
+	(void) strcpy ( ret_buffer, dent->d_name );
 	return ( strlen ( ret_buffer ) );
       }
     }
