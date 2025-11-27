@@ -1640,3 +1640,5 @@ short SS_Order(mvar *var, u_char *buf, int dir) // get next subscript
   }
   return (-ERRM38);				// can't get here?
 }
+
+// vim:set ts=8 sw=8 et:

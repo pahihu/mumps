@@ -2032,6 +2032,7 @@ short DB_Restore(const char *bkp_path, int bkp_vol, const char *vol_path)
       }
       goto ErrOut;				// return error
     }
+    ASSERT(VOLNORAW(volblk));                   // VOLNO valid
     vol = VOLNO(volblk);			// get volume no.
     blknum = BLKNO(volblk);			// get block no.
     if (vol + 1 > bheader.nvols)		// check volume index
