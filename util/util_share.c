@@ -155,12 +155,16 @@ pid_t mypid = 0;
 extern void mv1_log_init();
 
 short SemOpEx(int sem_num, int numb,
-              const char *file, int line)        // Add/Remove semaphore
+              const char *file, int line)       // Add/Remove semaphore
 { short s;                                      // for returns
   int i;                                        // for try loop
   char msg[128];
 
   ASSERT((volnum > -1) && (volnum < MAX_VOL+1));// valid volume
+  if (volnum)
+  { ASSERT(NULL != systab->vol[volnum-1]->vollab);   // volume mounted
+  }
+  // fprintf(stderr,"%s:%d @%d=%d/%d curr=%d\r\n",file,line,volnum,sem_num,numb,curr_sem[sem_num][volnum]);
 
   sem_file = file;
   sem_line = line;

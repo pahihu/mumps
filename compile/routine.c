@@ -47,6 +47,7 @@
 #include "error.h"                              // and the error defs
 #include "opcodes.h"                            // and the opcodes
 #include "compile.h"				// compile stuff
+#include "database.h"                           // volume stuff
 
 // function routine entered with source_ptr pointing at the source
 // to evaluate and comp_ptr pointing at where to put the code.
@@ -436,7 +437,8 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
 	      same = 1;				// same rou and source
   }						// end source ssvn check
   if (!partab.checkonly)			// if it's a real compile
-  { s = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
+  { volnum = rou->volset;                       // set volume
+    s = SemOp(SEM_ROU, -systab->maxjob);	// grab the routine semaphore
     if (s < 0) return s;			// if we got an error, quit
     rou_slen  = rou->slen;			// save routine key size
     rou_nsubs = rou->nsubs;
@@ -711,3 +713,5 @@ int Compile_Routine(mvar *rou, mvar *src, u_char *stack)
   i = SemOp(SEM_ROU, systab->maxjob);		// release sem
   return j;					// NEED MORE HERE
 }
+
+/* vim:set ts=8 sw=8 et: */
