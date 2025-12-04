@@ -329,6 +329,10 @@ short SS_Get(mvar *var, u_char *buf)            // get ssvn data
 
     case 'S':					// $SYSTEM
       if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "tranvar\0", 8) == 0))
+      { return itocstring(buf, systab->TranVAR); // return the value
+      }
+      if ((nsubs == 1) &&
 	  (strncasecmp( (char *) subs[0]->buf, "tsize\0", 6) == 0))
       { return itocstring(buf, sizeof(time_t)); // return the value
       }
@@ -855,6 +859,13 @@ short SS_Set(mvar *var, cstring *data)          // set ssvn data
             (j > (0.9 * systab->vol[0]->vollab->block_size))) // XXX volume?
           return -(ERRMLAST+ERRZ64);
         systab->ZMinSpace = j;
+	return 0;				// and exit
+      }
+
+      if ((nsubs == 1) &&
+	  (strncasecmp( (char *) subs[0]->buf, "tranvar\0", 8) == 0))
+      { j = cstringtoi(data);
+        systab->TranVAR = 0 != j;
 	return 0;				// and exit
       }
 
