@@ -277,7 +277,7 @@ int INIT_Start( char *file,                     // database
   share_size = sjlt_size + volset_size;         // shared memory size
   addoff = share_size;                              // where add buff starts
   share_size = share_size + ( addmb * MBYTE );      // and the additional
-  printf("Share total size %d MB.", (share_size + MBYTE - 1) / MBYTE);
+  printf("Share total size %d MB.\n", (share_size + MBYTE - 1) / MBYTE);
 
   shar_mem_id = shmget(shar_mem_key,
                        share_size,
