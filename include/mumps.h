@@ -276,7 +276,7 @@ typedef union semun semun_t;
 
 #endif
 
-#define MAX_TRANTAB	        256             // total number of entries
+#define MAX_TRANTAB	        512             // total number of entries+1
 #define MAX_TRANTAB_HASH        (2*MAX_TRANTAB)
 #define TRANTAB_HASH_MASK       (MAX_TRANTAB_HASH-1)
 
@@ -299,6 +299,12 @@ typedef struct __PACKED__ CSTRING 		// our string type
 } cstring;                                      // end counted string
 
 #define MV1_SUBSPOS     1
+
+typedef struct __PACKED__ GVAR                  // ^[UCI,VOL]VAR
+{ var_u name;                                   // variable name
+  u_char volset;                                // volset number
+  u_char uci;                                   // uci#
+} gvar;
 
 typedef struct __PACKED__ MVAR 			// subscripted MUMPS var
 { var_u name;                                   // variable name
@@ -629,6 +635,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   int sem_id;                                   // GBD semaphore id
   int historic;                                 // Enn, tag+off, $NEXT etc
   int precision;                                // decimal precision
+  int TranVAR;                                  // also translate ^VAR
   int max_tt;                                   // max TRANTAB used
   int tthash_empty;                             // empty tthash[]
   trantab tt[MAX_TRANTAB];                      // translation tables

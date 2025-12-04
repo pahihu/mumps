@@ -147,11 +147,9 @@ void UTIL_TTFillHash(void)                              // Fill up tthash[]
 }
 
 
-int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
+static
+int UTIL_TTFindP(var_u *src, var_u *dst)                // find src in tthash[]
 { int i, j, k;                                          // handy ints
-
-  if (systab->tthash_empty)                             // hash empty?
-    UTIL_TTFillHash();                                  //   fill it!
 
   j = FNV1aHash(sizeof(var_u) + 2,                      // calc. hash
                       (u_char *) src) & TRANTAB_HASH_MASK;
@@ -168,6 +166,29 @@ int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
     j = (j + 1) & TRANTAB_HASH_MASK;                    // next hash entry
   }
   return -1;
+}
+
+
+int UTIL_TTFind(var_u *src, var_u *dst)                 // find src in tthash[]
+{ int ret;                                              // handy int
+  gvar gv;                                              // the VAR
+
+  if (systab->tthash_empty)                             // hash empty?
+    UTIL_TTFillHash();                                  //   fill it!
+
+  ret = UTIL_TTFindP(src, dst);                         // find ^[UCI,VOL]VAR
+  if (ret >= 0)                                         //   found it ?
+  { return ret;                                         // done
+  }
+
+  if (0 != systab->TranVAR)                             // translate as ^VAR ?
+  { bcopy(src, &gv, sizeof(gv));                        // copy to local
+    // fprintf(stderr,"TranVAR: ^[%d,%d]%s\r\n",gv.uci, gv.volset, gv.name.var_cu);
+    gv.volset = 0;                                      // clear UCI,VOL
+    gv.uci = 0;
+    ret = UTIL_TTFindP(&gv, dst);                       // find it
+  }
+  return ret;
 }
 
 const char* UTIL_VarName(mvar *var)
@@ -225,7 +246,10 @@ short Copy2local(mvar *var, char *rtn)
   if ((var->volset == 0) &&                             // no vol or uci
       (var->uci == 0) &&		
       (systab->max_tt))                                 //   and has translation
-  { i = UTIL_TTFind(&var->name, &db_var.name);          // trantab lookup
+  { // 251202AP the original ^VAR is without UCI,VOL but we want to
+    //          translate the ^[UCI,VOL]VAR.  This allows per UCI
+    //          translations. This is the original behavior (Josef Nagy)
+    i = UTIL_TTFind(&db_var.name, &db_var.name);        // trantab lookup
     if (i > 0)                                          // routine proc?
       return i;                                         //   done
   }							// end trantab lookup

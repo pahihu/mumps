@@ -137,9 +137,16 @@ the system parameter *ZOTDATA* to 1. By default *ZOTDATA* is
 
 ### Translation table
 
-You could map globals with these feature from one volume set/uci to
+You could map globals with these feature from one volume set/UCI to
 another. This is not new, just the implementation is changed. You could
-have up to 256 translations in the table.
+have up to 511 translations in the table.
+
+Setting `^$SYSTEM("TRANVAR")` you could map a global from every UCI.
+For example the following entry will map the `^TMP` global from every
+UCI to the `MGR` UCI.
+
+    SET ^$SYSTEM("TRANTAB",1)="^[""MGR""]TMP=^TMP"
+    SET ^$SYSTEM("TRANVAR")=1
 
 
 ### Volume syncing
@@ -796,6 +803,7 @@ Additional `^$SYSTEM` variables or changed behavior.
 | REPLICA,n,TYPE       | Replica type MANDATORY or OPTIONAL | set with priv |
 | RESTTIME           | Daemon rest time          | no |
 | RESTORE_FILE       | Volume file to restore from backup | set with priv |
+| TRANVAR            | Translate `^VAR` from every UCI | set with priv |
 | TSIZE              | sizeof(time_t)            | no |
 | ZMINSPACE          | Min. free space in blocks | set with priv |
 | ZOTDATA   	     | Zero free blocks          | set with priv |
@@ -867,7 +875,7 @@ MUMPS with commands/functions written in MUMPS
 | Maximum subscript length          | 127                      |
 | Maximum global value size	    | min(block size, 32KB)    |
 | No. of global subscripts	    | 63                       |
-| Global translation table size	    | 255		       |
+| Global translation table size	    | 511		       |
 | Maximum no. of jobs               | 4096                     |
 | Maximum no. of write daemons	    | 10		       |
 | Maximum JOB command length        | 32KB                     |

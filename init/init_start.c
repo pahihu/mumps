@@ -277,6 +277,7 @@ int INIT_Start( char *file,                     // database
   share_size = sjlt_size + volset_size;         // shared memory size
   addoff = share_size;                              // where add buff starts
   share_size = share_size + ( addmb * MBYTE );      // and the additional
+  printf("Share total size %d MB.", (share_size + MBYTE - 1) / MBYTE);
 
   shar_mem_id = shmget(shar_mem_key,
                        share_size,
@@ -336,6 +337,7 @@ int INIT_Start( char *file,                     // database
   systab->precision = DEFAULT_PREC;		// decimal precision
   systab->ZMinSpace = DEFAULT_ZMINSPACE;        // Min. Space for Compress()
   systab->ZotData = 0;                          // Kill zeroes data blocks
+  systab->TranVAR = 0;                          // also translate ^VAR
   systab->ZMaxRestTime = DEFAULT_MAXRESTTIME;	// Daemon rest time
   systab->ZRestTime = systab->ZMaxRestTime;
   systab->dgpID = sysid;			// system ID
