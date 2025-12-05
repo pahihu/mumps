@@ -141,12 +141,14 @@ You could map globals with these feature from one volume set/UCI to
 another. This is not new, just the implementation is changed. You could
 have up to 511 translations in the table.
 
-Setting `^$SYSTEM("TRANVAR")` you could map a global from every UCI.
-For example the following entry will map the `^TMP` global from every
-UCI to the `MGR` UCI.
+Setting `^$SYSTEM("TRANVAR")` to non-zero you could map a global 
+from every UCI.  For example the following entry will map the `^TMP` 
+global from every UCI to the `MGR` UCI.
 
     SET ^$SYSTEM("TRANTAB",1)="^[""MGR""]TMP=^TMP"
     SET ^$SYSTEM("TRANVAR")=1
+
+By default the value of `^$SYSTEM("TRANVAR") is 0.
 
 
 ### Volume syncing
