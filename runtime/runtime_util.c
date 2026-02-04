@@ -302,8 +302,8 @@ int mumps_version(u_char *ret_buffer)           // return version string
 		 VERSION_MAJOR, VERSION_MINOR, VERSION_TEST);
   }
   else						// else normal release
-  { i += sprintf((char *)&ret_buffer[i], "%d.%02d for ",
-		 VERSION_MAJOR, VERSION_MINOR);
+  { i += sprintf((char *)&ret_buffer[i], "%d.%02d %s for ",
+		 VERSION_MAJOR, VERSION_MINOR, VERSION_EXT);
   }
   j = 0;                                        // clear src ptr
   while ((ret_buffer[i++] = uts.sysname[j++])); // copy name
