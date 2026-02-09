@@ -155,7 +155,7 @@ start:
        break;					// and exit loop
      }
     if (env_num == 0)
-    { ret = EAUTH;				// complain on fail
+    { ret = EACCES;				// complain on fail
       goto exit;				// and exit
     }
   }

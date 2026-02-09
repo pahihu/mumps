@@ -202,7 +202,7 @@ runit:
   { case ENOENT:
       fprintf( stderr, "\tMumps database not loaded\n");
       break;
-    case EAUTH:
+    case EACCES:
       fprintf( stderr, "\tMumps environment(uci) not found)\n");
       break;
     case ENOMEM:
