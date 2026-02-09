@@ -198,10 +198,19 @@ runit:
                        "Error occured in process - %s\n", // complain
                        strerror(c));            // what was returned
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__linux__)
-	if (c == ENOENT)
-		fprintf( stderr, "\tMumps database not loaded\n");
-	else if (c == ENOMEM)
-		fprintf( stderr, "\tMumps job table is full\n");
+  switch (c)
+  { case ENOENT:
+      fprintf( stderr, "\tMumps database not loaded\n");
+      break;
+    case EAUTH:
+      fprintf( stderr, "\tMumps environment(uci) not found)\n");
+      break;
+    case ENOMEM:
+      fprintf( stderr, "\tMumps job table is full\n");
+      break;
+  }
 #endif
   exit (c);                                     // exit with value
 }
+
+// vim:set ts=8 sw=8 et:

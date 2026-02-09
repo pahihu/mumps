@@ -664,6 +664,7 @@ typedef struct __ALIGNED__ SYSTAB              // system tables
   VOLATILE time_t dgpRESTART;			// DGP RESTART phase timeout
   int dgpSTART[MAX_JOB];			// client: MV1_PIDs (0-4096)
   int numcpu2;                                  // number of CPUs x 2
+  int EnvStarted;                               // MUMP env. initialized
   time_t Mtime;
 #ifdef MV1_SHSEM
   LATCH_T shsem[SEM_GLOBAL];                    // shared semaphores

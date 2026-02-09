@@ -528,8 +528,11 @@ int INIT_Start( char *file,                     // database
   }						// end setup gbds
 
   Routine_Init();				// and the routine junk
+  systab->EnvStarted = 1;                       // env. initialized
   i = shmdt(systab);                            // detach the shared mem
   i = close(dbfd);                              // close the database
   printf( "MUMPS environment initialized.\n");  // say something
   return (0);                                   // indicate success
 }
+
+// vim: set ts=8 sw=8 et:

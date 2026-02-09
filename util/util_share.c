@@ -133,11 +133,18 @@ int UTIL_Share(const char *dbf)                 // pointer to dbfile name
   { i = shmdt( sad );				// unmap it
     sad = shmat(shar_mem_id, (void *) systab, 0); // try again
     if ( systab != sad)
-    { i = errno;                                // save error
+    { i = EADDRNOTAVAIL;                        // set error
       fprintf(stderr, "Unable to attach to systab at %lX (%s)\n",
         (u_long) systab,                        // expected systab addr
         strerror(i));                           // current error
-      return(EADDRNOTAVAIL);			// die on error
+      return(i);			        // die on error
+    }
+    if (!systab->EnvStarted)                    // MUMPS env. started?
+    { i = shmdt( sad );                         // unmap it
+      i = EAGAIN;                               // temp. unavailable
+      fprintf(stderr, "MUMPS environment initialization in progress (%s)\n",
+        strerror(i));                           // current error
+      return(i);                                // die on error
     }
   }
   sem_id = semget(shar_mem_key, 0, 0);		// attach to semaphores

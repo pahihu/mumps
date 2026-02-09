@@ -388,3 +388,5 @@ jobit:						// code for JOB
     return ret;
   return mv1_xecute(&jobhnd, cmd); 
 }
+
+// vim:set ts=8 sw=8 et:
