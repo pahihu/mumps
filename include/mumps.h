@@ -86,8 +86,8 @@
 #define MAX_MAP_BYTES	(MAX_MAP_CHUNKS * 32 * MAP_CHUNK) // 4MB for now
 #define MAX_DATABASE_BLKS 2147483647            // max of 2**31-1 for now
 #define VERSION_MAJOR   2026                    // Major version number
-#define VERSION_MINOR   1                       // Minor version number
-#define VERSION_TEST	0                       // Test version number
+#define VERSION_MINOR   2                       // Minor version number
+#define VERSION_TEST	1                       // Test version number
 #define VERSION_EXT     "NP"                    // Neil. Pappalardo
 #define KBYTE           ((size_t) 1024)         // 1024
 #define MBYTE           ((size_t) 1048576)      // 1024*1024
